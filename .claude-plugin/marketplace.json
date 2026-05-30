@@ -1,0 +1,7 @@
+{
+  "name": "patrik-worklog",
+  "owner": { "name": "Patrik Persson" },
+  "plugins": [
+    { "name": "worklog", "source": "./" }
+  ]
+}
