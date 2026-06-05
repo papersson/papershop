@@ -62,7 +62,7 @@ and apply its pre-flight:
 ## Step 3 — Classify the trigger, match a template
 
 Map the task to one of the Step-1 triggers, and if it fits a canonical shape, pull the matching
-template from `../../workflows/templates/`:
+template from the `templates/` directory alongside this skill:
 
 - `deep-verify.md` — check/source every claim in a document, report, or PR description.
 - `rank.md` — sort or triage N items by a qualitative measure (severity, fit, quality).
