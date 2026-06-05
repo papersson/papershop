@@ -28,14 +28,14 @@ the index dropped (for example, the error bodies that friction analysis needs).
 ## Commands
 
 Every subcommand refreshes the index first, so `index` is rarely needed by hand.
-All accept `--json`.
+The query subcommands (`report`, `search`, `task`) accept `--json`.
 
 | Command | What it does |
 | --- | --- |
 | `worklog index` | Build or refresh the index |
-| `worklog report --since 7d [--until ISO] [--summarize]` | What you worked on in a window |
-| `worklog search "<topic>" [--since ISO]` | Sessions matching a topic, ranked |
-| `worklog task "<topic>"` | Full dossier: sessions, timeline, files, commands |
+| `worklog report --since 7d [--until ISO] [--summarize] [--json]` | What you worked on in a window |
+| `worklog search "<topic>" [--since ISO] [--json]` | Sessions matching a topic, ranked |
+| `worklog task "<topic>" [--json]` | Full dossier: sessions, timeline, files, commands |
 
 `--since` accepts `7d` / `2w` / `12h` or an ISO date.
 
@@ -77,7 +77,8 @@ drops a `worklog` shim into `~/.local/bin`. The shim runs the bundled script via
 | `WORKLOG_DB` | `~/.claude/worklog.duckdb` | Index location |
 | `WORKLOG_DUCKDB_EXTENSION_DIR` | duckdb default | Writable dir for the `fts` extension |
 
-The nix wrapper sets both to a path under `$XDG_CACHE_HOME/worklog`.
+The nix wrapper points both at `$XDG_CACHE_HOME/worklog` — `WORKLOG_DUCKDB_EXTENSION_DIR`
+unconditionally, `WORKLOG_DB` as a default that an already-set value overrides.
 
 ## State and schema
 
