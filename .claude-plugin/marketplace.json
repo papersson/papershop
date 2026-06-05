@@ -3,6 +3,7 @@
   "owner": { "name": "Patrik Persson" },
   "plugins": [
     { "name": "worklog", "source": "./worklog" },
-    { "name": "orchestrate", "source": "./orchestrate" }
+    { "name": "orchestrate", "source": "./orchestrate" },
+    { "name": "prose", "source": "./prose" }
   ]
 }
