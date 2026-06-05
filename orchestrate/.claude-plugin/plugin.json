@@ -1,0 +1,6 @@
+{
+  "name": "orchestrate",
+  "version": "0.1.0",
+  "description": "Turn a rough task into a well-structured dynamic-workflow invocation. A skill that gates, scopes, and fires multi-agent workflows, plus reusable invocation templates (deep-verify, rank, root-cause).",
+  "author": { "name": "Patrik Persson" }
+}

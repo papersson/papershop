@@ -25,7 +25,7 @@
               mkdir -p "$cache/ext"
               export WORKLOG_DUCKDB_EXTENSION_DIR="$cache/ext"
               export WORKLOG_DB="''${WORKLOG_DB:-$cache/worklog.duckdb}"
-              exec ${py}/bin/python ${./scripts/worklog.py} "$@"
+              exec ${py}/bin/python ${./worklog/scripts/worklog.py} "$@"
             '';
           };
           default = worklog;
