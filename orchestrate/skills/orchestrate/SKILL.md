@@ -33,7 +33,7 @@ A workflow earns its cost only when the task is one of:
 - **Don't-trust-the-first-answer** — you need verification from an agent that did *not* do the work: check every claim in a doc, audit security, confirm rule adherence.
 - **Unknown-size discovery** — bugs, flaky-test root cause, recurring patterns; you don't know how much work there is, so you loop until done.
 - **Taste / exploration** — naming, design, approach selection where a rubric plus competition beats one shot.
-- **Parallel mutation** — migrations/refactors where each fix is independent and isolatable in its own worktree.
+- **Parallel mutation** — migrations/refactors where each unit is independent: port every file, fix every finding, get every module to compile.
 - **Recurring / unattended** — triage, briefings, drift detection on a cadence (pair with `/loop` or `/schedule`).
 
 If the task is none of these, **say so and offer to just do it directly.** Do not build a
@@ -52,7 +52,9 @@ and apply its pre-flight:
   on completion.
 - **Cold start, workflow-first** — they opened a session to run this. There's no context yet, so
   **scout the work-list inline first** (list the files, find the channels, scope the diff), *then*
-  fire. Don't structure the orchestration before you know the shape of the work.
+  fire. Don't structure the orchestration before you know the shape of the work. When the work-list
+  lives in one document (a report, a checklist), split it into discrete per-unit inputs first — one
+  file per finding — so each agent gets exactly one unit and the same prompt with different arguments.
 - **Scheduled / unattended** — it will run with nobody watching. The invocation must be
   **fully self-contained**: no follow-up questions, success criterion spelled out, output
   destination named. Ask yourself: would this still be unambiguous at 3am with the user asleep?
@@ -65,6 +67,7 @@ template from `../../workflows/templates/`:
 - `deep-verify.md` — check/source every claim in a document, report, or PR description.
 - `rank.md` — sort or triage N items by a qualitative measure (severity, fit, quality).
 - `root-cause.md` — find why something breaks (flaky test, failed pipeline, incident, regression).
+- `migrate.md` — mechanically transform every item in a large set (port files, fix every finding, get modules compiling), each with per-unit adversarial review.
 
 Templates are starting points, not scripts to run verbatim. Adapt the work-list, rubric, and
 stop condition to the actual task. If nothing matches, compose from the pattern vocabulary below.
@@ -80,7 +83,7 @@ task didn't already specify:
   rubric pass. This is what prevents the agent from quitting at "handled enough."
 - **Verification** — who checks the work, against what rubric, and is it a *separate* agent?
 - **Budget & model** — a token ceiling ("use ~50k tokens"); cheap steps to Haiku, hard ones to Opus.
-- **Isolation** — do fan-out agents mutate files? Then each needs its own worktree.
+- **Isolation** — do fan-out agents mutate files? Either give each its own worktree, or keep them on a shared branch with stateful commands banned (see the mutation discipline below).
 - **Output** — what's the deliverable and where does it go?
 
 Don't over-interview. Ask only what's genuinely undetermined and would change the result; fill the
@@ -101,6 +104,21 @@ invoke each:
 These compose. A strong invocation usually states: the unit of work, the shape (in these words),
 the verification step, and the stop condition — in one or two tight paragraphs.
 
+### Discipline for parallel mutation
+
+When fan-out agents change files (migrations, refactors, applying a batch of fixes), the proven
+shape is **do → adversarially review → apply**, with the apply deferred:
+
+- Inside each fan-out agent, produce the change and have one or two adversarial agents try to
+  refute it — but **ban slow and stateful commands** (git, build, test, package managers). They
+  collide with other agents on a shared branch and exhaust the machine, which kills the parallelism
+  that makes the workflow fast.
+- **Apply, build, test, and commit once, serially, at the end** — a single barrier that lands all
+  the reviewed changes together, gets the build green, and opens the PR.
+- Choose one isolation strategy: give each agent its own **worktree** (true isolation, agents can
+  build independently), or keep them on a **shared branch with stateful commands banned** and a
+  serial apply (lighter, no worktree overhead). Don't mix.
+
 ### Failure modes → what to put in the prompt
 
 Phrase against the three things that go wrong when one context does too much:
@@ -114,6 +132,8 @@ Phrase against the three things that go wrong when one context does too much:
 Show the user the assembled invocation, then launch the dynamic workflow (this skill is your
 authorization to use the Workflow capability). Mid-session, run it in the background and tell them
 they'll be notified. Honor any token budget they gave. If a stop condition could run away, cap it.
+For a project too large to finish in one run, pair the workflow with `/loop` so it resumes and keeps
+going across runs until the stop condition is met.
 
 ## Self-check before firing
 
