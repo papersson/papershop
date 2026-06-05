@@ -47,7 +47,7 @@ Add the flake as an input and pull the package into your environment:
 
 ```nix
 inputs.worklog = {
-  url = "github:papersson/cc-plugins";
+  url = "github:papersson/papershop";
   inputs.nixpkgs.follows = "nixpkgs";
 };
 
@@ -62,8 +62,8 @@ PyPI fetch. The `fts` extension downloads once into `$XDG_CACHE_HOME/worklog/ext
 ### Plugin (non-nix)
 
 ```
-claude plugin marketplace add papersson/cc-plugins
-claude plugin install worklog@patrik-plugins
+claude plugin marketplace add papersson/papershop
+claude plugin install worklog@papershop
 ```
 
 A SessionStart hook runs `bootstrap.sh`, which ensures `uv` is installed and

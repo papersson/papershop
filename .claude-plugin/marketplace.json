@@ -1,5 +1,5 @@
 {
-  "name": "patrik-plugins",
+  "name": "papershop",
   "owner": { "name": "Patrik Persson" },
   "plugins": [
     { "name": "worklog", "source": "./worklog" },

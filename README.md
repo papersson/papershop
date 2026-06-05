@@ -1,4 +1,4 @@
-# cc-plugins
+# papershop
 
 A small Claude Code plugin marketplace.
 
@@ -12,14 +12,14 @@ A small Claude Code plugin marketplace.
 Add the marketplace once:
 
 ```
-claude plugin marketplace add papersson/cc-plugins
+claude plugin marketplace add papersson/papershop
 ```
 
 Then install either plugin:
 
 ```
-claude plugin install worklog@patrik-plugins
-claude plugin install orchestrate@patrik-plugins
+claude plugin install worklog@papershop
+claude plugin install orchestrate@papershop
 ```
 
 `worklog` also ships a Nix flake (it has a Python engine to build); see
