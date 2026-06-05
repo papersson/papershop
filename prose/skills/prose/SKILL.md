@@ -108,17 +108,51 @@ actual voice. If removing a "tell" would also remove personality and the tell is
 The goal is to remove the signature *density* of machine text, not to launder prose into one safe
 register.
 
-## Process
+## Depth: inline or a workflow
 
-**rewrite:** read and infer register → diagnose (the grep-able tells first, then the judgment calls:
-rhythm, abstraction, voice) → treat top-down (structure, then paragraph, then sentence, then word)
-→ preserve meaning, facts, and voice → self-check against over-correction → return only the prose.
+Gate every request. Most prose is short and low-stakes; handle it **inline** in one pass. Fire a
+**dynamic workflow** when the piece is long (a full document or essay), high-stakes (being published,
+or something the writer clearly cares about), or when the user asks for it (`/prose deep ...`).
+
+The reason is not size, it's bias. A single context that rewrites and then judges its own rewrite
+carries self-preferential bias: the same model that produced the prose cannot reliably tell whether
+it still reads like AI, because its own output sits at the mode of "fine." The workflow breaks this
+by handing diagnosis and verification to separate agents that never see each other's reasoning. That
+separation is the whole point; an inline pass cannot give you it.
+
+## Inline process
+
+**rewrite:** read and infer register → diagnose (grep-able tells first, then the judgment calls:
+rhythm, abstraction, voice) → treat top-down (structure, then paragraph, then sentence, then word) →
+preserve meaning, facts, and voice → self-check against over-correction → return only the prose.
 
 **review:** read and infer register → diagnose → emit located findings, each as `"span" — [tell or
 pathology] · principle (Author). Fix: ...` → lead with what works, order by impact → show the
 targeted fix per finding, not a wholesale rewrite.
 
-**Verify (high-stakes or long pieces only):** do a fresh-eyes pass as if you'd never seen it. Did
-the rewrite introduce new tells (swapping one for another is common)? Did meaning and voice survive?
-Does it still read like a person wrote it? For a long document this is where a separate
-detector-and-verifier workflow earns its cost; most edits don't need it.
+## The deep path (dynamic workflow)
+
+When the gate calls for it, construct and fire a workflow. Set a token budget and cap it (this is
+multi-agent but web-free, so a few hundred k at most). Shape:
+
+1. **Diagnose (fan-out, separate contexts).** One critic agent per lens — AI-tells, concreteness,
+   cadence, coherence, voice/register, cutting, honesty, plus a technical-explanation lens for
+   technical writing — each reading the whole text and returning *located* findings (span, problem,
+   principle, severity, fix) across word / sentence / paragraph / document granularity. Separate
+   contexts so the lenses don't contaminate one another.
+2. **Adversarial smell-test.** A dedicated agent reading as a skeptical human: does this sound
+   AI-written? Find every tell, including ones no checklist names. Plus a refuter that challenges
+   weak or over-zealous findings, so the pass doesn't over-correct.
+3. **Plan (barrier).** Synthesize all findings: dedupe, resolve conflicts (cadence wants to split a
+   sentence, cohesion wants it joined — adjudicate), order edits top-down, honor the register and the
+   over-correction guard. Output a concrete edit plan.
+4. **Branch by mode.**
+   - **review:** return the synthesized, located critique as the teaching output. Stop here.
+   - **rewrite:** apply the plan, then **verify with fresh agents that never saw the original** —
+     (a) tells removed without new ones introduced (swapping one tell for another is common),
+     (b) meaning, facts, and argument intact (style only), (c) voice preserved, not flattened,
+     (d) it reads as a human wrote it (a fresh smell-test). Loop: if any check fails, revise and
+     re-verify, until two consecutive passes are clean or the cap is hit. Return only the prose.
+
+The fresh-eyes verification in step 4 is the structural answer to self-preferential bias. If the
+`orchestrate` skill is installed you can hand it this shape; otherwise fire it directly.
