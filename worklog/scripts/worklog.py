@@ -423,6 +423,13 @@ def cmd_task(con, query: str, as_json: bool) -> None:
 
 # ----------------------------------------------------------------------------- main
 def main() -> None:
+    """Parse args, refresh the index, and dispatch to the requested subcommand.
+
+    Connects to the DuckDB index (creating/migrating it as needed via
+    `ensure_index`), then routes to one of `index`, `report`, `search`, or
+    `task`. Every path auto-refreshes the index first, so the data is current
+    regardless of which subcommand runs.
+    """
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("index", help="build/refresh the index")
