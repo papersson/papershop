@@ -89,6 +89,11 @@ read well in one context. Fire a workflow:
 - **Synthesize** — cluster pain points by recurrence and recency, rank them, separate quick fixes
   from deeper ones, and ground each in a concrete session/error. Drop anything not grounded.
 
+The **verifier is rung-1 deterministic**: a pain-point must cite a real line in a `.jsonl`; one that
+doesn't is **FAILED** and dropped (an agent error), not BLOCKED. **BLOCK** only on genuinely
+unresolvable scope — an empty or ambiguous session list, or an ambiguous time window — rather than
+fabricating friction.
+
 **4. Resume a task (inline).** Run `task "<topic>"`. Assemble a briefing for a fresh agent:
 current state (done vs in-flight, from the latest sessions), what was done (condensed history),
 key files (both edited artifacts and *read* files — the frequency lists guide you; list concrete
@@ -124,7 +129,11 @@ filter + adversarial-verify workflow:
   CLAUDE.md? Is it so broad it would cause false positives? Keep only survivors. Bias the skeptic
   toward rejection — a smaller set of true rules beats a long list of noise.
 - **Distill** — write the survivors as CLAUDE.md rules at the right scope (global vs project vs
-  subdirectory), and present them for the user to approve before writing anything.
+  subdirectory). The skeptic above **is the verifier** and the filter's stop condition; add a rung-1
+  deterministic check that each candidate isn't already in CLAUDE.md (grep it). Presenting the rules
+  for approval before writing is a **typed gate**: interactive = ask inline; autonomous or scheduled
+  = return BLOCKED and resume on the user's decision. Never write CLAUDE.md without that gate
+  clearing.
 
 ## Output
 
