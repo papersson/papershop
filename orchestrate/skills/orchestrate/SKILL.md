@@ -26,9 +26,13 @@ Two mental models, held together:
   **verification-first as the spine**: you write the check that proves the task is done before you
   pick any shape, and the workflow is finished when that check passes, not when the agents stop.
 
-The gate (Step 1) stays the first and loudest thing. Everything this skill adds — the topology
-catalog, the verifier machinery — is a ladder the gate authorizes climbing, never a default to reach
-for. Most warranted workflows are a single fan-out plus one verify node.
+The gate (Step 1) stays the first thing — but its job is to decide *whether* a workflow is warranted
+at all, and it still turns trivial work away. Once a task is through the gate, the bias flips: a
+workflow is the moment to **spend inference-time compute well**, so feedback loops, adversarial
+verification, and diverse lenses are the defaults, not opt-in escalations. The discipline is not
+*fewer nodes* — it is that **every node earns decorrelated signal** (independent verification,
+diversity, or adversarial pressure); compute that just repeats the same doer buys nothing. Reach for
+the richest topology whose every node clears that bar.
 
 ## Step 1 — Gate: does this even need a workflow?
 
@@ -43,10 +47,11 @@ A workflow earns its cost only when the task is one of:
 - **Parallel mutation** — migrations/refactors where each unit is independent: port every file, fix every finding, get every module to compile.
 - **Recurring / unattended** — triage, briefings, drift detection on a cadence (pair with `/loop` or `/schedule`).
 
-If the task is none of these, **say so and offer to just do it directly.** Do not build a workflow
-to look thorough. A "quick workflow" (one fan-out, single-vote verify) is a valid middle option for
-small-but-parallel asks. The richer catalog and verifier machinery below are opt-in escalation, not
-defaults; passing the gate authorizes the *simplest* topology that fits.
+If the task is none of these, **say so and offer to just do it directly.** The gate is real:
+genuinely trivial work should not be wrapped in a harness. But the gate is a threshold, not a dial
+toward minimal — **passing it authorizes the richest topology whose every node earns decorrelated
+signal** (Step 5), not the thinnest one that technically works. A "quick workflow" (one fan-out,
+single-vote verify) is the floor for a small-but-parallel ask, not the target for a hard one.
 
 ## Step 2 — Define the verifier first
 
@@ -74,9 +79,11 @@ input and pass a known-good one? A weak verifier is worse than none. **Mode cons
 will be autonomous (Step 3), rung 4 compiles to a BLOCKED return, not a live question — don't spec a
 verifier that assumes mid-run interactivity you won't have.
 
-A sharp verifier is the strongest anti-over-engineering force here: once the check is precise, ask
-"does a single agent driving this verifier already suffice?" If yes, **decline the workflow.**
-Verifier-first shrinks topologies more often than it grows them.
+A sharp verifier still settles the gate: if a single agent driving this verifier already suffices and
+the task is trivial, **decline the workflow.** But once a workflow *is* warranted, the verifier is
+something to **layer, not minimize** — adversarial refuters, diverse lenses, and do→verify→revise
+loops around it are how spent tokens become correctness. A precise verifier tells you *what* done
+means; it is not an argument for the fewest nodes that reach it.
 
 The verifier also outlives the run: it is what the report (Step 8) hands the human to re-check the
 work, so phrase it as something a person can actually paste and re-run — a named command with an
@@ -103,11 +110,15 @@ keep them distinct.
 
 ## Step 4 — Front-load the interview
 
-A workflow runs without you, and a backgrounded run can't come back to ask, so resolve
-outcome-*changing* ambiguity now via `AskUserQuestion`. Triage with one bar (reused for blocking in
-Step 6): escalate only what (a) can't be decided from the brief, (b) materially changes the outcome,
-and (c) is costly to reverse. Below the bar, pick a sensible default and state it — not a question,
-and not a mid-run block later.
+A workflow runs without you, and a backgrounded run can't come back to ask, so resolve ambiguity
+**now**, before firing — and how freely you ask depends on interaction mode. **Interactive:** a
+workflow is expensive enough that a clarifying question is almost always cheaper than a misframed run,
+so ask via `AskUserQuestion` whenever the brief leaves *reasonable* ambiguity about scope, the unit of
+work, or what "done" means — not only when it is outcome-changing and irreversible. **Autonomous /
+scheduled:** you can't ask mid-run, so apply the strict bar — escalate only what (a) can't be decided
+from the brief, (b) materially changes the outcome, and (c) is costly to reverse; below it, pick a
+sensible default and state it. Either way the questions are front-loaded here so the run never blocks
+on something you could have asked first.
 
 Pin down: the **unit of work** (what fans out), the **output** (deliverable and destination), and
 **isolation** (do fan-out agents mutate files?). The stop condition and verification already come
@@ -123,7 +134,7 @@ Compose from typed **node primitives**:
 - **gate** — a typed human-decision node; behavior set by interaction mode (Step 6).
 - **diamond** — fan-out then converge at one barrier.
 - **scatter-gather** — map a heterogeneous unit-list to workers, gather verdicts.
-- **report** — terminal node of a non-trivial graph: reads the run manifest and writes a self-contained, pedagogical HTML report that foregrounds the *task and its outcome* (orchestration machinery subordinate) and lets the human verify it. Scaled to the work; a trivial map+barrier skips it for a one-line verdict. See Step 8 and `templates/report.md`.
+- **report** — terminal node of essentially every workflow (skipped only for an extremely-trivial single-agent run): reads the run manifest and writes a self-contained, pedagogical HTML report that foregrounds the *task and its outcome* (orchestration machinery subordinate) and lets the human verify it. Scaled to the work; only an extremely-trivial single-agent run drops to a one-line verdict. See Step 8 and `templates/report.md`.
 
 A node's **output contract is the next node's input contract** — that is what lets primitives nest.
 The named compounds are built from these: fan-out+synthesize (diamond), adversarial-verify (worker →
@@ -150,8 +161,23 @@ Step 2, pair with `/goal`; self-preferential bias → verification by a *separat
 refuters, diverse lenses; goal drift → restate the goal in each agent's prompt, demand structured
 output, keep contexts narrow.
 
-Selection discipline: **simplest graph that fits.** One primitive is a valid topology. Escalate only
-when the task earns it.
+Selection discipline: **the most expressive graph whose every node earns decorrelated signal.**
+Default to the load-bearing topological ideas — feedback loops (do→verify→revise), adversarial loops
+(a separate agent trying to refute), and diverse lenses (the same unit seen N independent ways) —
+rather than treating them as escalations. One primitive is a valid topology for a small ask; a hard
+one should *use* these patterns, not ration them. Trim only nodes that add no signal (redundant
+doers, theater) — never trim verification or diversity to look lean.
+
+**Dynamic shape — the graph is code, not a frozen DAG.** When the work-list or the difficulty isn't
+known up front, don't fix the topology at launch. Encode decision points where intermediate results
+choose what runs next: scout first and **scale fan-out width to what discovery finds**; **escalate on
+a finding** (a low-confidence verdict spawns a panel; a failing unit spawns a root-cause loop); **loop
+until a signal**, not for a fixed count. For work too large or too uncertain for one shot, **chain
+workflows** — run a phase, read its manifest, author the next phase from what you learned, staying in
+the loop between fan-outs. This reconciles with the approval gate (Step 7): the human signs off on the
+**strategy, the decision rules, and the bounds** (caps, budget, escalation thresholds), not on a node
+count that is meant to change — though a newly-authored phase that changes the strategy re-renders and
+re-approves in interactive mode; only in-bounds adaptation runs without a fresh go.
 
 ## Step 6 — The blocking model
 
@@ -180,25 +206,35 @@ A **gate** is a typed node whose behavior follows the interaction mode: `interac
 before proceeding; `autonomous` = emit BLOCKED and return. Edge case: an interactive run whose human
 has gone (terminal closed, session timed out) must still emit BLOCKED at a gate rather than hang.
 
-## Step 7 — Render (conditional) and fire
+## Step 7 — Render, get approval, then fire
 
-If the graph is **non-trivial** (more than one node type, or it contains a loop or a gate), print it
-before firing: nodes, edges, barriers, loops (with their signal + stop + guard), gates (with their
-mode), and the estimated agent count — for approval or trim. A graph that looks oversized for the
-task is the cue to drop down or decline. A plain map+barrier skips render; the assembled invocation
-already shows its shape.
+**Always render the plan before firing.** Print the strategy in a sentence, then the topology — nodes,
+edges, barriers; loops with their signal + stop + guard; gates with their mode; and the adaptive
+decision points with their bounds — plus the estimated agent/token envelope. A node that earns no
+decorrelated signal is the cue to drop a rung; a hard task whose graph looks thin is the cue to add a
+feedback or adversarial loop.
 
-Then show the invocation and fire (this skill is your authorization to use the Workflow capability).
-Mid-session, run in the background and say they'll be notified. Honor any token budget; cap runaway
-loops. Pair with `/loop` for a project too large for one run. Instruct the harness to emit BLOCKED on
-the critical path and return early rather than push past a real decision.
+**Then stop for approval — a hard gate in interactive mode.** Present the plan and **wait for an
+explicit go** before spending anything; never render-and-fire in one motion. Even when nothing needed
+clarifying, a one-line "here's the shape and the cost — launch it?" is required. The human may trim,
+redirect, or approve. Only an **autonomous / scheduled** run skips this gate (no human to ask), and
+such a run must be self-contained per Step 3. Because dynamic shapes change mid-run, what gets approved
+is the **strategy + decision rules + bounds**, not a frozen node count.
+
+On approval, fire (this skill is your authorization to use the Workflow capability). Mid-session, run
+in the background and say they'll be notified. Honor any token budget; cap runaway loops. Pair with
+`/loop` for a project too large for one run. Instruct the harness to emit BLOCKED on the critical path
+and return early rather than push past a real decision.
 
 ## Step 8 — Report the work (open the black box)
 
-A non-trivial workflow runs dozens of agents the human never sees, then hands back a deliverable with
-the *how* and the *why-trust-it* locked in transcripts. The terminal **report node** unlocks both:
-after the verifier passes, one barrier reads the run manifest and writes a single self-contained HTML
-file (inline CSS + SVG, zero external requests) beside the deliverable.
+Almost every workflow earns a report — its agents are invisible and the *why-trust-it* is locked in
+transcripts nobody reads — so the default is **on**, scaled to the run (a short report for a simple
+one, a full one for a rich one); skip it only for the *extremely* trivial single-agent case. After the
+verifier passes, one barrier reads the run manifest and writes a single self-contained HTML file
+(inline CSS + SVG, zero external requests) to **`/tmp/orchestrate-reports/<name>-<runid>.html`** — the
+report is a run artifact, not a repo deliverable, so it lives in /tmp and never clutters the working
+tree.
 
 **It is a report about the work, not about the workflow.** The reader's first question is "what
 happened to *my* problem, and is it right?" — not "how did your agents coordinate?" So the task and
@@ -219,24 +255,30 @@ handle (worktree path + branch + "retries: 0 by design"), never repainted green.
 
 It needs material, so nodes **accumulate a run manifest** as they go — task + outcome, the substantive
 findings with provenance, the verifier + verdict + rung, the exception ledger, and accounting. Scaled
-to the work: on for non-trivial runs; **a trivial map+barrier emits a one-line verdict instead**;
-richness tracks run size; overridable. Diagrams use the Anthropic-minimal outline-only style. And
-because it's frontend, it self-verifies on the deterministic rung — drive `agent-browser` (start at
-`--help`) to confirm it renders, is self-contained (HAR shows one request), diagrams are visible and
-unclipped at ~390px and 1280px, and the console is clean; a failing check is a blocking defect, not a
-warning. Full contract, the task-first section order, and a render-verified reference implementation:
+to the work: full for rich runs, a **short HTML report** for simple ones; only an *extremely trivial*
+single-agent run drops to a one-line verdict. Richness tracks run size; overridable. Diagrams use the
+Anthropic-minimal outline-only style. Before the self-check, pass the report's **narrative prose
+through the `prose` skill (rewrite mode)** — scoped to the prose only, never the numbers, `file:line`
+cites, command blocks, or verdict — so the report reads like a person wrote it; `prose` is style-only
+and cannot corrupt the facts (if it isn't installed, apply its principles inline). And because it's
+frontend, it self-verifies on the deterministic rung — drive `agent-browser` (start at `--help`) to
+confirm it renders, is self-contained (HAR shows one request), diagrams are visible and unclipped at
+~390px and 1280px, and the console is clean; a failing check is a blocking defect, not a warning. Full
+contract, the task-first section order, and a render-verified reference implementation:
 `templates/report.md` and `templates/report.example.html`.
 
 ## Self-check before firing
 
-- Gate passed — this genuinely needs a workflow, not a single agent driving the verifier?
-- Verifier defined first, and the stop condition derived from it (done = verifier passes)?
+- Gate passed — a workflow is genuinely warranted (not trivial work in disguise)?
+- Once warranted, the shape is as **expressive as its signal earns** — feedback/adversarial/diverse loops used, not rationed — with every node adding decorrelated signal and no redundant doers?
+- Verifier defined first, the stop condition derived from it (done = verifier passes), and verification **layered** (adversarial/diverse) rather than minimized?
 - Signal on the highest available rung (a tool over an LLM judge where ground truth exists)?
+- Dynamic where the work-list/difficulty is unknown — shape adapts to intermediate findings; multi-workflow chaining considered for large/uncertain work?
 - Every fan-out unit independent; every loop has signal + stop + divergence guard?
 - Every gate has a mode set by the interaction mode?
 - Critical-path BLOCKED wired to fail-fast + return + resume, with the resume-cache rule honored?
-- Topology rendered (if non-trivial) and no bigger than the task earns?
+- Plan rendered, and in **interactive mode an explicit approval obtained before firing** (autonomous runs self-contained instead)?
 - Mid-session context externalized / scheduled prompt self-contained?
-- Non-trivial run — report node appended, **task-first** (the work leads, machinery in a subordinate aside), verdict attributed to the separate verifier, self-verified with agent-browser (trivial map+barrier emits a one-line verdict)?
+- Report on by default — written to **/tmp**, scaled to run size, **prose-passed**, task-first, verdict attributed to the separate verifier, agent-browser self-verified (only an extremely-trivial single-agent run drops to a one-line verdict)?
 
 If any answer is no, fix the invocation before firing.
