@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflow report — oldFetch &rarr; newFetch migration</title>
+<style>
+  :root{
+    --canvas:#F2EFE8;
+    --ink:#2D2B28;
+    --muted:#7A756E;
+    --stroke:#5F5A54;
+    --panel:#B9B3AB;
+    --rule:#E2DCD2;
+    --paper:#FBFAF7;
+    --ok:#71AE88;
+    --warn:#C88E6A;
+    --err:#D96B63;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:var(--serif);
+    font-size:18px;
+    line-height:1.62;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:72px 28px 120px}
+  .sans{font-family:var(--sans)}
+  header.masthead{margin-bottom:56px}
+  .kicker{
+    font-family:var(--sans);
+    text-transform:uppercase;
+    letter-spacing:.18em;
+    font-size:11px;
+    font-weight:600;
+    color:var(--muted);
+    margin:0 0 18px;
+  }
+  h1{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:34px;
+    line-height:1.18;
+    letter-spacing:-.01em;
+    margin:0 0 18px;
+  }
+  .standfirst{
+    font-size:20px;
+    line-height:1.5;
+    color:var(--ink);
+    margin:0 0 26px;
+  }
+  .standfirst em{font-style:italic}
+  .metaline{
+    font-family:var(--sans);
+    font-size:13px;
+    color:var(--muted);
+    border-top:1px solid var(--rule);
+    border-bottom:1px solid var(--rule);
+    padding:14px 0;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 26px;
+  }
+  .metaline b{color:var(--ink);font-weight:600}
+  h2{
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:var(--muted);
+    margin:64px 0 8px;
+  }
+  h2 .num{color:var(--panel);margin-right:10px}
+  .lede{
+    font-size:22px;
+    line-height:1.4;
+    font-weight:600;
+    letter-spacing:-.01em;
+    margin:0 0 22px;
+  }
+  p{margin:0 0 20px}
+  p.tight{margin-bottom:12px}
+  a{color:var(--ink);text-decoration-color:var(--panel);text-underline-offset:3px}
+  a:hover{text-decoration-color:var(--ink)}
+  code{
+    font-family:var(--mono);
+    font-size:.84em;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:1px 5px;
+  }
+  .aside{
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.55;
+    color:var(--muted);
+    border-left:2px solid var(--panel);
+    padding:2px 0 2px 18px;
+    margin:0 0 24px;
+  }
+  .aside b{color:var(--ink)}
+  figure{margin:34px 0;padding:0}
+  figure svg{display:block;width:100%;height:auto}
+  figcaption{
+    font-family:var(--sans);
+    font-size:13px;
+    line-height:1.5;
+    color:var(--muted);
+    margin-top:14px;
+    text-align:center;
+  }
+  /* verifier card */
+  .verify{
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:10px;
+    padding:24px 26px;
+    margin:30px 0;
+  }
+  .verify .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:var(--sans);
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ok);
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block}
+  .dot.warn{background:var(--warn)}
+  .verify h3{
+    font-family:var(--sans);
+    font-size:15px;
+    margin:6px 0 16px;
+    color:var(--ink);
+    font-weight:600;
+  }
+  .repro{
+    font-family:var(--mono);
+    font-size:13px;
+    line-height:1.6;
+    background:#27241F;
+    color:#E9E4DA;
+    border-radius:8px;
+    padding:16px 18px;
+    overflow-x:auto;
+    margin:8px 0 4px;
+  }
+  .repro .c-comment{color:#8E887C}
+  .repro .c-ok{color:#8FCBA4}
+  .repro .prompt{color:#8E887C;user-select:none}
+  .vgrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px 26px;
+    font-family:var(--sans);
+    font-size:14px;
+    margin:18px 0 0;
+  }
+  .vgrid div{border-top:1px solid var(--rule);padding-top:8px}
+  .vgrid .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:2px}
+  .vgrid .v{color:var(--ink)}
+  .scopecaveat{
+    font-family:var(--sans);
+    font-size:13.5px;
+    line-height:1.55;
+    color:var(--ink);
+    background:rgba(200,142,106,.10);
+    border:1px solid rgba(200,142,106,.4);
+    border-radius:8px;
+    padding:14px 16px;
+    margin:18px 0 0;
+  }
+  .scopecaveat b{color:var(--warn)}
+  /* findings table */
+  details.findings{margin:24px 0}
+  details.findings>summary{
+    font-family:var(--sans);
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    padding:12px 16px;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    list-style:none;
+    color:var(--ink);
+  }
+  details.findings>summary::-webkit-details-marker{display:none}
+  details.findings>summary::before{content:"▸ ";color:var(--muted)}
+  details.findings[open]>summary::before{content:"▾ "}
+  details.findings>summary .hint{color:var(--muted);font-weight:400}
+  .tablescroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .ftable{
+    width:100%;
+    border-collapse:collapse;
+    font-family:var(--sans);
+    font-size:13px;
+    margin-top:10px;
+  }
+  .ftable th{
+    text-align:left;
+    font-weight:600;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    color:var(--muted);
+    border-bottom:1px solid var(--panel);
+    padding:8px 10px;
+    vertical-align:bottom;
+  }
+  .ftable td{
+    border-bottom:1px solid var(--rule);
+    padding:9px 10px;
+    vertical-align:top;
+    line-height:1.45;
+  }
+  .ftable tr:hover td{background:var(--paper)}
+  .ftable .loc{font-family:var(--mono);font-size:11.5px;white-space:nowrap;color:var(--ink)}
+  .ftable .loc small{color:var(--muted)}
+  .ftable code{font-size:11px;background:none;border:none;padding:0}
+  .st{
+    font-family:var(--sans);
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:.06em;
+    padding:2px 7px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .st.done{color:var(--ok);background:rgba(113,174,136,.14)}
+  .st.blocked{color:var(--err);background:rgba(217,107,99,.14)}
+  .ftable .note{color:var(--muted);font-size:12px;display:block;margin-top:4px;font-style:italic}
+  /* blocked panel */
+  .blocked{
+    border:1px solid rgba(217,107,99,.45);
+    border-radius:10px;
+    padding:24px 26px;
+    margin:30px 0;
+    background:rgba(217,107,99,.04);
+  }
+  .blocked .badge{
+    display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--sans);font-weight:700;font-size:13px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--err);
+  }
+  .dot.err{background:var(--err)}
+  .blocked h3{font-family:var(--sans);font-size:16px;margin:8px 0 4px;color:var(--ink);font-weight:600}
+  .blocked .codeloc{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-bottom:16px}
+  .opt{
+    display:grid;grid-template-columns:auto 1fr;gap:4px 14px;
+    font-family:var(--sans);font-size:14px;line-height:1.5;
+    padding:12px 0;border-top:1px solid var(--rule);
+  }
+  .opt .tag{
+    font-weight:700;font-size:12px;color:var(--ink);
+    width:auto;align-self:start;
+  }
+  .opt .lab{font-weight:600;color:var(--ink)}
+  .opt .det{color:var(--muted);font-size:13px;margin-top:2px}
+  .opt.rec{background:rgba(200,142,106,.08);border-radius:6px;padding:12px 12px}
+  .opt.rec .tag{color:var(--warn)}
+  .rec-line{
+    font-family:var(--sans);font-size:13.5px;color:var(--ink);
+    margin-top:14px;padding-top:14px;border-top:1px solid var(--rule);
+  }
+  .rec-line b{color:var(--warn)}
+  /* resume handle */
+  .resume{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px 26px;
+    font-family:var(--sans);font-size:13.5px;
+    margin-top:16px;padding-top:16px;border-top:1px solid var(--rule);
+  }
+  .resume div{min-width:0}
+  .resume .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:3px}
+  .resume .v{color:var(--ink)}
+  .resume .v code{font-size:11.5px;word-break:break-all}
+  /* "how this was produced" collapsible machinery aside */
+  details.machinery{
+    margin:30px 0 0;
+    border:1px solid var(--rule);
+    border-radius:10px;
+    background:var(--paper);
+    overflow:hidden;
+  }
+  details.machinery>summary{
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    cursor:pointer;
+    padding:16px 22px;
+    list-style:none;
+  }
+  details.machinery>summary::-webkit-details-marker{display:none}
+  details.machinery>summary::before{content:"▸ ";color:var(--panel)}
+  details.machinery[open]>summary::before{content:"▾ "}
+  details.machinery[open]>summary{border-bottom:1px solid var(--rule)}
+  .machinery .mbody{padding:6px 22px 24px}
+  .machinery .mbody p{font-family:var(--sans);font-size:14.5px;line-height:1.55}
+  /* accounting */
+  .acct{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+    background:var(--rule);border:1px solid var(--rule);border-radius:10px;
+    overflow:hidden;margin:28px 0;
+  }
+  .acct .cell{background:var(--paper);padding:18px 16px}
+  .acct .big{font-family:var(--sans);font-size:26px;font-weight:600;color:var(--ink);line-height:1}
+  .acct .big small{font-size:14px;color:var(--muted);font-weight:400}
+  .acct .lbl{font-family:var(--sans);font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:7px}
+  .ledger{font-family:var(--sans);font-size:13.5px;line-height:1.7}
+  .ledger table{width:100%;border-collapse:collapse}
+  .ledger td{padding:7px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+  .ledger td:first-child{color:var(--muted);width:42%;padding-right:16px}
+  .ledger td:last-child{color:var(--ink)}
+  .ledger .mono{font-family:var(--mono);font-size:12.5px}
+  .ledger tr.total td{border-bottom:none;padding-top:10px}
+  .ledger tr.total td:first-child{color:var(--ink);font-weight:600}
+  .ledger tr.total td:last-child{font-family:var(--mono);font-size:12.5px;font-weight:600}
+  footer{
+    margin-top:80px;padding-top:24px;border-top:1px solid var(--rule);
+    font-family:var(--sans);font-size:12.5px;color:var(--muted);line-height:1.6;
+  }
+  @media(max-width:560px){
+    .wrap{padding:48px 20px 90px}
+    h1{font-size:27px}
+    .acct{grid-template-columns:repeat(2,1fr)}
+    .vgrid{grid-template-columns:1fr}
+    .resume{grid-template-columns:1fr}
+    .ftable{font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Workflow run report &middot; dynamic-workflow / orchestrate</p>
+  <h1>23 <code>oldFetch()</code> callsites ported to <code>newFetch()</code> &mdash; 22 merged, 1 needs your call</h1>
+  <p class="standfirst">The deprecated 4-argument <code>oldFetch</code> is gone from every file that could be ported mechanically. What changed in your code, <em>how to re-run the check yourself</em>, and the one callsite that needs a human decision &mdash; in that order.</p>
+  <div class="metaline sans">
+    <span><b>Verdict:</b> <span style="color:var(--ok)">PASS</span> (scoped)</span>
+    <span><b>Migrated:</b> 22 / 23 callsites</span>
+    <span><b>Blocked:</b> 1 (escalated)</span>
+    <span><b>Branch:</b> <code>migrate/oldfetch-integration</code></span>
+  </div>
+</header>
+
+<!-- ============ 1. WHAT CHANGED IN YOUR CODE ============ -->
+<h2><span class="num">01</span>What changed in your code</h2>
+<p class="lede">The deprecated <code>oldFetch(url, method, body, headers)</code> was replaced by <code>newFetch(url, opts)</code> at every callsite &mdash; 22 of them, across 13 files.</p>
+<p>This was never a find-and-replace. The new signature takes a typed <code>RequestOpts</code> options object instead of four positional arguments, and &mdash; the wrinkle that makes each edit a small piece of reasoning &mdash; <code>newFetch</code> returns <code>Promise&lt;Response&gt;</code> and <em>no longer auto-parses JSON</em>. So every callsite needed three coordinated changes: <b>rewrite the call</b> into the options shape, <b>fix the import</b>, and <b>adjust whatever the code did with the awaited result</b> &mdash; usually adding a <code>.json()</code> (or <code>.blob()</code> / <code>.text()</code>) unwrap that <code>oldFetch</code> used to do for you. The table below is every one of those edits, with <code>file:line</code> and before&rarr;after, so you can open each and check the positional-to-named mapping by eye.</p>
+<p>The one callsite that <em>couldn&rsquo;t</em> be ported mechanically &mdash; <code>flushEvents</code>, which passes a 5th positional argument the old signature never had &mdash; shows as the <span style="color:var(--err);font-weight:600">BLOCKED</span> row with no success diff, and is broken out as a decision for you further down.</p>
+
+<details class="findings" open>
+  <summary>The 22 migrated callsites <span class="hint">&mdash; every edit, with before / after and its <code>file:line</code></span></summary>
+  <div class="tablescroll">
+  <table class="ftable">
+    <thead><tr><th>Location</th><th>Callsite</th><th>Change</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td class="loc">src/api/users.ts<br><small>:42 &middot; w01</small></td><td>loadUserProfile</td><td><code>oldFetch(url,'GET',null,authHeaders)</code> &rarr; <code>newFetch(url,{method:'GET',headers:authHeaders})</code><span class="note">Dropped null body; GET maps cleanly. Added <code>.then(r =&gt; r.json())</code> unwrap on :43 since newFetch no longer auto-parses.</span></td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/api/users.ts<br><small>:78 &middot; w01</small></td><td>updateUserProfile</td><td>PATCH + <code>body: JSON.stringify(patch)</code>, headers preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/api/orders.ts<br><small>:31 &middot; w02</small></td><td>fetchOrders</td><td>GET; double-await <code>(await newFetch(...)).json()</code>.<span class="note">Empty headers object omitted (RequestOpts.headers optional).</span></td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/api/orders.ts<br><small>:96 &middot; w02</small></td><td>createOrder</td><td>POST; <code>{method,body,headers:jsonHeaders}</code>, returns the Response.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/api/orders.ts<br><small>:134 &middot; w02</small></td><td>cancelOrder</td><td>POST, no body; headers preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/api/billing.ts<br><small>:58 &middot; w03</small></td><td>getInvoice</td><td>GET; double-await <code>.json()</code> unwrap, headers preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/api/billing.ts<br><small>:112 &middot; w03</small></td><td>postPayment</td><td>POST; <code>body: JSON.stringify(payment)</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/components/Dashboard.tsx<br><small>:67 &middot; w04</small></td><td>useDashboardData effect</td><td>GET; double-await <code>.json()</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/components/UserMenu.tsx<br><small>:29 &middot; w05</small></td><td>logout handler</td><td>POST, no body; headers preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/hooks/useFeatureFlags.ts<br><small>:18 &middot; w06</small></td><td>fetchFlags</td><td>GET; double-await <code>.json()</code>, empty headers omitted.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/lib/auth/session.ts<br><small>:44 &middot; w07</small></td><td>refreshSession</td><td>POST; <code>body: JSON.stringify({token})</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/lib/auth/session.ts<br><small>:71 &middot; w07</small></td><td>validateToken</td><td>GET; <code>headers: bearer(token)</code> preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/lib/search/index.ts<br><small>:53 &middot; w08</small></td><td>runSearch</td><td>GET; double-await <code>.json()</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/lib/notifications/push.ts<br><small>:88 &middot; w09</small></td><td>registerDevice</td><td>POST; <code>body: JSON.stringify(sub)</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/lib/notifications/push.ts<br><small>:121 &middot; w09</small></td><td>unregisterDevice</td><td>DELETE, no body; headers preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/services/reportExport.ts<br><small>:36 &middot; w10</small></td><td>exportPdf</td><td>GET; unwrap via <code>.blob()</code>, not <code>.json()</code>.<span class="note">Return is binary. Caught because oldFetch had returned the parsed body and the caller fed it to a Blob URL.</span></td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/services/reportExport.ts<br><small>:74 &middot; w10</small></td><td>exportCsv</td><td>GET; unwrap via <code>.text()</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/services/admin.ts<br><small>:49 &middot; w11</small></td><td>listTenants</td><td>GET; double-await <code>.json()</code>, adminHeaders preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/services/admin.ts<br><small>:83 &middot; w11</small></td><td>suspendTenant</td><td>PUT; <code>body: JSON.stringify({reason})</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/workers/syncWorker.ts<br><small>:112 &middot; w12</small></td><td>pullChanges</td><td>GET; double-await <code>.json()</code>, svcHeaders preserved.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">src/workers/syncWorker.ts<br><small>:147 &middot; w12</small></td><td>pushChanges</td><td>POST; <code>body: JSON.stringify(batch)</code>.</td><td><span class="st done">DONE</span></td></tr>
+      <tr><td class="loc">test/helpers/apiMock.ts<br><small>:24 &middot; w14</small></td><td>mockFetchCall (test helper)</td><td><code>{method:verb, body:payload ?? undefined, headers:hdrs}</code>.<span class="note">verb/payload/hdrs already named params, so the port is mechanical.</span></td><td><span class="st done">DONE</span></td></tr>
+      <tr style="background:rgba(217,107,99,.05)"><td class="loc">src/lib/analytics/track.ts<br><small>:61 &middot; w13</small></td><td>flushEvents</td><td>5th positional arg <code>opts.beacon</code> has no slot in the 4-arg signature &mdash; mapping is ambiguous. Left as a <code>// MIGRATION-BLOCKED:</code> TODO.<span class="note">Not merged. See &ldquo;the one case that needs your decision&rdquo; below.</span></td><td><span class="st blocked">BLOCKED</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</details>
+
+<!-- ============ 2. VERIFY IT YOURSELF ============ -->
+<h2><span class="num">02</span>Verify it yourself</h2>
+<p>You do not have to trust the verdict. The check is a deterministic command on a named branch, run by a <b>separate verifier node</b> &mdash; not by any of the workers that made the edits, and not by the dispatcher. Switch to the branch and read the exit codes yourself.</p>
+
+<div class="verify">
+  <span class="badge"><span class="dot"></span> Verifier node <code style="font-size:11px">v1</code> &middot; rung 1 (deterministic build + test)</span>
+  <h3>Build compiles with zero type errors <b>AND</b> the full test suite passes on the integration branch.</h3>
+  <div class="repro">
+<span class="prompt">$</span> git switch migrate/oldfetch-integration
+<span class="prompt">$</span> pnpm -s build &amp;&amp; pnpm -s test -- --run
+<span class="c-comment"># build:  tsc -b &amp;&amp; vite build</span>
+<span class="c-ok">  &rarr; exit 0 — tsc -b clean, vite build emitted 14 chunks, 0 type errors</span>
+<span class="c-comment"># test:   vitest run (0 watch)</span>
+<span class="c-ok">  &rarr; exit 0 — 412 passed, 0 failed, 6 skipped &middot; 88 files &middot; 41.3s</span>
+
+<span class="prompt">$</span> <span class="c-comment"># residual-callsite audit on the merged scope:</span>
+<span class="prompt">$</span> rg -n 'oldFetch\(' src test
+<span class="c-comment">  &rarr; 1 hit — src/lib/analytics/track.ts:61  (the BLOCKED callsite, by design)</span>
+  </div>
+  <div class="vgrid">
+    <div><span class="k">Branch checked</span><span class="v"><code>migrate/oldfetch-integration</code></span></div>
+    <div><span class="k">Verdict (by v1)</span><span class="v" style="color:var(--ok);font-weight:600">PASS</span></div>
+    <div><span class="k">Build</span><span class="v">exit 0 &middot; 0 type errors &middot; 14 chunks</span></div>
+    <div><span class="k">Tests</span><span class="v">412 passed, 0 failed, 6 skipped</span></div>
+  </div>
+  <div class="scopecaveat">
+    <b>Scope, stated honestly.</b> This green covers the <b>22 migrated callsites in 13 files</b> that were merged. It does <b>not</b> certify the 23rd callsite (<code>src/lib/analytics/track.ts:61</code>) &mdash; that file was never in this branch, so the residual <code>rg</code> audit returns exactly one remaining hit, which is the expected proof that the blocked callsite is the only thing left, not evidence of a missed edit.
+  </div>
+</div>
+
+<!-- ============ 3. THE ONE CASE THAT NEEDS YOUR DECISION ============ -->
+<h2><span class="num">03</span>The one case that needs your decision</h2>
+<p>One callsite earned its block honestly. The worker found an argument it could not map to the new signature and refused to guess &mdash; the discipline is the point, and the escalation below is operationally closeable: pick an option and resume from the worktree handle.</p>
+
+<div class="blocked">
+  <span class="badge"><span class="dot err"></span> Exception x1 &middot; BLOCKED &middot; worker w13</span>
+  <h3>flushEvents passes a 5th positional argument the signature has no slot for</h3>
+  <p class="codeloc">src/lib/analytics/track.ts:61 &nbsp;&middot;&nbsp; committed up to the ambiguous line, worktree left intact for resume</p>
+  <p style="font-size:15px;font-family:var(--sans);line-height:1.55;color:var(--ink)">The call is <code>oldFetch(endpoint, opts.method, opts.payload, opts.headers, opts.beacon)</code> &mdash; five positional arguments against a documented four-arg signature <code>(url, method, body, headers)</code>. The trailing <code>opts.beacon</code> (a boolean) maps to nothing. It looks like a request for <code>sendBeacon</code>-style fire-and-forget delivery, which <code>newFetch</code> models differently, or maybe not at all. <b>The decision needs a human:</b> how should <code>opts.beacon === true</code> be expressed under the new API?</p>
+
+  <div class="opt rec">
+    <span class="tag">A &#9733;</span>
+    <div><span class="lab">keepalive flag</span> <span style="color:var(--warn);font-size:12px;font-weight:600">&middot; recommended, pending confirmation</span><div class="det">Map to <code>newFetch(endpoint,{method,body,headers,keepalive:true})</code>. Closest semantic match <em>if</em> the intent was unload-safe delivery; <code>RequestOpts</code> supports <code>keepalive</code>.</div></div>
+  </div>
+  <div class="opt">
+    <span class="tag">B</span>
+    <div><span class="lab">navigator.sendBeacon</span><div class="det">Replace the call with <code>navigator.sendBeacon(endpoint, opts.payload)</code> when beacon is true, else fall back to newFetch. Matches original fire-and-forget semantics but changes control flow and drops headers/method.</div></div>
+  </div>
+  <div class="opt">
+    <span class="tag">C</span>
+    <div><span class="lab">drop the arg</span><div class="det">Port the first 4 args only, treat <code>opts.beacon</code> as dead. Compiles, but silently changes runtime behavior on page unload &mdash; needs product sign-off.</div></div>
+  </div>
+
+  <p class="rec-line">Worker recommends <b>A (keepalive)</b> pending confirmation that <code>beacon</code> meant unload-safety rather than a separate transport &mdash; but declined to apply it autonomously, because B and C have materially different runtime behavior and the brief said <em>do not guess</em>.</p>
+
+  <div class="resume">
+    <div><span class="k">Worktree</span><span class="v"><code>/tmp/wt-migrate-oldfetch-analytics-track</code></span></div>
+    <div><span class="k">Branch</span><span class="v"><code>migrate/oldfetch/analytics-track</code></span></div>
+    <div><span class="k">State</span><span class="v">committed to ambiguous line, excluded from merge</span></div>
+    <div><span class="k">Retries</span><span class="v"><b>0</b> &middot; by design &mdash; ambiguity is a human-decision class, not a transient failure, so re-running the same worker would deterministically re-block.</span></div>
+  </div>
+</div>
+
+<!-- ============ 4. HOW THIS WAS PRODUCED (machinery, collapsed) ============ -->
+<h2><span class="num">04</span>How this was produced</h2>
+<p class="aside sans" style="margin-bottom:8px">The orchestration machinery is below, folded away. It is here for trust and for the curious &mdash; it is evidence the result above can be believed, not the subject of this report.</p>
+
+<details class="machinery">
+  <summary>Topology, why-this-shape, and the run accounting</summary>
+  <div class="mbody">
+
+  <p><b>The shape, in three sentences.</b> A single ripgrep counted the work first &mdash; 23 hits across 14 files &mdash; and dispatch fanned out <b>one worker per file</b> (not per callsite), because independence is at the file/merge boundary: two edits in the same file share a buffer and imports, so each file gets its own <code>git worktree</code> to keep same-file edits serialized while different files run in parallel. The workers are cheap and untrusted; the <b>verifier is the deterministic spine</b> &mdash; build exit code plus test exit code, no model judging anything &mdash; so the whole batch converges at one barrier that merges the clean branches and hands a coherent integration branch to that verifier, the only node allowed to say &ldquo;done.&rdquo; The <b>blocked branch peels off before the barrier</b>: w13 committed to its ambiguous line, was excluded from the merge, and so let the verifier run green on a coherent subset of 13 files instead of failing the whole batch on one unanswerable question.</p>
+
+  <figure>
+  <svg viewBox="0 0 760 470" role="img" aria-label="Topology that ran: dispatch fans out to 14 file workers; 13 converge at a barrier then a verifier returns PASS; one worker peels off as BLOCKED to an exception ledger.">
+    <rect x="0" y="0" width="760" height="470" fill="#F2EFE8"/>
+
+    <!-- PHASE PANELS (dashed fieldsets) -->
+    <rect x="20" y="40" width="120" height="190" rx="8" fill="none" stroke="#B9B3AB" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="30" y="58" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" letter-spacing="1.5" fill="#7A756E">DISPATCH</text>
+
+    <rect x="170" y="40" width="200" height="390" rx="8" fill="none" stroke="#B9B3AB" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="180" y="58" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" letter-spacing="1.5" fill="#7A756E">FAN-OUT &middot; WORKTREE / FILE</text>
+
+    <rect x="400" y="40" width="150" height="190" rx="8" fill="none" stroke="#B9B3AB" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="410" y="58" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" letter-spacing="1.5" fill="#7A756E">CONVERGE AGENT</text>
+
+    <rect x="580" y="40" width="160" height="190" rx="8" fill="none" stroke="#B9B3AB" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="590" y="58" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" letter-spacing="1.5" fill="#7A756E">VERIFY PHASE</text>
+
+    <rect x="400" y="280" width="340" height="150" rx="8" fill="none" stroke="#B9B3AB" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="410" y="298" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" letter-spacing="1.5" fill="#7A756E">EXCEPTION LEDGER</text>
+
+    <!-- DISPATCH node n0 -->
+    <rect x="40" y="120" width="80" height="50" rx="8" fill="none" stroke="#5F5A54" stroke-width="1.5"/>
+    <text x="80" y="142" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="12" font-weight="600" fill="#2D2B28">n0</text>
+    <text x="80" y="158" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">dispatch</text>
+
+    <!-- WORKERS: represent 13 DONE stacked + 1 BLOCKED -->
+    <!-- stacked DONE workers (offset rects to imply 13) -->
+    <rect x="210" y="106" width="120" height="44" rx="8" fill="none" stroke="#5F5A54" stroke-width="1"/>
+    <rect x="205" y="100" width="120" height="44" rx="8" fill="none" stroke="#5F5A54" stroke-width="1"/>
+    <rect x="200" y="94" width="120" height="44" rx="8" fill="#F2EFE8" stroke="#5F5A54" stroke-width="1.5"/>
+    <text x="260" y="113" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="11" font-weight="600" fill="#2D2B28">w01&ndash;w12, w14</text>
+    <text x="260" y="128" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">13 workers &middot; DONE</text>
+
+    <!-- BLOCKED worker w13 -->
+    <rect x="200" y="330" width="120" height="44" rx="8" fill="none" stroke="#D96B63" stroke-width="1.5"/>
+    <text x="260" y="350" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="11" font-weight="600" fill="#2D2B28">w13</text>
+    <text x="260" y="364" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">analytics/track.ts</text>
+
+    <!-- BARRIER b1 (phase 1 of convergence agent) -->
+    <rect x="430" y="120" width="90" height="50" rx="8" fill="none" stroke="#5F5A54" stroke-width="1.5"/>
+    <text x="475" y="140" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="12" font-weight="600" fill="#2D2B28">b1</text>
+    <text x="475" y="156" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">barrier / merge</text>
+
+    <!-- VERIFIER v1 (phase 2 of convergence agent · accent success) -->
+    <rect x="610" y="115" width="100" height="60" rx="8" fill="none" stroke="#71AE88" stroke-width="2"/>
+    <text x="660" y="138" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="12" font-weight="600" fill="#2D2B28">v1 &middot; verifier</text>
+    <text x="660" y="153" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">build + test</text>
+    <text x="660" y="166" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#71AE88">PASS</text>
+
+    <!-- EXCEPTION x1 (error notch rect) -->
+    <rect x="430" y="330" width="120" height="50" rx="8" fill="none" stroke="#D96B63" stroke-width="1.5"/>
+    <text x="490" y="350" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="11" font-weight="600" fill="#2D2B28">x1 &middot; BLOCKED</text>
+    <text x="490" y="365" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">human decision</text>
+
+    <!-- ARROW MARKERS -->
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#5F5A54"/>
+      </marker>
+      <marker id="ahg" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#71AE88"/>
+      </marker>
+      <marker id="ahe" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#D96B63"/>
+      </marker>
+    </defs>
+
+    <!-- n0 -> workers (fan-out, orthogonal) -->
+    <path d="M120,145 L160,145 L160,116 L200,116" fill="none" stroke="#5F5A54" stroke-width="1" marker-end="url(#ah)"/>
+    <!-- n0 -> w13 (fan-out down) -->
+    <path d="M120,145 L160,145 L160,352 L200,352" fill="none" stroke="#5F5A54" stroke-width="1" marker-end="url(#ah)"/>
+
+    <!-- workers DONE -> barrier -->
+    <path d="M320,116 L375,116 L375,145 L430,145" fill="none" stroke="#5F5A54" stroke-width="1" marker-end="url(#ah)"/>
+
+    <!-- barrier -> verifier (converge then verify, within one agent) -->
+    <path d="M520,145 L610,145" fill="none" stroke="#5F5A54" stroke-width="1.2" marker-end="url(#ah)"/>
+
+    <!-- w13 -> x1 (BLOCKED peel-off) -->
+    <path d="M320,352 L430,355" fill="none" stroke="#D96B63" stroke-width="1.2" marker-end="url(#ahe)"/>
+
+    <!-- v1 -> verdict (success, downward to label) -->
+    <path d="M660,175 L660,205" fill="none" stroke="#71AE88" stroke-width="1.4" marker-end="url(#ahg)"/>
+    <text x="660" y="222" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="10" font-weight="700" fill="#71AE88">VERDICT &check;</text>
+
+    <!-- x1 dashed muted line back to human (no auto-retry) -->
+    <path d="M490,380 L490,410" fill="none" stroke="#7A756E" stroke-width="1" stroke-dasharray="3 3"/>
+    <text x="490" y="424" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif" font-size="9" fill="#7A756E">no retry &middot; resume by human</text>
+  </svg>
+  <figcaption>The topology that actually ran. Dispatch fans out to 14 file workers; 13 converge at the barrier <code>b1</code>, which merges them and hands a coherent integration branch to the verifier <code>v1</code> (accent <span style="color:var(--ok)">green</span> = it owns the verdict). <b>b1 (merge) and v1 (verify) are two phases run by one convergence agent</b> &mdash; drawn as separate nodes for clarity, counted as one agent. One worker (<span style="color:var(--err)">w13</span>) peels off <em>before</em> the barrier to the exception ledger rather than blocking the batch. There is no retry loop &mdash; the blocked case is a human decision, not a transient failure.</figcaption>
+  </figure>
+
+  <p style="font-family:var(--sans);font-size:14.5px;margin:26px 0 0">What the run cost, and who did what:</p>
+  <div class="acct">
+    <div class="cell"><div class="big">16</div><div class="lbl">Agents (1 dispatch + 14 workers + 1 convergence agent: merge &amp; verify phases)</div></div>
+    <div class="cell"><div class="big">22<small> / 23</small></div><div class="lbl">Callsites migrated &middot; 1 blocked</div></div>
+    <div class="cell"><div class="big">11<small>m 48s</small></div><div class="lbl">Wall clock (fan-out parallel)</div></div>
+    <div class="cell"><div class="big">1.185<small>M</small></div><div class="lbl">Tokens total (1.04M in / 141k out)</div></div>
+  </div>
+
+  <div class="ledger tablescroll">
+  <table>
+    <tr><td>Models &mdash; judgment nodes</td><td><b>Opus</b> on dispatch, the convergence agent (barrier merge + verifier), and blocked-triage (the nodes that make decisions).</td></tr>
+    <tr><td>Models &mdash; the fan-out</td><td><b>Sonnet</b> on the 14 mechanical per-file workers, one per worktree &mdash; cheap by design, since each is untrusted and re-checked at the barrier.</td></tr>
+    <tr><td>Critical path</td><td>Slowest worker w10 (<code>reportExport.ts</code>) at <span class="mono">6m 31s</span>, held up by blob/text return-type analysis. The BLOCKED worker w13 (<span class="mono">2m 12s</span>) ran <em>inside</em> the fan-out window and did not extend the path.</td></tr>
+    <tr><td>Phase timing</td><td class="mono">dispatch 0m22s &middot; fan-out 6m31s &middot; barrier 0m54s &middot; verify 3m41s</td></tr>
+    <tr><td>Token hot spots</td><td class="mono">workers 902k &middot; verifier 183k &middot; barrier 62k &middot; dispatch 38k</td></tr>
+    <tr class="total"><td>Token total</td><td>902k + 183k + 62k + 38k = <b>1,185k</b> (1.185M)</td></tr>
+    <tr><td>Files</td><td>14 touched &middot; 13 merged &middot; 1 left on its own branch for human resume.</td></tr>
+  </table>
+  </div>
+
+  </div>
+</details>
+
+<footer class="sans">
+  <p>Generated by the dynamic-workflow / orchestrate report node. Self-contained: no external requests, fonts, or scripts beyond the inline disclosure widgets. The verdict above is scoped &mdash; PASS covers the 13 merged files; the one BLOCKED callsite at <code>src/lib/analytics/track.ts:61</code> is deferred to a human and is <em>not</em> certified by this run.</p>
+</footer>
+
+</div>
+</body>
+</html>

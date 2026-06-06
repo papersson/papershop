@@ -78,6 +78,10 @@ A sharp verifier is the strongest anti-over-engineering force here: once the che
 "does a single agent driving this verifier already suffice?" If yes, **decline the workflow.**
 Verifier-first shrinks topologies more often than it grows them.
 
+The verifier also outlives the run: it is what the report (Step 8) hands the human to re-check the
+work, so phrase it as something a person can actually paste and re-run — a named command with an
+expected result — not just an internal gate.
+
 ## Step 3 — Read the posture, set the interaction mode
 
 Detect the posture and apply its pre-flight:
@@ -119,6 +123,7 @@ Compose from typed **node primitives**:
 - **gate** — a typed human-decision node; behavior set by interaction mode (Step 6).
 - **diamond** — fan-out then converge at one barrier.
 - **scatter-gather** — map a heterogeneous unit-list to workers, gather verdicts.
+- **report** — terminal node of a non-trivial graph: reads the run manifest and writes a self-contained, pedagogical HTML report that foregrounds the *task and its outcome* (orchestration machinery subordinate) and lets the human verify it. Scaled to the work; a trivial map+barrier skips it for a one-line verdict. See Step 8 and `templates/report.md`.
 
 A node's **output contract is the next node's input contract** — that is what lets primitives nest.
 The named compounds are built from these: fan-out+synthesize (diamond), adversarial-verify (worker →
@@ -188,6 +193,40 @@ Mid-session, run in the background and say they'll be notified. Honor any token 
 loops. Pair with `/loop` for a project too large for one run. Instruct the harness to emit BLOCKED on
 the critical path and return early rather than push past a real decision.
 
+## Step 8 — Report the work (open the black box)
+
+A non-trivial workflow runs dozens of agents the human never sees, then hands back a deliverable with
+the *how* and the *why-trust-it* locked in transcripts. The terminal **report node** unlocks both:
+after the verifier passes, one barrier reads the run manifest and writes a single self-contained HTML
+file (inline CSS + SVG, zero external requests) beside the deliverable.
+
+**It is a report about the work, not about the workflow.** The reader's first question is "what
+happened to *my* problem, and is it right?" — not "how did your agents coordinate?" So the task and
+its concrete outcome **lead and dominate**: what was asked, what was actually done (the real diffs /
+findings / answer, each carrying its `file:line` provenance), how to verify it, and what still needs a
+human call. The orchestration machinery — topology diagram, why-this-shape, agent/token/model
+accounting — is demoted to **one compact, collapsible "How this was produced" section** near the end,
+present for trust and the curious, never the spine. The topology earns its place only as evidence the
+result is trustworthy. The pedagogy owed is **task-pedagogy** (teach what the *task* required), not a
+tour of the harness.
+
+Two jobs, both from the spine: **teach** (a teammate who didn't watch can follow the work and learn
+how each case was handled) and **verify** (surface the Step-2 verifier and its verdict *attributed to
+the separate node that ran it*; print the exact re-run command plus a completeness/residual command
+whose expected count equals the deliberately-excluded items; link every claim to `file:line`).
+Verification-honest: a BLOCKED/sampled/capped result is shown as such with a scope caveat and a resume
+handle (worktree path + branch + "retries: 0 by design"), never repainted green.
+
+It needs material, so nodes **accumulate a run manifest** as they go — task + outcome, the substantive
+findings with provenance, the verifier + verdict + rung, the exception ledger, and accounting. Scaled
+to the work: on for non-trivial runs; **a trivial map+barrier emits a one-line verdict instead**;
+richness tracks run size; overridable. Diagrams use the Anthropic-minimal outline-only style. And
+because it's frontend, it self-verifies on the deterministic rung — drive `agent-browser` (start at
+`--help`) to confirm it renders, is self-contained (HAR shows one request), diagrams are visible and
+unclipped at ~390px and 1280px, and the console is clean; a failing check is a blocking defect, not a
+warning. Full contract, the task-first section order, and a render-verified reference implementation:
+`templates/report.md` and `templates/report.example.html`.
+
 ## Self-check before firing
 
 - Gate passed — this genuinely needs a workflow, not a single agent driving the verifier?
@@ -198,5 +237,6 @@ the critical path and return early rather than push past a real decision.
 - Critical-path BLOCKED wired to fail-fast + return + resume, with the resume-cache rule honored?
 - Topology rendered (if non-trivial) and no bigger than the task earns?
 - Mid-session context externalized / scheduled prompt self-contained?
+- Non-trivial run — report node appended, **task-first** (the work leads, machinery in a subordinate aside), verdict attributed to the separate verifier, self-verified with agent-browser (trivial map+barrier emits a one-line verdict)?
 
 If any answer is no, fix the invocation before firing.
