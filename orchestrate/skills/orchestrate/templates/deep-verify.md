@@ -4,6 +4,14 @@ Check and source every factual or technical claim in a document, report, or PR d
 when shipping something where being wrong is expensive and the author (human or agent) can't be
 trusted to catch their own errors.
 
+## Graph and verifier
+
+Primitives: worker (extract) → scatter-gather (one verifier worker per claim) → barrier (synthesize).
+Verifier: each claim gets a supported/refuted/unsupported verdict with file:line evidence, from an
+agent that did not extract it (rung 1–2: the codebase/sources are ground truth). Done = every claim
+has a verdict. BLOCKED: if "ground truth" is ambiguous (which repo? which sources?) and wasn't fixed
+in the interview, return that decision rather than guessing what to check against.
+
 ## Shape
 
 Fan-out and synthesize, with adversarial verification per claim:

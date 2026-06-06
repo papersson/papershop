@@ -1,6 +1,6 @@
 {
   "name": "orchestrate",
-  "version": "0.1.0",
-  "description": "Turn a rough task into a well-structured dynamic-workflow invocation. A skill that gates, scopes, and fires multi-agent workflows, plus reusable invocation templates (deep-verify, rank, root-cause).",
+  "version": "0.2.0",
+  "description": "Turn a rough task into a well-structured dynamic-workflow invocation. A gate-first skill that defines the verifier first, composes typed-node topologies (workers, barriers, loops, gates), handles interactive vs autonomous blocking (BLOCKED/return/resume), and fires the workflow, plus reusable invocation templates (deep-verify, rank, root-cause, migrate).",
   "author": { "name": "Patrik Persson" }
 }

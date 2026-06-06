@@ -5,6 +5,14 @@ every fix in a report, get every module to compile, rename a symbol across a cod
 the work is many independent edits that one context can't hold and that benefit from per-unit
 review. This is the shape behind large refactors and ports (e.g. rewriting a project file by file).
 
+## Graph and verifier
+
+Primitives: scatter-gather (one worker per unit) → loop (per-unit adversarial review) → barrier (the
+single serial apply where build/test/commit happen). Verifier: rung 1 — the build goes green and the
+relevant tests pass at the barrier (deterministic ground truth, not per-agent opinion). Done = every
+unit transformed, reviewed, and landed with the build green. BLOCKED: at the serial barrier, if the
+build can't be made green, return rather than committing a broken tree.
+
 ## Shape
 
 Pipeline, one independent chain per unit: **do → adversarially review → apply**, with apply

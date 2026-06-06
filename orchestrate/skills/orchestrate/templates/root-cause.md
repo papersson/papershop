@@ -5,6 +5,14 @@ regression. Use when one context window would fall into self-preferential bias: 
 first hypothesis instead of genuinely testing competing ones. This template is not just for code;
 it works for any post-mortem (why did sales drop in March, why did this pipeline fail).
 
+## Graph and verifier
+
+Primitives: scatter-gather (hypotheses from disjoint evidence) → diamond (test each, isolated) →
+loop (panel refutes; regenerate until one holds). Verifier: rung 1 — a theory counts only when it
+**reliably reproduces and explains** the symptom (a deterministic repro, not an agent's opinion).
+Divergence guard: cap the rounds. BLOCKED: on cap with no theory holding, return the evidence and the
+surviving candidates rather than shipping a guess as the root cause.
+
 ## Shape
 
 Independent hypotheses from disjoint evidence, each adversarially tested, looping until one holds:

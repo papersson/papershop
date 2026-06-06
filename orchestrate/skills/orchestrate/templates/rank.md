@@ -4,6 +4,14 @@ Sort or triage N items by a qualitative measure Claude is good at judging — su
 severity, resumes by fit, bug reports by impact, ideas by quality. Use when there are too many
 items to rank reliably in one prompt (quality degrades and it won't fit in context).
 
+## Graph and verifier
+
+Primitives: scatter-gather or a loop holding a tournament bracket → barrier (merge order) → diamond
+(re-check the top K with fresh agents). Verifier: the rubric is the signal; it's a **soft** verifier,
+so the stop condition is "every item placed and the top K survive an independent re-check," never a
+fake boolean. BLOCKED: if the rubric proves underspecified mid-run (judges can't apply it
+consistently), return that rather than ranking on a rubric you're inventing.
+
 ## Shape
 
 Comparative judgment, because pairwise comparison is more reliable than absolute scoring. Two
