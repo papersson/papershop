@@ -132,8 +132,10 @@ targeted fix per finding, not a wholesale rewrite.
 
 ## The deep path (dynamic workflow)
 
-When the gate calls for it, construct and fire a workflow. Set a token budget and cap it (this is
-multi-agent but web-free, so a few hundred k at most). Shape:
+When the gate calls for it, construct and fire a workflow. The graph is a **diamond → loop**
+compound (fan-out diagnose, converge at a plan barrier, then a verify loop). The verifier is
+**soft**: a rubric plus a panel of fresh agents (signal-hierarchy rung 3), driven against the prose
+reference — style is only softly verifiable, so it is never faked as a pass/fail boolean. Shape:
 
 1. **Diagnose (fan-out, separate contexts).** One critic agent per lens — AI-tells, concreteness,
    cadence, coherence, voice/register, cutting, honesty, plus a technical-explanation lens for
@@ -151,8 +153,12 @@ multi-agent but web-free, so a few hundred k at most). Shape:
    - **rewrite:** apply the plan, then **verify with fresh agents that never saw the original** —
      (a) tells removed without new ones introduced (swapping one tell for another is common),
      (b) meaning, facts, and argument intact (style only), (c) voice preserved, not flattened,
-     (d) it reads as a human wrote it (a fresh smell-test). Loop: if any check fails, revise and
-     re-verify, until two consecutive passes are clean or the cap is hit. Return only the prose.
+     (d) it reads as a human wrote it (a fresh smell-test). Loop with a **divergence guard**: if
+     revising re-introduces a tell while fixing another, or flattens voice, that is oscillation —
+     compare consecutive drafts, cap the rounds, and **on cap return BLOCKED** ("can't satisfy
+     tells-removed and voice-preserved at once; here are the two candidate edits") rather than
+     shipping a flattened over-corrected draft. Stop when two consecutive passes are clean. Return
+     only the prose.
 
 The fresh-eyes verification in step 4 is the structural answer to self-preferential bias. If the
 `orchestrate` skill is installed you can hand it this shape; otherwise fire it directly.
