@@ -130,7 +130,7 @@ Compose from typed **node primitives**:
 
 - **worker** — does one unit. Fields: role, input contract, output schema (must include the BLOCKED variant), model, retry policy.
 - **barrier** — a `parallel()`/synthesis join that awaits all and merges. The **only** place stateful/git/build/test commands run.
-- **loop** — do → check → revise around a body. Carries three mandatory fields or it is malformed (below).
+- **loop** — do → check → revise around a body. Carries four mandatory fields or it is malformed (below).
 - **gate** — a typed human-decision node; behavior set by interaction mode (Step 6).
 - **diamond** — fan-out then converge at one barrier.
 - **scatter-gather** — map a heterogeneous unit-list to workers, gather verdicts.
@@ -144,11 +144,12 @@ an adversarial panel. The `templates/` files (`deep-verify`, `rank`, `root-cause
 worked instances — adapt them. Spell out per-node wiring fields only when composing across a boundary
 or when the graph is non-trivial; a two-agent fan-out doesn't need a written schema.
 
-**Every loop node carries three fields or it is malformed:**
+**Every loop node carries four fields or it is malformed:**
 
 1. **Signal** — the verifier from Step 2 (one concept, not two), at its hierarchy rung.
 2. **Stop condition** — concrete, derived from the verifier (count / convergence / threshold, e.g. "two consecutive clean passes"). Ends when the verifier passes, not when agents tire.
-3. **Divergence guard** — detect oscillation (fixing A breaks B) with a checkable diff/hash between rounds, cap iterations, and **on cap escalate** (emit BLOCKED or surface the honest best attempt) rather than silently shipping the last try.
+3. **Divergence guard** — detect oscillation (fixing A breaks B) with a checkable diff/hash between rounds, cap iterations, and **classify every failure as transient or permanent**: a permanent/unrecoverable error (a server-side `*Failed`, an eligibility/quota/subscription denial, a 4xx that won't change on retry) **breaks the loop and emits BLOCKED at once** — never grind a create→fail→delete→recreate retry against it, since a cap alone will burn the whole budget thrashing on something no retry can fix. And **any loop or serial chain that depends on an external platform (deploy, provision, onboard, partner-model access) must be gated behind a cheap parallel preflight probe** — a dry-run deploy, a capability/eligibility/quota check — that proves feasibility in seconds *before* the expensive body fires; a failed probe returns BLOCKED instead of committing the chain. **On cap, on a failed preflight, or on a permanent failure, escalate** (emit BLOCKED or surface the honest best attempt) rather than silently shipping the last try or thrashing.
+4. **Binding verdict — the corrective arm is not optional.** A non-passing verdict (`needs_revision`, unsupported claims, below threshold) *fires the fix→re-verify body and re-runs the verifier*; the loop is self-driving and the run **may not terminate while the verdict is non-sound**. A verifier that returns `needs_revision` with zero fix rounds is a **malformed run, not a result** — the expensive adversarial pass must buy enforced correction, never a flagged opinion left for the human to reconcile by hand. The body re-runs until `verdict == sound` or the cap escalates (field 3); a one-shot finish on a failing verdict is the bug, not the design. Where adversarial lenses produce a synthesized output, that synthesis is itself a doer and needs its own verify→fix loop — lenses that flag are not a substitute for a verdict that is validated and looped.
 
 **The one-barrier rule for mutation:** every fan-out converges at exactly one barrier where stateful
 work happens; inside fan-out, git/build/test/package-managers are banned (they collide on a shared
@@ -167,6 +168,46 @@ Default to the load-bearing topological ideas — feedback loops (do→verify→
 rather than treating them as escalations. One primitive is a valid topology for a small ask; a hard
 one should *use* these patterns, not ration them. Trim only nodes that add no signal (redundant
 doers, theater) — never trim verification or diversity to look lean.
+
+**Best-of-N is a lever, not redundant doing.** "Repeating the same doer buys nothing" rules out naive
+self-consistency — N identical calls voting on themselves — but not its productive cousin: a
+**temperature-diversified candidate pool** generated wide, then narrowed by a *separate* selector. The
+decorrelation comes from sampling diversity (varied temperature, seeds, or framing lenses) plus an
+independent judge, not from re-running one prompt. It earns its tokens when the task is taste-based or
+admits many viable forms (naming, outline, structure, narrative, draft), the candidates are genuinely
+different rather than paraphrases, and a separate node scores them on a rubric and actually filters.
+Set **N deliberately and scale it to the size of the design space**: a handful of ad-hoc candidates
+under-samples a large one — for high-taste work over-generate (N≈8–12) behind a **hard selection bar**
+(top-k or a score threshold, expect to cut) rather than a lenient judge that passes everything. A
+selector that never rejects is theater; tune the bar until the over-generation pays.
+
+**Default magnitudes — what "rich" and "wide" actually mean.** "Richest topology" and "scale fan-out
+width to what discovery finds" need an operational floor, or every run silently lands thin. Take these
+as defaults — scale *up* on discovery, *down* only with a stated reason:
+
+- **Fan-out width** — ≥ one agent per discovered unit (file / finding / claim / section). Never batch independent units into one agent to look lean: 40 findings is 40 doers, not 8 doing 5 each.
+- **Independent lenses** — ≥ 3 when the same unit is seen N ways (diverse-lens, design/naming exploration); more when the call is high-stakes or taste-driven.
+- **Adversarial verification** — ≥ 1 separate refuter per claim; for soft/taste verdicts a panel of ≥ 3 voters (odd, to break ties). A single LLM judge is the floor only for hard, deterministic-rung checks.
+- **Tournament** — a bracket of ≥ 4 candidates for taste/selection; fewer is not a tournament.
+- **Verifier-to-doer ratio** — budget roughly **one verify agent per doer** for don't-trust-the-first-answer work (each unit gets its own checker), not one verifier auditing the whole batch; a shared verifier is acceptable only for cheap deterministic gates.
+
+These compose multiplicatively: 7 candidates × 4 claims × 3 votes is ~84 verify agents — the *expected*
+magnitude for a deep-verify run, not an overrun. A hard task whose graph lands under ~15–20 agents is
+the cue to check whether width or verification was silently rationed, not a sign of a tidy plan.
+
+**Prefix caching is the spend amplifier — front-load one shared, cacheable contract.** A wide or deep
+fan-out is affordable only when the heavy front-matter (purpose, vocabulary, framings, schemas, prior
+verified findings) is written **once as a stable prefix** and replayed across every worker, not
+re-sent per agent. Zero-context subagents force this anyway — everything load-bearing must live in the
+prompt — so make that contract the *first, identical, byte-stable* block of every worker, and put the
+variable unit-input strictly *after* it, never interleaved. Then prefix caching amortizes the contract
+across the width: a 14+14 drafter/harmonizer fan-out pays for it roughly once, not 28 times, which is
+what lets you afford the most-expressive graph above rather than rationing it to dodge per-agent
+context cost. Carry established results across runs the same way: inject a prior run's verified findings
+as a "fold in, do not re-derive" prefix so the next phase doesn't re-spend agents rederiving what an
+earlier run already proved. Account for this in the agent/token envelope you render at Step 7
+(cached-prefix vs live tokens), and note it composes with the resume-cache rule (Step 6): same
+mechanism — a stable prefix replayed cheaply — applied across the fan-out instead of across a resume.
 
 **Dynamic shape — the graph is code, not a frozen DAG.** When the work-list or the difficulty isn't
 known up front, don't fix the topology at launch. Encode decision points where intermediate results
@@ -217,9 +258,19 @@ feedback or adversarial loop.
 **Then stop for approval — a hard gate in interactive mode.** Present the plan and **wait for an
 explicit go** before spending anything; never render-and-fire in one motion. Even when nothing needed
 clarifying, a one-line "here's the shape and the cost — launch it?" is required. The human may trim,
-redirect, or approve. Only an **autonomous / scheduled** run skips this gate (no human to ask), and
-such a run must be self-contained per Step 3. Because dynamic shapes change mid-run, what gets approved
-is the **strategy + decision rules + bounds**, not a frozen node count.
+redirect, or approve.
+
+**The plan you render is already the heavy one.** Default to the deep, research-fronted, many-agent
+shape the task warrants — sized by signal, not caution. The gate exists for the human to dial *down*,
+never for you to under-spec and wait to be licensed up: do **not** render a safe ~7–18-agent shape on
+the theory they'll ask for more if they want it. "Spend more tokens / use more agents" is something
+you should never make the user say — warranted depth is the default and the approval is permission to
+*trim*. A thin plan for a hard task is a defect to fix before rendering, not a conservative starting
+bid.
+
+Only an **autonomous / scheduled** run skips this gate (no human to ask), and such a run must be
+self-contained per Step 3. Because dynamic shapes change mid-run, what gets approved is the **strategy
++ decision rules + bounds**, not a frozen node count.
 
 On approval, fire (this skill is your authorization to use the Workflow capability). Mid-session, run
 in the background and say they'll be notified. Honor any token budget; cap runaway loops. Pair with
@@ -267,6 +318,18 @@ confirm it renders, is self-contained (HAR shows one request), diagrams are visi
 contract, the task-first section order, and a render-verified reference implementation:
 `templates/report.md` and `templates/report.example.html`.
 
+**Hand it back where the user actually looks — the chat, not the tool result.** The report lives in
+/tmp and the path returned inside the task-completion tool result is invisible to the user; a path
+buried there reads as "no report." So the final assistant message that closes the run must do two
+things, every time: (1) print the report path verbatim on its own line as a clickable
+`file:///tmp/orchestrate-reports/<name>-<runid>.html`; and (2) lead with a 2–4 sentence plain-English
+hand-back — **what ran** (the shape, in words), **on which target** (the concrete project / dir /
+repo), **what changed or was produced** (the real diffs / findings / answer), and **the verifier's
+verdict** (attributed to the separate node). No machinery, no agent counts — just what happened to the
+user's problem and whether it's right. If the report was downgraded or skipped at all (HTML →
+markdown, full → one-line, or omitted), say so explicitly *in that hand-back* and why; a silent
+downgrade reads as a skipped deliverable and the user will ask where it went.
+
 ## Self-check before firing
 
 - Gate passed — a workflow is genuinely warranted (not trivial work in disguise)?
@@ -274,11 +337,12 @@ contract, the task-first section order, and a render-verified reference implemen
 - Verifier defined first, the stop condition derived from it (done = verifier passes), and verification **layered** (adversarial/diverse) rather than minimized?
 - Signal on the highest available rung (a tool over an LLM judge where ground truth exists)?
 - Dynamic where the work-list/difficulty is unknown — shape adapts to intermediate findings; multi-workflow chaining considered for large/uncertain work?
-- Every fan-out unit independent; every loop has signal + stop + divergence guard?
+- Every fan-out unit independent; every loop has signal + stop + divergence guard + binding verdict (loops until `verdict == sound` or the cap escalates, never one-shots a failing verdict)?
 - Every gate has a mode set by the interaction mode?
 - Critical-path BLOCKED wired to fail-fast + return + resume, with the resume-cache rule honored?
-- Plan rendered, and in **interactive mode an explicit approval obtained before firing** (autonomous runs self-contained instead)?
+- Plan rendered as the **heavy shape the task warrants** (the gate is for the human to dial *down*, not for you to under-spec and wait to be licensed up), and in **interactive mode an explicit approval obtained before firing** (autonomous runs self-contained instead)?
 - Mid-session context externalized / scheduled prompt self-contained?
 - Report on by default — written to **/tmp**, scaled to run size, **prose-passed**, task-first, verdict attributed to the separate verifier, agent-browser self-verified (only an extremely-trivial single-agent run drops to a one-line verdict)?
+- Report **handed back in the chat** — closing message leads with the plain-English what-ran / on-what / what-changed / verdict, prints the `file://` path verbatim, and declares any downgrade or skip?
 
 If any answer is no, fix the invocation before firing.
