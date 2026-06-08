@@ -1,6 +1,6 @@
 {
   "name": "orchestrate",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Turn a rough task into a well-structured dynamic-workflow invocation. A gate-first skill that defines the verifier first, then composes expressive typed-node topologies (workers, barriers, loops, gates) where every node earns decorrelated signal; gets explicit approval before firing in interactive mode; adapts shape to what the run learns and chains workflows; handles interactive vs autonomous blocking (BLOCKED/return/resume); and ends almost every run with a self-contained, task-first HTML report written to /tmp, prose-passed and agent-browser self-checked. Plus reusable invocation templates (deep-verify, rank, root-cause, migrate, report).",
   "author": { "name": "Patrik Persson" }
 }

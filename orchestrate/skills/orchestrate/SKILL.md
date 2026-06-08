@@ -13,9 +13,10 @@ description: >
 # orchestrate
 
 You turn a rough task into a **dynamic-workflow invocation**: a natural-language prompt that gives
-Claude enough structure to write its own multi-agent harness. You do not write the harness
-JavaScript — you decide *whether* a workflow is warranted, *what shape* it takes, and you phrase
-the invocation so the harness comes out right.
+Claude enough structure to write its own multi-agent harness. You do not hand-write most of the
+harness JavaScript — you decide *whether* a workflow is warranted, *what shape* it takes, phrase the
+invocation so the harness comes out right, and bake in the authoring hazards (Step 7) and barrier
+gates (Step 6) that have crashed or silently corrupted real runs.
 
 Two mental models, held together:
 
@@ -238,6 +239,19 @@ already in flight may finish. Then **return early** with the block surfaced; the
 loop brings it to the human via `AskUserQuestion`; the run **resumes via `resumeFromRunId`** so the
 cached prefix replays instantly and only the unblocked tail runs live.
 
+**The barrier must gate, not just merge — a missing critical input halts the run.** The commonest
+silent failure is not a worker *emitting* BLOCKED; it is a worker returning **`null`** (it died, was
+skipped, or hit a terminal error) and the serial code after the barrier running anyway on the hole.
+`.filter(Boolean)` is correct only for *optional* units that drop-and-continue; a **critical** input —
+the baseline every later phase reads, the scout list the fan-out maps over, the build the tests need —
+has no valid empty value, so the barrier after Phase N must **assert it is present and
+`return { status: BLOCKED, … }` the instant it is missing**, before Phase N+1 fires. A
+`log('…MISSING')` is a comment, not a gate: logging the hole and proceeding is the exact bug where a
+Phase-1 failure lets every later phase run to completion on incomplete evidence. So classify each
+barrier input up front — **critical** (missing → halt the run) vs **optional** (missing → drop the
+unit) — and write the explicit early-return for every critical one; never let truthiness-filtering
+quietly swallow a critical hole.
+
 **Resume-cache rule** (not a footnote): resume is cheap only when the human's decision *unlocks a new
 branch* without changing inputs to already-cached nodes. If the decision changes the brief or an
 upstream input, the affected nodes must be **re-run, not replayed from cache** — otherwise resume
@@ -276,6 +290,24 @@ On approval, fire (this skill is your authorization to use the Workflow capabili
 in the background and say they'll be notified. Honor any token budget; cap runaway loops. Pair with
 `/loop` for a project too large for one run. Instruct the harness to emit BLOCKED on the critical path
 and return early rather than push past a real decision.
+
+**Bake the harness-authoring hazards into the invocation.** The script is real JavaScript authored in
+one shot, and a crash means a manual edit-and-resume round-trip — so the invocation must tell the
+harness to dodge the footguns that have actually killed runs:
+
+- **`await` binds looser than a method call.** `await parallel(...).filter(Boolean)` parses as
+  `await (parallel(...).filter(...))` — `.filter` runs on the *Promise* and throws, crashing the whole
+  fire after the fan-out has already spawned. Always parenthesize the await before chaining:
+  `(await parallel(...)).filter(Boolean)`, `(await agent(...)).field`.
+- **The determinism guard is a static text scan, not an AST.** The literal tokens for wall-clock and
+  randomness are rejected *anywhere* in the script source — including comments and prompt strings —
+  even when never executed, and the run never launches. Don't write those literal tokens at all:
+  paraphrase them in prose (e.g. "the wall-clock / randomness primitives") and pass any timestamp in
+  via `args`.
+- **A `null` is not a failure signal by itself.** `agent()` returns `null` on death/skip and a bare
+  string when schema-less; gate the next stage on the *shape you expect* (the field is present, the
+  array is non-empty), not on truthiness alone — this is the script-level companion to the
+  critical-input barrier gate in Step 6.
 
 ## Step 8 — Report the work (open the black box)
 
@@ -340,6 +372,8 @@ downgrade reads as a skipped deliverable and the user will ask where it went.
 - Every fan-out unit independent; every loop has signal + stop + divergence guard + binding verdict (loops until `verdict == sound` or the cap escalates, never one-shots a failing verdict)?
 - Every gate has a mode set by the interaction mode?
 - Critical-path BLOCKED wired to fail-fast + return + resume, with the resume-cache rule honored?
+- Every barrier classifies its inputs **critical vs optional**, and **early-returns BLOCKED on a missing critical input** before the next phase fires (a `log('…MISSING')` is not a gate; `.filter(Boolean)` is for optional units only)?
+- Harness-authoring hazards baked in — `await` parenthesized before any `.method()` chain, no literal `Date.now`/`Math.random`/`new Date` tokens anywhere (incl. comments/prompt strings), next stage gated on result *shape* not just truthiness?
 - Plan rendered as the **heavy shape the task warrants** (the gate is for the human to dial *down*, not for you to under-spec and wait to be licensed up), and in **interactive mode an explicit approval obtained before firing** (autonomous runs self-contained instead)?
 - Mid-session context externalized / scheduled prompt self-contained?
 - Report on by default — written to **/tmp**, scaled to run size, **prose-passed**, task-first, verdict attributed to the separate verifier, agent-browser self-verified (only an extremely-trivial single-agent run drops to a one-line verdict)?
