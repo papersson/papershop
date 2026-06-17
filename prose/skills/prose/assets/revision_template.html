@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prose revision</title>
+<style>
+  :root {
+    --ink: #1c1c1c; --mut: #6b6b6b; --line: #e7e4dd; --bg: #f7f5f0; --card: #fffdf8;
+    --del-bg: #fbe9e7; --del: #b3261e; --ins-bg: #e7f4ea; --ins: #1b6e2f; --accent: #1b6e2f;
+  }
+  body { font: 16px/1.65 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+         max-width: 780px; margin: 0 auto; padding: 2.2em 1.3em; color: var(--ink); background: var(--bg); }
+  h1 { font-size: 1.35em; font-weight: 600; margin: 0 0 0.15em; letter-spacing: -0.01em; }
+  .sub { color: var(--mut); font-size: 0.82em; margin-bottom: 1.2em; }
+  .bar { position: sticky; top: 0; background: var(--bg); padding: 0.7em 0; margin-bottom: 0.4em;
+         border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 1.1em; flex-wrap: wrap; z-index: 5; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--card); }
+  .toggle button { border: 0; border-right: 1px solid var(--line); background: transparent; padding: 0.42em 0.95em;
+                   font: inherit; font-size: 0.82em; cursor: pointer; color: var(--mut); }
+  .toggle button:last-child { border-right: 0; }
+  .toggle button.active { background: var(--accent); color: #fff; }
+  .summary { font-size: 0.82em; color: var(--mut); }
+  .legend { font-size: 0.78em; color: var(--mut); display: none; gap: 1.1em; margin: 0.5em 0 0; }
+  .legend.show { display: flex; flex-wrap: wrap; }
+  .legend .k { padding: 0 4px; border-radius: 3px; }
+  .doc { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1.4em 1.6em; margin-top: 1em;
+         box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  p.para { margin: 0 0 1em; } p.para:last-child { margin-bottom: 0; }
+  del { color: var(--del); background: var(--del-bg); text-decoration: line-through; border-radius: 2px; padding: 0 2px; }
+  ins { color: var(--ins); background: var(--ins-bg); text-decoration: none; border-radius: 2px; padding: 0 2px; }
+  /* hover a changed span to see the tell or principle behind the edit */
+  .chg { position: relative; cursor: help; }
+  .chg:hover::after {
+    content: attr(data-why); position: absolute; left: 0; bottom: 132%;
+    background: var(--ink); color: #fff; font: 400 0.74em/1.4 -apple-system, Helvetica, Arial, sans-serif; font-style: normal;
+    padding: 6px 10px; border-radius: 7px; white-space: normal; width: max-content; max-width: 300px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.22); z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<h1>Prose revision</h1>
+<div class="sub">Style edits only. Facts, claims, and argument are unchanged. Hover a change in the Diff tab for the tell or principle behind it.</div>
+
+<div class="bar">
+  <span class="toggle">
+    <button id="btn-original" onclick="setView('original')">Original</button>
+    <button id="btn-rewrite" class="active" onclick="setView('rewrite')">Rewrite</button>
+    <button id="btn-diff" onclick="setView('diff')">Diff</button>
+  </span>
+  <span class="summary" id="summary"></span>
+</div>
+<div class="legend" id="legend">
+  <span><span class="k" style="background:var(--del-bg);color:var(--del);text-decoration:line-through">removed</span> cut as a tell or as clutter</span>
+  <span><span class="k" style="background:var(--ins-bg);color:var(--ins)">rewritten</span> moved toward the principle</span>
+  <span>hover the colored text for the reason</span>
+</div>
+
+<div class="doc" id="doc"></div>
+
+<script>
+// One entry per sentence, grouped by paragraph. type "keep" is unchanged.
+// type "edit" was rewritten (old to new). type "del" was cut. "why" names the
+// tell or the principle, e.g. "copula avoidance -> 'is' (Steere)" or
+// "nominalization, find the actor (Williams)". The agent replaces the DATA
+// assignment below with the real list as JSON. Style only: every proposition in
+// "original" must survive into "rewrite" unless it was pure filler.
+const DATA = __DATA__;
+
+function para(html) { return `<p class="para">${html}</p>`; }
+function attr(s) { return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); }
+
+// Original: the text before the rewrite.
+function renderOriginal() {
+  return DATA.map(p => para(
+    p.items.map(it => it.type === "keep" ? it.text : it.old).join(" ")
+  )).join("");
+}
+
+// Rewrite: the final prose. "del" entries vanish; "edit" entries take the new form.
+function renderRewrite() {
+  return DATA.map(p => para(
+    p.items.map(it => it.type === "keep" ? it.text : it.type === "edit" ? it.new : "")
+            .filter(Boolean).join(" ")
+  )).join("");
+}
+
+// Diff: the original with cuts struck through and rewrites shown in green.
+function renderDiff() {
+  return DATA.map(p => para(
+    p.items.map(it => {
+      if (it.type === "keep") return it.text;
+      if (it.type === "del") return `<del class="chg" data-why="${attr(it.why)}">${it.old}</del>`;
+      return `<del>${it.old}</del> <ins class="chg" data-why="${attr(it.why)}">${it.new}</ins>`;
+    }).join(" ")
+  )).join("");
+}
+
+const RENDER = { original: renderOriginal, rewrite: renderRewrite, diff: renderDiff };
+
+function setView(v) {
+  ["original", "rewrite", "diff"].forEach(k =>
+    document.getElementById("btn-" + k).classList.toggle("active", k === v));
+  document.getElementById("legend").classList.toggle("show", v === "diff");
+  document.getElementById("doc").innerHTML = RENDER[v]();
+}
+
+const items = DATA.flatMap(p => p.items);
+const nEdit = items.filter(i => i.type === "edit").length;
+const nDel = items.filter(i => i.type === "del").length;
+document.getElementById("summary").textContent =
+  `${nEdit} sentence${nEdit === 1 ? "" : "s"} rewritten, ${nDel} cut.`;
+setView("rewrite");
+</script>
+</body>
+</html>

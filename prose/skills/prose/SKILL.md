@@ -25,7 +25,9 @@ with calibrated before/after pairs. Read it for depth; the essentials are below.
 **`rewrite`** (default). Triggered by "clean this up", "refine", "humanize", "de-slop", "tighten",
 "make this read well", or by drafting new prose. **Your entire response is the rewritten text.** No
 preamble, no "here's what I changed", no trailing notes. If the user wants to know what changed,
-that is `review`. When drafting from scratch, apply the principles silently as you write.
+that is `review`. When drafting from scratch, apply the principles silently as you write. When you
+revise existing prose and the edit is more than trivial, also write a **revision artifact** (see
+below) and end with one line giving its path — the only commentary `rewrite` permits.
 
 **`review`** (the teacher). Triggered by "what's wrong with this", "critique", "review my writing",
 "help me improve", "teach me". Output a **located** critique and do not rewrite the whole piece
@@ -41,7 +43,9 @@ keep the critique and the prose visibly separate.
 
 **The contract, held firm:** never leak commentary into `rewrite`, and never silently rewrite in
 `review`. The most common failure of a de-slopping tool is becoming chatty — producing slop about
-removing slop. Keep explanation quarantined in `review`.
+removing slop. Keep explanation quarantined in `review` and in the revision artifact. The single
+permitted line in `rewrite` is the artifact's path; the reasoning lives inside the file, never in the
+prose or around it.
 
 ## Style only
 
@@ -108,6 +112,44 @@ actual voice. If removing a "tell" would also remove personality and the tell is
 The goal is to remove the signature *density* of machine text, not to launder prose into one safe
 register.
 
+## The revision artifact
+
+`rewrite` returns clean prose, which gives the writer nothing to inspect. So when the edit is more
+than trivial, also write a self-contained HTML diff to `/tmp` and tell the user its path. This is the
+only thing `rewrite` ships besides the prose. The artifact is where the reasoning lives, so the
+response itself stays silent — explanation quarantined, contract intact. Skip it for a one-line touch-up
+where there is nothing to show.
+
+Unlike `review`, the artifact does not teach in prose; it lets the reader *see* the change and, on
+hover, read the one reason behind it. Keep each reason short and **name the tell or the principle** in
+our own vocabulary, so the diff carries the pedagogy `review` would: `"copula avoidance → 'is'
+(Steere)"`, `"nominalization, find the actor (Williams)"`, `"clutter, every word earns its place
+(Zinsser)"`. That naming is what makes ours more than a generic diff.
+
+Build a sentence-level change list grouped by paragraph. Each entry is one of:
+
+- **keep** — unchanged. Fields: `type: "keep"`, `text`.
+- **edit** — rewritten. Fields: `type: "edit"`, `old`, `new`, `why`.
+- **del** — cut (a pure tell or pure clutter; never a proposition). Fields: `type: "del"`, `old`, `why`.
+
+```json
+[
+  { "para": 1, "items": [
+    { "type": "edit", "old": "...", "new": "...", "why": "copula avoidance → 'is' (Steere)" },
+    { "type": "del",  "old": "...", "why": "metadiscourse, the argument is stronger without it (Zinsser)" }
+  ]},
+  { "para": 2, "items": [ { "type": "keep", "text": "..." } ] }
+]
+```
+
+Take `assets/revision_template.html` (alongside this skill), replace the exact line
+`const DATA = __DATA__;` with `const DATA = <json>;`, and save to a new file like
+`/tmp/prose-revision-<short-name>.html`. Do not write into the skill folder, and confirm no `__DATA__`
+remains. The file opens to three tabs — Original, Rewrite, Diff — with cuts in red, rewrites in green,
+and the reason on hover. Because the `rewrite` view is reconstructed from the entries, every
+proposition in the original must survive into an `edit` or `keep`; only true filler becomes a `del`.
+This is the same style-only invariant, made checkable.
+
 ## Depth: inline or a workflow
 
 Gate every request. Most prose is short and low-stakes; handle it **inline** in one pass. Fire a
@@ -124,7 +166,8 @@ separation is the whole point; an inline pass cannot give you it.
 
 **rewrite:** read and infer register → diagnose (grep-able tells first, then the judgment calls:
 rhythm, abstraction, voice) → treat top-down (structure, then paragraph, then sentence, then word) →
-preserve meaning, facts, and voice → self-check against over-correction → return only the prose.
+preserve meaning, facts, and voice → self-check against over-correction → return the prose, and for a
+non-trivial edit also write the revision artifact and give its path.
 
 **review:** read and infer register → diagnose → emit located findings, each as `"span" — [tell or
 pathology] · principle (Author). Fix: ...` → lead with what works, order by impact → show the
@@ -158,7 +201,8 @@ reference — style is only softly verifiable, so it is never faked as a pass/fa
      compare consecutive drafts, cap the rounds, and **on cap return BLOCKED** ("can't satisfy
      tells-removed and voice-preserved at once; here are the two candidate edits") rather than
      shipping a flattened over-corrected draft. Stop when two consecutive passes are clean. Return
-     only the prose.
+     the prose, and write the revision artifact (the verified change list maps directly onto its
+     keep/edit/del entries) with its path.
 
 The fresh-eyes verification in step 4 is the structural answer to self-preferential bias. If the
 `orchestrate` skill is installed you can hand it this shape; otherwise fire it directly.

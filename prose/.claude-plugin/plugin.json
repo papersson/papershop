@@ -1,6 +1,6 @@
 {
   "name": "prose",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Improve writing STYLE without changing content: strip AI/LLM and bad-prose signatures, move toward careful human writing (especially technical). Two modes — rewrite (silent) and review (a located, teaching critique). Quick edits run inline; long or high-stakes pieces fan out as a dynamic workflow that diagnoses across lenses and verifies with fresh agents. Grounded in a curated craft corpus.",
   "author": { "name": "Patrik Persson" }
 }
