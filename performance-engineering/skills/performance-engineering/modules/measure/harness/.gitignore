@@ -1,0 +1,7 @@
+# Generated data and build artifacts for the embedded eval harness.
+# Experiments regenerate everything under results/ (including test corpora) on
+# run; generated data belongs in the working project, never in the skill.
+.venv/
+__pycache__/
+*.pyc
+results/

@@ -1,0 +1,6 @@
+{
+  "name": "performance-engineering",
+  "version": "0.1.0",
+  "description": "Make software faster, prove it, and keep it fast. A gate-first performance-engineering router: orient on the software stack (where to look) and the local-vs-prod context (which tools, and whether telemetry comes first), run the measure-locate-fix-prove-defend loop with measurement integrity as a non-negotiable, and descend on demand into deep modules (diagnose, profile, benchmark, optimize, design-for-performance, capacity, regression CI) and an instrument reference indexed by environment (macOS, Linux perf/eBPF, prod/distributed telemetry). Ships a fair-measurement evaluation harness.",
+  "author": { "name": "Patrik Persson" }
+}

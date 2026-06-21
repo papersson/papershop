@@ -4,6 +4,7 @@
   "plugins": [
     { "name": "worklog", "source": "./worklog" },
     { "name": "orchestrate", "source": "./orchestrate" },
-    { "name": "prose", "source": "./prose" }
+    { "name": "prose", "source": "./prose" },
+    { "name": "performance-engineering", "source": "./performance-engineering" }
   ]
 }
