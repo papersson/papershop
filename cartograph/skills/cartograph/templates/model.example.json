@@ -1,0 +1,155 @@
+{
+  "meta": { "name": "Aperture", "subtitle": "toy photo service" },
+
+  "nodes": [
+    ["clients", 95, 110, "client", "Clients", "Client Platform", { "tier": "p0" }],
+    ["cdn", 95, 250, "edge", "CDN", "Edge Infra", { "dur": "derived", "tag": "Fastly" }],
+    ["gw", 280, 110, "svc", "API Gateway", "API Platform", { "tier": "p0" }],
+    ["identity", 280, 250, "svc", "Identity", "Identity", { "tier": "p0" }],
+    ["redis", 280, 375, "store", "Session Cache", "API Platform", { "dur": "ephemeral", "tag": "Redis" }],
+    ["upload", 500, 250, "svc", "Upload", "Media Ingest", { "tier": "p0" }],
+    ["photos", 690, 150, "svc", "Photo Metadata", "Photos Core", { "tier": "p0" }],
+    ["sharing", 690, 300, "svc", "Sharing", "Sharing", { "tier": "p1" }],
+    ["media", 880, 150, "svc", "Media Proc.", "Media", { "tier": "p1" }],
+    ["vision", 1050, 150, "svc", "Vision Tags", "ML Platform", { "tier": "p1" }],
+    ["safety", 1180, 300, "svc", "Content Safety", "Trust & Safety", { "tier": "p0" }],
+    ["kafka", 760, 455, "broker", "kafka — event backbone · Avro + schema registry", "Data Platform", { "dur": "ephemeral", "bus": true }],
+    ["search", 500, 600, "svc", "Search", "Search", { "dur": "derived", "tier": "p1" }],
+    ["feed", 680, 600, "svc", "Feed", "Feed", { "dur": "derived", "tier": "p1" }],
+    ["notif", 860, 600, "svc", "Notifications", "Messaging", { "tier": "best" }],
+    ["analytics", 1040, 600, "svc", "Analytics", "Data Platform", { "tier": "best" }],
+    ["s3", 500, 690, "store", "Object Store", "Media Ingest", { "dur": "sot", "tag": "S3" }],
+    ["pdb", 680, 690, "store", "Photos DB", "Photos Core", { "dur": "sot", "tag": "Postgres" }],
+    ["es", 330, 600, "store", "Search Index", "Search", { "dur": "derived", "tag": "Elastic" }],
+    ["warehouse", 1040, 690, "store", "Warehouse", "Data Platform", { "dur": "derived", "tag": "BigQuery" }]
+  ],
+
+  "edges": [
+    ["clients", "gw", "rest", 0, "exactly-once", "strong", 0, "p0", "GraphQL uploadPhoto(file, meta)"],
+    ["clients", "cdn", "rest", 0, "exactly-once", "stale", 0, "p1", "GET asset"],
+    ["cdn", "s3", "bytes", 0, "exactly-once", "strong", 0, "p1", "origin fetch"],
+    ["gw", "identity", "grpc", 0, "exactly-once", "strong", 0, "p0", "ValidateToken(jwt)→{user_id,scopes}"],
+    ["gw", "redis", "cache", 0, "best-effort", "stale", 0, "p1", "GET/SET sess:{tok}"],
+    ["gw", "upload", "grpc", 0, "exactly-once", "strong", 0, "p0", "UploadPhoto(bytes, meta, owner_id)"],
+    ["gw", "photos", "grpc", 0, "exactly-once", "ryw", 0, "p0", "GetPhoto(id)→Photo"],
+    ["gw", "sharing", "grpc", 0, "exactly-once", "strong", 0, "p1", "ListAlbums(user_id)"],
+    ["upload", "s3", "bytes", 0, "exactly-once", "strong", 0, "p0", "PUT orig/{id} (octet-stream)"],
+    ["upload", "pdb", "sql", 0, "exactly-once", "strong", 0, "p0", "INSERT photos(owner_id, geom, ...)"],
+    ["media", "s3", "bytes", 0, "exactly-once", "strong", 0, "p1", "PUT web/thumb webp"],
+    ["photos", "pdb", "sql", 0, "exactly-once", "strong", 0, "p0", "photos / photo_tags rows"],
+    ["identity", "redis", "cache", 0, "best-effort", "stale", 0, "p1", "SET sess→user_id"],
+    ["search", "es", "rest", 0, "exactly-once", "eventual", 0, "p1", "PUT _doc (labels, geo)"],
+    ["analytics", "warehouse", "sql", 0, "at-least-once", "eventual", 0, "best", "batch load events_fact"],
+    ["upload", "kafka", "kafka", 1, "at-least-once", "eventual", 0, "p0", "photo.uploaded v3"],
+    ["media", "kafka", "kafka", 1, "at-least-once", "eventual", 0, "p1", "rendition_ready v2"],
+    ["vision", "kafka", "kafka", 1, "at-least-once", "eventual", 0, "p1", "photo.tagged v1 (faces)"],
+    ["safety", "kafka", "kafka", 1, "at-least-once", "eventual", 0, "p0", "moderation.verdict v1"],
+    ["photos", "kafka", "kafka", 1, "at-least-once", "eventual", 0, "p0", "photo.published v4 / deleted"],
+    ["kafka", "media", "kafka", 1, "at-least-once", "eventual", 0, "p1", "photo.uploaded"],
+    ["kafka", "vision", "kafka", 1, "at-least-once", "eventual", 0, "p1", "photo.uploaded"],
+    ["kafka", "safety", "kafka", 1, "at-least-once", "eventual", 0, "p0", "photo.uploaded"],
+    ["kafka", "photos", "kafka", 1, "at-least-once", "eventual", 0, "p0", "rendition · tagged · verdict"],
+    ["kafka", "search", "kafka", 1, "at-least-once", "eventual", 0, "p1", "tagged · published"],
+    ["kafka", "feed", "kafka", 1, "at-least-once", "eventual", 0, "p1", "published · deleted"],
+    ["kafka", "notif", "kafka", 1, "at-least-once", "eventual", 0, "best", "published"],
+    ["kafka", "analytics", "kafka", 1, "at-least-once", "eventual", 0, "best", "all topics"]
+  ],
+
+  "lineage": {
+    "groups": [
+      { "id": "src", "label": "Source bytes", "x": 70 },
+      { "id": "extract", "label": "Extracted", "x": 280 },
+      { "id": "derive", "label": "Derived (ML)", "x": 490 },
+      { "id": "pdb", "label": "Photos DB", "x": 710 },
+      { "id": "event", "label": "Events (Avro)", "x": 930 },
+      { "id": "sink", "label": "Search / Warehouse", "x": 1140 }
+    ],
+    "fields": [
+      ["bytes.body", "src", 150, "bytes.body", 0],
+      ["client.filename", "src", 230, "client.filename", 0],
+      ["jwt.owner", "src", 330, "jwt.owner_id", 0],
+      ["exif.gps", "extract", 150, "exif.gps", 0],
+      ["exif.taken", "extract", 230, "exif.taken_at", 0],
+      ["vision.labels", "derive", 150, "vision.labels[]", 0],
+      ["vision.faces", "derive", 230, "vision.faces", 0],
+      ["rend.web", "derive", 330, "rendition.web_key", 0],
+      ["photos.geom", "pdb", 150, "photos.geom", 0],
+      ["photos.taken", "pdb", 230, "photos.taken_at", 0],
+      ["photos.owner", "pdb", 330, "photos.owner_id", 0],
+      ["phototag.tag", "pdb", 410, "photo_tags.tag", 0],
+      ["ev.uploaded", "event", 520, "photo.uploaded{blobKey,owner}", 0],
+      ["ev.published", "event", 600, "photo.published{urls,tags}", 0],
+      ["search.geo", "sink", 150, "search.geo_point", 0],
+      ["search.labels", "sink", 250, "search.labels[]", 0],
+      ["search.owner", "sink", 340, "search.owner", 0],
+      ["wh.geo", "sink", 460, "warehouse.geo", 0],
+      ["wh.labelcount", "sink", 540, "warehouse.label_count", 0]
+    ],
+    "derivations": [
+      ["bytes.body", "exif.gps", "decode EXIF"],
+      ["bytes.body", "exif.taken", "decode EXIF"],
+      ["bytes.body", "vision.labels", "vision model"],
+      ["bytes.body", "vision.faces", "vision model"],
+      ["bytes.body", "rend.web", "transcode→webp"],
+      ["exif.gps", "photos.geom", "copy"],
+      ["exif.taken", "photos.taken", "copy"],
+      ["jwt.owner", "photos.owner", "copy"],
+      ["vision.labels", "phototag.tag", "filter score>0.8"],
+      ["photos.owner", "ev.uploaded", "emit"],
+      ["photos.geom", "ev.published", "emit"],
+      ["phototag.tag", "ev.published", "emit"],
+      ["photos.geom", "search.geo", "index"],
+      ["phototag.tag", "search.labels", "aggregate"],
+      ["photos.owner", "search.owner", "index"],
+      ["ev.published", "wh.geo", "project"],
+      ["ev.published", "wh.labelcount", "aggregate count"]
+    ],
+    "nodeSeeds": {
+      "upload": "photos.geom", "photos": "photos.geom", "vision": "phototag.tag",
+      "search": "search.geo", "pdb": "photos.geom", "s3": "bytes.body",
+      "media": "rend.web", "warehouse": "wh.geo", "kafka": "ev.uploaded",
+      "analytics": "wh.geo", "safety": "phototag.tag"
+    }
+  },
+
+  "sequence": {
+    "participants": [
+      ["client", "Client", "client"], ["gw", "Gateway", "svc"], ["up", "Upload", "svc"],
+      ["blob", "Blob", "store"], ["q", "Queue", "broker"], ["wk", "Worker", "async"],
+      ["db", "DB", "store"], ["push", "Push", "notify"]
+    ],
+    "messages": [
+      ["client", "gw", "POST /photos", 0, 0],
+      ["gw", "up", "forward (authed)", 0, 0],
+      ["up", "blob", "PUT original", 0, 0],
+      ["blob", "up", "200 OK", 1, 0],
+      ["up", "db", "INSERT status=stored", 0, 0],
+      ["up", "q", "enqueue(process)", 0, 1],
+      ["up", "gw", "202 Accepted", 1, 0],
+      ["gw", "client", "202 + photoId", 1, 0],
+      ["q", "wk", "deliver job", 0, 1],
+      ["wk", "blob", "GET original", 0, 0],
+      ["wk", "blob", "PUT thumbnail", 0, 0],
+      ["wk", "db", "UPDATE tags, status=live", 0, 0],
+      ["wk", "push", "notify(ready)", 0, 1],
+      ["push", "client", "APNs / FCM push", 0, 1]
+    ]
+  },
+
+  "lifecycle": {
+    "states": [
+      ["up", 200, 200, "var(--client)", "Uploading", "client → server"],
+      ["st", 420, 200, "var(--data)", "Stored", "bytes durable"],
+      ["qd", 640, 200, "var(--async)", "Queued", "awaiting worker"],
+      ["pr", 880, 200, "var(--async)", "Processing", "thumbs + tags"],
+      ["lv", 1110, 200, "var(--live)", "Live", "servable", { "dbl": 1 }],
+      ["fa", 880, 420, "var(--err)", "Failed", "exception"],
+      ["dl", 1110, 420, "var(--muted)", "Deleted", "tombstoned"]
+    ],
+    "transitions": [
+      ["up", "st", "flush", "h"], ["st", "qd", "enqueue", "h"], ["qd", "pr", "claim", "h"],
+      ["pr", "lv", "done", "h"], ["pr", "fa", "timeout / err", "v"],
+      ["fa", "qd", "retry ≤3", "a"], ["lv", "dl", "user deletes", "v"]
+    ]
+  }
+}
