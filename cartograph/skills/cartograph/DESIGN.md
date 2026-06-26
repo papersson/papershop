@@ -95,9 +95,43 @@ Never Inter/Roboto/Arial, never a Google Fonts `<link>`. The serif+mono pairing 
 - Direct labels in mono with a paper halo (`paint-order:stroke`) so text stays legible over edges and
   grid without boxes.
 
-## Extending the spine
+## Taming a dense graph
 
-If a real project genuinely needs a capability the renderer lacks, that is a **finding** — note it in
-the handoff and, if you must change `renderer.html`, document *why the model couldn't express it*.
-Per-project renderer edits defeat the spine/adapter invariant; the goal is that every project is a new
-*model*, never a new renderer.
+The data-flow placement above gets you a clean small graph. A real 15-20 node graph with a busy edge
+set turns into a hairball, and the auto-router alone won't save it. These are the moves that work
+(layout-level, so they're fair game in the editorial pass — see SKILL.md):
+
+- **Suppress the dominant label; show only exceptions.** If one transport (often REST) is on most edges,
+  labelling all of them is noise. Set `meta.suppressLabel: ["REST"]` (general — any dominant value) so
+  the renderer omits those labels and draws only the *exceptions*, which is the information.
+- **Calm the resting state.** Lower resting-edge opacity so the graph reads as quiet until hover/scan
+  brings an edge forward. Density where the information is, calm everywhere else.
+- **Tier the strokes.** A two-tier stroke (heavier for P0/critical, lighter for the rest) gives the eye
+  a spine to follow without a colour layer.
+- **Spine over bus when async is light.** The wide event-bus bar earns its place only with real
+  fan-out; with a handful of async edges, a central-spine arrangement reads cleaner. Drop the bus node.
+- **Place by data-flow, not by category** — sources top-left, sinks bottom-right; let the model carry
+  good `x,y` (auto-layout is a fallback, not the goal).
+
+This suppresses a *label*, not an edge; hiding whole edges is a separate concern and out of scope.
+Real edge *routing* (beyond axis-biased béziers) is a larger effort — its own finding if you need it.
+
+## Rendering details not to regress
+
+A few spine decisions are deliberate; a future edit should preserve them:
+- **One arrowhead marker**, fill `context-stroke`, so the head inherits each edge's stroke including the
+  active-layer recolour. Don't reintroduce per-colour markers (the head/line will diverge under a layer).
+- **Nodes size to their text** (canvas `measureText` in `nodeWidth()`); never go back to a fixed width.
+- **Lineage boxes and the sequence divider** size/position from content and the model, not constants.
+
+## Extending the spine — logic vs. layout
+
+The invariant is about *logic*, not *layout* (SKILL.md). So:
+- **Hand-tuning layout** (placement, de-clutter, routing) is a sanctioned editorial pass, not a
+  violation — do it, and record what you tuned.
+- **A capability the model genuinely can't express** (a new semantic the renderer would need *branching*
+  for) is a **finding**: grow the spine (renderer + MODEL.md) so *every* project gets it, rather than
+  forking the renderer for one project. Document why the model couldn't express it.
+
+The goal stands: every project is a new *model*. The renderer grows only when a missing capability is
+general — and then it grows once, for all.

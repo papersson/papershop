@@ -192,3 +192,12 @@ gets paged about.
 - **No critical request? Omit `sequence`. No stateful entity? Omit `lifecycle`.** A missing tab is
   honest; a fabricated one lies with the authority of the canonical diagram. When you omit a view,
   note it in the handoff (`SKILL.md → Hand off`) so the gap is explicit, not silent.
+
+## Several flows
+
+A system can have more than one materially-different critical path from the same entry point (reject /
+accept / clean-pass). For these, emit `sequences: [ {name, participants, messages, dividerIndex?,
+dividerLabel?}, … ]` instead of a single `sequence` (MODEL.md) — the view shows a flow selector, one
+per `name`. Discipline: still pick the ONE dominant flow first; add an alternate only when it is a
+genuinely different path, not a minor branch. The async divider is per-flow — set `dividerIndex` only
+on flows that actually cross into async, and omit it on the ones that don't.

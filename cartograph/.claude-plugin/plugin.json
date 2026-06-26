@@ -1,6 +1,6 @@
 {
   "name": "cartograph",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Map any real codebase as ONE navigable, self-contained diagram. Reads a system from its own structured sources (compose/k8s, OpenAPI/protobuf/GraphQL, ORM/migrations, CODEOWNERS, events, dbt/SQL lineage), emits a system-model JSON, and renders it with a fixed visual spine: a typed-map home you scan one global layer at a time and drill per-element, plus column-level data lineage and sequence/lifecycle siblings. No legends (everything is direct-labelled), full-bleed, system-fonts, zero external requests. The renderer never changes per project — you produce only the model.",
   "author": { "name": "Patrik Persson" }
 }

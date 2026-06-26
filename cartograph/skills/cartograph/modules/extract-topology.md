@@ -158,3 +158,12 @@ inferred:
 4. Place, label, and set every node/edge as inferred; say so in the handoff.
 
 One honest inferred skeleton beats no diagram — but never let it pass as ground truth.
+
+## Current-state vs. planned
+
+A repo often holds a designed-but-not-yet-wired path: an edge whose handler only *logs*
+(`log.info("would call …")`), a call gated behind a disabled feature flag, a service defined in IaC
+with no live traffic, a stub/`TODO` client. Do **not** draw these as live — that is the live-vs-planned
+accuracy bug. Mark them planned: node `opts.state:"planned"` and edge field-6 `state:"planned"`
+(MODEL.md), which renders them ghosted with a badge, so a target architecture shows honestly beside what
+is actually wired. When unsure whether a path is live, treat it as planned and confirm in Validate.

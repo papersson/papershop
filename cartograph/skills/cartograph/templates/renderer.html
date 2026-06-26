@@ -48,6 +48,7 @@
   .statelbl{font-family:var(--serif);font-weight:600;font-size:14px;fill:var(--ink)}
   .node{cursor:pointer;transition:opacity .2s}
   .edge{transition:opacity .2s,stroke-width .15s}
+  .node.planned{opacity:.5} .edge.planned{opacity:.42}
   .focusing .node:not(.hot):not(.near){opacity:.16}
   .focusing .edge:not(.hot){opacity:.08}
   .focusing .elbl-g:not(.hot){opacity:.08}
@@ -85,6 +86,7 @@
     <div class="brand" id="brand"></div>
     <div class="views" id="views"></div>
     <div class="layers" id="layers"></div>
+    <div class="layers" id="flows" hidden></div>
     <span class="hint" id="hint"></span>
   </div>
   <div class="stage">
@@ -204,6 +206,7 @@
     }
   },
   "sequence": {
+    "dividerIndex": 8, "dividerLabel": "async · ms–seconds later",
     "participants": [
       ["client", "Client", "client"], ["gw", "Gateway", "svc"], ["up", "Upload", "svc"],
       ["blob", "Blob", "store"], ["q", "Queue", "broker"], ["wk", "Worker", "async"],
@@ -252,7 +255,8 @@ const TINT={client:'#E1F0EF',edge:'#E1F0EF',svc:'#E6E8F6',store:'#F6ECDD',broker
 function rectExit(n,tx,ty){const w=n.w,h=n.h,dx=tx-n.x,dy=ty-n.y,hw=w/2,hh=h/2;if(!dx&&!dy)return{x:n.x,y:n.y};const sx=dx?hw/Math.abs(dx):1e9,sy=dy?hh/Math.abs(dy):1e9,s=Math.min(sx,sy);return{x:n.x+dx*s,y:n.y+dy*s}}
 function bez(p1,c1,c2,p2,t){const m=1-t;return{x:m*m*m*p1.x+3*m*m*t*c1.x+3*m*t*t*c2.x+t*t*t*p2.x,y:m*m*m*p1.y+3*m*m*t*c1.y+3*m*t*t*c2.y+t*t*t*p2.y}}
 function mk(id,c){return '<marker id="'+id+'" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="'+c+'"/></marker>'}
-const DEFS='<defs>'+mk('ar','var(--line)')+mk('arA','var(--async)')+mk('arT','var(--client)')+
+// one arrowhead, inheriting each edge's stroke (incl. the active-layer recolour) via context-stroke
+const DEFS='<defs>'+mk('ar','context-stroke')+
  '<filter id="sf" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#4a3f25" flood-opacity="0.15"/></filter></defs>';
 
 /* ===================== model (injected) + builders =====================
@@ -261,9 +265,17 @@ const DEFS='<defs>'+mk('ar','var(--line)')+mk('arA','var(--async)')+mk('arT','va
    you never edit this file. Schema + tuple order: see MODEL.md. */
 const MODEL=JSON.parse(document.getElementById('cartograph-model').textContent);
 const TX={rest:{c:'var(--client)',l:'REST'},grpc:{c:'var(--api)',l:'gRPC'},kafka:{c:'var(--async)',l:'Avro'},sql:{c:'var(--data)',l:'SQL'},bytes:{c:'var(--bytes)',l:'bytes'},cache:{c:'#c08a3a',l:'cache'}};
-const N=(id,x,y,role,name,team,o={})=>({id,x,y,role,name,team,w:(role==='broker'&&o.bus)?880:128,h:role==='broker'?44:50,
-  dur:o.dur||'',ddd:o.ddd||team,tier:o.tier||'p1',tag:o.tag||'',bus:!!o.bus});
-const E=(f,t,tx,a,dl,co,pii,cr,pl)=>({f,t,tx,a,dl,co,pii,cr,pl});
+// nodes size to their own text (real labels overflow a fixed width) — see DESIGN.md
+const _mc=document.createElement('canvas').getContext('2d');
+function measure(t,f){_mc.font=f;return _mc.measureText(t).width}
+function nodeWidth(name,team,tag){
+  const ttl=22+measure(name,'600 13px system-ui,sans-serif')+12;
+  const sub=12+measure(team,'9px ui-monospace,monospace')+(tag?14+measure(tag,'600 9px ui-monospace,monospace'):0)+10;
+  return Math.max(132,Math.ceil(Math.max(ttl,sub)));
+}
+const N=(id,x,y,role,name,team,o={})=>({id,x,y,role,name,team,w:(role==='broker'&&o.bus)?880:nodeWidth(name,team,o.tag||''),h:role==='broker'?44:50,
+  dur:o.dur||'',ddd:o.ddd||team,tier:o.tier||'p1',tag:o.tag||'',bus:!!o.bus,state:o.state||''});
+const E=(f,t,tx,a,dl,co,st,cr,pl)=>({f,t,tx,a,dl,co,st,cr,pl});  // field 6 = state: 0 current, "planned" ghosted
 // fallback role-tiered auto-layout for nodes the model left unplaced (x/y null)
 function autoLayout(nodes){
   if(nodes.every(n=>n.x!=null&&n.y!=null)) return nodes;
@@ -294,8 +306,14 @@ const LAYERS=[
   {k:'consistency',kind:'edge',label:'Consistency',val:e=>e.co,col:e=>COLORS.consistency[e.co],hint:'strong / read-your-writes / eventual / stale'},
   {k:'criticality',kind:'edge',label:'Criticality',val:e=>e.cr,col:e=>COLORS.criticality[e.cr],hint:'P0 critical path vs best-effort'},
   {k:'durability',kind:'node',label:'Durability',val:n=>nodeDur(n),col:n=>COLORS.durability[nodeDur(n)],hint:'source of truth vs derived vs ephemeral'},
-  {k:'team',kind:'node',label:'Team',val:n=>n.team,col:n=>'var(--api)',hint:'owning team per service'},
+  {k:'team',kind:'node',label:'Team',val:n=>n.team,col:n=>teamColor(n.team),hint:'owning team per service'},
 ];
+// Team layer: a deterministic categorical colour per team (model may override via meta.teamColours)
+const TEAMRAMP=['#3A47B0','#0E8388','#B5641F','#7A4FBF','#B23A55','#2E7D52','#C97A12','#5B6470'];
+const TEAMCOL=(MODEL.meta&&MODEL.meta.teamColours)||{};
+function teamColor(t){if(TEAMCOL[t])return TEAMCOL[t];let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))>>>0;return TEAMRAMP[h%TEAMRAMP.length]}
+// de-clutter: hide edge labels whose value is a dominant one (show only the exceptions)
+const SUPPRESS=new Set((MODEL.meta&&MODEL.meta.suppressLabel)||[]);
 let activeLayer='transport';
 
 /* ===================== MAP view ===================== */
@@ -305,8 +323,11 @@ function nodeSVG(n){
     return '<g class="node" data-id="'+n.id+'"><title>'+n.name+'</title><rect x="'+x+'" y="'+y+'" width="'+n.w+'" height="'+n.h+'" rx="10" fill="'+TINT.broker+'" stroke="'+c+'" stroke-width="1.5" filter="url(#sf)"/><text x="'+n.x+'" y="'+(n.y+4)+'" text-anchor="middle" class="buslbl">'+n.name+'</text></g>';
   }
   const tag=n.tag?'<text x="'+(x+n.w-9)+'" y="'+(y+37)+'" text-anchor="end" class="ntag" fill="'+c+'">'+n.tag+'</text>':'';
-  return '<g class="node" data-id="'+n.id+'"><title>'+n.name+' — '+n.team+'</title>'+
-    '<rect x="'+x+'" y="'+y+'" width="'+n.w+'" height="'+n.h+'" rx="'+(n.role==='store'?7:10)+'" fill="'+TINT[n.role]+'" stroke="'+c+'" stroke-width="1.4" filter="url(#sf)"/>'+
+  const planned=n.state==='planned';
+  const pdash=planned?' stroke-dasharray="5 3"':'';
+  const pbadge=planned?'<text x="'+(x+n.w/2)+'" y="'+(y-5)+'" text-anchor="middle" class="ntag" fill="var(--muted)">planned</text>':'';
+  return '<g class="node'+(planned?' planned':'')+'" data-id="'+n.id+'"><title>'+n.name+' — '+n.team+(planned?' (planned)':'')+'</title>'+pbadge+
+    '<rect x="'+x+'" y="'+y+'" width="'+n.w+'" height="'+n.h+'" rx="'+(n.role==='store'?7:10)+'" fill="'+TINT[n.role]+'" stroke="'+c+'" stroke-width="1.4"'+pdash+' filter="url(#sf)"/>'+
     '<circle cx="'+(x+12)+'" cy="'+(y+15)+'" r="4" fill="'+c+'"/>'+
     '<text x="'+(x+22)+'" y="'+(y+19)+'" class="ntitle">'+n.name+'</text>'+
     '<text x="'+(x+12)+'" y="'+(y+37)+'" class="nsub" data-sub>'+n.team+'</text>'+tag+
@@ -318,10 +339,11 @@ function edgeSVG(e,i){
   const hb=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y);
   let c1,c2;if(hb){const mx=(p1.x+p2.x)/2;c1={x:mx,y:p1.y};c2={x:mx,y:p2.y}}else{const my=(p1.y+p2.y)/2;c1={x:p1.x,y:my};c2={x:p2.x,y:my}}
   const d='M'+p1.x.toFixed(1)+','+p1.y.toFixed(1)+' C'+c1.x.toFixed(1)+','+c1.y.toFixed(1)+' '+c2.x.toFixed(1)+','+c2.y.toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1);
-  const dash=e.a?'stroke-dasharray="6 5"':'';
+  const planned=e.st==='planned';
+  const dash=e.a?'stroke-dasharray="6 5"':(planned?'stroke-dasharray="2 4"':'');
   const mid=bez(p1,c1,c2,p2,.5);
   const pid='e'+i;
-  return {path:'<path id="'+pid+'" class="edge" data-from="'+e.f+'" data-to="'+e.t+'" data-i="'+i+'" d="'+d+'" fill="none" stroke="var(--line)" stroke-width="1.5" '+dash+' marker-end="url(#ar)"/>',
+  return {path:'<path id="'+pid+'" class="edge'+(planned?' planned':'')+'" data-from="'+e.f+'" data-to="'+e.t+'" data-i="'+i+'" d="'+d+'" fill="none" stroke="var(--line)" stroke-width="1.5" '+dash+' marker-end="url(#ar)"/>',
     lbl:'<g class="elbl-g" data-i="'+i+'" data-from="'+e.f+'" data-to="'+e.t+'"><rect data-bg x="'+(mid.x-30)+'" y="'+(mid.y-8)+'" width="60" height="15" rx="4" fill="var(--card)" opacity="0"/><text data-vt x="'+mid.x.toFixed(1)+'" y="'+(mid.y+3).toFixed(1)+'" text-anchor="middle" class="elbl"></text></g>'};
 }
 function renderMap(){
@@ -344,7 +366,7 @@ function applyLayer(k){
   });
   svg.querySelectorAll('.elbl-g').forEach(g=>{
     const e=EDGES[+g.dataset.i];const t=g.querySelector('[data-vt]');const bg=g.querySelector('[data-bg]');
-    if(L.kind==='edge'){const v=L.val(e)==='—'?'':L.val(e),col=L.col(e);t.textContent=v;t.setAttribute('fill',col);t.setAttribute('paint-order','stroke');t.setAttribute('stroke','var(--card)');t.setAttribute('stroke-width','3');const w=v.length*5.8+8;bg.setAttribute('x',(+t.getAttribute('x')-w/2));bg.setAttribute('width',w);bg.setAttribute('opacity','.0');}
+    if(L.kind==='edge'){const raw=L.val(e),v=(raw==='—'||SUPPRESS.has(raw))?'':raw,col=L.col(e);t.textContent=v;t.setAttribute('fill',col);t.setAttribute('paint-order','stroke');t.setAttribute('stroke','var(--card)');t.setAttribute('stroke-width','3');const w=v.length*5.8+8;bg.setAttribute('x',(+t.getAttribute('x')-w/2));bg.setAttribute('width',w);bg.setAttribute('opacity','.0');}
     else{t.textContent='';}
   });
   // nodes
@@ -400,14 +422,21 @@ const DERIVS=((MODEL.lineage&&MODEL.lineage.derivations)||[]).map(a=>D(...a));
 function lineageEdge(from,to){
   const a=fById(from),b=fById(to);if(!a||!b)return null;
   const ga=LG.find(g=>g.id===a.grp),gb=LG.find(g=>g.id===b.grp);
+  if(a.grp===b.grp){                       // same column: route down a left gutter, don't exit and loop back
+    const lx=ga.x-4, gx=ga.x-24, y1=a.y, y2=b.y;
+    return {d:'M'+lx+','+y1+' C'+gx+','+y1+' '+gx+','+y2+' '+lx+','+y2, x1:lx,y1,x2:lx,y2, mx:gx};
+  }
   const x1=ga.x-4+fieldW(a)+2, y1=a.y;
   const x2=gb.x-10, y2=b.y;
   const mx=(x1+x2)/2;
   return {d:'M'+x1+','+y1+' C'+mx+','+y1+' '+mx+','+y2+' '+x2+','+y2,x1,y1,x2,y2,mx};
 }
 function renderLineage(){
-  let s='<svg class="lineage" viewBox="0 0 1340 700">'+DEFS;
-  LG.forEach(g=>{s+='<text x="'+(g.x-4)+'" y="100" class="lgrp">'+g.label+'</text><line x1="'+(g.x-14)+'" y1="110" x2="'+(g.x-14)+'" y2="660" stroke="var(--hair)" stroke-dasharray="2 7"/>'});
+  const maxX=LG.length?Math.max(...LG.map(g=>g.x+Math.max(0,...FIELDS.filter(f=>f.grp===g.id).map(fieldW)))):900;
+  const maxY=FIELDS.length?Math.max(...FIELDS.map(f=>f.y)):360;
+  const VW=Math.max(900,Math.ceil(maxX+30)), VH=Math.max(360,Math.ceil(maxY+50));   // fit the viewBox to content
+  let s='<svg class="lineage" viewBox="0 0 '+VW+' '+VH+'">'+DEFS;
+  LG.forEach(g=>{s+='<text x="'+(g.x-4)+'" y="100" class="lgrp">'+g.label+'</text><line x1="'+(g.x-14)+'" y1="110" x2="'+(g.x-14)+'" y2="'+(VH-34)+'" stroke="var(--hair)" stroke-dasharray="2 7"/>'});
   DERIVS.forEach((d,i)=>{const e=lineageEdge(d.from,d.to);if(!e)return;
     s+='<g class="ledge" data-from="'+d.from+'" data-to="'+d.to+'"><path d="'+e.d+'" fill="none" stroke="var(--line)" stroke-width="1.3" opacity=".5" marker-end="url(#ar)"/>'+
       '<rect x="'+(e.mx-d.t.length*2.7-3)+'" y="'+((e.y1+e.y2)/2-11)+'" width="'+(d.t.length*5.4+6)+'" height="12" fill="var(--card)" opacity=".85"/>'+
@@ -417,7 +446,7 @@ function renderLineage(){
     s+='<g class="fld" data-id="'+f.id+'"><rect x="'+(g.x-4)+'" y="'+(f.y-13)+'" width="'+w+'" height="20" rx="6" fill="var(--card)" stroke="var(--hair)" stroke-width="1.2"/>'+
       '<text x="'+(g.x+4)+'" y="'+(f.y+1)+'" class="lblbl">'+f.label+'</text></g>';
   });
-  s+='<text x="66" y="690" class="axis">click any field → trace upstream sources + downstream consumers</text>';
+  s+='<text x="66" y="'+(VH-12)+'" class="axis">click any field → trace upstream sources + downstream consumers</text>';
   return s+'</svg>';
 }
 function focusField(id){
@@ -441,17 +470,21 @@ function focusField(id){
 }
 
 /* ===================== SEQUENCE view ===================== */
-const SP=(MODEL.sequence&&MODEL.sequence.participants)||[];
-const SM=(MODEL.sequence&&MODEL.sequence.messages)||[];
+// one or many critical-path flows: model may give `sequences:[...]` or a single `sequence:{}`
+const SEQS=MODEL.sequences||(MODEL.sequence?[MODEL.sequence]:[]);
+let activeSeq=0;
 const ROLECOL={client:'var(--client)',svc:'var(--api)',store:'var(--data)',broker:'var(--async)',async:'var(--async)',notify:'var(--notify)'};
 function renderSequence(){
-  const padL=90,span=1100,step=span/(SP.length-1),X={};SP.forEach((p,i)=>X[p[0]]=padL+i*step);
-  const yOf=i=>150+i*30+(i>=8?34:0),top=110,bot=690,div=yOf(7)+(yOf(8)-yOf(7))/2;
+  const SQ=SEQS[activeSeq]||{}, SP=SQ.participants||[], SM=SQ.messages||[];
+  const padL=90,span=1100,step=span/Math.max(1,SP.length-1),X={};SP.forEach((p,i)=>X[p[0]]=padL+i*step);
+  const DIV=(SQ.dividerIndex!=null)?SQ.dividerIndex:null;   // optional async divider — per-flow, no baked-in index
+  const yOf=i=>150+i*30+(DIV!=null&&i>=DIV?34:0),top=110,bot=690;
   let s='<svg viewBox="0 0 1280 720">'+DEFS;
   SP.forEach(p=>s+='<line x1="'+X[p[0]]+'" y1="'+top+'" x2="'+X[p[0]]+'" y2="'+bot+'" stroke="var(--hair)" stroke-dasharray="2 6"/>');
-  s+='<line x1="60" y1="'+div+'" x2="1220" y2="'+div+'" stroke="var(--async)" stroke-dasharray="3 5" opacity=".5"/><rect x="490" y="'+(div-9)+'" width="300" height="18" fill="var(--card)"/><text x="640" y="'+(div+3)+'" text-anchor="middle" class="axis">async · ms–seconds later</text>';
+  if(DIV!=null&&DIV>0&&DIV<SM.length){const div=yOf(DIV-1)+(yOf(DIV)-yOf(DIV-1))/2,lbl=SQ.dividerLabel||'async · later',w=lbl.length*6+40;
+    s+='<line x1="60" y1="'+div+'" x2="1220" y2="'+div+'" stroke="var(--async)" stroke-dasharray="3 5" opacity=".5"/><rect x="'+(640-w/2)+'" y="'+(div-9)+'" width="'+w+'" height="18" fill="var(--card)"/><text x="640" y="'+(div+3)+'" text-anchor="middle" class="axis">'+lbl+'</text>';}
   SM.forEach((m,i)=>{const y=yOf(i),x1=X[m[0]],x2=X[m[1]],ret=m[3],as=m[4];const col=as?'var(--async)':'var(--line)';const dash=(ret||as)?'stroke-dasharray="5 5"':'';
-    s+='<g><line x1="'+x1+'" y1="'+y+'" x2="'+x2+'" y2="'+y+'" stroke="'+col+'" stroke-width="1.7" '+dash+' marker-end="url('+(as?'#arA':'#ar')+')"/><text x="'+((x1+x2)/2)+'" y="'+(y-6)+'" text-anchor="middle" class="elbl" fill="#4a443b">'+(i+1)+'. '+m[2]+'</text><circle cx="'+x1+'" cy="'+y+'" r="2.5" fill="'+col+'"/></g>';
+    s+='<g><line x1="'+x1+'" y1="'+y+'" x2="'+x2+'" y2="'+y+'" stroke="'+col+'" stroke-width="1.7" '+dash+' marker-end="url(#ar)"/><text x="'+((x1+x2)/2)+'" y="'+(y-6)+'" text-anchor="middle" class="elbl" fill="#4a443b">'+(i+1)+'. '+m[2]+'</text><circle cx="'+x1+'" cy="'+y+'" r="2.5" fill="'+col+'"/></g>';
   });
   SP.forEach(p=>{const x=X[p[0]],c=ROLECOL[p[2]];s+='<g><rect x="'+(x-50)+'" y="'+(top-44)+'" width="100" height="32" rx="8" fill="var(--card)" stroke="'+c+'" stroke-width="1.5" filter="url(#sf)"/><circle cx="'+(x-36)+'" cy="'+(top-28)+'" r="4" fill="'+c+'"/><text x="'+(x+6)+'" y="'+(top-23)+'" text-anchor="middle" class="seqh">'+p[1]+'</text></g>'});
   s+='<text x="40" y="118" class="axis" transform="rotate(90 40 118)">TIME →</text>';
@@ -487,9 +520,15 @@ const VIEWS={
   lifecycle:{label:'Lifecycle',render:renderLifecycle,hint:'the photo as a state machine — including failure & retry'},
   lineage:{label:'Lineage',render:renderLineage,hint:'column-level data lineage — click a field to trace it'},
 };
-const ORDER=['map','sequence','lifecycle','lineage'].filter(k=>k==='map'||(k==='sequence'&&SM.length)||(k==='lifecycle'&&STATES.length)||(k==='lineage'&&FIELDS.length));
+const ORDER=['map','sequence','lifecycle','lineage'].filter(k=>k==='map'||(k==='sequence'&&SEQS.length)||(k==='lifecycle'&&STATES.length)||(k==='lineage'&&FIELDS.length));
 let active='map';
-const mount=document.getElementById('mount'),layersEl=document.getElementById('layers'),viewsEl=document.getElementById('views'),hintEl=document.getElementById('hint');
+const mount=document.getElementById('mount'),layersEl=document.getElementById('layers'),viewsEl=document.getElementById('views'),hintEl=document.getElementById('hint'),flowsEl=document.getElementById('flows');
+function buildFlows(on){
+  if(!on||SEQS.length<2){flowsEl.hidden=true;flowsEl.innerHTML='';return;}
+  flowsEl.hidden=false;flowsEl.innerHTML='';
+  SEQS.forEach((sq,i)=>{const b=document.createElement('button');b.className='lbtn';b.textContent=sq.name||('flow '+(i+1));b.setAttribute('aria-sel',i===activeSeq);
+    b.onclick=()=>{activeSeq=i;mount.innerHTML=VIEWS.sequence.render();buildFlows(true);};flowsEl.appendChild(b);});
+}
 document.getElementById('brand').innerHTML=((MODEL.meta&&MODEL.meta.name)||'System')+'<em>.</em>';
 document.title=((MODEL.meta&&MODEL.meta.name)||'cartograph')+' — cartograph';
 ORDER.forEach(k=>{const b=document.createElement('button');b.className='vtab';b.dataset.k=k;b.textContent=VIEWS[k].label;b.onclick=()=>switchView(k);viewsEl.appendChild(b)});
@@ -521,6 +560,7 @@ function switchView(k){
   mount.innerHTML=v.render();
   layersEl.hidden=!v.layers;
   hintEl.textContent=v.hint;
+  buildFlows(k==='sequence');
   if(k==='map'){wireMapInteractions();applyLayer(activeLayer);}
   if(k==='lineage'){wireLineage();}
 }

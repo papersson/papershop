@@ -24,9 +24,13 @@ one thing not to do:
 - **Extraction is the adapter.** Reading a real repo and emitting that model is the whole job, and the
   only thing that varies per project.
 
-**The invariant (this is what's being dogfooded):** to diagram a new project you produce only a model;
-you never touch the renderer. If a real repo forces a renderer change, that is a **finding** — stop and
-record it (see DESIGN.md → "Extending the spine"), don't quietly patch the spine.
+**The invariant — logic, not layout.** A new project is a new *model*, never new renderer *logic*. The
+model carries every **semantic** decision (which nodes/edges exist, transports, ownership, durability,
+live-vs-planned state); the renderer must never grow project-specific *branching*. But hand-tuning
+**layout** — node placement, de-cluttering a dense graph, routing — is **not** a violation; it is a
+sanctioned editorial phase (see "Editorial pass"). The line is logic vs. layout: a forced change that
+adds *placement* is expected and fine; a forced change that adds *logic* is a finding that should grow
+the spine **for everyone** (see DESIGN.md → "Extending the spine"), not a per-project fork.
 
 ## Gate — is there a system to map?
 
@@ -64,11 +68,27 @@ Rules of extraction:
 - For a large repo, this is a natural fan-out (one extractor per service / source) and a good fit for the
   `orchestrate` plugin; validation (below) is the adversarial pass.
 
-## Validate — don't trust the first extraction
+## Validate — the factual rung (at least as important as "it renders")
 
-Have an agent that did **not** build the model check it against the code: do the claimed edges exist? are
-transports/datastores right? Mark anything unconfirmed rather than asserting it. A precise-but-guessed
-badge is worse than a vaguer-but-true one (MODEL.md → "Honesty").
+A diagram that renders cleanly over a *wrong* model is not shippable, and "it renders" is dangerously
+easy to mistake for done. This step has teeth.
+
+Run an **auditor that did NOT build the model**, one pass per claim class, each re-reading source
+independently and returning, per claim, `supported` / `unsupported` / `unconfirmable` with a `file:line`
+citation:
+
+- **edges exist** — each edge traces to a real call / config / connection
+- **transports correct** — REST vs gRPC vs Kafka vs SQL matches the actual client/contract
+- **datastores + durability correct** — the store exists and its sot/derived/ephemeral class is right
+- **teams correct** — ownership matches CODEOWNERS / catalog, not a guess
+- **payloads match a real contract** — the signature is real (a query/RPC/topic that actually exists)
+- **live vs planned correct** — an edge shown live is wired in code, not logged-only / feature-flagged
+
+**The bar:** every `unsupported` claim is fixed or downgraded to inferred (vaguer-but-true, MODEL.md →
+"Honesty") before ship; `unconfirmable` is marked, never asserted. A confidently wrong label trades on
+the diagram's authority — the worst outcome. For a large system this fans out cleanly (one auditor per
+class over the repos) — a good `orchestrate` job. A passing render check over an unvalidated model is
+**not** shippable.
 
 ## Render — inject the model into the spine
 
@@ -79,12 +99,26 @@ badge is worse than a vaguer-but-true one (MODEL.md → "Honesty").
 
 The renderer is unchanged otherwise. The output is one self-contained file (no network, system fonts).
 
-## Verify — the deterministic rung
+## Verify — two rungs: it renders (floor) AND it looks right (ceiling)
 
-Drive `agent-browser` (start `agent-browser --help`): open the file, confirm a clean console, that it
-is self-contained (one request), renders intact at ~390px and ~1280px, the global-layer toggle
-recolours the graph, and the lineage trace highlights upstream/downstream. A failing check is a
-blocking defect. Then open it for the user.
+**Deterministic floor.** Drive `agent-browser` (start `agent-browser --help`): open the file, confirm a
+clean console, that it is self-contained (one request), renders intact at ~390px and ~1280px, the
+global-layer toggle recolours the graph, and the lineage trace highlights upstream/downstream. A failing
+check is a blocking defect. *Caution:* the daemon can crash under rapid open/eval/screenshot cycling —
+drive it **serially, with a ~500ms pause between cycles and a ~3-attempt retry guard.**
+
+**Editorial ceiling (the loop a render check can't replace).** A single render pass will not surface a
+hairball, a mis-drawn marker, or label collisions. Run an **adversarial visual-quality loop**: a critic
+agent that is *not* the builder reviews screenshots at both widths against DESIGN.md's non-negotiables
+and returns blocking findings until every view passes, then SHIP. This is do → critique → fix, not one
+shot. Then open it for the user.
+
+## Editorial pass — sanctioned layout tuning
+
+Publication quality on a dense real graph needs a hands-on layout pass: place nodes by data-flow,
+de-clutter (DESIGN.md → "Taming a dense graph"), tune routing. This is **expected and allowed** — it is
+layout, not logic, so it does not break the invariant. Record what you tuned. Anything that needs new
+*logic* rather than placement is a finding that should grow the spine instead.
 
 ## Hand off — honestly
 

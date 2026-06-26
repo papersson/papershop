@@ -113,6 +113,7 @@
   },
 
   "sequence": {
+    "dividerIndex": 8, "dividerLabel": "async · ms–seconds later",
     "participants": [
       ["client", "Client", "client"], ["gw", "Gateway", "svc"], ["up", "Upload", "svc"],
       ["blob", "Blob", "store"], ["q", "Queue", "broker"], ["wk", "Worker", "async"],
