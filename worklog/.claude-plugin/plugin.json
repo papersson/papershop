@@ -1,6 +1,6 @@
 {
   "name": "worklog",
-  "version": "0.2.0",
-  "description": "Query Claude Code transcripts as work history (reports, activity logs, runbooks, friction analysis, session resume, mining recurring corrections into CLAUDE.md rules). Heavy many-session analyses run as dynamic workflows.",
+  "version": "0.2.1",
+  "description": "Query Claude Code transcripts as work history (reports, activity logs, runbooks, friction analysis, session resume, mining recurring corrections into CLAUDE.md rules). Every request runs in a subagent that over-collects then returns a clean digest, keeping the caller's context unpolluted. Heavy many-session analyses run as dynamic workflows.",
   "author": { "name": "Patrik Persson" }
 }
