@@ -11,156 +11,158 @@ human verify it without taking anyone's word for anything.
 
 The reader's first question is **"what happened to *my* problem, and is it right?"** — not "how did
 your agents coordinate?" So the **task and its concrete outcome lead and dominate** the report: what
-was asked, what was actually done (the real diffs / findings / answer, each carrying its `file:line`
-provenance), how to verify it, and what still needs a human call.
+was asked, what was actually done, how to check it, and what still needs a human call. The
+orchestration machinery is subordinate and mostly optional (see below). A report where half the
+sections are about worktrees and barriers has lost the plot — the reader came for their result, not
+your plumbing.
 
-The **orchestration machinery** — topology diagram, why-this-shape, agent/token/model accounting — is
-**demoted to a single compact, collapsible "How this was produced" section**, near the end. It is
-present for trust and for the curious, and it is never the spine. The topology earns its place only as
-*evidence the result is trustworthy*, not as the subject. A report where half the sections are about
-worktrees and barriers has lost the plot — the reader came for their code, not your plumbing.
+## Write it for someone who did not watch the run
 
-The pedagogy the run still owes the reader is **task-pedagogy**: teach what the *task* actually
-required (the wrinkles, the cases, the one ambiguity), so a teammate who didn't watch can follow the
-*work* and learn from it. Teaching how the agent system decomposed things is a compressed bonus in the
-aside, not the lesson.
+This is the rule that most often gets broken, and it is what makes a report feel busy and
+hard-to-read even when the structure is fine. The report is the reader's **first** look at work they
+did not see. Write it as a **re-grounding, not a continuation of your working thread.**
 
-## Two jobs
+- **Lead with the outcome.** One plain sentence on what happened or what was produced, before any
+  detail. Not the topology, not the agent count — the result.
+- **Drop the working shorthand.** The vocabulary you built up while running the workflow is yours,
+  not the reader's. No arrow chains (`a → b → c`), no hyphen-stacked compounds
+  (`observation-from-memory confidence`), no labels you coined mid-run and never defined. Spell terms
+  out in full sentences.
+- **Give every identifier its own plain clause.** A file, a flag, a commit, a metric — name it and
+  say what it is, rather than dropping it in as a token the reader is assumed to recognize.
+- **Cut anything that repeats.** If two sections carry the same point (a common one: the verifier's
+  suggestions and the "open questions" list), merge them. When a report says "as noted above," that
+  is the duplication showing — remove it.
+- **If you must choose between short and clear, choose clear** — but a re-grounded, plain report is
+  almost always *shorter* than one written in working notes, because the padding was machinery and
+  repetition.
 
-- **Teach** — a teammate who wasn't watching can follow the work and understand how each case was
-  handled. Narrative leads, structure and detail support.
-- **Verify** — the human can confirm it's right without trust. Surface the Step-2 verifier and its
-  verdict *attributed to the separate node that produced it*, print the exact re-run command, link
-  every claim to its `file:line`. Verification-honest: never paint a soft or partial result green.
+The `prose` pass (below) is the safety net for this, not the substitute. Write the re-grounding
+version first.
 
-## When it fires (scaled to the work)
+## The required spine — small, and all that is mandatory
 
-Default **on** — almost every run gets a report, scaled to its size: a **short** HTML report for a
-simple run (one fan-out, a single verify), a **full** one for anything richer. Only an *extremely
-trivial* single-agent run drops to a one-line verdict. Richness scales with the run; always
-overridable.
+Every report, however simple, does exactly these four things, in this order. Nothing else is
+required.
 
-## What the node consumes — the run manifest
+1. **The outcome.** The task in one line, and what was accomplished against it, in plain language,
+   above the fold.
+2. **The result.** The substantive thing produced — the real diffs, findings, answer, or design —
+   each item cited to its provenance (`file:line`, commit, source URL) where it has any, so the
+   report *shows* rather than asserts. This is the bulk of the report. The one item that matters most
+   is expanded, not buried.
+3. **The verdict and its honest caveat.** What the **separate verifier node** concluded, named with
+   its rung (deterministic > domain harness > adversarial rubric > human), and — stated plainly — what
+   that verdict does **not** cover. Where a real re-run command exists, print it so the human can
+   reproduce the check. Where the result is soft, partial, sampled, or capped, say so here; never
+   paint it green.
+4. **What is left to the human.** Any blocked, escalated, or deliberately-deferred decision: the
+   choice, the options (recommendation marked but *not* applied), and a resume handle where one
+   applies.
 
-The report is only as good and as honest as the trace it's handed, so nodes **accumulate a run
-manifest** as they execute (each appends; the report barrier reads it). Minimum contents, ordered by
-how much the reader cares:
+A simple run — one fan-out and a single verify — is **done at these four.** It should land close to a
+single screen of plain prose plus the result, and look much more like the lean reference than the
+rich one.
 
-- **task + outcome** — the original ask verbatim, and what was actually accomplished against it.
-- **substantive findings** — the real per-unit results (edits, bugs, claims, answers), each with
-  provenance (`file:line`, commit, source URL) so the report can *cite* rather than assert. This is
-  the bulk of what the report shows.
-- **verifier** — the Step-2 check, its rung, its **verdict**, and the literal command/prompt to
-  reproduce it, plus a completeness/residual command whose expected count equals the deliberately
-  excluded items.
-- **exceptions** — every `BLOCKED`/`FAILED`/retry/sample/cap, each with a resume handle (worktree
-  path + branch + state). The honesty ledger.
-- **accounting** — agents, tokens, wall-clock, models. The machinery; goes in the aside.
+## Everything else is conditional — include only what earns the reader's trust *for this run*
 
-If the manifest is thin, the report says so rather than inventing a narrative.
+These are **off by default.** Add one only when this specific run is rich enough that it genuinely
+helps the reader trust or follow the result — not because the template has a slot for it. When in
+doubt, leave it out; a tight report beats a complete one.
 
-## What it produces — the HTML, task-first
+- **A topology diagram** — only when the *shape of the run* is itself part of why the result can be
+  trusted (e.g. a deep adversarial verification where "a separate panel graded it" is the whole
+  point), and only for a genuinely complex run. A two-agent fan-out does not need a drawing of itself.
+- **Accounting** (agents, tokens, wall-clock, models) — only if the numbers are real and the reader
+  has a reason to care. Otherwise one line, or omit. Never invent or estimate them to fill the table.
+- **Dual-command / residual-scan verification** — only when there is deterministic ground truth (code
+  that compiles, tests that pass, a residual grep). For a taste or design run there is no exit code;
+  say that honestly in the verdict instead of dressing it in an apparatus it doesn't have.
+- **Per-unit verifier telemetry** (score grids, per-voter breakdowns) — almost never. A sentence
+  carries the verdict; a grid is decoration. Show the breakdown only if a reader genuinely needs to
+  audit a specific dimension.
 
-One self-contained `.html` (inline CSS + inline SVG, zero external requests, system fonts), written to
-**`/tmp/orchestrate-reports/<name>-<runid>.html`** (a run artifact, not a repo deliverable — keep it
-out of the working tree), that reads top-to-bottom as the *story of the work*. Section order, task
-substance first:
+When you do include the machinery, it lives in **one collapsible "How this was produced" section near
+the end** — subordinate, for trust and the curious, never the spine.
 
-1. **Masthead + verdict** — the task and **what was accomplished** in the headline (not how — keep the
-   topology out of the title), the verdict (did the verifier pass?), and the few numbers that bear on
-   the outcome (done / blocked / scope). The "did it work, on my thing" answer, above the fold.
-2. **What was done** — the substantive results as the first and largest section: the real changes /
-   findings / answer, each a row keyed by `file:line` with before→after, scannable by eye. The one
-   finding that matters most is expanded, not buried. A blocked item shows no success diff.
-3. **Verify it yourself** — the verifier, foregrounded and attributed to the separate node that ran
-   it: the check, its verdict and rung, a copyable command block on a named branch with expected exit
-   codes, **and a second completeness command** (e.g. a residual scan whose expected hit count equals
-   the blocked items, so a leftover reads as expected proof, not a missed edit). A scope-caveat box
-   states what the green does *not* cover, in its own visible box.
-4. **What needs your decision** — any blocked/escalated case as a first-class section: the ambiguity,
-   the options (with a recommendation marked but *not* applied), an explicit "retries: 0 — by design"
-   note, and a resume handle (worktree path + branch). Task-substantive, not an error footnote.
-5. **How this was produced** — *collapsible, subordinate, near the end.* The Anthropic-minimal SVG of
-   the topology that ran with a few sentences on why this shape, and an accounting table whose rows
-   visibly **sum to a printed total**. For trust and the curious. This is the only machinery section.
-6. **Footer** — self-contained note; restate the scoped verdict.
+## The two jobs, restated
 
-Delight is in restraint: warm calm canvas, generous whitespace, one clear narrative line, diagrams
-that reward a second look — not animation or chrome. The reader finishes understanding their result
-*and* trusting it.
+- **Teach** — a teammate who wasn't watching can follow the *work* (the wrinkles, the cases, the one
+  ambiguity) and learn from it. The pedagogy owed is task-pedagogy, not a tour of the harness.
+- **Verify** — the human can confirm it's right without trust: the verifier and its verdict
+  *attributed to the separate node that produced it*, a re-run command where one exists, claims linked
+  to provenance.
 
-## Diagrams — Anthropic-minimal inline SVG
+## Honesty rules (non-negotiable, even in the leanest report)
 
-Outline-only, editorial, warm. Condensed conventions (full skill:
-`anthropic-minimal-diagram-html`):
+- **Verdict attribution.** The verdict is written by the *separate verifier node*, never by a worker
+  or the dispatcher, and names its rung. A verdict the doer could have written is worthless. Keep its
+  wording exactly as that node produced it.
+- **Never fabricate a green.** A partial / soft / sampled / capped result is rendered as such with a
+  plain caveat — never a deterministic-looking green badge. A blocked item is excluded from any "done"
+  count.
+- **Numbers must be real or labeled.** If a count isn't independently verifiable from the page, either
+  the verifier actually produced it or the report labels it as unverified. Don't print accounting you
+  didn't capture.
 
-- **Canvas** `#F2EFE8`; **node stroke** `#5F5A54` (`fill="none"`, `rx="8"`); **panel border** dashed
-  `#B9B3AB` with an uppercase fieldset/legend label; **primary text** `#2D2B28`; **muted** `#7A756E`.
-- **One accent only**, carrying meaning: success `#71AE88` on the verifier/verdict, warn `#C88E6A` or
-  error `#D96B63` on the blocked path, muted dashed for a "no retry" note.
-- Strictly orthogonal routing, small filled-triangle heads, no two arrows on one centerline, coords
-  snapped to 10. `viewBox` + CSS `width:100%` (never fixed px), viewport meta tag.
-- The topology diagram lives **in the "How this was produced" aside**, not at the top. It maps the run
-  directly (workers→nodes, barrier→join, loop→muted dashed feedback arrow, verifier→accent node,
-  blocked→error peel-off) — but it is evidence, not the headline.
+## Diagrams — when you include one
+
+Outline-only, editorial, warm (full conventions: `anthropic-minimal-diagram-html`). Canvas `#F2EFE8`;
+node stroke `#5F5A54` (`fill="none"`, `rx="8"`); dashed panel borders `#B9B3AB`; text `#2D2B28`, muted
+`#7A756E`; **one** meaningful accent (success `#71AE88`, warn `#C88E6A`, error `#D96B63`). Orthogonal
+routing, small filled-triangle heads, coords snapped to 10, `viewBox` + CSS `width:100%` (never fixed
+px). It goes in the "How this was produced" aside, as evidence, never the headline — and per the rule
+above, only when the run is complex enough to warrant it.
 
 ## Prose pass — hand the narrative to `prose`
 
-The report's value is its narrative, and a report that reads like AI undercuts its own credibility.
-Before the render self-check, run the prose sections through the **`prose` skill in `rewrite` mode**,
-scoped to the narrative only — never the numbers, the `file:line` citations, the command blocks, or
-the verdict. `prose` is style-only and cannot alter a fact or soften a verdict, so it is safe on a
-report; it just strips the slop. If `prose` isn't installed, apply its principles inline. Keep the
-verdict's wording exactly as the separate verifier node produced it.
+After writing the re-grounding version, run the narrative through the **`prose` skill in `rewrite`
+mode**, scoped to the prose only — never the numbers, the `file:line` citations, the command blocks,
+or the verdict wording. `prose` is style-only and cannot alter a fact or soften a verdict. If it isn't
+installed, apply its principles inline.
 
 ## Self-verification — drive `agent-browser`
 
-The report is frontend, so it self-checks on the **deterministic rung**, not on vibes. A final step
-runs `agent-browser --help`, then drives it to open the file and confirm, as hard pass/fail: it
-renders; it is self-contained (a HAR capture shows exactly one request — the document); every SVG is
-visible with non-zero size and unclipped at **both ~390px and 1280px**; the console is clean; no
-horizontal overflow. A failing check is a **blocking defect**, not a warning — loop once to fix
-(malformed SVG, a `nowrap` table with no scroll wrapper) before handing back. The two killed
-candidates in this template's own design tournament failed exactly here: findings tables that
-overflowed at 390px.
+The report is frontend, so it self-checks on the **deterministic rung**. A final step runs
+`agent-browser --help`, then drives it to confirm, as hard pass/fail: it renders; it is self-contained
+(a HAR capture shows exactly one request — the document); any SVG is visible and unclipped at **both
+~390px and 1280px**; the console is clean; no horizontal overflow. A failing check is a **blocking
+defect**, not a warning — loop once to fix before handing back.
 
-## Honesty rules (non-negotiable)
+## When it fires (scaled to the work)
 
-- **Verdict attribution.** The verdict is written by the *separate verifier node*, never by a worker
-  or the dispatcher, and names its rung (deterministic build/test > domain harness > adversarial
-  rubric > human). A verdict the doer could have written is worthless.
-- **Never fabricate a green.** A PARTIAL/soft/sampled/capped result is rendered as such with a scope
-  caveat — never a deterministic-looking green badge. A blocked item appears as its own row/card with
-  no success diff and is excluded from the headline count's "done".
-- **Numbers must be real or labeled.** If a count isn't independently verifiable from the page (token
-  totals, test tallies), either the verifier actually produced it or the report labels it. Accounting
-  visibly sums so cost is auditable, not asserted.
+Default **on**, scaled to the run: most runs land at the **lean** shape (the required spine, plain
+prose); only a genuinely rich run pulls in the conditional machinery. An *extremely trivial*
+single-agent run drops to a one-line verdict. Always overridable.
+
+## What the node consumes — the run manifest
+
+The report is only as good as the trace it's handed, so nodes **accumulate a run manifest** as they
+execute. Ordered by how much the reader cares: **task + outcome** (the ask verbatim, what was
+accomplished); **substantive findings** (the real per-unit results with provenance — the bulk of the
+report); **verifier** (the check, its rung, its verdict, and a re-run command where one exists);
+**exceptions** (every `BLOCKED`/`FAILED`/retry/sample/cap with a resume handle); **accounting** (only
+if real). If the manifest is thin, the report says so rather than inventing a narrative.
+
+## Reference implementations
+
+- `templates/report.example.simple.html` — **the default shape.** A design/research run with no
+  deterministic verifier: plain-language outcome, the result as a scannable table, a four-sentence
+  verdict-and-caveat, the human's open decisions, and a single collapsed "how this was made"
+  paragraph with no diagram and no accounting. This is what most runs should look like. Lift its CSS
+  scaffold and section structure.
+- `templates/report.example.html` — **the rich shape.** A code migration where the machinery earns
+  its place: substantive edits as the lead section, dual-command verification with a residual scan and
+  a scope caveat, a blocked case as a decision section, and a topology diagram + summing accounting in
+  the collapsed aside. Use this only when the run is genuinely this complex.
 
 ## Fill these in
 
 - **Deliverable** — what the run produced and where it lives (the report itself always lands in
   `/tmp/orchestrate-reports/`).
-- **Audience** — a teammate who never saw the run? a reviewer who must sign off? future-you? Tilt the
-  teach/verify balance; "reviewer" weights the verify section and the resume handles heavier.
-- **Depth** — one-screen summary vs full narrative (defaults from run size).
-
-## Defaults
-
-- Report barrier: one Opus/Sonnet agent reading the manifest and writing the file to
-  `/tmp/orchestrate-reports/`; a `prose` rewrite pass on the narrative; one agent-browser self-check
-  pass after.
-- Runs **after the final verifier passes** — it states the verdict, it doesn't substitute for the
-  check. If the run ended BLOCKED, the report leads with the block, not a false all-clear.
-- Budget: small relative to the run (one writer + a prose pass + one checker). Drop to a one-line
-  verdict only on an extremely trivial single-agent run.
-
-## Reference implementation
-
-`templates/report.example.html` is a render-verified worked instance (the `oldFetch → newFetch`
-migration fixture): task-first ordering, the substantive edits as the lead section, dual-command
-verification with a scope caveat, the blocked case as a decision section, and the topology + summing
-accounting folded into the collapsible "How this was produced" aside. Lift its CSS scaffold and
-section structure; swap in the real run's substance.
+- **Audience** — a teammate who never saw the run? a reviewer who must sign off? Tilt the teach/verify
+  balance; "reviewer" weights the verify section and the resume handles heavier.
+- **Depth** — defaults to lean; only opt into the rich shape when the run earns it.
 
 ## Ready-to-fire example
 
@@ -168,19 +170,19 @@ Append a clause like this to any workflow invocation:
 
 > As the final node, after the verifier passes, write a self-contained HTML report to
 > `/tmp/orchestrate-reports/<name>-<runid>.html` (a run artifact — keep it out of the repo). Report the
-> WORK, not the workflow: lead with the task and what was actually
-> accomplished, then the substantive results (every change/finding as a `file:line` row with
-> before→after, the most important one expanded), then a "verify it yourself" section that foregrounds
-> the verifier and its verdict *attributed to the separate node that ran it* — a copyable command on a
-> named branch with expected exit codes, plus a completeness command whose expected count equals the
-> blocked items — with a scope-caveat box for what the green doesn't cover, then any blocked case as a
-> decision section with options (recommendation marked but not applied), "retries: 0 by design", and a
-> worktree+branch resume handle. Fold the topology diagram, why-this-shape, and the agent/token
-> accounting (rows that visibly sum to a total) into ONE collapsible "How this was produced" section
-> near the end — subordinate, for trust, never the spine. Anthropic-minimal outline-only SVG, warm
-> palette (`#F2EFE8` canvas, dashed phase panels, one accent), inline CSS + SVG, no external requests,
-> system fonts. Never paint a partial result green. Then pass the narrative prose through the `prose`
-> skill (`rewrite` mode), scoped to prose only — never the numbers, `file:line` cites, command blocks,
-> or verdict. Finally run `agent-browser --help` and drive it to confirm the file renders, is
-> self-contained (HAR shows one request), the diagrams are visible and unclipped at 390px and 1280px,
-> and the console is clean; loop once to fix if not.
+> WORK, not the workflow, and write it for a reader who did not watch the run: lead with a plain
+> one-sentence outcome, then the substantive result (each change/finding/answer cited to its
+> provenance, the most important one expanded), then a short verdict-and-caveat that states what the
+> *separate verifier node* concluded, its rung, and honestly what the verdict does NOT cover (print a
+> re-run command only if a real deterministic one exists), then any blocked or deferred decision as a
+> short "what's left to you" section with options (recommendation marked, not applied). Drop the
+> working shorthand — no arrow chains, no coined compound labels, spell terms out, give every file or
+> flag its own plain clause, and cut anything that repeats. Include a topology diagram and an
+> agent/token accounting table ONLY if this run is complex enough that the shape itself is evidence the
+> result can be trusted; otherwise omit them, or fold a one-paragraph "how this was made" into a single
+> collapsed section near the end. Never paint a partial result green. Warm Anthropic-minimal palette
+> (`#F2EFE8` canvas, one accent), inline CSS + SVG, no external requests, system fonts. Then pass the
+> narrative prose through the `prose` skill (`rewrite` mode), scoped to prose only — never the numbers,
+> cites, command blocks, or verdict wording. Finally run `agent-browser --help` and drive it to confirm
+> the file renders, is self-contained (HAR shows one request), any diagram is visible and unclipped at
+> 390px and 1280px, and the console is clean; loop once to fix if not.

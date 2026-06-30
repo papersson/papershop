@@ -319,22 +319,32 @@ verifier passes, one barrier reads the run manifest and writes a single self-con
 report is a run artifact, not a repo deliverable, so it lives in /tmp and never clutters the working
 tree.
 
-**It is a report about the work, not about the workflow.** The reader's first question is "what
-happened to *my* problem, and is it right?" — not "how did your agents coordinate?" So the task and
-its concrete outcome **lead and dominate**: what was asked, what was actually done (the real diffs /
-findings / answer, each carrying its `file:line` provenance), how to verify it, and what still needs a
-human call. The orchestration machinery — topology diagram, why-this-shape, agent/token/model
-accounting — is demoted to **one compact, collapsible "How this was produced" section** near the end,
-present for trust and the curious, never the spine. The topology earns its place only as evidence the
-result is trustworthy. The pedagogy owed is **task-pedagogy** (teach what the *task* required), not a
-tour of the harness.
+**It is a report about the work, not about the workflow** — and **written for a reader who did not
+watch the run.** It is their first look at work they didn't see, so write it as a re-grounding, not a
+continuation of your working thread: lead with a plain one-sentence outcome, drop the working
+shorthand (no arrow chains, no coined compound labels, spell terms out, give every file/flag its own
+plain clause), and cut anything that repeats. The reader's first question is "what happened to *my*
+problem, and is it right?" — not "how did your agents coordinate?" So the task and its concrete outcome
+**lead and dominate**: what was asked, what was actually done (the real diffs / findings / answer, each
+cited to its `file:line` provenance), how to check it, and what still needs a human call.
+
+**The machinery is conditional, not a fixed section.** A topology diagram, why-this-shape, and
+agent/token accounting are **off by default** — include one only when *this* run is complex enough
+that its shape is itself evidence the result can be trusted (a deep adversarial verification, a wide
+migration), and then only in **one collapsed "How this was produced" section** near the end. A simple
+run (one fan-out, a single verify) omits them, or folds a one-paragraph "how this was made" into that
+collapsed aside. Most runs land at this **lean** shape; the rich, diagrammed report is the exception
+the run has to earn. When in doubt, leave it out — a tight report beats a complete one. The pedagogy
+owed is **task-pedagogy** (teach what the *task* required), not a tour of the harness.
 
 Two jobs, both from the spine: **teach** (a teammate who didn't watch can follow the work and learn
 how each case was handled) and **verify** (surface the Step-2 verifier and its verdict *attributed to
-the separate node that ran it*; print the exact re-run command plus a completeness/residual command
-whose expected count equals the deliberately-excluded items; link every claim to `file:line`).
-Verification-honest: a BLOCKED/sampled/capped result is shown as such with a scope caveat and a resume
-handle (worktree path + branch + "retries: 0 by design"), never repainted green.
+the separate node that ran it*; link claims to `file:line`). Where a deterministic check exists, print
+the exact re-run command — plus a completeness/residual command whose expected count equals the
+deliberately-excluded items; where the verdict is soft/taste (no exit code), say so plainly rather than
+dressing it in an apparatus it doesn't have. Verification-honest: a BLOCKED/sampled/capped result is
+shown as such with a scope caveat and a resume handle (worktree path + branch + "retries: 0 by
+design"), never repainted green.
 
 It needs material, so nodes **accumulate a run manifest** as they go — task + outcome, the substantive
 findings with provenance, the verifier + verdict + rung, the exception ledger, and accounting. Scaled
@@ -345,10 +355,11 @@ through the `prose` skill (rewrite mode)** — scoped to the prose only, never t
 cites, command blocks, or verdict — so the report reads like a person wrote it; `prose` is style-only
 and cannot corrupt the facts (if it isn't installed, apply its principles inline). And because it's
 frontend, it self-verifies on the deterministic rung — drive `agent-browser` (start at `--help`) to
-confirm it renders, is self-contained (HAR shows one request), diagrams are visible and unclipped at
+confirm it renders, is self-contained (HAR shows one request), any diagram is visible and unclipped at
 ~390px and 1280px, and the console is clean; a failing check is a blocking defect, not a warning. Full
-contract, the task-first section order, and a render-verified reference implementation:
-`templates/report.md` and `templates/report.example.html`.
+contract and principles in `templates/report.md`; two render-verified references —
+`templates/report.example.simple.html` (the lean default shape, most runs) and
+`templates/report.example.html` (the rich shape, only when the run earns it).
 
 **Hand it back where the user actually looks — the chat, not the tool result.** The report lives in
 /tmp and the path returned inside the task-completion tool result is invisible to the user; a path

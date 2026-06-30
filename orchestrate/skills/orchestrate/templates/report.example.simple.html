@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>groundwork — skill design</title>
+<style>
+  :root{
+    --canvas:#F2EFE8; --ink:#2D2B28; --muted:#7A756E; --stroke:#5F5A54;
+    --panel:#B9B3AB; --rule:#E2DCD2; --paper:#FBFAF7; --ok:#71AE88; --warn:#C88E6A;
+    --mono:"SFMono-Regular",Consolas,Menlo,monospace;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--serif);font-size:18px;line-height:1.62}
+  .wrap{max-width:720px;margin:0 auto;padding:64px 28px 110px}
+  .kicker{font-family:var(--sans);text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:600;color:var(--muted);margin:0 0 16px}
+  h1{font-weight:600;font-size:30px;line-height:1.22;letter-spacing:-.01em;margin:0 0 20px}
+  h1 code{font-size:.82em}
+  .standfirst{font-size:20px;line-height:1.5;margin:0 0 30px}
+  h2{font-family:var(--sans);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);margin:56px 0 14px;padding-top:8px;border-top:1px solid var(--rule)}
+  p{margin:0 0 18px}
+  strong,b{font-weight:600}
+  code{font-family:var(--mono);font-size:.84em;background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+  .tree{font-family:var(--mono);font-size:13px;line-height:1.66;background:#27241F;color:#E9E4DA;border-radius:8px;padding:18px 20px;overflow-x:auto;margin:8px 0 24px}
+  .tree .c-dir{color:#C7BFA8}
+  .tree .c-core{color:#8FCBA4;font-weight:600}
+  .tree .c-note{color:#8E887C}
+  .tablescroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px 0 10px}
+  table.t{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:13.5px}
+  table.t th{text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--panel);padding:8px 12px 8px 0;vertical-align:bottom}
+  table.t td{border-bottom:1px solid var(--rule);padding:11px 12px 11px 0;vertical-align:top;line-height:1.45}
+  table.t td:first-child{font-family:var(--mono);font-size:11.5px;white-space:nowrap;padding-right:18px}
+  table.t .core{color:var(--ok);font-weight:600}
+  .verdict{background:var(--paper);border:1px solid var(--rule);border-left:3px solid var(--ok);border-radius:8px;padding:18px 22px;margin:8px 0 18px;font-family:var(--sans);font-size:15px;line-height:1.55}
+  .verdict b{color:var(--ink)}
+  ol.calls{font-family:var(--sans);font-size:15px;line-height:1.5;padding-left:22px;margin:8px 0 18px}
+  ol.calls li{margin:0 0 14px}
+  ol.calls b{color:var(--ink)}
+  details.how{margin:30px 0 0;border:1px solid var(--rule);border-radius:9px;background:var(--paper)}
+  details.how>summary{font-family:var(--sans);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);cursor:pointer;padding:15px 20px;list-style:none}
+  details.how>summary::-webkit-details-marker{display:none}
+  details.how>summary::before{content:"\25B8  ";color:var(--panel)}
+  details.how[open]>summary::before{content:"\25BE  "}
+  details.how .b{padding:2px 20px 18px;font-family:var(--sans);font-size:14px;line-height:1.6;color:var(--muted)}
+  footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--rule);font-family:var(--sans);font-size:13px;color:var(--muted);line-height:1.65}
+  footer code{font-size:12px}
+  @media(max-width:560px){.wrap{padding:44px 18px 80px}h1{font-size:25px}table.t{font-size:12.5px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="kicker">Skill design &middot; ready to write</p>
+<h1>A design for <code>groundwork</code>, a skill for the work you do before writing an internal tool</h1>
+<p class="standfirst">You asked for one papershop skill covering the discovery that happens between deciding to build something and writing the code, aimed at internal and operational tools. A design came back, an independent review approved it, and a handful of choices are now yours. This is that design and those choices.</p>
+
+<h2>What groundwork is</h2>
+<p><code>groundwork</code> helps you build an internal or operational tool — the kind a known group of staff already run today on a mix of legacy software, spreadsheets, and memory. It assumes you go and interview those staff yourself. The skill is the partner around those interviews: it helps you write the questions beforehand, organize what you capture during the conversation, and make sense of it between sessions. It never claims to have watched the work itself; you are the one in the room.</p>
+<p>The name was chosen over &ldquo;discovery&rdquo; on purpose. It refuses the consumer version of discovery, the kind that asks whether anyone wants the thing, because for an internal tool the work already exists and the need is known. Everything follows from that one fact. Market scans and invented user personas fall away. Recovering how the work really happens, the politics between the people involved, the vocabulary of the domain, and what the existing systems will actually allow all become the main event.</p>
+
+<p>It is built as five areas to investigate, sitting under one short instruction file that loads every time. Each area is a folder you open only if it matters for the tool in front of you. Each one ends in a concrete document you file, never in &ldquo;understanding.&rdquo;</p>
+
+<div class="tree">
+<span class="c-dir">skills/groundwork/</span>
+  SKILL.md                  <span class="c-note"># the short instruction file, always loaded</span>
+  <span class="c-dir">templates/</span>               <span class="c-note"># the three interview instruments you reuse</span>
+    interview-guide.md      <span class="c-note"># prepared before each interview</span>
+    interview-snapshot.md   <span class="c-note"># filled in during and after</span>
+    roster.md               <span class="c-note"># who you've talked to, and when to stop</span>
+  <span class="c-dir">modules/</span>
+    <span class="c-dir">as-is/</span>     how the work really happens, exceptions and workarounds   <span class="c-core">core</span>
+    <span class="c-dir">people/</span>    who the tool serves versus who has to use it               <span class="c-core">core</span>
+    <span class="c-dir">domain/</span>    the vocabulary, the source of truth, what's buildable      <span class="c-core">core</span>
+    <span class="c-dir">frame/</span>     one problem worth solving, and how you'll measure success
+    <span class="c-dir">slice/</span>     the smallest real workflow to ship and test first
+  <span class="c-dir">refs/</span>  background reading, opened on demand, kept out of the always-loaded file
+</div>
+
+<p>There is a suggested order to read the areas, but most are skipped on most projects. The point is to do just enough of two or three of them to responsibly pick one workflow, then build a thin version of that and come back. It is a set of questions to answer, not a checklist to finish.</p>
+
+<h2>The twelve documents it produces</h2>
+<p>This is the heart of the design: every leaf of every area ends in one filed document. Read down the right column to see what you would actually walk away with.</p>
+
+<div class="tablescroll">
+<table class="t">
+  <thead><tr><th>File</th><th>What it is for</th><th>The document it produces</th></tr></thead>
+  <tbody>
+    <tr><td>interview-guide</td><td>What you prepare before each interview: questions written to make a person retell one real episode instead of describing the official version.</td><td>A focus, a bank of concrete questions, a list of vague phrases to push back on, and a tail of questions about exceptions and workarounds.</td></tr>
+    <tr><td>interview-snapshot</td><td>What you fill in during and right after, so one raw conversation becomes something you can compare with the others.</td><td>One snapshot per interview: the steps of the story, the pains, the person's role, one exact quote, surprises, and each workaround with what it works around.</td></tr>
+    <tr><td>roster</td><td>How you track a small, known set of users, and decide when you have heard enough.</td><td>A running list of people by week and role, a coverage grid, and a note on whether new interviews still turn up anything new.</td></tr>
+    <tr><td class="core">workaround-register</td><td><b>The core of the skill.</b> Collect the unhappy path: every &ldquo;when that happens we just email Sven.&rdquo; Each workaround is a hidden requirement and a sign of where today's system fails.</td><td>A register: what triggers it, the workaround people perform, who or what it routes to, the requirement it implies, the failure it reveals, and how often it came up.</td></tr>
+    <tr><td class="core">service-blueprint</td><td>Map the visible steps and the hidden ones behind them. In operations, the real work and the workarounds hide in the back-office steps.</td><td>A two-layer map of the current process with every failure point, wait, manual step, and informal handoff marked, the official version laid over what really happens.</td></tr>
+    <tr><td class="core">role-interest-map</td><td>Replace invented personas with the real roles, each tied to the number it is judged on — because the manager who orders the tool and the operator who uses it want different things.</td><td>A one-page map: each role, what it is measured on, what it wants from the tool, whether it can block the project, and where its interests clash with another role's.</td></tr>
+    <tr><td class="core">ubiquitous-language</td><td>Write down the real words people use, and catch where one word means two things or two words mean one.</td><td>A glossary: each term, its meaning, who uses it, an example, and a flag where terms collide, plus a short list to settle before coding.</td></tr>
+    <tr><td class="core">systems-of-record</td><td>Find which system is actually the source of truth for each thing, and where copies disagree.</td><td>A table per item: which system creates it, which is authoritative for which fields, where stale copies live, and who you would trust in a conflict.</td></tr>
+    <tr><td class="core">integration-reality</td><td>Find what is actually buildable: which legacy systems you must touch, whether you can write to them, and how clean the data really is.</td><td>A sheet per system: its owner, how you can reach it, where its model clashes with yours, the data-quality problems, and the constraint that puts on the build.</td></tr>
+    <tr><td>problem-frame</td><td>Narrow to one problem worth solving and a success measure you can actually count.</td><td>A short problem statement, a success line in real numbers (time per case, manual steps, error rate), an out-of-scope list, and a note on how reversible the first version is.</td></tr>
+    <tr><td>opportunity-tree</td><td>Connect the business goal and the operator's daily friction to the options for fixing them.</td><td>A tree rooted in both the manager's number and the operator's pain, branching down to options backed by interview evidence.</td></tr>
+    <tr><td>assumption-test</td><td>List what must be true for an idea to work, and test the riskiest part cheaply. In operations that is usually &ldquo;the source system gives clean data,&rdquo; not &ldquo;people want this.&rdquo;</td><td>A ranked list of assumptions per option, the riskiest one isolated, and the cheapest test that would disprove it.</td></tr>
+    <tr><td>thin-slice-pilot</td><td>Pick the most painful workflow and run it by hand before automating, sized to how costly a mistake would be. The one place you sketch the new process.</td><td>A pilot plan: one workflow end to end, a by-hand operating procedure, a risk rating, and the bar for how much you must understand before going live.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Did it pass review</h2>
+<div class="verdict">
+Three reviewers, none of whom did the design, judged it against a five-part rubric, and all three approved it with no blocking problems. Read that as <b>ready to write, not finished</b>: none of the files above have been written yet, and the review compared the design to notes and summaries rather than to the real example skills in your papershop repository. The reviewers held back only on how build-ready it is, for that same reason.
+</div>
+
+<h2>The calls that are yours</h2>
+<p>A few decisions were left open on purpose, because they are matters of taste or of your local facts rather than logic. None of them blocks writing the skill.</p>
+<ol class="calls">
+  <li><b>How much of the new process to sketch.</b> The pilot sketches one workflow's redesigned path. The skill is meant to stop before full architecture. Where exactly is the line? It would help to write one worked example showing where a path sketch stops and real design begins.</li>
+  <li><b>Whether to make the reversibility judgment a scale.</b> How risky a first version is governs how much you should understand first. Right now that is described in words. A small grid would make it sharper, but it risks turning the skill back into the checklist it is trying not to be.</li>
+  <li><b>What to do for a tiny user set.</b> For a tool with three to five operators, the coverage-and-saturation tracking may be heavier than the problem. Is a quick role-coverage check enough, or should the roster ship in two sizes?</li>
+  <li><b>How much to trust accounts from memory.</b> When neither you nor anyone else can watch the work happen, everything rests on what people remember, and people forget most of their own steps. Should the documents carry an explicit confidence flag, or just a written caveat?</li>
+  <li><b>Whether the people area needs a second document.</b> It currently produces just the role map, while every other area produces two or three. Either fold the role map up a level, or add a second document, such as a map of who can veto or block.</li>
+</ol>
+<p>Two more items — giving the skill its plugin packaging, and reading your real example skills before writing — are not really decisions; they just happen when the files get authored.</p>
+
+<details class="how">
+  <summary>How this was made</summary>
+  <div class="b">
+  <p>Several design agents argued competing structures for the skill and converged on the one above. A separate panel of three reviewers then judged the result, so nothing graded its own work; all three approved it on the first pass with no blocking issues. The run filed three documents and this report. Token and timing figures were not captured in the data passed to this step.</p>
+  </div>
+</details>
+
+<footer>
+  <p>The full design lives in three files: <code>discovery-skill-design.md</code> is the complete specification, <code>discovery-SKILL.md</code> is the skill's instruction-file skeleton, and <code>discovery-refs-outline.md</code> lists the background-reading files. All three are in the scratchpad directory. This report is a copy you can throw away, kept at <code>/tmp/orchestrate-reports/discovery-skill-design-lean.html</code>. To check the design yourself, read the first of those three files.</p>
+</footer>
+
+</div>
+</body>
+</html>
