@@ -6,6 +6,7 @@
     { "name": "orchestrate", "source": "./orchestrate" },
     { "name": "prose", "source": "./prose" },
     { "name": "performance-engineering", "source": "./performance-engineering" },
-    { "name": "cartograph", "source": "./cartograph" }
+    { "name": "cartograph", "source": "./cartograph" },
+    { "name": "groundwork", "source": "./groundwork" }
   ]
 }
