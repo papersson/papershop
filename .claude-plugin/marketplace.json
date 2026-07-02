@@ -1,12 +1,36 @@
 {
   "name": "papershop",
-  "owner": { "name": "Patrik Persson" },
+  "owner": {
+    "name": "Patrik Persson"
+  },
   "plugins": [
-    { "name": "worklog", "source": "./worklog" },
-    { "name": "orchestrate", "source": "./orchestrate" },
-    { "name": "prose", "source": "./prose" },
-    { "name": "performance-engineering", "source": "./performance-engineering" },
-    { "name": "cartograph", "source": "./cartograph" },
-    { "name": "groundwork", "source": "./groundwork" }
+    {
+      "name": "worklog",
+      "source": "./worklog"
+    },
+    {
+      "name": "orchestrate",
+      "source": "./orchestrate"
+    },
+    {
+      "name": "prose",
+      "source": "./prose"
+    },
+    {
+      "name": "performance-engineering",
+      "source": "./performance-engineering"
+    },
+    {
+      "name": "cartograph",
+      "source": "./cartograph"
+    },
+    {
+      "name": "groundwork",
+      "source": "./groundwork"
+    },
+    {
+      "name": "project-triage",
+      "source": "./project-triage"
+    }
   ]
 }

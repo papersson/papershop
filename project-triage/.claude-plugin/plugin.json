@@ -1,0 +1,6 @@
+{
+  "name": "project-triage",
+  "version": "0.1.0",
+  "description": "Classify a software project or component on nine validated axes — fault reproducibility, resource pressure, tail obligation, writer topology, data gravity, commitment reversibility, requirements volatility, oracle strength, defect consequence — and emit a committal, falsifiable record of which engineering concerns dominate it and which recede. Quick pass first, deep passes only where flagged; every answer names its evidence artifact and its re-fire trigger. Includes a grading mode that revisits old records against what actually happened.",
+  "author": { "name": "Patrik Persson" }
+}
