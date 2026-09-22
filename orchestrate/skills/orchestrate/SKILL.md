@@ -172,9 +172,10 @@ doers, theater) — never trim verification or diversity to look lean.
 
 **Best-of-N is a lever, not redundant doing.** "Repeating the same doer buys nothing" rules out naive
 self-consistency — N identical calls voting on themselves — but not its productive cousin: a
-**temperature-diversified candidate pool** generated wide, then narrowed by a *separate* selector. The
-decorrelation comes from sampling diversity (varied temperature, seeds, or framing lenses) plus an
-independent judge, not from re-running one prompt. It earns its tokens when the task is taste-based or
+**framing-diversified candidate pool** generated wide, then narrowed by a *separate* selector. The
+decorrelation comes from giving each generator a different framing, constraint, or lens, plus an
+independent judge, not from re-running one prompt (sampling parameters such as temperature and seed
+aren't available to set on current models, so framing is the lever). It earns its tokens when the task is taste-based or
 admits many viable forms (naming, outline, structure, narrative, draft), the candidates are genuinely
 different rather than paraphrases, and a separate node scores them on a rubric and actually filters.
 Set **N deliberately and scale it to the size of the design space**: a handful of ad-hoc candidates
@@ -192,9 +193,9 @@ as defaults — scale *up* on discovery, *down* only with a stated reason:
 - **Tournament** — a bracket of ≥ 4 candidates for taste/selection; fewer is not a tournament.
 - **Verifier-to-doer ratio** — budget roughly **one verify agent per doer** for don't-trust-the-first-answer work (each unit gets its own checker), not one verifier auditing the whole batch; a shared verifier is acceptable only for cheap deterministic gates.
 
-These compose multiplicatively: 7 candidates × 4 claims × 3 votes is ~84 verify agents — the *expected*
-magnitude for a deep-verify run, not an overrun. A hard task whose graph lands under ~15–20 agents is
-the cue to check whether width or verification was silently rationed, not a sign of a tidy plan.
+These compose multiplicatively (7 candidates × 4 claims × 3 votes is ~84 verify agents), so render the
+envelope explicitly. The session's workflow-size setting is the cap: when the warranted shape exceeds
+it, say so in the plan and let the user raise the limit rather than silently thinning the graph.
 
 **Prefix caching is the spend amplifier — front-load one shared, cacheable contract.** A wide or deep
 fan-out is affordable only when the heavy front-matter (purpose, vocabulary, framings, schemas, prior

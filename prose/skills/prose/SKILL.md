@@ -99,6 +99,9 @@ Six themes (full attribution in `reference.md`):
 - **Honesty** — make claims as strong as they can be without becoming false; hedge only real
   uncertainty; commit (Graham, Alexander, Feynman).
 
+House rules that hold in every register: no em dashes (use a colon, parentheses, or a new sentence),
+and straight quotes rather than curly ones.
+
 For technical and explanatory writing specifically: build the reader's mental model rather than
 recording your own; put the concrete image before the abstract label (scene before symbol);
 demonstrate interest, don't announce it ("notably", "interestingly" signal the opposite).
