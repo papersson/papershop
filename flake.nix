@@ -1,5 +1,5 @@
 {
-  description = "worklog — query Claude Code transcripts as a work history";
+  description = "papershop — worklog (a work-history CLI) and the tutor dev shell";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -29,6 +29,20 @@
             '';
           };
           default = worklog;
+        });
+
+      # `nix develop .#tutor`: the system side of the tutor plugin's pipeline (Manim's cairo/pango,
+      # Kokoro's espeak-ng, ffmpeg, the IBM Plex fonts) plus uv; the Python packages are pinned in
+      # tutor/skills/tutor/kit/requirements.txt and installed into a per-project venv by setup.sh.
+      devShells = forAll (system:
+        let pkgs = nixpkgs.legacyPackages.${system}; in {
+          tutor = pkgs.mkShell {
+            packages = with pkgs; [ python311 uv ffmpeg espeak-ng cairo pango pkg-config ibm-plex ];
+            FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.ibm-plex ]; };
+            shellHook = ''
+              echo "tutor dev shell: run <plugin>/skills/tutor/scripts/setup.sh PROJECT_DIR to create the venv"
+            '';
+          };
         });
     };
 }

@@ -31,6 +31,10 @@
     {
       "name": "project-triage",
       "source": "./project-triage"
+    },
+    {
+      "name": "tutor",
+      "source": "./tutor"
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "skill_name": "tutor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want a video lesson on how B-trees keep disk lookups fast. I'm a backend dev, I know binary search trees and roughly what a disk block is, but I've never looked at how a database index is laid out. Propose the narrative first, I want to iterate on it before anything gets built.",
+      "expected_output": "Asks how well the user knows the topic (or infers co-author track from the prompt), runs or plans fresh-context research, and returns a research/narrative.md-shaped proposal: question, answer, takeaway, a chain of chapters as claims with 'why it follows' and evidence per chapter, what is cut, an evidence plan, and at most three questions. Does NOT start a build.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Teach me how consensus protocols like Raft work, as one of those explainer videos. I know nothing about distributed systems beyond that servers can crash. Don't ask me to judge the technical content, I can't; just make sure it's right.",
+      "expected_output": "Trust track: two or three competing narratives drafted in fresh contexts, a narrative review round (expert/student/editor) on each, a chosen narrative with the reasons and the rejected ones, and a short list of risk flags. Asks the learner only whether this is what they want to learn. No build until they say so.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "The queueing lesson at tutor/lessons/queueing has three 'Lost me here' notes on its page: 1:42 'what's an arrival rate again', 2:10 (no comment), 3:05 'lost the arithmetic'. Fix it.",
+      "expected_output": "Reads the notes, maps each to its sentence id in SCRIPT.md, names what each note shows, adds rows to learner.md, revises only the chapters pointed at, re-runs the reviewers, re-narrates, re-renders only those chapters, bumps the version, republishes to the same link, and reports what changed per note. Does not rebuild the whole lesson.",
+      "files": []
+    }
+  ]
+}

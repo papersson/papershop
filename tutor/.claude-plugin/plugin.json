@@ -1,0 +1,6 @@
+{
+  "name": "tutor",
+  "version": "0.1.0",
+  "description": "Build and publish narrated, animated video lessons that teach one technical idea to one learner. A narrative the learner approves (co-authored when they know the topic; drafted in competing fresh contexts and reviewed when they don't), a script that expert, student and editor reviewers must pass, every number from a real run, Manim animation cut to a Kokoro narration, a frame-by-frame check, and a private page with a \"Lost me here\" button whose notes drive revisions. Ships the pipeline kit, templates and reviewer prompts.",
+  "author": { "name": "Patrik Persson" }
+}
