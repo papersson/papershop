@@ -27,7 +27,11 @@ The learner compared an early attempt at a "cinematic" style with the best expla
 
 ## Voice
 
-Kokoro `af_heart` at speed 1.0 in **paragraph mode**: each paragraph is one synthesis call, so intonation carries across sentences and pauses follow the punctuation. Per-sentence synthesis made every sentence start at the same pitch after the same 0.45 s gap, which the learner heard as robotic; paragraph mode doubled the sentence-to-sentence pitch variation at no cost. A more expressive open model (Kyutai Pocket TTS) was tried and the learner preferred Kokoro. Holds (`narration.json`) give the picture time after a reveal; the voice's own pauses do the rest.
+Kokoro `af_heart` at speed 1.0 in **paragraph mode**: each paragraph is one synthesis call, so intonation carries across sentences and pauses follow the punctuation. Per-sentence synthesis made every sentence start at the same pitch after the same 0.45 s gap, which the learner heard as robotic; paragraph mode doubled the sentence-to-sentence pitch variation at no cost. A more expressive open model (Kyutai Pocket TTS) was tried and the learner preferred Kokoro.
+
+**ElevenLabs** is the hosted option (`"engine": "elevenlabs"` in narration.json). Use `eleven_multilingual_v2`: `eleven_v3` is more expressive but returns no timestamps, and the scenes cue off sentence timings. Develop with Kokoro (free, deterministic) and switch at the end, once the script is locked and the scenes are right: the scenes follow the new timings, but a faster voice can shorten a sentence below the animation written for it, so re-check the contact sheets after the switch. A lesson is about 5,000–7,000 characters, about one credit each.
+
+Holds (`narration.json`) give the picture time after a reveal; the voice's own pauses do the rest.
 
 ## Length
 

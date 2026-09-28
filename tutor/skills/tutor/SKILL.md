@@ -59,7 +59,7 @@ All run from the project with the venv active, `LESSON = tutor/lessons/NAME`:
 
 | Command | Does |
 |---|---|
-| `python tutor/kit/narration.py LESSON [--list\|--estimate]` | Narration from the locked SCRIPT.md: Kokoro af_heart, one call per paragraph; `audio/timings.json` with every sentence's start and end |
+| `python tutor/kit/narration.py LESSON [--list\|--estimate]` | Narration from the locked SCRIPT.md, one call per paragraph: Kokoro af_heart (local, free) by default, or ElevenLabs (`"engine": "elevenlabs"`, needs `ELEVENLABS_API_KEY`; responses are cached, `--fetch-only` fills the cache with the standard library alone). Writes `audio/timings.json` with every sentence's start and end |
 | `python tutor/kit/voice_check.py LESSON` | Transcribes every sentence's clip and scores it; the audio review, since nobody can listen |
 | `python tutor/kit/review.py LESSON ROUND` | One review round: expert, student, editor, each a fresh `claude -p` in an empty folder. Refuses to run unless SCRIPT.md's status line names ROUND |
 | `python tutor/kit/review.py LESSON ROUND --narrative FILE` | The same three roles on a narrative outline (trust track) |

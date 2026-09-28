@@ -23,4 +23,4 @@ Each note names a time, a chapter, the sentence on screen and the one before, an
 
 ## Re-voicing
 
-A voice change is mechanical: edit `narration.json`, run `narration.py`, run `voice_check.py`, then a full `build.py` (every chapter's timing changes), `sheets.py` to check the cues still land, `make_page.py`, republish. Line ids do not change, so scenes need no edits, but holds may: a slower voice needs shorter holds.
+A voice change is mechanical: edit `narration.json`, run `narration.py`, run `voice_check.py`, then a full `build.py` (every chapter's timing changes), `sheets.py` to check the cues still land, `make_page.py`, republish. Line ids do not change, so scenes need no edits, but holds may: a slower voice needs shorter holds. For ElevenLabs, a machine with the key can run `narration.py LESSON --fetch-only --yes` (standard library only) and commit `audio/elevenlabs_cache/`; any other machine then builds from the cache without the key and without paying again.
