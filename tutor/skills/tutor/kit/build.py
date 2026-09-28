@@ -34,6 +34,10 @@ def render(seg, preview):
     env = dict(os.environ, LESSON_DIR=str(LESSON), PYTHONPATH=f"{KIT}:{os.environ.get('PYTHONPATH', '')}")
     cmd = ["manim", *q, "--disable_caching", "--media_dir", str(media_dir()), file, cls]
     r = subprocess.run(cmd, cwd=LESSON / "scenes", capture_output=True, text=True, env=env)
+    if r.returncode and "ParseError" in r.stdout + r.stderr:
+        # Scenes render in parallel and share Manim's text cache: with a cold cache, two processes
+        # can write the same text's SVG at once and one reads it half-written. Once is enough.
+        r = subprocess.run(cmd, cwd=LESSON / "scenes", capture_output=True, text=True, env=env)
     if r.returncode:
         raise RuntimeError(f"{cls} failed:\n{r.stdout[-3000:]}\n{r.stderr[-3000:]}")
     return part(seg, preview)
