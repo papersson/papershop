@@ -71,10 +71,14 @@ def check_host(url):
         return WARN, f"host {url}", f"unreachable ({e})", "allowlist it, or prefetch on a machine that can reach it"
 
 
-def fetch(engines=("remotion",)):
-    """Install what is downloaded rather than pinned in the flake: each engine's node packages."""
+def fetch(engines=("remotion",), extras=()):
+    """Install what is downloaded rather than pinned in the flake: each engine's node packages, and
+    any optional Python extras (e.g. `align`). Inexact, so extras installed earlier stay."""
     for name in engines:
         subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=engine_dir(name), check=True)
+    if extras:
+        cmd = ["uv", "sync", "--quiet", "--frozen", "--inexact", "--project", str(ROOT / "kit")]
+        subprocess.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)
 
 
 def checks(net=False):
@@ -97,7 +101,7 @@ def checks(net=False):
 
 def main(args):
     if args.fetch:
-        fetch()
+        fetch(extras=args.extra)
     rows = checks(net=args.net)
     for level, name, detail, fix in rows:
         print(f"{level:4}  {name:22} {detail}" + (f"\n      fix: {fix}" if fix and level != OK else ""))
