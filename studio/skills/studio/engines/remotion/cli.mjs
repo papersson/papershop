@@ -37,15 +37,16 @@ for (let i = 0; i < rest.length; i++) {
 }
 const log = (...a) => console.error(...a);
 
-function hashTree(h, p) {
+// Names relative to the hashed root, so a moved or copied video keeps its bundle key.
+function hashTree(h, p, root = p) {
 	if (!existsSync(p)) return;
 	if (statSync(p).isDirectory()) {
 		for (const name of readdirSync(p).sort()) {
 			if (name === 'node_modules' || name.startsWith('.')) continue;
-			hashTree(h, path.join(p, name));
+			hashTree(h, path.join(p, name), root);
 		}
 	} else {
-		h.update(p);
+		h.update(path.relative(path.dirname(root), p));
 		h.update(readFileSync(p));
 	}
 }

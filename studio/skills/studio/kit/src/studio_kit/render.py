@@ -25,14 +25,16 @@ STILL_SCALE = 0.25          # 480×270 stills on the page
 STILL_BEFORE_END = 0.15     # seconds before a sentence's end, when its picture is complete
 
 
-def _hash_tree(h, p):
+def _hash_tree(h, p, root=None):
+    """Hash file names relative to `p` and contents, so a moved or copied video keeps its keys."""
     p = Path(p)
+    root = root or (p if p.is_dir() else p.parent)
     if p.is_dir():
         for child in sorted(p.iterdir()):
             if child.name != "node_modules" and not child.name.startswith("."):
-                _hash_tree(h, child)
+                _hash_tree(h, child, root)
     elif p.exists():
-        h.update(str(p).encode())
+        h.update(str(p.relative_to(root)).encode())
         h.update(p.read_bytes())
 
 

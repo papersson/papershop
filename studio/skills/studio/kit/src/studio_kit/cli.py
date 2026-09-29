@@ -86,8 +86,8 @@ def main(argv=None):
         log = json.loads(Path(args.changelog).read_text()) if args.changelog else None
         rec = make_cut(args.video, args.quality, args.stills_only, log)
         done = [c["id"] for c in rec["clips"] if c["rendered"]]
-        print(f"cut {rec['cut']}: rendered {', '.join(done) or 'no clips (all cached)'}; "
-              f"seconds {rec['seconds']}")
+        what = "stills only" if args.stills_only else f"rendered {', '.join(done) or 'no clips (all cached)'}"
+        print(f"cut {rec['cut']}: {what}; seconds {rec['seconds']}")
         return 0
     if args.cmd in ("still", "boxes", "duration"):
         import json
