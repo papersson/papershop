@@ -76,6 +76,11 @@ def fetch(engines=("remotion",), extras=()):
     any optional Python extras (e.g. `align`). Inexact, so extras installed earlier stay."""
     for name in engines:
         subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=engine_dir(name), check=True)
+        # The headless shell; a blocked download is not fatal, the installed Chrome still works.
+        get = subprocess.run(["node", "-e", "import('@remotion/renderer').then(r => r.ensureBrowser())"],
+                             cwd=engine_dir(name))
+        if get.returncode != 0:
+            print(f"warn: {name}'s headless shell did not download; falling back to an installed Chrome")
     if extras:
         cmd = ["uv", "sync", "--quiet", "--frozen", "--inexact", "--project", str(ROOT / "kit")]
         subprocess.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)

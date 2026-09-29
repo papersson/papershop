@@ -88,8 +88,11 @@ async function getBundle(video) {
 }
 
 function browserOptions() {
-	// A regular Chrome needs the new headless mode; without a path Remotion downloads its own shell.
-	return opt.browser ? {browserExecutable: opt.browser, chromeMode: 'chrome-for-testing'} : {};
+	// A full Chrome needs the new headless mode; the headless shell runs as itself. Without a path,
+	// Remotion downloads its own shell.
+	if (!opt.browser) return {};
+	const shell = path.basename(opt.browser).startsWith('chrome-headless-shell');
+	return {browserExecutable: opt.browser, chromeMode: shell ? 'headless-shell' : 'chrome-for-testing'};
 }
 
 async function composition(serveUrl, clip, inputProps, puppeteerInstance) {
@@ -153,7 +156,7 @@ async function render(video, clip, out, quality, range) {
 	await renderMedia({
 		composition: comp, serveUrl, codec: 'h264', outputLocation: out, inputProps, muted: true,
 		scale: q.scale, crf: q.crf, jpegQuality: q.jpegQuality, imageFormat: 'jpeg', frameRange,
-		overwrite: true, logLevel: 'error', ...browserOptions(),
+		overwrite: true, logLevel: 'error', concurrency: opt.concurrency ? Number(opt.concurrency) : null, ...browserOptions(),
 	});
 	return {clip, out, quality: quality ?? 'draft', frames: comp.durationInFrames, bundleCached: cached,
 		seconds: (Date.now() - started) / 1000};

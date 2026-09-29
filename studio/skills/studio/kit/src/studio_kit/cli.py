@@ -50,7 +50,14 @@ def main(argv=None):
     c.add_argument("--stills-only", action="store_true", help="stills only (a look gate, or a quick answer)")
     c.add_argument("--changelog", help="JSON list of {note, change} answering the previous cut's notes")
 
+    dt = sub.add_parser("determinism", help="render sample frames twice and compare their hashes")
+    dt.add_argument("video")
+    dt.add_argument("--samples", type=int, default=3, help="frames per clip")
+
     args = p.parse_args(argv)
+    if args.cmd == "determinism":
+        from . import check
+        return check.main(args)
     if args.cmd == "render":
         import json
         from .engine import Engine
