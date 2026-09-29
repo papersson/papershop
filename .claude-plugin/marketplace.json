@@ -35,6 +35,10 @@
     {
       "name": "tutor",
       "source": "./tutor"
+    },
+    {
+      "name": "studio",
+      "source": "./studio"
     }
   ]
 }
