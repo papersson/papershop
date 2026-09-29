@@ -1,29 +1,37 @@
 # studio
 
-An agent-driven video studio. Scenes are code on one timeline, an engine renders them (Remotion
-first), and the user reviews each cut on a local page and leaves notes that drive the next cut.
+Narrated, animated videos made by an agent and improved in rounds. The narrative is settled with
+you first; scenes are code on one timeline, rendered by Remotion; you watch each cut on a local
+review page and leave notes against the exact sentence on screen, and only what a note touches is
+re-rendered. It replaces the tutor plugin.
 
 ```
 claude plugin install studio@papershop
 ```
 
+Then ask for a video from anywhere ("make an explainer of how this repo's sync engine works",
+"teach me Raft as a video"). The skill asks whether you know the subject (you give notes) or are
+learning it (fresh-context research and reviewers check it for you).
+
 ## Environment
 
-Everything runs through `skills/studio/bin/studio`, which loads the plugin's own flake (`flake.nix`, with the shell in `shell.nix`: Python,
-uv, Node 22, ffmpeg, sox) and caches it per `flake.lock`. Python packages are pinned by
-`kit/uv.lock`, the engine's by `engines/remotion/package-lock.json`. Then:
+Everything runs through `skills/studio/bin/studio`, which enters the plugin's own flake
+(`flake.nix`, with the shell in `shell.nix`: Python, uv, Node 22, ffmpeg, sox) and caches it per
+lock file. Python packages are pinned by `kit/uv.lock`, the engine's by
+`engines/remotion/package-lock.json`. On a new machine:
 
 ```
-skills/studio/bin/studio doctor --fetch     # engine packages and its headless shell
-skills/studio/bin/studio doctor             # every check, with fixes
+skills/studio/bin/studio doctor --fetch --extra kokoro --extra align
 ```
 
-The browser is the engine's downloaded headless shell (four times faster per frame than a full
-Chrome in headless mode), else `STUDIO_BROWSER`, else an installed Chrome. Without Nix, set
-`STUDIO_NO_NIX=1` and install the tools yourself; `doctor` says what is missing.
+installs the engine's packages and its headless browser, local narration (Kokoro, with torch) and
+the voice check (faster-whisper). `doctor` alone checks every layer and prints fixes. The browser is
+the engine's headless shell (four times faster per frame than a full Chrome in headless mode), else
+`STUDIO_BROWSER`, else an installed Chrome. Without Nix, set `STUDIO_NO_NIX=1` and install the tools
+yourself. ElevenLabs narration needs `ELEVENLABS_API_KEY`.
 
-## Status
+Videos go to `$STUDIO_HOME/NAME` (default `~/studio`), which also holds `learner.md`, the learner
+model the student reviewer plays.
 
-Phase 0 of the redesign: the timeline contract, the engine interface with its Remotion engine,
-cuts with per-clip re-renders, word alignment, and the review page. See
-[`skills/studio/SKILL.md`](skills/studio/SKILL.md).
+See [`skills/studio/SKILL.md`](skills/studio/SKILL.md), and [`DESIGN.md`](skills/studio/DESIGN.md)
+for why it is shaped this way.
