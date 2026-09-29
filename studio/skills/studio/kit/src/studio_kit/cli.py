@@ -76,7 +76,16 @@ def main(argv=None):
     vc.add_argument("--model", default="small.en")
     vc.add_argument("--below", type=float, default=0.8, help="flag sentences scoring under this")
 
+    rv = sub.add_parser("review", help="one round of fresh-context reviewers on SCRIPT.md or a narrative")
+    rv.add_argument("video")
+    rv.add_argument("round", type=int)
+    rv.add_argument("--narrative", help="review this narrative file instead of the script")
+    rv.add_argument("--only", default="expert,student,editor")
+
     args = p.parse_args(argv)
+    if args.cmd == "review":
+        from . import review
+        return review.main(args)
     if args.cmd == "voice-check":
         from . import voice_check
         return voice_check.main(args)
