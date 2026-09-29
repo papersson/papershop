@@ -13,9 +13,10 @@ gaps, "paragraph": false: flatter, since every sentence then starts at the same 
 Engines (narration.json "engine"):
   kokoro (default)  local, free, deterministic. Settings "kokoro": voice, speed, paragraph.
   elevenlabs        hosted; needs ELEVENLABS_API_KEY. Settings "elevenlabs": voice (a name from
-                    your ElevenLabs voice list) or voice_id, model (default eleven_multilingual_v2:
-                    eleven_v3 returns no timestamps, which the scenes need), stability,
-                    similarity_boost, style, speed, seed. Each call gets the neighbouring paragraphs
+                    your ElevenLabs voice list) or voice_id, model (default eleven_multilingual_v2;
+                    eleven_v4 also works, eleven_v3 returns no timestamps, which the scenes need),
+                    stability, similarity_boost, style, speed (eleven_v4 takes neither style nor
+                    speed, so they are not sent), seed. Each call gets the neighbouring paragraphs
                     as previous_text/next_text, so intonation carries across paragraph breaks.
                     Every response is cached in audio/elevenlabs_cache/, so a re-run never pays
                     twice, and a machine with the cache but no key can still build.
@@ -57,7 +58,10 @@ ENGINE = _CFG.get("engine", "kokoro")
 KOKORO = {"voice": "af_heart", "speed": 1.0, "paragraph": True, **_CFG.get("kokoro", {})}
 ELEVEN = {"voice": None, "voice_id": None, "model": "eleven_multilingual_v2", "stability": 0.5,
           "similarity_boost": 0.75, "style": 0.0, "speed": 1.0, "seed": None, **_CFG.get("elevenlabs", {})}
+VOICE_SETTINGS = ("stability", "similarity_boost") + (() if ELEVEN["model"].startswith("eleven_v4") else ("style", "speed"))
 PARAGRAPH = ENGINE == "elevenlabs" or KOKORO["paragraph"]
+# How far a word's timestamp may trail the audio: Eleven v4's run up to about 0.3 s late.
+LATE = 0.35 if ENGINE == "elevenlabs" and ELEVEN["model"].startswith("eleven_v4") else 0.2
 TAIL = _CFG.get("tail", 6.0)
 HOLDS = _CFG.get("holds", {})
 SPOKEN = [tuple(p) for p in _CFG.get("spoken", [])]
@@ -92,7 +96,7 @@ def spoken(text, lid=None):
 def voice_info():
     if ENGINE == "elevenlabs":
         return {"engine": "elevenlabs", "voice": ELEVEN["voice"] or ELEVEN["voice_id"], "model": ELEVEN["model"],
-                "speed": ELEVEN["speed"], "mode": "paragraph",
+                "speed": ELEVEN["speed"] if "speed" in VOICE_SETTINGS else None, "mode": "paragraph",
                 "credit": f"Narration voice: ElevenLabs ({ELEVEN['voice'] or ELEVEN['voice_id']})"}
     return {"voice": KOKORO["voice"], "speed": KOKORO["speed"], "mode": "paragraph" if PARAGRAPH else "sentence"}
 
@@ -232,7 +236,7 @@ def eleven_request(full, prev, nxt):
     import hashlib
 
     body = {"text": full, "model_id": ELEVEN["model"],
-            "voice_settings": {k: ELEVEN[k] for k in ("stability", "similarity_boost", "style", "speed")}}
+            "voice_settings": {k: ELEVEN[k] for k in VOICE_SETTINGS}}
     if prev:
         body["previous_text"] = prev
     if nxt:
@@ -254,7 +258,7 @@ def eleven_fetch(chunks):
         if not f.exists():
             todo.append((body, f))
     n = sum(len(b["text"]) for b, _ in todo)
-    print(f"ElevenLabs: {len(todo)} of {len(chunks)} chunks to fetch, {n} characters (about {n} credits on {ELEVEN['model']})")
+    print(f"ElevenLabs: {len(todo)} of {len(chunks)} chunks to fetch, {n} characters on {ELEVEN['model']}")
     if not todo:
         return
     if n > 2000 and "--yes" not in sys.argv:
@@ -314,13 +318,21 @@ def paragraph_clips(synth, chunks):
         audio, words = synth(full, prev, nxt)
         runs = silence_runs(audio, RATE)
         firsts = [next(w for w in words if w[0] >= b) for b in begins]
+        starts = []
+        for _, st, _ in firsts:
+            # The pause before a sentence: the longest silence ending near its first word (a later,
+            # shorter one is a consonant inside that word, and snapping to it clips the word).
+            s = [(b - a, b) for a, b in runs if st - LATE <= b <= st + 0.1]
+            starts.append(max(s)[1] if s else st)
         spans = []
         for i, (_, st, _) in enumerate(firsts):
             end = firsts[i + 1][1] if i + 1 < len(firsts) else len(audio) / RATE
+            nxt = starts[i + 1] if i + 1 < len(starts) else len(audio) / RATE
             last = [w for w in words if st <= w[1] < end][-1]
-            s = [b for a, b in runs if st - 0.2 <= b <= st + 0.1]
-            e = [a for a, b in runs if last[1] <= a < end and b >= end - 0.1]   # the pause into the next
-            spans.append((max(s) if s else st, min(e) if e else min(last[2], end)))
+            # The pause into the next sentence ends where that sentence starts once snapped, not at
+            # its raw timestamp.
+            e = [a for a, b in runs if last[1] <= a < nxt and b >= nxt - 0.1]
+            spans.append((starts[i], min(e) if e else min(last[2], nxt)))
         for i, ((lid, text, _), (a, b)) in enumerate(zip(chunk, spans)):
             assert a < b <= (spans[i + 1][0] if i + 1 < len(spans) else len(audio) / RATE), (lid, a, b)
             clips[lid], said[lid] = cut(audio, a, b), text
