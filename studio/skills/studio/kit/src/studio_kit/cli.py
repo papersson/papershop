@@ -54,7 +54,23 @@ def main(argv=None):
     dt.add_argument("video")
     dt.add_argument("--samples", type=int, default=3, help="frames per clip")
 
+    sv = sub.add_parser("serve", help="serve the review page for the latest cut")
+    sv.add_argument("video")
+    sv.add_argument("--port", type=int, default=8765)
+
+    nt = sub.add_parser("notes", help="the notes on a cut, numbered")
+    nt.add_argument("video")
+    nt.add_argument("--cut", type=int)
+
     args = p.parse_args(argv)
+    if args.cmd == "serve":
+        from . import page
+        page.serve(args.video, args.port)
+        return 0
+    if args.cmd == "notes":
+        from . import page
+        print(page.notes_text(args.video, args.cut))
+        return 0
     if args.cmd == "determinism":
         from . import check
         return check.main(args)

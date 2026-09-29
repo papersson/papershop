@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review</title>
+<style>
+:root {
+  --bg: #0b0e12; --panel: #12171d; --line: #232b34; --ink: #e6ebf0; --muted: #8c97a4; --faint: #56606b;
+  --accent: #8fd3ff; --warn: #f2a93b; --bad: #e4715f; --field: #0f1318;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f6f7; --panel: #ffffff; --line: #dde2e7; --ink: #151a20; --muted: #5b6672; --faint: #8b949e;
+    --accent: #0a6fa8; --warn: #a86200; --bad: #b83d2b; --field: #f5f6f7;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+button, textarea, select { font: inherit; color: inherit; }
+header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+header .meta { color: var(--muted); font-size: 13px; }
+header .spacer { flex: 1; }
+select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; padding: 24px; max-width: 1600px; margin: 0 auto; }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; padding: 16px; } }
+video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 6px; display: block; cursor: pointer; }
+/* Controls sit below the picture, not over it: an overlay would hide the burned-in caption band
+   exactly when the video is paused for a note. */
+.bar { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.bar input[type=range] { flex: 1; accent-color: var(--accent); }
+.bar #play { min-width: 72px; }
+.bar .btn, .bar .mono { white-space: nowrap; }
+@media (max-width: 520px) { .bar #full { display: none; } }
+.chapters { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.chapters button { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; color: var(--muted); font-size: 13px; }
+.chapters button.on { color: var(--ink); border-color: var(--accent); }
+.chapters .time { font-family: var(--mono); font-size: 12px; margin-right: 6px; color: var(--faint); }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #06121b; font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.card h2 { font-size: 13px; font-weight: 600; margin: 0 0 12px; color: var(--muted); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mono { font-family: var(--mono); font-size: 13px; }
+.quote { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+.quote b { color: var(--ink); font-weight: 500; }
+.kinds { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.kinds button { border: 0; background: none; padding: 4px 10px; cursor: pointer; color: var(--muted); }
+.kinds button.on { background: var(--accent); color: #06121b; }
+textarea { width: 100%; min-height: 84px; resize: vertical; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+textarea:focus, select:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hint { color: var(--faint); font-size: 12px; }
+ol.notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+ol.notes li { border-top: 1px solid var(--line); padding-top: 10px; }
+ol.notes li:first-child { border-top: 0; padding-top: 0; }
+.tag { font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; color: var(--muted); }
+.link { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; }
+.link.quiet { color: var(--faint); }
+.empty { color: var(--faint); font-size: 14px; }
+.sent { color: var(--accent); font-size: 13px; }
+section.below { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 24px; }
+section.below h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
+.strip figure { margin: 0; cursor: pointer; }
+.strip img { width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; border: 1px solid var(--line); display: block; }
+.strip figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.strip figure.now img { border-color: var(--accent); }
+.chapter-h { font-size: 13px; color: var(--muted); margin: 16px 0 8px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 720px; }
+.pair img { width: 100%; border-radius: 4px; border: 1px solid var(--line); }
+.pair span { font-size: 12px; color: var(--faint); }
+ul.changes { margin: 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Review</h1>
+  <select id="cutpick" aria-label="Cut"></select>
+  <span class="meta" id="cutmeta"></span>
+  <span class="spacer"></span>
+  <span class="sent" id="sentline"></span>
+  <button class="btn primary" id="send" disabled>Send round</button>
+</header>
+<main>
+  <div>
+    <video id="video" preload="auto"></video>
+    <div class="bar">
+      <button class="btn" id="play" aria-label="Play">Play</button>
+      <input type="range" id="seek" min="0" max="1" step="0.05" value="0" aria-label="Position">
+      <span class="mono" id="clock">0:00 / 0:00</span>
+      <button class="btn" id="full">Full screen</button>
+    </div>
+    <div class="chapters" id="chapters"></div>
+  </div>
+  <aside>
+    <div class="card">
+      <div class="row" style="justify-content: space-between">
+        <h2 style="margin:0">Notes on this cut</h2>
+        <button class="btn" id="annotate">Annotate <span class="hint">(A)</span></button>
+      </div>
+      <form id="form" hidden style="margin-top: 12px">
+        <div class="row">
+          <button type="button" class="btn" id="minus">&minus;1 s</button>
+          <span class="mono" id="ftime"></span>
+          <button type="button" class="btn" id="plus">+1 s</button>
+          <span class="hint" id="fchapter"></span>
+        </div>
+        <p class="quote">On screen: <b id="fsentence"></b></p>
+        <p class="quote" id="fprevwrap">Before: <span id="fprev"></span></p>
+        <div class="row" style="margin: 10px 0">
+          <span class="hint">About</span>
+          <div class="kinds" id="kinds">
+            <button type="button" data-kind="narration">narration</button>
+            <button type="button" data-kind="picture" class="on">picture</button>
+            <button type="button" data-kind="both">both</button>
+          </div>
+        </div>
+        <textarea id="fnote" placeholder="What is wrong, and what would be better? (Empty still says: here.)"></textarea>
+        <div class="row" style="margin-top: 8px">
+          <button class="btn primary" type="submit" id="save">Save note</button>
+          <button class="btn" type="button" id="cancel">Cancel</button>
+          <span class="hint">&#8984;/Ctrl + Enter saves, Esc cancels</span>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h2 id="count">No notes yet</h2>
+      <ol class="notes" id="notes"></ol>
+    </div>
+  </aside>
+  <section class="below">
+    <div id="changelog"></div>
+    <div>
+      <h2>Stills, one per sentence</h2>
+      <div id="stills"></div>
+    </div>
+  </section>
+</main>
+<script>
+// Kept ASCII-only: non-ASCII characters are written as escapes.
+var S = null, cutN = null, kind = 'picture', editing = null, form = {t: 0};
+var $ = function (id) { return document.getElementById(id); };
+var video = $('video');
+
+function mmss(t) {
+  var m = Math.floor(t / 60), s = t - 60 * m;
+  return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+  });
+}
+function api(path, body) {
+  return fetch(path, body === undefined ? {} : {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)}).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
+function clock(t) { var m = Math.floor(t / 60), s = Math.floor(t - 60 * m); return m + ':' + (s < 10 ? '0' : '') + s; }
+function sentenceAt(t) {
+  var cur = null, prev = null;
+  S.narration.forEach(function (s) { if (s.start <= t + 0.001) { prev = cur; cur = s; } });
+  return {cur: cur || S.narration[0], prev: cur ? prev : null};
+}
+function chapterAt(t) {
+  var c = S.chapters[0];
+  S.chapters.forEach(function (x) { if (x.start <= t + 0.001) c = x; });
+  return c;
+}
+
+function load(n) {
+  return api('/api/state' + (n ? '?cut=' + n : '')).then(function (st) {
+    S = st;
+    if (!S.cut) { $('title').textContent = S.title + ' \u2014 no cut yet'; return; }
+    var first = cutN !== S.cut.cut;
+    cutN = S.cut.cut;
+    document.title = S.title + ' \u00b7 cut ' + cutN;
+    $('title').textContent = S.title;
+    $('cutpick').innerHTML = S.cuts.map(function (c) {
+      return '<option value="' + c + '"' + (c === cutN ? ' selected' : '') + '>cut ' + c + (c === S.latest ? ' (latest)' : '') + '</option>';
+    }).join('');
+    $('cutmeta').textContent = S.cut.quality + ' \u00b7 ' + S.cut.created;
+    if (first) {
+      if (S.cut.video) { video.src = '/cut' + cutN + '/' + S.cut.video; video.hidden = false; }
+      else { video.removeAttribute('src'); video.hidden = true; }
+    }
+    renderChapters(); renderNotes(); renderChangelog(); renderStills();
+  });
+}
+
+function renderChapters() {
+  $('chapters').innerHTML = S.chapters.map(function (c) {
+    return '<button data-t="' + c.start + '" data-id="' + c.id + '"><span class="time">' + clock(c.start) + '</span>' + esc(c.title) + '</button>';
+  }).join('');
+}
+function renderNotes() {
+  var round = S.rounds.length ? S.rounds[S.rounds.length - 1] : null;
+  $('count').textContent = S.notes.length ? S.notes.length + (S.notes.length === 1 ? ' note' : ' notes') : 'No notes yet';
+  var plural = function (k) { return k + (k === 1 ? ' note' : ' notes'); };
+  $('notes').innerHTML = S.notes.length ? S.notes.map(function (n, i) {
+    return '<li><div class="row"><button class="link mono" data-seek="' + n.t + '">' + (i + 1) + '. ' + mmss(n.t) + '</button>' +
+      '<span class="tag">' + esc(n.kind) + '</span><span class="hint mono">' + esc(n.sentence_id) + '</span>' +
+      '<span class="spacer" style="flex:1"></span><button class="link quiet" data-edit="' + n.id + '">edit</button>' +
+      '<button class="link quiet" data-del="' + n.id + '">delete</button></div>' +
+      '<div>' + (n.note ? esc(n.note) : '<span class="hint">(here)</span>') + '</div>' +
+      '<p class="quote">' + esc(n.sentence) + '</p></li>';
+  }).join('') : '<li class="empty">Pause anywhere and press A to leave a note.</li>';
+  var fresh = S.notes.filter(function (n) { return !round || round.notes.indexOf(n.id) < 0; }).length;
+  $('send').disabled = !S.notes.length || !fresh || cutN !== S.latest;
+  $('sentline').textContent = round ? 'Round sent ' + round.created.slice(11, 16) + ' with ' + plural(round.notes.length) +
+    (fresh ? '; ' + fresh + ' new since' : '') : '';
+}
+function renderChangelog() {
+  var c = S.cut, html = '';
+  if (c.changelog && c.changelog.length) {
+    html += '<h2>What changed in cut ' + c.cut + '</h2><ul class="changes">' + c.changelog.map(function (x) {
+      return '<li><b>' + esc(x.note) + '</b> \u2014 ' + esc(x.change) + '</li>';
+    }).join('') + '</ul>';
+  }
+  var pairs = c.stills.filter(function (s) { return s.before; });
+  if (pairs.length) {
+    html += '<h2 style="margin-top:16px">Before and after</h2>' + pairs.map(function (s) {
+      return '<p class="quote mono">' + esc(s.id) + ' \u00b7 ' + esc(s.caption) + '</p><div class="pair">' +
+        '<div><img src="/cut' + c.cut + '/' + s.before + '" alt="before"><span>cut ' + (c.cut - 1) + '</span></div>' +
+        '<div><img src="/cut' + c.cut + '/' + s.file + '" alt="after"><span>cut ' + c.cut + '</span></div></div>';
+    }).join('');
+  }
+  $('changelog').innerHTML = html;
+}
+function renderStills() {
+  var byClip = {};
+  S.cut.stills.forEach(function (s) { (byClip[s.clip] = byClip[s.clip] || []).push(s); });
+  $('stills').innerHTML = S.chapters.map(function (ch) {
+    return '<div class="chapter-h">' + esc(ch.title) + '</div><div class="strip">' + (byClip[ch.id] || []).map(function (s) {
+      return '<figure data-seek="' + s.at + '" data-id="' + s.id + '"><img loading="lazy" src="/cut' + cutN + '/' + s.file +
+        '" alt="' + esc(s.caption) + '"><figcaption>' + esc(s.caption) + '</figcaption></figure>';
+    }).join('') + '</div>';
+  }).join('');
+}
+
+function openForm(note) {
+  if (!S || !S.cut) return;
+  video.pause();
+  editing = note ? note.id : null;
+  form.t = note ? note.t : (video.hidden ? 0 : video.currentTime);
+  kind = note ? note.kind : kind;
+  $('fnote').value = note ? note.note : '';
+  $('save').textContent = note ? 'Save changes' : 'Save note';
+  $('minus').disabled = $('plus').disabled = !!note;
+  paintForm();
+  $('form').hidden = false;
+  $('fnote').focus();
+}
+function paintForm() {
+  var s = sentenceAt(form.t);
+  $('ftime').textContent = mmss(form.t);
+  $('fchapter').textContent = chapterAt(form.t).title;
+  $('fsentence').textContent = s.cur.caption;
+  $('fprev').textContent = s.prev ? s.prev.caption : '';
+  $('fprevwrap').hidden = !s.prev;
+  Array.prototype.forEach.call($('kinds').children, function (b) { b.classList.toggle('on', b.dataset.kind === kind); });
+}
+function closeForm() { $('form').hidden = true; editing = null; }
+function nudge(d) {
+  form.t = Math.max(0, Math.min(S.cut.duration, form.t + d));
+  if (!video.hidden) video.currentTime = form.t;
+  paintForm();
+}
+function save(e) {
+  if (e) e.preventDefault();
+  var note = $('fnote').value.trim(), s = sentenceAt(form.t), done;
+  if (editing) done = api('/api/notes/' + editing + '/edit', {note: note, kind: kind});
+  else done = api('/api/notes', {cut: cutN, t: Math.round(form.t * 100) / 100, clip: chapterAt(form.t).id,
+    sentence_id: s.cur.id, sentence: s.cur.caption, previous_id: s.prev ? s.prev.id : null,
+    previous: s.prev ? s.prev.caption : null, kind: kind, note: note});
+  done.then(function () { closeForm(); return load(cutN); });
+}
+
+$('annotate').onclick = function () { openForm(); };
+$('cancel').onclick = closeForm;
+$('minus').onclick = function () { nudge(-1); };
+$('plus').onclick = function () { nudge(1); };
+$('form').onsubmit = save;
+$('kinds').onclick = function (e) { if (e.target.dataset.kind) { kind = e.target.dataset.kind; paintForm(); } };
+$('cutpick').onchange = function () { cutN = null; load(Number(this.value)); };
+$('send').onclick = function () {
+  api('/api/round', {cut: cutN}).then(function () { return load(cutN); });
+};
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-seek],[data-t],[data-del],[data-edit]');
+  if (!t) return;
+  if (t.dataset.del) { api('/api/notes/' + t.dataset.del + '/delete', {}).then(function () { load(cutN); }); return; }
+  if (t.dataset.edit) { openForm(S.notes.filter(function (n) { return n.id === t.dataset.edit; })[0]); return; }
+  var at = Number(t.dataset.seek !== undefined ? t.dataset.seek : t.dataset.t);
+  if (!video.hidden) { video.currentTime = at; video.scrollIntoView({block: 'nearest', behavior: 'smooth'}); }
+});
+document.addEventListener('keydown', function (e) {
+  var typing = /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName);
+  if (e.key === 'Escape' && !$('form').hidden) { closeForm(); return; }
+  if (typing && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { save(); return; }
+  if (!typing && (e.key === 'a' || e.key === 'A') && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openForm(); }
+  if (!typing && e.key === ' ' && !video.hidden) { e.preventDefault(); togglePlay(); }
+});
+function togglePlay() { if (video.paused) video.play(); else video.pause(); }
+$('play').onclick = togglePlay;
+video.onclick = togglePlay;
+$('full').onclick = function () { video.requestFullscreen(); };
+$('seek').oninput = function () { video.currentTime = Number(this.value); };
+video.addEventListener('play', function () { $('play').textContent = 'Pause'; });
+video.addEventListener('pause', function () { $('play').textContent = 'Play'; });
+video.addEventListener('loadedmetadata', function () { $('seek').max = video.duration; });
+video.addEventListener('timeupdate', function () {
+  if (!S) return;
+  $('seek').value = video.currentTime;
+  $('clock').textContent = clock(video.currentTime) + ' / ' + clock(video.duration || 0);
+  var c = chapterAt(video.currentTime), s = sentenceAt(video.currentTime).cur;
+  Array.prototype.forEach.call($('chapters').children, function (b) { b.classList.toggle('on', b.dataset.id === c.id); });
+  Array.prototype.forEach.call(document.querySelectorAll('.strip figure'), function (f) { f.classList.toggle('now', f.dataset.id === s.id); });
+});
+// A new cut replaces the old one on the page without a reload.
+setInterval(function () {
+  api('/api/state').then(function (st) { if (st.latest !== S.latest && cutN === S.latest) { cutN = null; load(); } });
+}, 5000);
+load();
+</script>
+</body>
+</html>
