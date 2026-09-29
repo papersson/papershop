@@ -8,8 +8,8 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/dev/null; then
-  # A workspace copy carries its own flake; inside the plugin repo the flake is at the repo root.
-  if [ -f "$here/flake.nix" ]; then flake="$here"; else flake="$(cd "$here/../../.." && pwd)"; fi
+  # A workspace copy carries its own flake; otherwise it is the plugin's, two levels up.
+  if [ -f "$here/flake.nix" ]; then flake="$here"; else flake="$(cd "$here/../.." && pwd)"; fi
   lock_hash="$( (cat "$flake/flake.lock" "$flake/flake.nix") | shasum | cut -c1-12)"
   env_file="$here/.cache/devenv-$lock_hash.sh"
   if [ ! -s "$env_file" ]; then

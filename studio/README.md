@@ -9,7 +9,7 @@ claude plugin install studio@papershop
 
 ## Environment
 
-Everything runs through `skills/studio/bin/studio`, which loads the flake's `studio` shell (Python,
+Everything runs through `skills/studio/bin/studio`, which loads the plugin's own flake (`flake.nix`, with the shell in `shell.nix`: Python,
 uv, Node 22, ffmpeg, sox) and caches it per `flake.lock`. Python packages are pinned by
 `kit/uv.lock`, the engine's by `engines/remotion/package-lock.json`. Then:
 

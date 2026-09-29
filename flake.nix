@@ -44,13 +44,8 @@
             '';
           };
 
-          # `nix develop .#studio`: the system layer of the studio plugin. Python packages are pinned
-          # by the kit's uv.lock and Node packages by each engine's package-lock.json. The headless
-          # browser is not here: nixpkgs' Chromium is Linux-only, so `studio doctor` resolves it.
-          studio = pkgs.mkShell {
-            packages = with pkgs; [ python312 uv nodejs_22 ffmpeg sox ];
-            STUDIO_ENV = "nix";
-          };
+          # `nix develop .#studio`: the studio plugin's shell, defined once in studio/shell.nix.
+          studio = import ./studio/shell.nix { inherit pkgs; };
         });
     };
 }

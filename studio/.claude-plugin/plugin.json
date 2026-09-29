@@ -1,6 +1,6 @@
 {
   "name": "studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An agent-driven video studio: one timeline, pluggable engines (Remotion first), and a cut → note → cut review loop.",
   "author": { "name": "Patrik Persson" }
 }
