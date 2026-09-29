@@ -171,13 +171,9 @@ def _interpolate(script, times):
 
 # --- building a timeline --------------------------------------------------------------------------
 
-def from_tutor(lesson, video, engine="remotion"):
-    """A timeline for an existing tutor lesson: its sentence timings and narration become the
-    narration track, and each chapter becomes a scene clip."""
-    lesson, video = Path(lesson), Path(video)
-    t = json.loads((lesson / "audio" / "timings.json").read_text())
-    (video / "audio").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(lesson / "audio" / "narration.mp3", video / "audio" / "narration.mp3")
+def from_timings(t, engine="remotion", audio_file="audio/narration.mp3"):
+    """A timeline from laid-out narration timings (what `studio narrate` and the tutor kit write):
+    each chapter becomes a scene clip, each sentence a narration entry with its words."""
     scenes, narration = [], []
     for seg in t["segments"]:
         scenes.append({"id": seg["id"], "engine": engine, "title": seg["title"],
@@ -185,13 +181,24 @@ def from_tutor(lesson, video, engine="remotion"):
         for line in seg["lines"]:
             narration.append({"id": line["id"], "clip": seg["id"], "text": line["text"],
                               "caption": line["caption"], "paragraph": line["paragraph"],
-                              "start": line["start"], "end": line["end"], "words": []})
+                              "start": line["start"], "end": line["end"], "words": line.get("words", [])})
     fps = DEFAULT_LAYOUT["fps"]
-    timeline = {"version": 1, "fps": fps, "duration": t["total"],
-                "tracks": {"scene": scenes, "narration": narration,
-                           "captions": chunk_captions(narration, fps),
-                           "audio": [{"file": "audio/narration.mp3", "start": 0.0}]},
-                "cues": {}}
+    return {"version": 1, "fps": fps, "duration": t["total"],
+            "voice": {k: t[k] for k in ("engine", "voice", "model", "speed", "mode", "credit") if t.get(k) is not None},
+            "tracks": {"scene": scenes, "narration": narration,
+                       "captions": chunk_captions(narration, fps),
+                       "audio": [{"file": audio_file, "start": 0.0}]},
+            "cues": {}}
+
+
+def from_tutor(lesson, video, engine="remotion"):
+    """A timeline for an existing tutor lesson: its sentence timings and narration become the
+    narration track, and each chapter becomes a scene clip."""
+    lesson, video = Path(lesson), Path(video)
+    t = json.loads((lesson / "audio" / "timings.json").read_text())
+    (video / "audio").mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(lesson / "audio" / "narration.mp3", video / "audio" / "narration.mp3")
+    timeline = from_timings(t, engine)
     save(video, timeline)
     if not (video / "layout.json").exists():
         (video / "layout.json").write_text(json.dumps(DEFAULT_LAYOUT, indent=1) + "\n")

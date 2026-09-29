@@ -62,9 +62,14 @@ def main(argv=None):
     nt.add_argument("video")
     nt.add_argument("--cut", type=int)
 
-    na = sub.add_parser("narrate", help="narration cached per paragraph")
+    na = sub.add_parser("narrate", help="narration from SCRIPT.md into audio/ and the timeline")
     na.add_argument("video")
-    na.add_argument("--plan", action="store_true", help="report cache hits and what would be synthesised")
+    na.add_argument("--plan", action="store_true", help="report cached chunks and what would be synthesised")
+    na.add_argument("--estimate", action="store_true", help="timings from word counts, no audio")
+    na.add_argument("--list", action="store_true", help="print the sentence ids")
+    na.add_argument("--fetch-only", action="store_true", help="elevenlabs: fill the response cache and stop")
+    na.add_argument("--yes", action="store_true", help="elevenlabs: spend credits past the confirmation limit")
+    na.add_argument("--config", help="another settings file instead of narration.json")
 
     args = p.parse_args(argv)
     if args.cmd == "narrate":

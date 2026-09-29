@@ -1,96 +1,462 @@
-"""Narration cached per paragraph, so an edited sentence re-synthesises only its paragraph.
+"""`studio narrate VIDEO`: narration from SCRIPT.md with Kokoro or ElevenLabs, into the timeline.
 
-A paragraph is the narration sentences that share a clip and a paragraph number: the unit a
-voice engine synthesises in one call, so intonation carries across its sentences. Its cache key
-hashes the spoken text and the voice settings; audio and sentence spans live under
-.cache/narration/<key>.wav and <key>.json.
+Each paragraph is one synthesis call (up to CHUNK_WORDS words), so intonation carries across its
+sentences and pauses follow the punctuation. A sentence starts at its first word's timestamp and
+ends where the pause into the next sentence begins, both snapped to silence. Kokoro can also
+render one sentence per call with fixed gaps ("paragraph": false): flatter, since every sentence
+then starts at the same pitch.
 
-A synthesiser is any callable (sentences, voice) -> (wav bytes, [(start, end)] per sentence).
-The Kokoro and ElevenLabs engines move here from the tutor kit in phase 1; until then
-`studio narrate --plan` reports what a re-narration would cost.
+Writes audio/narration.wav and .mp3, and the timeline's narration track (with each sentence's
+words, from the engine's own timestamps) and scene track (one clip per chapter).
+
+Engines (narration.json "engine"):
+  kokoro (default)  local, free, deterministic. "kokoro": voice, speed, paragraph. Each chunk's
+                    audio is cached by its text and settings, so an edited sentence re-synthesises
+                    only its paragraph.
+  elevenlabs        hosted; needs ELEVENLABS_API_KEY. "elevenlabs": voice (a name from your voice
+                    list) or voice_id, model (default eleven_multilingual_v2; eleven_v4 works too;
+                    eleven_v3 returns no timestamps), stability, similarity_boost, style, speed (v4
+                    takes neither style nor speed), seed. Each call gets the neighbouring paragraphs
+                    as previous_text/next_text. Every response is cached in audio/elevenlabs_cache/
+                    (commit it), so a re-run never pays twice and a machine without the key builds.
+
+narration.json also holds:
+  holds         {"s2_07": 1.0}   extra silence after a sentence, where the picture needs time
+  spoken        [["BM25", "B M twenty-five"]]   written form -> spoken form, everywhere
+  spoken_by_id  {"s3_02": [["x", "y"]]}   ... for one sentence only
+  tail          seconds of silence after the last sentence, for the end card (default 6)
 """
+import base64
 import hashlib
 import json
+import os
+import re
+import subprocess
+import urllib.request
 from pathlib import Path
 
+from . import script as sc
 from . import timeline as tl
 
-DEFAULT_VOICE = {"engine": "kokoro", "voice": "af_heart", "speed": 1.0}
+RATE = 24_000
+LEAD_IN = 0.8        # silence before the first sentence
+SENTENCE_GAP = 0.3   # between sentences of one paragraph (Kokoro per-sentence mode only)
+PARAGRAPH_GAP = 0.5  # between paragraphs
+SEGMENT_GAP = 1.2    # between chapters
+CHUNK_WORDS = 90     # longest run of sentences sent in one call
+ASK_ABOVE = 2000     # ElevenLabs characters that need --yes
 
 
-def voice(video):
-    vj = Path(video) / "video.json"
-    return (json.loads(vj.read_text()).get("voice") if vj.exists() else None) or DEFAULT_VOICE
+class Settings:
+    def __init__(self, video, config=None):
+        self.video = Path(video).resolve()
+        f = self.video / (config or "narration.json")
+        cfg = json.loads(f.read_text()) if f.exists() else {}
+        self.engine = cfg.get("engine", "kokoro")
+        self.kokoro = {"voice": "af_heart", "speed": 1.0, "paragraph": True, **cfg.get("kokoro", {})}
+        self.eleven = {"voice": None, "voice_id": None, "model": "eleven_multilingual_v2", "stability": 0.5,
+                       "similarity_boost": 0.75, "style": 0.0, "speed": 1.0, "seed": None, **cfg.get("elevenlabs", {})}
+        v4 = self.eleven["model"].startswith("eleven_v4")
+        self.voice_settings = ("stability", "similarity_boost") + (() if v4 else ("style", "speed"))
+        self.paragraph = self.engine == "elevenlabs" or self.kokoro["paragraph"]
+        # How far a word's timestamp may trail the audio: Eleven v4's run up to about 0.3 s late.
+        self.late = 0.35 if self.engine == "elevenlabs" and v4 else 0.2
+        self.tail = cfg.get("tail", 6.0)
+        self.holds = cfg.get("holds", {})
+        self.spoken_pairs = [tuple(p) for p in cfg.get("spoken", [])]
+        self.spoken_by_id = {k: [tuple(p) for p in v] for k, v in cfg.get("spoken_by_id", {}).items()}
+        self.audio = self.video / "audio"
+
+    def spoken(self, text, lid=None):
+        for written, said in self.spoken_pairs + self.spoken_by_id.get(lid, []):
+            text = text.replace(written, said)
+        return text
+
+    def voice_info(self):
+        if self.engine == "elevenlabs":
+            name = self.eleven["voice"] or self.eleven["voice_id"]
+            return {"engine": "elevenlabs", "voice": name, "model": self.eleven["model"],
+                    "speed": self.eleven["speed"] if "speed" in self.voice_settings else None, "mode": "paragraph",
+                    "credit": f"Narration voice: ElevenLabs ({name})"}
+        return {"engine": "kokoro", "voice": self.kokoro["voice"], "speed": self.kokoro["speed"],
+                "mode": "paragraph" if self.paragraph else "sentence"}
 
 
-def paragraphs(timeline):
-    """[{clip, paragraph, ids, sentences}] in narration order."""
-    out = []
-    for s in timeline["tracks"]["narration"]:
-        if not out or (out[-1]["clip"], out[-1]["paragraph"]) != (s["clip"], s["paragraph"]):
-            out.append({"clip": s["clip"], "paragraph": s["paragraph"], "ids": [], "sentences": []})
-        out[-1]["ids"].append(s["id"])
-        out[-1]["sentences"].append(s["text"])
-    return out
+def layout(S, chapters, durations, gaps=None, words=None):
+    """Place every sentence on one track. `gaps` (paragraph mode): the voice's own pause after a
+    sentence, measured in its paragraph's audio; it replaces SENTENCE_GAP there. `words`: each
+    sentence's words relative to its own start."""
+    gaps, words = gaps or {}, words or {}
+    t, out = LEAD_IN, []
+    for ci, (cid, title, sents) in enumerate(chapters):
+        if ci:
+            t += SEGMENT_GAP
+        seg = {"id": cid, "title": title, "start": t, "lines": []}
+        prev_p = prev_id = None
+        for lid, cap, pi in sents:
+            if prev_p is not None:
+                t += gaps.get(prev_id, SENTENCE_GAP) if pi == prev_p else PARAGRAPH_GAP
+            d = durations[lid]
+            seg["lines"].append({"id": lid, "text": S.spoken(cap, lid), "caption": cap, "paragraph": pi,
+                                 "start": round(t, 3), "end": round(t + d, 3),
+                                 "words": [{"w": w, "start": round(t + a, 3), "end": round(t + b, 3)}
+                                           for w, a, b in words.get(lid, [])]})
+            t += d + S.holds.get(lid, 0.0)
+            prev_p, prev_id = pi, lid
+        out.append(seg)
+    total = t + S.tail
+    out[0]["start"] = 0.0
+    for a, b in zip(out, out[1:]):
+        b["start"] = round(b["lines"][0]["start"] - 0.35, 3)
+        a["end"] = b["start"]
+    out[-1]["end"] = round(total, 3)
+    return {**S.voice_info(), "total": round(total, 3), "segments": out}
 
 
-def paragraph_key(sentences, voice_settings):
-    blob = json.dumps({"sentences": sentences, "voice": voice_settings}, sort_keys=True, ensure_ascii=False)
+def silence_runs(audio, sr, below=35.0):
+    """[(start, end)] in seconds of stretches at least 40 ms long that are quieter than the loud
+    (95th percentile) level by `below` dB."""
+    import numpy as np
+
+    hop, win = int(0.01 * sr), int(0.025 * sr)
+    frames = np.lib.stride_tricks.sliding_window_view(np.pad(audio, (0, win)), win)[::hop]
+    db = 20 * np.log10(np.sqrt((frames ** 2).mean(1)) + 1e-9)
+    sil = db < np.percentile(db, 95) - below
+    runs, i = [], 0
+    while i < len(sil):
+        if sil[i]:
+            j = i
+            while j < len(sil) and sil[j]:
+                j += 1
+            if j - i >= 4:
+                runs.append((i * 0.01, j * 0.01))
+            i = j
+        else:
+            i += 1
+    return runs
+
+
+def chunked(S, sents):
+    """Runs of consecutive sentences from one paragraph, at most CHUNK_WORDS words each:
+    [[(sentence id, text to speak, paragraph index)]]."""
+    chunks, cur, n = [], [], 0
+    for lid, cap, pi in sents:
+        text = S.spoken(cap, lid)
+        w = len(text.split())
+        if cur and (pi != cur[-1][2] or n + w > CHUNK_WORDS):
+            chunks.append(cur)
+            cur, n = [], 0
+        cur.append((lid, text, pi))
+        n += w
+    chunks.append(cur)
+    return chunks
+
+
+def all_chunks(S, chapters):
+    """Every chunk of the video in order, with the text before and after it (for ElevenLabs'
+    previous_text/next_text): [(chunk, previous text, next text)]."""
+    chunks = [c for _, _, sents in chapters for c in chunked(S, sents)]
+    text = [" ".join(t for _, t, _ in c) for c in chunks]
+    return [(c, text[i - 1] if i else "", text[i + 1] if i + 1 < len(chunks) else "") for i, c in enumerate(chunks)]
+
+
+def cut(audio, a, b):
+    """audio[a s : b s], with 5 ms fades so a cut never clicks."""
+    import numpy as np
+
+    clip = audio[int(a * RATE): int(b * RATE)].copy()
+    fade = min(len(clip) // 2, int(0.005 * RATE))
+    if fade:
+        clip[:fade] *= np.linspace(0, 1, fade)
+        clip[-fade:] *= np.linspace(1, 0, fade)
+    return clip
+
+
+# --- engines: each returns synth(text, previous, next) -> (audio at RATE, [(char offset, start s, end s)] per word)
+
+def kokoro_pipeline():
+    try:
+        from kokoro import KPipeline
+    except ImportError:
+        raise SystemExit("Kokoro is not installed: run `studio doctor --fetch --extra kokoro`")
+    return KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+
+
+def kokoro_key(S, full):
+    blob = json.dumps({"voice": S.kokoro["voice"], "speed": S.kokoro["speed"], "text": full}, sort_keys=True)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
 
 
-class Cache:
-    def __init__(self, video):
-        self.dir = Path(video) / ".cache" / "narration"
+def kokoro_engine(S):
+    """Kokoro, with each chunk's audio and word timings cached under .cache/narration/."""
+    import numpy as np
 
-    def get(self, key):
-        wav, meta = self.dir / f"{key}.wav", self.dir / f"{key}.json"
+    cache = S.video / ".cache" / "narration"
+    pipe = None
+
+    def synth(full, _prev, _next):
+        nonlocal pipe
+        key = kokoro_key(S, full)
+        wav, meta = cache / f"{key}.npy", cache / f"{key}.json"
         if wav.exists() and meta.exists():
-            return wav.read_bytes(), [tuple(x) for x in json.loads(meta.read_text())["spans"]]
+            return np.load(wav), [tuple(w) for w in json.loads(meta.read_text())]
+        pipe = pipe or kokoro_pipeline()
+        audio, words, pos = [], [], 0
+        for part in pipe(full, voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None):
+            at = full.find(part.graphemes, pos)
+            assert at >= 0, (part.graphemes, full)
+            off, c = sum(len(x) for x in audio) / RATE, at
+            for tok in part.tokens:
+                if tok.start_ts is not None and any(ch.isalnum() for ch in tok.text):
+                    words.append((c, off + tok.start_ts, off + tok.end_ts))
+                c += len(tok.text) + len(tok.whitespace)
+            audio.append(part.audio.numpy().astype(np.float32))
+            pos = at + len(part.graphemes)
+        out = np.concatenate(audio)
+        cache.mkdir(parents=True, exist_ok=True)
+        np.save(wav, out)
+        meta.write_text(json.dumps(words))
+        return out, words
+
+    return synth
+
+
+def eleven_words(full, alignment):
+    """Word timings from ElevenLabs' character alignment: [(char offset in `full`, start, end)]."""
+    chars = alignment["characters"]
+    starts, ends = alignment["character_start_times_seconds"], alignment["character_end_times_seconds"]
+    assert "".join(chars) == full, "ElevenLabs aligned a different text than was sent"
+    words, i = [], 0
+    while i < len(chars):
+        if chars[i].isalnum():
+            j = i
+            while j < len(chars) and (chars[j].isalnum() or (chars[j] in "'’-" and j + 1 < len(chars) and chars[j + 1].isalnum())):
+                j += 1
+            words.append((i, starts[i], ends[j - 1]))
+            i = j
+        else:
+            i += 1
+    return words
+
+
+def eleven_request(S, full, prev, nxt):
+    """The request body for one chunk, and the cache file its response lives in."""
+    E = S.eleven
+    body = {"text": full, "model_id": E["model"], "voice_settings": {k: E[k] for k in S.voice_settings}}
+    if prev:
+        body["previous_text"] = prev
+    if nxt:
+        body["next_text"] = nxt
+    if E["seed"] is not None:
+        body["seed"] = E["seed"]
+    key = hashlib.sha256(json.dumps([E["voice"], E["voice_id"], body], sort_keys=True).encode()).hexdigest()[:16]
+    return body, S.audio / "elevenlabs_cache" / f"{key}.json"
+
+
+def eleven_fetch(S, chunks, yes=False):
+    """Call ElevenLabs for every chunk not yet in the cache."""
+    todo = []
+    for chunk, prev, nxt in chunks:
+        body, f = eleven_request(S, " ".join(t for _, t, _ in chunk), prev, nxt)
+        if not f.exists():
+            todo.append((body, f))
+    n = sum(len(b["text"]) for b, _ in todo)
+    print(f"ElevenLabs: {len(todo)} of {len(chunks)} chunks to fetch, {n} characters on {S.eleven['model']}")
+    if not todo:
+        return
+    if n > ASK_ABOVE and not yes:
+        raise SystemExit("re-run with --yes to spend those credits")
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise SystemExit("ELEVENLABS_API_KEY is not set in this environment")
+
+    def call(method, path, body=None):
+        req = urllib.request.Request("https://api.elevenlabs.io/v1" + path, method=method,
+                                     headers={"xi-api-key": key, "Content-Type": "application/json"},
+                                     data=json.dumps(body).encode() if body is not None else None)
+        with urllib.request.urlopen(req, timeout=300) as r:
+            return json.loads(r.read())
+
+    vid = S.eleven["voice_id"]
+    if not vid:
+        voices = call("GET", "/voices")["voices"]
+        want = (S.eleven["voice"] or "").lower()
+        match = [v for v in voices if v["name"].lower() == want or v["name"].lower().split(" - ")[0].strip() == want]
+        if not match:
+            raise SystemExit(f"no voice named {S.eleven['voice']!r}; available: {', '.join(sorted(v['name'] for v in voices))}")
+        vid = match[0]["voice_id"]
+    (S.audio / "elevenlabs_cache").mkdir(parents=True, exist_ok=True)
+    for i, (body, f) in enumerate(todo, 1):
+        # One attempt per chunk: a failure stops the run rather than retrying into the credit limit.
+        r = call("POST", f"/text-to-speech/{vid}/with-timestamps?output_format=mp3_44100_128", body)
+        f.write_text(json.dumps({"voice_id": vid, "request": body, "audio_base64": r["audio_base64"],
+                                 "alignment": r["alignment"]}))
+        print(f"  {i}/{len(todo)} fetched: {body['text'][:60]}")
+
+
+def eleven_engine(S, chunks, yes=False):
+    import numpy as np
+
+    eleven_fetch(S, chunks, yes)
+
+    def synth(full, prev, nxt):
+        _, f = eleven_request(S, full, prev, nxt)
+        r = json.loads(f.read_text())
+        pcm = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-f", "f32le", "-ac", "1", "-ar", str(RATE), "pipe:1"],
+                             input=base64.b64decode(r["audio_base64"]), capture_output=True, check=True).stdout
+        return np.frombuffer(pcm, dtype=np.float32).copy(), eleven_words(full, r["alignment"])
+
+    return synth
+
+
+_WORD = re.compile(r"[\w'’-]+")
+
+
+def paragraph_clips(S, synth, chunks):
+    """{sentence id: clip}, {sentence id: natural pause after it}, {sentence id: text as spoken},
+    {sentence id: [(word, start, end)] relative to the clip's start}."""
+    clips, gaps, said, words_by = {}, {}, {}, {}
+    for chunk, prev, nxt in chunks:
+        texts = [t for _, t, _ in chunk]
+        full = " ".join(texts)
+        begins = [sum(len(t) + 1 for t in texts[:i]) for i in range(len(texts))]
+        audio, words = synth(full, prev, nxt)
+        runs = silence_runs(audio, RATE)
+        firsts = [next(w for w in words if w[0] >= b) for b in begins]
+        starts = []
+        for _, st, _ in firsts:
+            # The pause before a sentence: the longest silence ending near its first word (a later,
+            # shorter one is a consonant inside that word, and snapping to it clips the word).
+            s = [(b - a, b) for a, b in runs if st - S.late <= b <= st + 0.1]
+            starts.append(max(s)[1] if s else st)
+        spans = []
+        for i, (_, st, _) in enumerate(firsts):
+            end = firsts[i + 1][1] if i + 1 < len(firsts) else len(audio) / RATE
+            nxt_start = starts[i + 1] if i + 1 < len(starts) else len(audio) / RATE
+            last = [w for w in words if st <= w[1] < end][-1]
+            # The pause into the next sentence ends where that sentence starts once snapped, not at
+            # its raw timestamp.
+            e = [a for a, b in runs if last[1] <= a < nxt_start and b >= nxt_start - 0.1]
+            spans.append((starts[i], min(e) if e else min(last[2], nxt_start)))
+        for i, ((lid, text, _), (a, b)) in enumerate(zip(chunk, spans)):
+            assert a < b <= (spans[i + 1][0] if i + 1 < len(spans) else len(audio) / RATE), (lid, a, b)
+            clips[lid], said[lid] = cut(audio, a, b), text
+            lo, hi = begins[i], begins[i] + len(text)
+            words_by[lid] = [(_WORD.match(full, c).group(0) if _WORD.match(full, c) else full[c], max(0.0, ws - a), max(0.0, min(we, b) - a))
+                             for c, ws, we in words if lo <= c < hi]
+            if i + 1 < len(chunk):
+                gaps[lid] = spans[i + 1][0] - b
+            print(f"{lid}: {b - a:5.2f}s  gap {gaps.get(lid, 0):.2f}  {text[:70]}")
+    return clips, gaps, said, words_by
+
+
+def sentence_clips(S, sents):
+    """{sentence id: clip}, {sentence id: phonemes}: one Kokoro call per sentence."""
+    import numpy as np
+
+    pipe = kokoro_pipeline()
+    clips, phonemes = {}, {}
+    for key, cap in sents:
+        parts = list(pipe(S.spoken(cap, key), voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None))
+        audio = np.concatenate([p.audio.numpy() for p in parts])
+        nz = np.flatnonzero(np.abs(audio) > 0.01)   # trim Kokoro's own silence
+        clips[key] = audio[max(nz[0] - 240, 0): nz[-1] + 480]
+        phonemes[key] = " ".join(p.phonemes for p in parts)
+        print(f"{key}: {len(clips[key]) / RATE:5.2f}s  {phonemes[key][:80]}")
+    return clips, phonemes
+
+
+def write_timeline(S, timings):
+    """The narration and scene tracks from the laid-out timings; cues and engines are kept."""
+    video = S.video
+    old = tl.load(video) if (video / "timeline.json").exists() else None
+    t = tl.from_timings(timings, engine=(old or {}).get("tracks", {}).get("scene", [{}])[0].get("engine", "remotion"),
+                        audio_file="audio/narration.mp3")
+    if old:
+        t["cues"] = old.get("cues", {})
+    tl.save(video, t)
+    if not (video / "layout.json").exists():
+        (video / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT, indent=1) + "\n")
+    return t
+
+
+def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
+    S = Settings(video, config)
+    S.audio.mkdir(exist_ok=True)
+    chapters = sc.load(S.video)
+    sents = [(lid, cap) for _, _, ss in chapters for lid, cap, _ in ss]
+    if estimate:
+        timings = layout(S, chapters, {k: len(c.split()) / 2.8 + 0.3 for k, c in sents})
+        write_timeline(S, timings)
+        print(f"estimated total {timings['total']:.1f}s (no audio; scenes can be timed against it)")
+        return timings
+    chunks = all_chunks(S, chapters)
+    if fetch_only:
+        if S.engine != "elevenlabs":
+            raise SystemExit("--fetch-only is for the elevenlabs engine")
+        eleven_fetch(S, chunks, yes)
         return None
 
-    def put(self, key, wav, spans):
-        self.dir.mkdir(parents=True, exist_ok=True)
-        (self.dir / f"{key}.wav").write_bytes(wav)
-        (self.dir / f"{key}.json").write_text(json.dumps({"spans": [list(s) for s in spans]}))
+    import numpy as np
+    try:
+        import soundfile as sf
+    except ImportError:
+        raise SystemExit("soundfile is not installed: run `studio doctor --fetch --extra kokoro`")
+
+    gaps, words = None, None
+    if S.engine == "elevenlabs":
+        clips, gaps, spoken_text, words = paragraph_clips(S, eleven_engine(S, chunks, yes), chunks)
+    elif S.paragraph:
+        clips, gaps, spoken_text, words = paragraph_clips(S, kokoro_engine(S), chunks)
+    else:
+        clips, spoken_text = sentence_clips(S, sents)
+
+    timings = layout(S, chapters, {k: len(a) / RATE for k, a in clips.items()}, gaps, words)
+    track = np.zeros(int(timings["total"] * RATE) + RATE, dtype=np.float32)
+    for seg in timings["segments"]:
+        for ln in seg["lines"]:
+            i = int(round(ln["start"] * RATE))
+            track[i: i + len(clips[ln["id"]])] = clips[ln["id"]]
+    track = track[: int(timings["total"] * RATE)]
+    sf.write(S.audio / "narration.wav", track, RATE)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(S.audio / "narration.wav"),
+                    "-codec:a", "libmp3lame", "-b:a", "128k", str(S.audio / "narration.mp3")], check=True)
+    timings["phonemes"] = spoken_text
+    timings["peak"] = float(np.abs(track).max())
+    (S.audio / "timings.json").write_text(json.dumps(timings, indent=1))
+    write_timeline(S, timings)
+    print(f"total {timings['total']:.1f}s, peak {timings['peak']:.2f}")
+    return timings
 
 
-def plan(video, timeline=None):
-    """[(paragraph, key, cached?)] for the video's current narration and voice."""
-    timeline = timeline or tl.load(video)
-    v, cache = voice(video), Cache(video)
-    rows = []
-    for p in paragraphs(timeline):
-        key = paragraph_key(p["sentences"], v)
-        rows.append((p, key, cache.get(key) is not None))
-    return rows
-
-
-def synthesize(video, synth, timeline=None):
-    """Audio and sentence spans for every paragraph, calling `synth` only for cache misses.
-    Returns ([(paragraph, wav, spans)], number synthesised)."""
-    v, cache = voice(video), Cache(video)
-    out, made = [], 0
-    for p, key, cached in plan(video, timeline):
-        hit = cache.get(key) if cached else None
-        if hit is None:
-            wav, spans = synth(p["sentences"], v)
-            if len(spans) != len(p["sentences"]):
-                raise ValueError(f"synthesiser returned {len(spans)} spans for {len(p['sentences'])} sentences")
-            cache.put(key, wav, spans)
-            hit, made = (wav, spans), made + 1
-        out.append((p, *hit))
-    return out, made
+def plan(video, config=None):
+    """What a narration would synthesise: (chunks, chunks not cached, characters not cached)."""
+    S = Settings(video, config)
+    chunks = all_chunks(S, sc.load(S.video))
+    todo = []
+    for chunk, prev, nxt in chunks:
+        full = " ".join(t for _, t, _ in chunk)
+        if S.engine == "elevenlabs":
+            cached = eleven_request(S, full, prev, nxt)[1].exists()
+        else:
+            cached = (S.video / ".cache" / "narration" / f"{kokoro_key(S, full)}.npy").exists()
+        if not cached:
+            todo.append((chunk, full))
+    return S, chunks, todo
 
 
 def main(args):
-    rows = plan(args.video)
-    misses = [(p, key) for p, key, cached in rows if not cached]
-    chars = sum(len(" ".join(p["sentences"])) for p, _ in misses)
-    print(f"{len(rows)} paragraphs, {len(rows) - len(misses)} cached, {len(misses)} to synthesise "
-          f"({chars} characters) with {voice(args.video)}")
-    for p, key in misses:
-        print(f"  {p['ids'][0]}..{p['ids'][-1]}  {key}")
-    if not args.plan:
-        raise SystemExit("synthesis engines join the kit in phase 1; run with --plan")
+    if args.list:
+        for _, _, sents in sc.load(args.video):
+            for lid, cap, _ in sents:
+                print(lid, cap)
+        return 0
+    if args.plan:
+        S, chunks, todo = plan(args.video, args.config)
+        print(f"{len(chunks)} chunks, {len(chunks) - len(todo)} cached, {len(todo)} to synthesise "
+              f"({sum(len(f) for _, f in todo)} characters) with {S.voice_info()}")
+        for chunk, _ in todo:
+            print(f"  {chunk[0][0]}..{chunk[-1][0]}")
+        return 0
+    narrate(args.video, args.config, args.estimate, args.fetch_only, args.yes)
     return 0

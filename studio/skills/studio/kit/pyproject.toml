@@ -6,16 +6,18 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-# Word timings for narration and footage (faster-whisper downloads its model from Hugging Face).
-align = ["faster-whisper==1.2.1"]
-# Local narration with Kokoro. Heavy (torch); only videos that synthesise a voice need it.
-kokoro = ["kokoro==0.9.4", "soundfile", "numpy"]
+# Narration audio and the voice check, for any engine.
+audio = ["numpy", "soundfile", "num2words"]
+# Word timings and the voice check's recogniser (faster-whisper downloads its model from Hugging Face).
+align = ["studio-kit[audio]", "faster-whisper==1.2.1"]
+# Local narration with Kokoro. Heavy (torch); only videos narrated locally need it.
+kokoro = ["studio-kit[audio]", "kokoro==0.9.4"]
 
 [project.scripts]
 studio = "studio_kit.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "numpy"]
 
 [build-system]
 requires = ["hatchling"]

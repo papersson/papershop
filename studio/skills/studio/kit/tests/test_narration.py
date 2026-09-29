@@ -1,42 +1,98 @@
-from studio_kit import narration
-from studio_kit import timeline as tl
-from test_render import make_video
+import json
+
+import numpy as np
+
+from studio_kit import narration as nr
+from studio_kit import script as sc
+
+SCRIPT = """# T
+
+## Script
+
+### 1. Opening
+
+> A checkout page asks the server to charge. Then the network goes quiet.
+> Did the charge go through?
+
+*Screen:* two boxes.
+
+### 2. Keys
+
+> Send a key with every attempt.
+
+## Evidence
+"""
 
 
-def fake_synth(calls):
-    def synth(sentences, voice):
-        calls.append(list(sentences))
-        return b"RIFF" + " ".join(sentences).encode(), [(i, i + 1.0) for i in range(len(sentences))]
-    return synth
+def video(tmp_path, cfg=None):
+    (tmp_path / "SCRIPT.md").write_text(SCRIPT)
+    if cfg:
+        (tmp_path / "narration.json").write_text(json.dumps(cfg))
+    return tmp_path
 
 
-def test_second_pass_is_all_cache_hits(tmp_path):
-    t = make_video(tmp_path)
-    calls = []
-    _, made = narration.synthesize(tmp_path, fake_synth(calls), t)
-    assert made == 2 and len(calls) == 2
-    out, made = narration.synthesize(tmp_path, fake_synth(calls), t)
-    assert made == 0 and len(calls) == 2
-    assert out[0][2] == [(0, 1.0)]
+def test_script_splits_chapters_paragraphs_and_sentences(tmp_path):
+    chapters = sc.load(video(tmp_path))
+    assert [(c, t) for c, t, _ in chapters] == [("s1", "Opening"), ("s2", "Keys")]
+    assert chapters[0][2] == [("s1_01", "A checkout page asks the server to charge.", 0),
+                              ("s1_02", "Then the network goes quiet.", 0),
+                              ("s1_03", "Did the charge go through?", 1)]
 
 
-def test_editing_a_sentence_resynthesises_only_its_paragraph(tmp_path):
-    t = make_video(tmp_path)
-    narration.synthesize(tmp_path, fake_synth([]), t)
-    t["tracks"]["narration"][1]["text"] = "Two, said differently."
-    calls = []
-    _, made = narration.synthesize(tmp_path, fake_synth(calls), t)
-    assert made == 1 and calls == [["Two, said differently."]]
+def test_layout_places_gaps_holds_and_chapter_edges(tmp_path):
+    S = nr.Settings(video(tmp_path, {"holds": {"s1_02": 1.0}, "tail": 2.0}))
+    chapters = sc.load(tmp_path)
+    t = nr.layout(S, chapters, {k: 1.0 for _, _, ss in chapters for k, _, _ in ss}, gaps={"s1_01": 0.25})
+    s1, s2 = t["segments"]
+    starts = [l["start"] for l in s1["lines"]]
+    assert starts == [nr.LEAD_IN, nr.LEAD_IN + 1.25, nr.LEAD_IN + 1.25 + 1.0 + 1.0 + nr.PARAGRAPH_GAP]
+    assert s2["lines"][0]["start"] == round(starts[-1] + 1.0 + nr.SEGMENT_GAP, 3)
+    assert s1["end"] == s2["start"] == round(s2["lines"][0]["start"] - 0.35, 3)
+    assert t["total"] == round(s2["lines"][0]["end"] + 2.0, 3)
 
 
-def test_a_voice_change_misses_every_paragraph(tmp_path):
-    t = make_video(tmp_path)
-    narration.synthesize(tmp_path, fake_synth([]), t)
-    (tmp_path / "video.json").write_text('{"voice": {"engine": "kokoro", "voice": "af_heart", "speed": 0.9}}')
-    assert all(not cached for _, _, cached in narration.plan(tmp_path, t))
+def test_spoken_respellings_apply_globally_and_per_sentence(tmp_path):
+    S = nr.Settings(video(tmp_path, {"spoken": [["UUID", "U U I D"]], "spoken_by_id": {"s2_01": [["key", "kee"]]}}))
+    assert S.spoken("a UUID key", "s1_01") == "a U U I D key"
+    assert S.spoken("a UUID key", "s2_01") == "a U U I D kee"
 
 
-def test_paragraphs_group_by_clip_and_paragraph_number():
-    s = lambda i, clip, par: {"id": i, "clip": clip, "paragraph": par, "text": i}
-    t = {"tracks": {"narration": [s("a", "s1", 0), s("b", "s1", 0), s("c", "s1", 1), s("d", "s2", 1)]}}
-    assert [p["ids"] for p in narration.paragraphs(t)] == [["a", "b"], ["c"], ["d"]]
+def tone_and_silence(pieces):
+    """Audio of (seconds, loud) pieces at the engine rate."""
+    return np.concatenate([(0.5 * np.sin(np.arange(int(d * nr.RATE)) * 0.3) if loud else np.zeros(int(d * nr.RATE)))
+                           .astype(np.float32) for d, loud in pieces])
+
+
+def test_paragraph_clips_cut_at_the_pause_and_keep_words_relative(tmp_path):
+    S = nr.Settings(video(tmp_path))
+    texts = ["One two.", "Three four."]
+    full = " ".join(texts)
+    audio = tone_and_silence([(0.2, False), (1.0, True), (0.5, False), (1.0, True), (0.2, False)])
+    words = [(0, 0.2, 0.6), (4, 0.6, 1.2), (9, 1.7, 2.1), (15, 2.1, 2.7)]
+    chunk = [("s1_01", texts[0], 0), ("s1_02", texts[1], 0)]
+    clips, gaps, said, words_by = nr.paragraph_clips(S, lambda f, p, n: (audio, words), [(chunk, "", "")])
+    assert abs(len(clips["s1_01"]) / nr.RATE - 1.0) < 0.05
+    assert abs(gaps["s1_01"] - 0.5) < 0.05
+    assert [w for w, _, _ in words_by["s1_02"]] == ["Three", "four"]
+    assert words_by["s1_02"][0][1] < 0.05
+
+
+def test_kokoro_chunks_come_from_the_cache_without_kokoro(tmp_path):
+    S = nr.Settings(video(tmp_path))
+    full = "Send a key with every attempt."
+    cache = tmp_path / ".cache" / "narration"
+    cache.mkdir(parents=True)
+    key = nr.kokoro_key(S, full)
+    np.save(cache / f"{key}.npy", np.ones(10, dtype=np.float32))
+    (cache / f"{key}.json").write_text(json.dumps([[0, 0.0, 0.1]]))
+    audio, words = nr.kokoro_engine(S)(full, "", "")
+    assert len(audio) == 10 and words == [(0, 0.0, 0.1)]
+    _, chunks, todo = nr.plan(tmp_path)
+    assert len(chunks) == 3 and [c[0][0] for c, _ in todo] == ["s1_01", "s1_03"]
+
+
+def test_estimate_writes_a_timeline_scenes_can_be_timed_against(tmp_path):
+    nr.narrate(video(tmp_path), estimate=True)
+    t = json.loads((tmp_path / "timeline.json").read_text())
+    assert [c["id"] for c in t["tracks"]["scene"]] == ["s1", "s2"]
+    assert len(t["tracks"]["narration"]) == 4 and t["tracks"]["captions"]

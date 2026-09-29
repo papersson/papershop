@@ -2417,9 +2417,20 @@ source = { editable = "." }
 [package.optional-dependencies]
 align = [
     { name = "faster-whisper" },
+    { name = "num2words" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "soundfile" },
+]
+audio = [
+    { name = "num2words" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "soundfile" },
 ]
 kokoro = [
     { name = "kokoro" },
+    { name = "num2words" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "soundfile" },
@@ -2427,6 +2438,8 @@ kokoro = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pytest" },
 ]
 
@@ -2434,13 +2447,19 @@ dev = [
 requires-dist = [
     { name = "faster-whisper", marker = "extra == 'align'", specifier = "==1.2.1" },
     { name = "kokoro", marker = "extra == 'kokoro'", specifier = "==0.9.4" },
-    { name = "numpy", marker = "extra == 'kokoro'" },
-    { name = "soundfile", marker = "extra == 'kokoro'" },
+    { name = "num2words", marker = "extra == 'audio'" },
+    { name = "numpy", marker = "extra == 'audio'" },
+    { name = "soundfile", marker = "extra == 'audio'" },
+    { name = "studio-kit", extras = ["audio"], marker = "extra == 'align'" },
+    { name = "studio-kit", extras = ["audio"], marker = "extra == 'kokoro'" },
 ]
-provides-extras = ["align", "kokoro"]
+provides-extras = ["audio", "align", "kokoro"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8" }]
+dev = [
+    { name = "numpy" },
+    { name = "pytest", specifier = ">=8" },
+]
 
 [[package]]
 name = "sympy"
