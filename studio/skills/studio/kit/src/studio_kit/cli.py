@@ -82,7 +82,23 @@ def main(argv=None):
     rv.add_argument("--narrative", help="review this narrative file instead of the script")
     rv.add_argument("--only", default="expert,student,editor")
 
+    pb = sub.add_parser("publish", help="final cut, web encode, poster and the page in out/page/")
+    pb.add_argument("video")
+
+    nw = sub.add_parser("new", help="a video folder, ready for a script")
+    nw.add_argument("name")
+    nw.add_argument("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)")
+    nw.add_argument("--title")
+    nw.add_argument("--drive", default="author", choices=["author", "learner"])
+    nw.add_argument("--source", help="the repo or folder the video explains; its path and commit are recorded")
+
     args = p.parse_args(argv)
+    if args.cmd == "new":
+        from . import new
+        return new.main(args)
+    if args.cmd == "publish":
+        from . import publish
+        return publish.main(args)
     if args.cmd == "review":
         from . import review
         return review.main(args)

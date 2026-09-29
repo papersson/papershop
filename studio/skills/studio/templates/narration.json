@@ -1,0 +1,8 @@
+{
+ "engine": "kokoro",
+ "kokoro": {"voice": "af_heart", "speed": 1.0, "paragraph": true},
+ "tail": 8.0,
+ "holds": {},
+ "spoken": [],
+ "spoken_by_id": {}
+}
