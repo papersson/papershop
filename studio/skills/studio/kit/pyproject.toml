@@ -17,7 +17,7 @@ kokoro = ["studio-kit[audio]", "kokoro==0.9.4"]
 studio = "studio_kit.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "numpy"]
+dev = ["pytest>=8", "numpy", "num2words"]
 
 [build-system]
 requires = ["hatchling"]

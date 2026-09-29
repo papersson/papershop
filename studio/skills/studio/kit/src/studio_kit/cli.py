@@ -71,7 +71,15 @@ def main(argv=None):
     na.add_argument("--yes", action="store_true", help="elevenlabs: spend credits past the confirmation limit")
     na.add_argument("--config", help="another settings file instead of narration.json")
 
+    vc = sub.add_parser("voice-check", help="transcribe every sentence and score it against the script")
+    vc.add_argument("video")
+    vc.add_argument("--model", default="small.en")
+    vc.add_argument("--below", type=float, default=0.8, help="flag sentences scoring under this")
+
     args = p.parse_args(argv)
+    if args.cmd == "voice-check":
+        from . import voice_check
+        return voice_check.main(args)
     if args.cmd == "narrate":
         from . import narration
         return narration.main(args)

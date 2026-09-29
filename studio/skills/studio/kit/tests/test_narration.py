@@ -96,3 +96,9 @@ def test_estimate_writes_a_timeline_scenes_can_be_timed_against(tmp_path):
     t = json.loads((tmp_path / "timeline.json").read_text())
     assert [c["id"] for c in t["tracks"]["scene"]] == ["s1", "s2"]
     assert len(t["tracks"]["narration"]) == 4 and t["tracks"]["captions"]
+
+
+def test_voice_check_spells_numbers_before_comparing():
+    from studio_kit.voice_check import score
+    assert score("It took 18 doublings in 2023.", "it took eighteen doublings in twenty twenty-three") > 0.95
+    assert score("It took 18 doublings.", "it took doublings") < 0.8      # a dropped word is flagged

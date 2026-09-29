@@ -2438,6 +2438,7 @@ kokoro = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "num2words" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pytest" },
@@ -2457,6 +2458,7 @@ provides-extras = ["audio", "align", "kokoro"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "num2words" },
     { name = "numpy" },
     { name = "pytest", specifier = ">=8" },
 ]
