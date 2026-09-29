@@ -31,16 +31,17 @@
           default = worklog;
         });
 
-      # `nix develop .#tutor`: the system side of the tutor plugin's pipeline (Manim's cairo/pango,
+      # `nix develop .#tutor`: the system tools of the retired tutor plugin's kit, which every tutor
+      # lesson copied and still rebuilds with (Manim's cairo/pango,
       # Kokoro's espeak-ng, ffmpeg, the IBM Plex fonts) plus uv; the Python packages are pinned in
-      # tutor/skills/tutor/kit/requirements.txt and installed into a per-project venv by setup.sh.
+      # the copied kit's requirements.txt, installed into the project's venv.
       devShells = forAll (system:
         let pkgs = nixpkgs.legacyPackages.${system}; in {
           tutor = pkgs.mkShell {
             packages = with pkgs; [ python311 uv ffmpeg espeak-ng cairo pango pkg-config ibm-plex ];
             FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.ibm-plex ]; };
             shellHook = ''
-              echo "tutor dev shell: run <plugin>/skills/tutor/scripts/setup.sh PROJECT_DIR to create the venv"
+              echo "tutor dev shell: for lessons made with the retired tutor plugin; new videos use the studio plugin"
             '';
           };
 

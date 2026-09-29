@@ -1,6 +1,6 @@
 {
   "name": "studio",
-  "version": "0.1.1",
-  "description": "An agent-driven video studio: one timeline, pluggable engines (Remotion first), and a cut → note → cut review loop.",
+  "version": "0.2.0",
+  "description": "Narrated, animated videos made by an agent: narrative first, reviewers when you are learning, scenes as code on one timeline (Remotion), and a cut → note → cut review loop. Replaces tutor.",
   "author": { "name": "Patrik Persson" }
 }
