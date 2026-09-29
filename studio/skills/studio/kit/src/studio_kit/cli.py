@@ -62,7 +62,14 @@ def main(argv=None):
     nt.add_argument("video")
     nt.add_argument("--cut", type=int)
 
+    na = sub.add_parser("narrate", help="narration cached per paragraph")
+    na.add_argument("video")
+    na.add_argument("--plan", action="store_true", help="report cache hits and what would be synthesised")
+
     args = p.parse_args(argv)
+    if args.cmd == "narrate":
+        from . import narration
+        return narration.main(args)
     if args.cmd == "serve":
         from . import page
         page.serve(args.video, args.port)
