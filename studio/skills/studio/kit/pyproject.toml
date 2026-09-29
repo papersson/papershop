@@ -1,0 +1,22 @@
+[project]
+name = "studio-kit"
+version = "0.1.0"
+description = "The studio plugin's kit: the timeline contract, engine calls, cuts and the review page."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# Word timings for narration and footage (faster-whisper downloads its model from Hugging Face).
+align = ["faster-whisper==1.2.1"]
+# Local narration with Kokoro. Heavy (torch); only videos that synthesise a voice need it.
+kokoro = ["kokoro==0.9.4", "soundfile", "numpy"]
+
+[project.scripts]
+studio = "studio_kit.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# The one entry point to the studio kit. It runs every command inside the pinned environment, so an
+# agent never manages shells: inside `nix develop .#studio` (STUDIO_ENV is set) it runs directly;
+# otherwise, when nix exists, it loads the flake's environment first. `nix print-dev-env` is cached
+# per flake.lock, because entering the shell on every call would add seconds to each still.
+# STUDIO_NO_NIX=1 skips nix and uses whatever is on PATH (`studio doctor` says what is missing).
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/dev/null; then
+  # A workspace copy carries its own flake; inside the plugin repo the flake is at the repo root.
+  if [ -f "$here/flake.nix" ]; then flake="$here"; else flake="$(cd "$here/../../.." && pwd)"; fi
+  lock_hash="$( (cat "$flake/flake.lock" "$flake/flake.nix") | shasum | cut -c1-12)"
+  env_file="$here/.cache/devenv-$lock_hash.sh"
+  if [ ! -s "$env_file" ]; then
+    mkdir -p "$here/.cache"
+    # Only the variables the kit needs: the full `print-dev-env` script uses bash 4+ syntax, and
+    # macOS runs this wrapper with bash 3.2.
+    nix develop "$flake#studio" -c bash -c \
+      'for v in PATH STUDIO_ENV SSL_CERT_FILE NIX_SSL_CERT_FILE; do
+         if [ -n "${!v:-}" ]; then printf "export %s=%q\n" "$v" "${!v}"; fi; done' > "$env_file.tmp"
+    mv "$env_file.tmp" "$env_file"
+  fi
+  # shellcheck disable=SC1090
+  source "$env_file"
+fi
+
+exec uv run --quiet --frozen --project "$here/kit" studio "$@"

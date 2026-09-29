@@ -1,5 +1,5 @@
 {
-  description = "papershop — worklog (a work-history CLI) and the tutor dev shell";
+  description = "papershop — worklog (a work-history CLI), and the tutor and studio dev shells";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -42,6 +42,14 @@
             shellHook = ''
               echo "tutor dev shell: run <plugin>/skills/tutor/scripts/setup.sh PROJECT_DIR to create the venv"
             '';
+          };
+
+          # `nix develop .#studio`: the system layer of the studio plugin. Python packages are pinned
+          # by the kit's uv.lock and Node packages by each engine's package-lock.json. The headless
+          # browser is not here: nixpkgs' Chromium is Linux-only, so `studio doctor` resolves it.
+          studio = pkgs.mkShell {
+            packages = with pkgs; [ python312 uv nodejs_22 ffmpeg sox ];
+            STUDIO_ENV = "nix";
           };
         });
     };
