@@ -85,7 +85,8 @@ def notes_text(video, cut=None):
     """The notes for a cut as numbered plain text, the form the agent works from."""
     n = cut or render.latest_cut(video)
     notes, rounds = fold(read_log(video), n)
-    lines = [f"cut {n}: {len(notes)} notes" + (f", round sent {rounds[-1]['created']}" if rounds else ", round not sent")]
+    count = f"{len(notes)} note" + ("" if len(notes) == 1 else "s")
+    lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else ", round not sent")]
     for i, x in enumerate(notes, 1):
         m, s = divmod(x["t"], 60)
         lines.append(f"{i}. [{int(m)}:{s:04.1f} {x['sentence_id']} {x['kind']}] {x['note'] or '(here)'}")

@@ -104,8 +104,12 @@ def page_html(t, cfg, cut):
 <style>{CSS}</style></head>
 <body><div class="wrap">
   <header><h1>{html.escape(title)}</h1><span class="len">{mmss(t['duration'])}</span></header>
-  <div class="player"><video id="v" controls preload="metadata" poster="poster.jpg" playsinline>
+  <div class="player"><video id="v" preload="metadata" poster="poster.jpg" playsinline>
     <source src="video.mp4" type="video/mp4"></video></div>
+  <div class="controls"><button id="play" class="btn" type="button">Play</button>
+    <input id="seek" type="range" min="0" max="{t['duration']:.2f}" step="0.05" value="0" aria-label="Position">
+    <span id="clock" class="len">0:00 / {mmss(t['duration'])}</span>
+    <button id="full" class="btn" type="button">Full screen</button></div>
   <nav class="chapters" aria-label="Chapters">{chapters_html(t)}</nav>
   {f'<p class="credit">{html.escape(credit)}</p>' if credit else ""}
   <div class="bar"><span id="status" class="status" role="status"></span>
@@ -130,6 +134,7 @@ CSS = """
 :root{--bg:#0E1216;--surface:#151B22;--raise:#1B232C;--line:#27303A;--ink:#E6EBF0;--muted:#8C97A4;--faint:#5E6874;
   --amber:#F2A93B;--ice:#8FD3FF;--coral:#E4715F;color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}  /* .btn's all:unset and .panel's flex would otherwise show hidden elements */
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   padding-inline:16px;padding-block:28px 56px}
 .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
@@ -137,7 +142,12 @@ header{display:flex;align-items:baseline;justify-content:space-between;gap:8px 2
 h1{font-weight:600;font-size:clamp(22px,3vw,30px);line-height:1.15;margin:0;text-wrap:balance}
 .len{font:500 13px "IBM Plex Mono",ui-monospace,monospace;color:var(--muted);font-variant-numeric:tabular-nums}
 .player{background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-width:100%}
-video{display:block;width:100%;height:100%}
+video{display:block;width:100%;height:100%;cursor:pointer}
+/* Controls sit below the picture: native ones would cover the burned-in captions whenever the
+   video is paused, which is exactly when a note is written. */
+.controls{display:flex;align-items:center;gap:12px}
+.controls input{flex:1;accent-color:var(--ice);min-width:0}
+@media (max-width:520px){#full{display:none}}
 .chapters{display:flex;gap:6px}
 .ch{all:unset;cursor:pointer;min-width:0;flex-basis:0;display:flex;flex-direction:column;gap:7px}
 .ch-bar{height:6px;border-radius:3px;background:var(--raise);position:relative;overflow:hidden}
@@ -183,6 +193,14 @@ chs.forEach(b=>b.addEventListener('click',()=>{v.currentTime=+b.dataset.t;v.play
 function tick(){const t=v.currentTime;chs.forEach(c=>{const a=+c.dataset.t,b=+c.dataset.end;c.classList.toggle('on',t>=a&&t<b);
   c.style.setProperty('--p',(t>=b?100:t<=a?0:(t-a)/(b-a)*100)+'%');});}
 v.addEventListener('timeupdate',tick);v.addEventListener('seeked',tick);tick();
+const play=document.getElementById('play'),seek=document.getElementById('seek'),clock=document.getElementById('clock');
+const toggle=()=>{if(v.paused)v.play().catch(()=>{});else v.pause();};
+play.addEventListener('click',toggle);v.addEventListener('click',toggle);
+document.getElementById('full').addEventListener('click',()=>v.requestFullscreen&&v.requestFullscreen());
+seek.addEventListener('input',()=>{v.currentTime=+seek.value;});
+v.addEventListener('play',()=>{play.textContent='Pause';});v.addEventListener('pause',()=>{play.textContent='Play';});
+v.addEventListener('timeupdate',()=>{seek.value=v.currentTime;clock.textContent=mmss(v.currentTime)+' / '+mmss(+seek.max);});
+document.addEventListener('keydown',e=>{if(e.key===' '&&!/TEXTAREA|INPUT|BUTTON/.test(document.activeElement.tagName)){e.preventDefault();toggle();}});
 function mmss(t){t=Math.max(0,t);return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
 function sentenceAt(t){let k=-1;SENTENCES.forEach((s,i)=>{if(s[0]<=t)k=i;});return k;}
 function chapterAt(t){let k=0;chs.forEach((c,i)=>{if(+c.dataset.t<=t)k=i;});return k;}

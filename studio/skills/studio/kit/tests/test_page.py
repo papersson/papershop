@@ -51,7 +51,8 @@ def test_notes_round_trip_through_the_server(tmp_path):
         post(base + "/api/round", {"cut": 1})
         st = json.loads(urllib.request.urlopen(base + "/api/state").read())
         assert [x["id"] for x in st["notes"]] == [n["id"]] and st["rounds"][0]["notes"] == [n["id"]]
-        assert "1. [0:01.2 s1_01 picture] move the card left" in page.notes_text(tmp_path)
+        text = page.notes_text(tmp_path)
+        assert "1 note, round sent" in text and "1. [0:01.2 s1_01 picture] move the card left" in text
 
         req = urllib.request.Request(base + "/cut1/video.mp4", headers={"Range": "bytes=10-19"})
         r = urllib.request.urlopen(req)

@@ -47,6 +47,7 @@ def clip_key(video, timeline, clip_id, quality, engine="remotion"):
     for f in sorted((video / "scenes").iterdir()):
         if f.stem == clip_id or f.stem not in clip_ids:
             _hash_tree(h, f)
+    _hash_tree(h, video / "data")       # scenes import their numbers from data/
     c = tl.clip(timeline, clip_id)
     part = {
         "clip": c, "frames": tl.frames(timeline, clip_id), "fps": timeline["fps"],
@@ -176,12 +177,12 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
 
 
 def _keep_befores(video, prev_n, d, record):
-    """Copy the previous cut's stills for changed clips, so the page can show before and after."""
+    """Copy the previous cut's stills that changed, so the page can show before and after."""
     before = d / "before"
     for s in record["stills"]:
         if s["clip"] in record["changed"]:
             src = cuts_dir(video) / f"cut{prev_n}" / s["file"]
-            if src.exists():
+            if src.exists() and src.read_bytes() != (d / s["file"]).read_bytes():
                 before.mkdir(exist_ok=True)
                 shutil.copyfile(src, before / src.name)
                 s["before"] = f"before/{src.name}"

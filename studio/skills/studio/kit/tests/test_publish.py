@@ -13,6 +13,7 @@ def test_page_is_ascii_and_matches_the_drive(tmp_path):
     assert ">Annotate<" in author and 'data-kind="picture"' in author
     assert ">Lost me here<" in learner and 'data-kind="picture"' not in learner
     assert '"v1 (cut 3)"' in author
+    assert "[hidden]{display:none!important}" in author      # buttons without a database stay hidden
 
 
 def test_poster_offsets_count_from_start_or_back_from_end(tmp_path):

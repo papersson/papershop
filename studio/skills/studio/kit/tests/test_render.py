@@ -74,3 +74,13 @@ def test_keys_survive_moving_the_video(tmp_path):
     b = tmp_path / "b"
     a.rename(b)
     assert keys(b, t) == before
+
+
+def test_changing_data_rerenders_every_clip(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "runs.json").write_text('{"n": 1}')
+    before = keys(tmp_path, t)
+    (tmp_path / "data" / "runs.json").write_text('{"n": 2}')
+    after = keys(tmp_path, t)
+    assert all(after[c] != before[c] for c in before)

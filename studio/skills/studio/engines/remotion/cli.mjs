@@ -54,7 +54,8 @@ function hashTree(h, p, root = p) {
 async function getBundle(video) {
 	const h = createHash('sha1');
 	for (const p of [path.join(ENGINE, 'src'), path.join(ENGINE, 'package-lock.json'),
-		path.join(video, 'scenes'), path.join(video, 'timeline.json'), path.join(video, 'layout.json')]) {
+		path.join(video, 'scenes'), path.join(video, 'data'), path.join(video, 'timeline.json'),
+		path.join(video, 'layout.json')]) {
 		hashTree(h, p);
 	}
 	const key = h.digest('hex').slice(0, 16);
