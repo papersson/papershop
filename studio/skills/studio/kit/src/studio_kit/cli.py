@@ -98,6 +98,13 @@ COMMANDS = {
         A("--lufs", type=float, default=-16.0, help="target integrated loudness (default -16; -14 for social)"),
         A("--peak", type=float, default=-1.5, help="true-peak ceiling in dBTP"),
     ], "audio:main"),
+    "ingest": ("a recording: transcript with word times, shot changes, filler marks, a paper edit", [
+        A("file"), A("video"), A("--name"), A("--model", default="small.en"),
+    ], "footage:main_ingest"),
+    "edit": ("build the timeline from an edit list of footage segments", [A("video"), A("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
+    "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into the timeline", [A("video"), A("file")], "beats:main"),
+    "sfx": ("synthesised effects from a cues file, on the timeline", [A("video"), A("cues", help="JSON list of {t, type, gain}")], "sfx:main"),
+    "sound-lab": ("a page to choose effect candidates by listening", [A("video")], "sfx:main_lab"),
     "review": ("one round of fresh-context reviewers on SCRIPT.md or a narrative", [
         A("video"), A("round", type=int),
         A("--narrative", help="review this narrative file instead of the script"),

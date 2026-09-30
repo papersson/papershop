@@ -42,10 +42,16 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         cfg["source"] = source_record(source)
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
     (video / "layout.json").write_text(json.dumps(DEFAULT_LAYOUT, indent=1) + "\n")
-    shutil.copyfile(TEMPLATES / "narration.json", video / "narration.json")
-    script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
-    (video / "SCRIPT.md").write_text(script)
-    for f in (TEMPLATES / "scenes").iterdir():
+    if genre == "footage":
+        # An edit, not a script: recordings go in with `studio ingest`, the edit list with `studio edit`.
+        (video / "footage").mkdir(exist_ok=True)
+        scenes = TEMPLATES / "footage" / "scenes"
+    else:
+        shutil.copyfile(TEMPLATES / "narration.json", video / "narration.json")
+        script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
+        (video / "SCRIPT.md").write_text(script)
+        scenes = TEMPLATES / "scenes"
+    for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)
     learner = studio_home() / "learner.md"

@@ -8,6 +8,7 @@
                named element's box is checked against the band
   contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
+  filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
 Sample times are spread across each clip's sentences, `--samples` per clip.
 """
@@ -172,7 +173,8 @@ def genre(video):
 
 
 def run(video, samples=3, only=None, engine=None, fmt=None):
-    only = set(only or CHECKS + (("grid", "palette") if genre(video) == "pixel" else ()))
+    extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments")}.get(genre(video), ())
+    only = set(only or CHECKS + extra)
     engine = engine or Engine(video, fmt=fmt)
     rows = []
     if "length" in only:
@@ -188,6 +190,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None):
     if only & {"band", "contrast"}:
         pix = band_pixels_check(video, samples, engine)
         rows += [r for r in pix if r["check"] in only]
+    if genre(video) == "footage" and only & {"filler", "cuts", "levels", "sync", "segments"}:
+        from . import footage
+        rows += [r for r in footage.checks(video) if r["check"] in only]
     if only & {"grid", "palette"}:
         from . import pixel
         rows += [r for r in pixel.run(video, samples, engine) if r["check"] in only]

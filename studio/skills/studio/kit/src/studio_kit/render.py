@@ -65,6 +65,8 @@ def clip_key(video, timeline, clip_id, quality, engine="remotion", fmt=None):
         "narration": [s for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
         "captions": [x for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
         "cues": timeline.get("cues", {}),
+        "footage": timeline["tracks"].get("footage", []),
+        "beats": timeline.get("beats", {}),
         "layout": tl.layout(video, fmt),
     }
     h.update(json.dumps(part, sort_keys=True).encode())

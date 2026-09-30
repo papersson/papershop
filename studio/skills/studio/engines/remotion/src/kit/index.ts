@@ -6,3 +6,4 @@ export * from './components';
 export * from './map';
 export * from './shot';
 export * from './pixel';
+export * from './footage';

@@ -36,6 +36,21 @@ export function useClip() {
 			if (!w) throw new Error(`sentence ${id} has no word ${i}; run studio align`);
 			return w.start - start + off;
 		},
+		/** The i-th beat of the track (1-based), in clip seconds; needs `studio beats`. */
+		beat: (i: number, off = 0) => {
+			const b = T.beats?.beats[i - 1];
+			if (b === undefined) throw new Error(`no beat ${i}; run studio beats`);
+			return b - start + off;
+		},
+		/** The i-th downbeat (1-based), in clip seconds. */
+		downbeat: (i: number, off = 0) => {
+			const b = T.beats?.downbeats[i - 1];
+			if (b === undefined) throw new Error(`no downbeat ${i}; run studio beats`);
+			return b - start + off;
+		},
+		/** Every onset peak of the track, in clip seconds (for hits and effects). */
+		hits: (T.beats?.hits ?? []).map((h) => h - start),
+		bpm: T.beats?.bpm,
 		cue: (name: string, off = 0) => {
 			if (!(name in T.cues)) throw new Error(`no cue ${name} in timeline.json`);
 			return T.cues[name] - start + off;

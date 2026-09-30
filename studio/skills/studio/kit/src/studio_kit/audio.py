@@ -103,6 +103,10 @@ def mix(video, timeline, out):
         if e.get("in") is not None or e.get("out") is not None:
             chain.append(f"atrim=start={e.get('in', 0)}" + (f":end={e['out']}" if e.get("out") is not None else ""))
             chain.append("asetpts=PTS-STARTPTS")
+        if e.get("fade") and e.get("out") is not None:       # a short fade at every cut, so a cut never clicks
+            d = e["out"] - e.get("in", 0)
+            chain.append(f"afade=t=in:d={e['fade']}")
+            chain.append(f"afade=t=out:st={max(0, d - e['fade']):.3f}:d={e['fade']}")
         if e.get("gain"):
             chain.append(f"volume={e['gain']}dB")
         if e.get("start"):
