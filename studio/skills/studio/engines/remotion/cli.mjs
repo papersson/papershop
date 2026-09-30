@@ -40,6 +40,17 @@ for (let i = 0; i < rest.length; i++) {
 const log = (...a) => console.error(...a);
 
 // Names relative to the hashed root, so a moved or copied video keeps its bundle key.
+// Names, sizes and times only: assets can be large footage, and reading it on every render is slow.
+function hashListing(h, p) {
+	if (!existsSync(p) || !statSync(p).isDirectory()) return;
+	for (const name of readdirSync(p).sort()) {
+		const f = path.join(p, name);
+		const st = statSync(f);
+		if (st.isDirectory()) hashListing(h, f);
+		else h.update(`${path.relative(p, f)}:${st.size}:${Math.floor(st.mtimeMs / 1000)}`);
+	}
+}
+
 function hashTree(h, p, root = p) {
 	if (!existsSync(p)) return;
 	if (statSync(p).isDirectory()) {
@@ -57,18 +68,21 @@ async function getBundle(video) {
 	const h = createHash('sha1');
 	for (const p of [path.join(ENGINE, 'src'), path.join(ENGINE, 'package-lock.json'),
 		path.join(video, 'scenes'), path.join(video, 'data'), path.join(video, 'timeline.json'),
-		path.join(video, 'layout.json')]) {
+		opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json')]) {
 		hashTree(h, p);
 	}
+	hashListing(h, path.join(video, 'assets'));
 	const key = h.digest('hex').slice(0, 16);
-	const root = path.join(video, '.cache', 'bundle');
+	// One folder per layout (format), so exporting several formats doesn't discard each other's bundles.
+	const root = path.join(video, '.cache', 'bundle', opt.layout ? path.basename(opt.layout, '.json') : 'default');
 	const out = path.join(root, key);
 	if (existsSync(path.join(out, 'index.html'))) return {serveUrl: out, cached: true};
-	const layoutFile = path.join(video, 'layout.json');
+	const layoutFile = opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json');
 	await bundle({
 		entryPoint: path.join(ENGINE, 'src', 'entry.tsx'),
 		outDir: out,
 		enableCaching: true,
+		publicDir: existsSync(path.join(video, 'assets')) ? path.join(video, 'assets') : null,
 		webpackOverride: (config) => ({
 			...config,
 			resolve: {

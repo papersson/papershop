@@ -89,8 +89,12 @@ def pick(video, entry_file):
 def mix(video, timeline, out):
     """Mix timeline.tracks.audio into one AAC file `out`, `duration` seconds long."""
     video = Path(video)
-    entries = timeline["tracks"]["audio"]
     dur = timeline["duration"]
+    entries = [e for e in timeline["tracks"]["audio"] if pick(video, e["file"]).exists()]
+    if not entries:      # a silent video (a motion piece before its music, estimated timings): silence, not a failure
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"anullsrc=r={RATE}:cl=stereo", "-t", f"{dur:.3f}",
+                        "-c:a", "aac", "-b:a", "96k", str(out)], check=True)
+        return
     cmd = ["ffmpeg", "-v", "error", "-y"]
     filters = []
     for i, e in enumerate(entries):

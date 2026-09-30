@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
 LAYERS = ("all", "no-captions", "no-band", "background")
@@ -18,10 +19,15 @@ class EngineError(RuntimeError):
 
 
 class Engine:
-    def __init__(self, video, name="remotion"):
+    def __init__(self, video, name="remotion", fmt=None):
         self.video = Path(video).resolve()
         self.name = name
+        self.fmt = fmt
         self.browser, _ = resolve_browser()
+
+    def layout(self):
+        """The layout this engine renders (the video's, with its format applied)."""
+        return tl.layout(self.video, self.fmt)
 
     def _command(self, op, *args):
         if self.name != "remotion":
@@ -29,6 +35,8 @@ class Engine:
         cmd = ["node", str(engine_dir(self.name) / "cli.mjs"), op, "--video", str(self.video), *args]
         if self.browser:
             cmd += ["--browser", self.browser]
+        if self.fmt and self.fmt != "16:9":
+            cmd += ["--layout", str(tl.layout_file(self.video, self.fmt))]
         return cmd
 
     def _call(self, op, *args):

@@ -72,12 +72,18 @@ export const MapView: React.FC<{
 					const b = byId[e.to];
 					const v = Math.min(visible[e.from] ?? 0, visible[e.to] ?? 0);
 					if (!a || !b || v <= 0) return null;
-					const [aw] = size(a);
-					const [bw] = size(b);
-					const dir = Math.sign(b.at[0] - a.at[0]) || 1;
+					const [aw, ah] = size(a);
+					const [bw, bh] = size(b);
+					const dx = b.at[0] - a.at[0];
+					const dy = b.at[1] - a.at[1];
+					const horizontal = Math.abs(dx) >= Math.abs(dy);       // route along the dominant axis
+					const sx = Math.sign(dx) || 1;
+					const sy = Math.sign(dy) || 1;
+					const from: XY = horizontal ? [a.at[0] + sx * (aw / 2 + 0.05), a.at[1]] : [a.at[0], a.at[1] + sy * (ah / 2 + 0.05)];
+					const to: XY = horizontal ? [b.at[0] - sx * (bw / 2 + 0.05), b.at[1]] : [b.at[0], b.at[1] - sy * (bh / 2 + 0.05)];
 					const on = litEdges[`${e.from}>${e.to}`] ?? 0;
 					return (
-						<Arrow key={`${e.from}>${e.to}`} from={[a.at[0] + dir * (aw / 2 + 0.05), a.at[1]]} to={[b.at[0] - dir * (bw / 2 + 0.05), b.at[1]]}
+						<Arrow key={`${e.from}>${e.to}`} from={from} to={to}
 							color={mix(DIM, ICE, on)} width={2 + on} progress={v} />
 					);
 				})}

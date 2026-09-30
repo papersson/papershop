@@ -68,8 +68,7 @@ def determinism(video, samples=3, engine=None):
 
 
 def _boxes(video, per_clip, engine):
-    t, lay = tl.load(video), tl.layout(video)
-    return lay, engine.boxes_at(sample_times(t, per_clip))
+    return engine.layout(), engine.boxes_at(sample_times(tl.load(video), per_clip))
 
 
 def bounds(video, samples=3, engine=None, boxes=None):
@@ -139,7 +138,8 @@ def brightest(pixels):
 def band_pixels_check(video, samples=3, engine=None):
     """The scene alone against the bare background, over the band's pixels: any difference is
     scene content in the band. Then the caption contrast against what is under the band."""
-    engine, t, lay = engine or Engine(video), tl.load(video), tl.layout(video)
+    engine = engine or Engine(video)
+    t, lay = tl.load(video), engine.layout()
     times = sample_times(t, samples)
     rows = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -164,9 +164,9 @@ def band_pixels_check(video, samples=3, engine=None):
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
 
 
-def run(video, samples=3, only=None, engine=None):
+def run(video, samples=3, only=None, engine=None, fmt=None):
     only = set(only or CHECKS)
-    engine = engine or Engine(video)
+    engine = engine or Engine(video, fmt=fmt)
     rows = []
     if "length" in only:
         rows += length(video, engine)
@@ -185,7 +185,7 @@ def run(video, samples=3, only=None, engine=None):
 
 
 def main(args):
-    rows = run(args.video, args.samples, args.only.split(",") if args.only else None)
+    rows = run(args.video, args.samples, args.only.split(",") if args.only else None, fmt=args.format)
     for r in rows:
         where = f"{r['clip']}" + (f" t={r['t']}" if "t" in r else "")
         print(f"{'ok  ' if r['ok'] else 'FAIL'}  {r['check']:11} {where:16} {r['detail']}".rstrip())

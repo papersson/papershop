@@ -40,9 +40,37 @@ def save(video, timeline):
     (Path(video) / "timeline.json").write_text(json.dumps(timeline, indent=1, ensure_ascii=False) + "\n")
 
 
-def layout(video):
+# Formats a video can be exported in. Each has its own stage (the frame above the caption band), so
+# scenes lay out against the stage's size rather than fixed pixels; reframe type and UI per format,
+# don't crop a 16:9 render to vertical.
+FORMATS = {
+    "16:9": {"width": 1920, "height": 1080, "band": {"height": 160}},
+    "9:16": {"width": 1080, "height": 1920, "band": {"height": 340, "font": 54, "chars": 26}},
+    "1:1": {"width": 1080, "height": 1080, "band": {"height": 200, "font": 44, "chars": 34}},
+}
+
+
+def layout(video, fmt=None):
+    """layout.json, with a format's size and band applied: fmt is a key of FORMATS (or of the file's
+    own "formats" overrides)."""
     p = Path(video) / "layout.json"
-    return json.loads(p.read_text()) if p.exists() else DEFAULT_LAYOUT
+    base = json.loads(p.read_text()) if p.exists() else dict(DEFAULT_LAYOUT)
+    if not fmt or fmt == "16:9":
+        return base
+    over = {**FORMATS.get(fmt, {}), **base.get("formats", {}).get(fmt, {})}
+    if not over:
+        raise SystemExit(f"unknown format {fmt!r}; known: {', '.join(FORMATS)}")
+    return {**base, **over, "band": {**base["band"], **over.get("band", {})}, "format": fmt}
+
+
+def layout_file(video, fmt):
+    """A layout.json for the engine: the video's own for the default format, else a generated one."""
+    if not fmt or fmt == "16:9":
+        return Path(video) / "layout.json"
+    out = Path(video) / ".cache" / "layouts" / f"{fmt.replace(':', 'x')}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(layout(video, fmt), indent=1) + "\n")
+    return out
 
 
 def clip(timeline, clip_id):

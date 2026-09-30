@@ -53,3 +53,11 @@ def test_pick_prefers_a_fresh_final_and_ignores_a_stale_one(tmp_path):
     assert audio.pick(v, "audio/narration.mp3").name == "final.wav"
     (v / "audio" / "narration.wav").touch()          # the narration changed after the finish
     assert audio.pick(v, "audio/narration.mp3").name == "narration.mp3"
+
+
+def test_a_video_without_audio_gets_silence_of_its_length(tmp_path):
+    t = {"duration": 2.0, "tracks": {"audio": [{"file": "audio/narration.mp3", "start": 0.0}]}}
+    audio.mix(tmp_path, t, tmp_path / "m.m4a")
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                str(tmp_path / "m.m4a")], capture_output=True, text=True).stdout)
+    assert 1.9 < dur < 2.3

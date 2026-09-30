@@ -81,6 +81,15 @@ COMMANDS = {
         A("--below", type=float, default=0.8, help="flag sentences scoring under this"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [A("video"), A("--model", default="small.en")], "align:main"),
+    "capture": ("a screenshot of a page into assets/, recorded with its source", [
+        A("url"), A("video"), A("--name"), A("--size", default="1440x900"),
+        A("--wait", type=int, default=4000, help="virtual milliseconds to let the page settle"),
+    ], "assets:main_capture"),
+    "asset": ("add a file to assets/ with its provenance, or list them", [
+        A("action", choices=["add", "list"]), A("video"), A("file", nargs="?"),
+        A("--kind", default="supplied", choices=["capture", "generated", "supplied"]),
+        A("--source", help="a URL, a prompt and tool, or a person"), A("--license", default=""), A("--name"),
+    ], "assets:main_asset"),
     "init": ("pin the kit a video is made with, so a plugin update can't change how it renders", [
         A("video"), A("--update", action="store_true", help="replace the pinned copy's sources with the plugin's current ones"),
     ], "pin:main"),
@@ -109,9 +118,15 @@ COMMANDS = {
         A("--stills-only", action="store_true", help="stills only (a look gate, or a quick answer)"),
         A("--changelog", help="JSON list of {note, change} answering the previous cut's notes"),
     ], _cut),
+    "export": ("the whole video in several formats (16:9, 9:16, 1:1) from one timeline, into out/export/", [
+        A("video"), A("--formats", default="16:9,9:16,1:1"),
+        A("--quality", default="final", choices=["draft", "final"]),
+        A("--lufs", type=float, help="finish the audio to this loudness first (-14 for social)"),
+    ], "render:main_export"),
     "check": ("length, determinism, bounds, band and contrast checks", [
         A("video"), A("--samples", type=int, default=3, help="moments per clip"),
         A("--only", help="comma-separated: length,determinism,bounds,band,contrast"),
+        A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
     ], "check:main"),
     "sheets": ("contact sheets, a phone-width sheet, strips and full-resolution label crops", [
         A("video"), A("outdir"), A("--cut", type=int),

@@ -8,4 +8,5 @@ export type Timeline = {
 	tracks: {scene: SceneClip[]; narration: Sentence[]; captions: Caption[]};
 	cues: Record<string, number>;
 };
-export type Layout = {width: number; height: number; fps: number; band: {height: number; style: 'opaque' | 'frosted'}};
+// band.font and band.chars: caption size in px and line width in characters (narrow formats need bigger type and shorter lines).
+export type Layout = {width: number; height: number; fps: number; band: {height: number; style: 'opaque' | 'frosted'; font?: number; chars?: number}};

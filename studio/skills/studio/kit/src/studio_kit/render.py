@@ -39,7 +39,16 @@ def _hash_tree(h, p, root=None):
         h.update(p.read_bytes())
 
 
-def clip_key(video, timeline, clip_id, quality, engine="remotion"):
+def _hash_listing(h, p):
+    p = Path(p)
+    if p.is_dir():
+        for f in sorted(p.rglob("*")):
+            if f.is_file():
+                st = f.stat()
+                h.update(f"{f.relative_to(p)}:{st.st_size}:{int(st.st_mtime)}".encode())
+
+
+def clip_key(video, timeline, clip_id, quality, engine="remotion", fmt=None):
     video = Path(video)
     clip_ids = {c["id"] for c in timeline["tracks"]["scene"]}
     h = hashlib.sha1(quality.encode())
@@ -49,13 +58,14 @@ def clip_key(video, timeline, clip_id, quality, engine="remotion"):
         if f.stem == clip_id or f.stem not in clip_ids:
             _hash_tree(h, f)
     _hash_tree(h, video / "data")       # scenes import their numbers from data/
+    _hash_listing(h, video / "assets")  # assets: names, sizes and times (footage is too big to read)
     c = tl.clip(timeline, clip_id)
     part = {
         "clip": c, "frames": tl.frames(timeline, clip_id), "fps": timeline["fps"],
         "narration": [s for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
         "captions": [x for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
         "cues": timeline.get("cues", {}),
-        "layout": tl.layout(video),
+        "layout": tl.layout(video, fmt),
     }
     h.update(json.dumps(part, sort_keys=True).encode())
     return h.hexdigest()[:16]
@@ -76,12 +86,12 @@ def read_cut(video, n):
     return json.loads(p.read_text()) if p.exists() else None
 
 
-def plan(video, timeline, quality):
+def plan(video, timeline, quality, fmt=None):
     """[(clip id, key, cached file or None)] for every clip in order."""
     cache = Path(video) / ".cache" / "clips"
     rows = []
     for c in timeline["tracks"]["scene"]:
-        key = clip_key(video, timeline, c["id"], quality, c.get("engine", "remotion"))
+        key = clip_key(video, timeline, c["id"], quality, c.get("engine", "remotion"), fmt)
         f = cache / f"{c['id']}-{quality}-{key}.mp4"
         rows.append((c["id"], key, f if f.exists() else None))
     return rows
@@ -143,19 +153,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
 
     clips = []
     if not stills_only:
-        cache = video / ".cache" / "clips"
-        cache.mkdir(parents=True, exist_ok=True)
-        files = []
-        for cid, key, cached in rows:
-            f = cache / f"{cid}-{quality}-{key}.mp4"
-            started = time.monotonic()
-            if cached is None:
-                for old in cache.glob(f"{cid}-{quality}-*.mp4"):
-                    old.unlink()
-                engine.render(cid, f, quality)
-            clips.append({"id": cid, "key": key, "rendered": cached is None,
-                          "seconds": round(time.monotonic() - started, 1)})
-            files.append(f)
+        files, clips = render_clips(video, timeline, engine, quality)
         t1 = time.monotonic()
         composite(video, timeline, files, d / "video.mp4")
         timings["composite"] = round(time.monotonic() - t1, 1)
@@ -187,3 +185,49 @@ def _keep_befores(video, prev_n, d, record):
                 before.mkdir(exist_ok=True)
                 shutil.copyfile(src, before / src.name)
                 s["before"] = f"before/{src.name}"
+
+
+def render_clips(video, timeline, engine, quality="draft", fmt=None):
+    """Render the clips whose cached video is missing (or stale) in `fmt`; returns ([files], [records])."""
+    cache = Path(video) / ".cache" / "clips"
+    cache.mkdir(parents=True, exist_ok=True)
+    tag = f"-{fmt.replace(':', 'x')}" if fmt and fmt != "16:9" else ""
+    files, records = [], []
+    for cid, key, cached in plan(video, timeline, quality, fmt):
+        f = cache / f"{cid}-{quality}{tag}-{key}.mp4"
+        started = time.monotonic()
+        if not f.exists():
+            for old in cache.glob(f"{cid}-{quality}{tag}-*.mp4"):
+                old.unlink()
+            engine.render(cid, f, quality)
+        records.append({"id": cid, "key": key, "rendered": cached is None, "seconds": round(time.monotonic() - started, 1)})
+        files.append(f)
+    return files, records
+
+
+def export_formats(video, formats, quality="final", lufs=None, name=None):
+    """The whole video in each format, final quality by default, into out/export/. Every format comes
+    from the same timeline and scenes; each has its own stage and caption band."""
+    video = Path(video).resolve()
+    timeline = tl.load(video)
+    if lufs is not None:
+        audio.finish(video, lufs)
+    out = video / "out" / "export"
+    out.mkdir(parents=True, exist_ok=True)
+    cfg = json.loads((video / "video.json").read_text()) if (video / "video.json").exists() else {}
+    slug = name or "".join(c if c.isalnum() else "-" for c in cfg.get("title", video.name).lower()).strip("-")
+    made = []
+    for fmt in formats:
+        lay = tl.layout(video, fmt)
+        files, _ = render_clips(video, timeline, Engine(video, fmt=fmt), quality, fmt)
+        target = out / f"{slug}_{fmt.replace(':', 'x')}.mp4"
+        composite(video, timeline, files, target)
+        made.append({"format": fmt, "file": str(target), "size": [lay["width"], lay["height"]]})
+    return made
+
+
+def main_export(args):
+    made = export_formats(args.video, args.formats.split(","), args.quality, args.lufs)
+    for m in made:
+        print(f"{m['format']:5} {m['size'][0]}x{m['size'][1]}  {m['file']}")
+    return 0

@@ -59,19 +59,43 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 				</StageContext.Provider>
 			)}
 			{layers !== 'no-band' && layers !== 'background' && (
-				<CaptionBand top={stageH} height={l.band.height} time={first / fps + frame / fps} show={ready && layers === 'all'} />
+				<CaptionBand top={stageH} height={l.band.height} font={l.band.font ?? 38} chars={l.band.chars ?? 42}
+					time={first / fps + frame / fps} show={ready && layers === 'all'} />
 			)}
 		</AbsoluteFill>
 	);
 };
 
-const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean}> = ({top, height, time, show}) => {
+const NO_BREAK_AFTER = new Set(['the', 'a', 'an', 'of', 'to']);
+
+/** Greedy lines of at most `chars` characters that never end on an article or preposition. */
+export function wrapCaption(text: string, chars: number): string[] {
+	const lines: string[] = [];
+	let cur: string[] = [];
+	for (const word of text.split(/\s+/).filter(Boolean)) {
+		if (cur.length && [...cur, word].join(' ').length > chars) {
+			const carry: string[] = [];
+			while (cur.length > 1 && NO_BREAK_AFTER.has(cur[cur.length - 1].toLowerCase())) carry.unshift(cur.pop() as string);
+			lines.push(cur.join(' '));
+			cur = carry;
+		}
+		cur.push(word);
+	}
+	if (cur.length) lines.push(cur.join(' '));
+	return lines;
+}
+
+const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean; font: number; chars: number}> = ({
+	top, height, time, show, font, chars,
+}) => {
 	const chunk = show ? (timeline as Timeline).tracks.captions.find((c) => c.start <= time && time < c.end) : undefined;
+	// The timeline's chunks are wrapped for 16:9; a narrower format re-wraps the same words.
+	const lines = chunk ? wrapCaption(chunk.lines.join(' '), chars) : [];
 	return (
 		<div style={{position: 'absolute', left: 0, top, width: '100%', height, background: BAND,
 			display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'}}>
-			{chunk?.lines.map((line, i) => (
-				<div key={i} data-caption style={{fontFamily: SANS, fontSize: 38, lineHeight: 1.3, color: INK, whiteSpace: 'pre'}}>
+			{lines.map((line, i) => (
+				<div key={i} data-caption style={{fontFamily: SANS, fontSize: font, lineHeight: 1.3, color: INK, whiteSpace: 'pre'}}>
 					{line}
 				</div>
 			))}
