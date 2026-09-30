@@ -12,6 +12,7 @@ Frame boundaries are rounded once, from absolute times, so clips rendered separa
 to exactly the narration's length (rounding each clip's duration instead drifts a frame per clip).
 """
 import json
+import math
 import re
 import shutil
 from difflib import SequenceMatcher
@@ -51,8 +52,14 @@ def clip(timeline, clip_id):
 def frames(timeline, clip_id):
     """(first frame, frame count) of a clip on the video's frame grid."""
     fps, c = timeline["fps"], clip(timeline, clip_id)
-    first, last = round(c["start"] * fps), round(c["end"] * fps)
+    first, last = half_up(c["start"] * fps), half_up(c["end"] * fps)
     return first, last - first
+
+
+def half_up(x):
+    """Round halves up, as the engine's Math.round does: Python's round() sends 436.5 to 436, which
+    put a chapter boundary one frame off from the engine's."""
+    return math.floor(x + 0.5)
 
 
 # --- captions -------------------------------------------------------------------------------------

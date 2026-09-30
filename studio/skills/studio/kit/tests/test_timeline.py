@@ -62,3 +62,10 @@ def test_word_times_are_bounded_by_their_sentence():
     tl.attach_words(t, heard)
     words = t["tracks"]["narration"][0]["words"]
     assert words[0]["start"] == 0.6 and words[-1]["end"] == 2.2
+
+
+def test_frames_round_halves_up_like_the_engine():
+    t = {"fps": 30, "tracks": {"scene": [{"id": "a", "start": 0.0, "end": 14.55},
+                                         {"id": "b", "start": 14.55, "end": 23.557}]}}
+    assert tl.half_up(436.5) == 437 and tl.half_up(2.5) == 3 and tl.half_up(2.4) == 2
+    assert tl.frames(t, "a") == (0, 437) and tl.frames(t, "b") == (437, 270)
