@@ -131,9 +131,12 @@ kit is smaller than Remotion's; `references/engines.md` says what is missing.
 ## Evals
 
 `evals/` holds eight cases in the plugin eval format (routing for each genre and drive, a negative
-case, revising from notes). The first run cost $4.25 and scored 0.91 overall; the two low runs were
-the sandbox (the agent led with having no shell, and the judge found no plan), which the prompt now
-addresses.
+case, revising from notes), run with `claude plugin eval` against a clean checkout (the installed
+`node_modules` push a plugin folder past the tool's 20,000-entry limit). The first run cost $4.25
+and scored 0.91: the two low runs were the sandbox (with only read tools the agent led with having
+no shell, and the judge found no plan), so the prompts now say so up front. The routing cases then
+scored 1.0 on all 18 runs ($3.37), and the negative case (a chat question must not start a video)
+passed.
 
 ## Still open
 
