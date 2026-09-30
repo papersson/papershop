@@ -125,7 +125,7 @@ COMMANDS = {
     ], "render:main_export"),
     "check": ("length, determinism, bounds, band and contrast checks", [
         A("video"), A("--samples", type=int, default=3, help="moments per clip"),
-        A("--only", help="comma-separated: length,determinism,bounds,band,contrast"),
+        A("--only", help="comma-separated: length,determinism,bounds,band,contrast (pixel videos: grid,palette)"),
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
     ], "check:main"),
     "sheets": ("contact sheets, a phone-width sheet, strips and full-resolution label crops", [

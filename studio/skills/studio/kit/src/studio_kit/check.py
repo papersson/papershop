@@ -7,10 +7,12 @@
                no-band) and the bare background are compared over the band's pixels, and every
                named element's box is checked against the band
   contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
+  grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
 
 Sample times are spread across each clip's sentences, `--samples` per clip.
 """
 import hashlib
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -164,8 +166,13 @@ def band_pixels_check(video, samples=3, engine=None):
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
 
 
+def genre(video):
+    f = Path(video) / "video.json"
+    return json.loads(f.read_text()).get("genre", "explainer") if f.exists() else "explainer"
+
+
 def run(video, samples=3, only=None, engine=None, fmt=None):
-    only = set(only or CHECKS)
+    only = set(only or CHECKS + (("grid", "palette") if genre(video) == "pixel" else ()))
     engine = engine or Engine(video, fmt=fmt)
     rows = []
     if "length" in only:
@@ -181,6 +188,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None):
     if only & {"band", "contrast"}:
         pix = band_pixels_check(video, samples, engine)
         rows += [r for r in pix if r["check"] in only]
+    if only & {"grid", "palette"}:
+        from . import pixel
+        rows += [r for r in pixel.run(video, samples, engine) if r["check"] in only]
     return rows
 
 

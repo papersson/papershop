@@ -36,6 +36,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": "remotion", "poster": None}
+    if genre == "pixel":
+        cfg["pixel"] = {"grid": [320, 180], "palette": ["#0f1318", "#e6ebf0", "#8fd3ff", "#f2a93b", "#e4715f", "#2b333c"]}
     if source:
         cfg["source"] = source_record(source)
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
