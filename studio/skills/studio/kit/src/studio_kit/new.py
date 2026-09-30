@@ -5,6 +5,7 @@ does not put renders and caches into that repo; --source records which repo and 
 STUDIO_HOME also holds learner.md, the learner model every video's student reviewer plays.
 """
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -74,4 +75,48 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
 def main(args):
     video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration)
     print(f"new video at {video}\nlearner model: {learner}")
+    return 0
+
+
+# What a variant keeps from its source: the evidence, the assets and the look. Everything that
+# depends on the words (script, narration, timeline, cuts) is rewritten for the new audience.
+KEEP = ["data", "sims", "assets", "scenes", "captures", "layout.json", "narration.json"]
+
+
+def variant(source, name, directory=None, learner=None, vocabulary=None, title=None):
+    """A sibling video for another audience: same evidence, assets and look, new script."""
+    source = Path(source).resolve()
+    scfg = json.loads((source / "video.json").read_text())
+    video = Path(directory).expanduser().resolve() if directory else studio_home() / name
+    if (video / "video.json").exists():
+        raise SystemExit(f"{video} already holds a video")
+    video.mkdir(parents=True, exist_ok=True)
+    for rel in KEEP:
+        src = source / rel
+        if src.is_dir():
+            shutil.copytree(src, video / rel, ignore=shutil.ignore_patterns(".cache", "__pycache__"))
+        elif src.exists():
+            shutil.copyfile(src, video / rel)
+    (video / "research").mkdir(exist_ok=True)
+    # The narrative is the source's, to be revised for the new audience; reviews and cuts are not carried over.
+    if (source / "research" / "narrative.md").exists():
+        shutil.copyfile(source / "research" / "narrative.md", video / "research" / "narrative_source.md")
+    script = (source / "SCRIPT.md").read_text() if (source / "SCRIPT.md").exists() else ""
+    script = script.split("\n## Review log", 1)[0].rstrip() + "\n\n## Review log\n\n- Variant of " + source.name + \
+        ": rewrite the Argument, Chain, Script and vocabulary for the new audience; keep the Evidence rows.\n"
+    script = re.sub(r"^Status:.*$", "Status: draft variant, before review round 1", script, count=1, flags=re.M)
+    (video / "SCRIPT.md").write_text(script)
+    cfg = {**scfg, "title": title or name.replace("-", " ").capitalize(), "version": "v1", "variant_of": str(source)}
+    if learner:
+        cfg["learner"] = str(Path(learner).expanduser().resolve())
+    if vocabulary:
+        cfg["vocabulary"] = str(Path(vocabulary).expanduser().resolve())
+    (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
+    (video / ".gitignore").write_text(GITIGNORE)
+    return video
+
+
+def main_variant(args):
+    v = variant(args.source, args.name, args.dir, args.learner, args.vocabulary, args.title)
+    print(f"variant at {v}: evidence, assets and scenes copied; rewrite SCRIPT.md for the new audience, then narrate")
     return 0

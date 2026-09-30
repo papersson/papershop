@@ -177,8 +177,11 @@ Write one scene per chapter (`scenes/sN.tsx`, registered in `scenes/index.ts`), 
 - Data comes from `data/` (import the JSON), never from literals typed into the scene.
 
 Then iterate: `studio still` to check a frame (about 1.6 s after an edit), and `studio cut VIDEO`
-for a draft cut (only changed chapters re-render). Before showing a cut to the user, run the craft
-critique on the changed chapters:
+for a draft cut (only changed chapters re-render). Before showing a cut to the user, run
+`studio check VIDEO` (length, determinism, bounds, the caption band, contrast, legibility, and
+provenance when assets are used; fix every failure) and `studio sheets VIDEO out/sheets` (chapter
+sheets, a phone-width sheet, and full-resolution crops of small labels), then the craft critique on
+the changed chapters:
 
 - look at the cut's stills, and a phone-width look (the stills at 480 px wide are close to it);
 - score each chapter 1–10 on phone-width readability, motion, composition, clarity of the beat,
@@ -193,8 +196,8 @@ contexts.
 ## Stage 9: The frame review (a gate before publishing)
 
 A fresh context (`prompts/frame_review.md`) gets the cut's stills, the script, the evidence table
-and the data, and returns MUST / SHOULD / NIT findings. Give it full-resolution crops of any small
-text (`studio still --out` at scale 1): four builds of frame reviewers reported "labels are 15–18
+and the data, and returns MUST / SHOULD / NIT findings. Give it the crops and their measured sizes from
+`studio sheets` (`crops/index.json`): four builds of frame reviewers reported "labels are 15–18
 px" from downscaled sheets when they measured 26 px. Before acting on a finding, check it against
 the full-resolution frame. In earlier builds this review caught, after many passing script rounds:
 a code card that did not compile, a narration line that was wrong, an axis labelled "time" on two

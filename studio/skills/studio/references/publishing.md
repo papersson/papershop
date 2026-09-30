@@ -52,6 +52,12 @@ collected automatically.
 
 **destination: files:** hand over `out/web.mp4` and the poster.
 
+**destination: social:** `studio export VIDEO --formats 9:16,1:1,16:9 --lufs -14` renders every
+format from the same scenes into `out/export/`, each with its own stage and caption band (a
+phone-shaped frame gets larger, shorter caption lines). Check each format first
+(`studio check VIDEO --format 9:16`): text and images that fit a landscape stage often leave a
+portrait one.
+
 ## Versions
 
 video.json's `version` names the page's note set. Keep it across minor revisions and put the minor

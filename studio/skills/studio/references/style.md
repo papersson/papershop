@@ -101,9 +101,13 @@ which the learner heard as robotic. ElevenLabs (`eleven_multilingual_v2`, or `el
 hosted option; `eleven_v3` returns no timestamps, which the scenes cue from. Develop with Kokoro and
 switch at the end.
 
-Don't "finish" the narration with room tone or one-pass loudness normalisation: one-pass `loudnorm`
-is dynamic, so it raised the room tone and breaths in every pause, and the learner heard "a
-constant background noise". The narration is muxed as rendered. Sound effects are off by default.
+The finish is `studio audio` (run by `publish`): 48 kHz via soxr, one fixed gain to -16 LUFS
+measured over the whole file, and a limiter that touches only the peaks over the -1.5 dBTP ceiling
+(fixed gain alone pushed the raw voice to about +6.5 dBTP on a few samples). It is not room tone and
+not one-pass `loudnorm`: that filter is dynamic, so it raised the room tone and breaths in every
+pause, and the learner heard "a constant background noise" (an A/B of delivered, raw and clean
+audio settled it at once). Social destinations use -14 LUFS. Sound effects are off by default,
+placed in pauses, and chosen with `studio sound-lab`.
 
 ## Length
 

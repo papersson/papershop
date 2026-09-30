@@ -68,6 +68,10 @@ COMMANDS = {
         A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
     ], "new:main"),
+    "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
+        A("source"), A("name"), A("--dir"), A("--title"),
+        A("--learner", help="the new audience's learner model"), A("--vocabulary", help="the new audience's glossary"),
+    ], "new:main_variant"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         A("video"),
         A("--plan", action="store_true", help="report cached chunks and what would be synthesised"),

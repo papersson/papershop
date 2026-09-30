@@ -92,17 +92,36 @@ edit, 13.5 s; the next cut after editing one chapter, 24.8 s; a full draft cut f
 ElevenLabs build of "From LLM to Agent" to the millisecond (125 sentences), and its voice check gave
 the same result.
 
-## Designed, not built
+## Checks, and what each one caught
 
-Each item has the check that would prove it done.
+`studio check` runs through the engine interface, and each check earned its place on something real:
+- **length** found Python's `round()` and the engine's `Math.round` disagreeing on half frames
+  (436.5 → 436 against 437), which put a chapter boundary a frame off between kit and engine.
+- **band** (named boxes against the band, and the scene alone against the bare background over the
+  band's pixels) and **bounds** catch an element entering the caption band or leaving the frame;
+  proven by putting one in each on a scratch scene.
+- **contrast** reads the brightest pixel under the band against the caption colour (16:1 on the
+  opaque band).
+- **legible** fails text under 18 px tall; **provenance** fails a scene that uses an asset with no
+  source row; **dead** fails a run of identical frames over four seconds; **loop** compares the last
+  frame with the first (a template whose return began at the loop point failed it).
+- **grid** and **palette** (pixel art), and **filler, cuts, levels, sync, segments** (footage).
+- A check that samples sentence times checked nothing for a video with no narration, so clips
+  without narration are sampled evenly.
 
-| Next | What | Done when |
-|---|---|---|
-| **Genres** | a genre file each, naming its engines and checks: **motion** (a named reference or style guide, something new every 2–4 s, closed-form springs, one shape that never cuts; checks for phone readability, dead beats, the loop seam), **launch** (hook in 2 s, the product assembling itself, three features as real UI moments, one number, a CTA; captured screenshots and brand assets only; every format from one timeline), **pixel** (a fixed logical grid scaled by an integer, a palette limit, nearest-neighbour scaling; checks for grid alignment and palette), **footage** (a paper edit from the transcript, then overlays; checks for jump cuts, filler words, sync, levels) | one short video per genre through at least one note round |
-| **Assets** | capture (Playwright screenshots and recordings), generation (image and video models, a video model's output as a base layer drawn over in code), provenance rows for both | a launch video uses only captured assets with provenance, and exports 16:9 and 9:16 from one timeline |
-| **Checks** | the band pixel check (a no-captions render against a background-only render), caption contrast against the brightest pixel under the band, alignment from `boxes`, the audio finish (48 kHz via soxr, one fixed gain to −16 LUFS, a true-peak limiter), and a sound lab for choosing effects | the idempotency video passes them, and an element moved into the band fails |
-| **Motion Canvas** | the work port (a Playwright driver with no dev server, and its component kit) behind the engine interface | the checks pass unchanged on a Motion Canvas video |
-| **Kit copies** | `studio init` copies the kit and flake into a project, so an old video renders identically after a plugin update | a video pinned to an older kit rebuilds byte-identical after an update |
-| **Map and close-up components** | the map, close-up camera with minimap, token and ghost card, in the engine kit | a new explainer's look cut uses them |
-| **Audience variants** | a derived video with the same evidence, assets and look, and its own learner and vocabulary | a stakeholder cut built without rerunning any sim |
-| **Evals** | `evals/evals.json` run with the plugin eval tooling, per drive and genre | the suite runs, and a deliberately broken router fails it |
+## Genres
+
+One engine and one timeline serve five genres; each genre file (`references/genres/`) holds the
+procedure and the checks that fit it. Motion is reference-driven, with a state list and a loop that
+must settle before its seam; launch films use captured screens and record where every asset came
+from; pixel art is a fixed grid, a palette and whole-number scaling; footage is edited by its words,
+with captions from the footage's own transcript. Formats (16:9, 9:16, 1:1) each have their own stage
+and caption band, bundle cache and clip keys, so one timeline exports all of them.
+
+## Still open
+
+| What | Done when |
+|---|---|
+| **Motion Canvas engine**: the work port (a Playwright driver with no dev server, and its component kit) behind the engine interface | the checks pass unchanged on a Motion Canvas video |
+| **Notes from real use**: the loop is proven with scripted notes and by the user's use of the review page | a video goes through several rounds of the user's own notes |
+| **Freezing an old video**: `studio init` pins a video's kit; nothing yet migrates old videos to a newer kit | `studio init --update` on a real video, and its stills compared before and after |

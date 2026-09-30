@@ -24,3 +24,23 @@ def test_new_refuses_an_existing_video(tmp_path):
         assert "already holds a video" in str(e)
     else:
         raise AssertionError("expected a refusal")
+
+
+def test_a_variant_keeps_evidence_and_look_and_drops_the_words(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    src, _ = new.create("engineer", directory=str(tmp_path / "engineer"))
+    (src / "data").mkdir()
+    (src / "data" / "runs.json").write_text('{"n": 3}')
+    (src / "SCRIPT.md").write_text("# T\n\nStatus: locked\n\n## Script\n\n### 1. A\n\n> Words for engineers.\n\n## Review log\n\n- round 1: PASS\n")
+    (src / "cuts" / "cut1").mkdir(parents=True)
+    (src / "audio").mkdir()
+    (src / "audio" / "narration.mp3").write_bytes(b"x")
+    glossary = tmp_path / "plain.md"
+    glossary.write_text("held: quarantined\n")
+    v = new.variant(src, "stakeholder", learner=tmp_path / "exec.md", vocabulary=glossary)
+    assert (v / "data" / "runs.json").read_text() == '{"n": 3}' and (v / "scenes" / "s1.tsx").exists()
+    assert not (v / "cuts").exists() and not (v / "audio").exists() and not (v / "timeline.json").exists()
+    text = (v / "SCRIPT.md").read_text()
+    assert "Status: draft variant" in text and "round 1: PASS" not in text and "Variant of engineer" in text
+    cfg = json.loads((v / "video.json").read_text())
+    assert cfg["variant_of"] == str(src) and cfg["vocabulary"] == str(glossary) and cfg["version"] == "v1"
