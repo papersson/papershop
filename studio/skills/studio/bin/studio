@@ -7,6 +7,15 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# A video that pinned its kit (`studio init`) runs that copy, so a plugin update can't change how it renders.
+if [ -z "${STUDIO_PINNED:-}" ]; then
+  for arg in "$@"; do
+    if [ -x "$arg/.studio/bin/studio" ] && [ "$(cd "$arg/.studio" && pwd)" != "$here" ]; then
+      STUDIO_PINNED=1 exec "$arg/.studio/bin/studio" "$@"
+    fi
+  done
+fi
+
 if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/dev/null; then
   # A workspace copy carries its own flake; otherwise it is the plugin's, two levels up.
   if [ -f "$here/flake.nix" ]; then flake="$here"; else flake="$(cd "$here/../.." && pwd)"; fi

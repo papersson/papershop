@@ -81,6 +81,9 @@ COMMANDS = {
         A("--below", type=float, default=0.8, help="flag sentences scoring under this"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [A("video"), A("--model", default="small.en")], "align:main"),
+    "init": ("pin the kit a video is made with, so a plugin update can't change how it renders", [
+        A("video"), A("--update", action="store_true", help="replace the pinned copy's sources with the plugin's current ones"),
+    ], "pin:main"),
     "audio": ("the audio finish: 48 kHz, one fixed gain to the target loudness, a true-peak limiter", [
         A("video"),
         A("--lufs", type=float, default=-16.0, help="target integrated loudness (default -16; -14 for social)"),
