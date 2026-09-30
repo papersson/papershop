@@ -30,3 +30,12 @@ def test_init_refuses_to_overwrite_and_update_replaces_sources(tmp_path, monkeyp
 def test_init_needs_a_video_folder(tmp_path):
     with pytest.raises(SystemExit, match="not a video folder"):
         pin.init(tmp_path)
+
+
+def test_init_copies_the_shared_pixel_module_and_both_engines(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    video, _ = new.create("v", directory=str(tmp_path / "v"))
+    p = pin.init(video)
+    assert (p / "engines" / "shared" / "pixels.ts").exists()
+    assert (p / "engines" / "motion-canvas" / "cli.mjs").exists() and (p / "engines" / "motion-canvas" / "src" / "map.ts").exists()
+    assert not (p / "engines" / "motion-canvas" / "node_modules").exists()

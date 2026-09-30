@@ -12,8 +12,8 @@
 // A video's scenes live in scenes/project.ts (makeProject with one scene per clip, in order).
 import motionCanvasPlugin from '@motion-canvas/vite-plugin';
 import {chromium} from 'playwright-core';
-import {spawn} from 'node:child_process';
-import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {spawn, spawnSync} from 'node:child_process';
+import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createServer} from 'vite';
@@ -50,7 +50,25 @@ const frameOf = (t, clip, sec) => {
 	return first + Math.min(frames - 1, Math.max(0, half(Number(sec) * t.fps)));
 };
 
+// Chrome's headless builds don't decode H.264, so each recording in the footage track is transcoded
+// once to a seekable WebM (every frame a keyframe, so a seek lands on the exact frame). Cached by
+// modification time; the scene's `footage()` reads them from .cache/mc-footage/.
+function prepareFootage(video) {
+	const t = timeline(video);
+	const files = [...new Set((t.tracks.footage ?? []).map((f) => f.file))];
+	for (const file of files) {
+		const src = path.join(video, 'assets', file);
+		const out = path.join(video, '.cache', 'mc-footage', file.replace(/\.[^.]+$/, '') + '.webm');
+		if (existsSync(out) && statSync(out).mtimeMs >= statSync(src).mtimeMs) continue;
+		mkdirSync(path.dirname(out), {recursive: true});
+		const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', src, '-an', '-vf', 'scale=-2:min(ih\\,1080)', '-c:v', 'libvpx-vp9', '-g', '1',
+			'-deadline', 'realtime', '-cpu-used', '8', '-b:v', '6M', out], {stdio: ['ignore', 'inherit', 'inherit']});
+		if (r.status !== 0) throw new Error(`could not transcode ${file} for Motion Canvas`);
+	}
+}
+
 async function withPage(video, layers, fn) {
+	prepareFootage(video);
 	const layoutFile = opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json');
 	const project = path.join(video, 'scenes', 'project.ts');
 	if (!existsSync(project)) throw new Error(`no scenes/project.ts in ${video}`);
@@ -58,7 +76,11 @@ async function withPage(video, layers, fn) {
 		root: ENGINE, configFile: false, logLevel: 'error', clearScreen: false,
 		cacheDir: path.join(ENGINE, 'node_modules', '.vite'),
 		server: {port: 0, host: '127.0.0.1', fs: {strict: false}},
-		define: {__STUDIO_PROJECT__: JSON.stringify(`/@fs${project}?project`)},
+		define: {
+			__STUDIO_PROJECT__: JSON.stringify(`/@fs${project}?project`),
+			__STUDIO_ASSETS__: JSON.stringify(`/@fs${video}/assets/`),
+			__STUDIO_FOOTAGE__: JSON.stringify(`/@fs${video}/.cache/mc-footage/`),
+		},
 		resolve: {
 			alias: [
 				{find: '@timeline', replacement: path.join(video, 'timeline.json')},
@@ -109,9 +131,10 @@ async function stills(video, requests) {
 		await withPage(video, layers, async (page) => {
 			for (const r of reqs) {
 				const frame = frameOf(t, r.clip, r.t);
-				const png = dataUrlToBuffer(await page.evaluate((f) => window.studio.seek(f), frame));
+				const mime = /\.jpe?g$/i.test(r.out) ? 'image/jpeg' : 'image/png';
+				const img = dataUrlToBuffer(await page.evaluate(([f, m, sc]) => window.studio.seek(f, m, sc), [frame, mime, Number(r.scale ?? 1)]));
 				mkdirSync(path.dirname(r.out), {recursive: true});
-				writeFileSync(r.out, png);
+				writeFileSync(r.out, img);
 				done[r.i] = {clip: r.clip, t: Number(r.t), frame, out: r.out};
 			}
 		});

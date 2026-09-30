@@ -63,7 +63,9 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         (video / "SCRIPT.md").write_text(script)
         scenes = TEMPLATES / "scenes"
     if engine == "motion-canvas":
-        scenes = TEMPLATES / "motion-canvas" / "scenes"      # generator scenes; the script and timeline are unchanged
+        # Generator scenes; the script and timeline are unchanged. A genre with its own starter gets it.
+        mc = TEMPLATES / "motion-canvas"
+        scenes = (mc / genre if (mc / genre).is_dir() else mc) / "scenes"
     for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)

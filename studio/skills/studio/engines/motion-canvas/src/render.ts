@@ -41,15 +41,24 @@ async function boot() {
 	for (let i = 0; i < 400 && !(player.playback.duration > 0); i++) await new Promise((r) => setTimeout(r, 50));
 	if (!(player.playback.duration > 0)) throw new Error('the scenes reported no duration');
 
-	const seek = (frame: number) =>
+	// Paints a frame and returns it as a data URL: PNG by default, JPEG for a .jpg request, scaled down
+	// when the kit asks for a smaller still (the review page's thumbnails).
+	const seek = (frame: number, mime = 'image/png', scale = 1) =>
 		new Promise<string>((resolve, reject) => {
 			const timer = setTimeout(() => reject(new Error(`seek to frame ${frame} timed out`)), 60_000);
 			painted = (got) => {
-				if (got === frame) {
-					clearTimeout(timer);
-					painted = null;
-					resolve(stage.finalBuffer.toDataURL('image/png'));
-				}
+				if (got !== frame) return;
+				clearTimeout(timer);
+				painted = null;
+				const src = stage.finalBuffer;
+				if (scale === 1) return resolve(src.toDataURL(mime, 0.85));
+				const out = document.createElement('canvas');
+				out.width = Math.max(1, Math.round(src.width * scale));
+				out.height = Math.max(1, Math.round(src.height * scale));
+				const g = out.getContext('2d') as CanvasRenderingContext2D;
+				g.imageSmoothingQuality = 'high';
+				g.drawImage(src, 0, 0, out.width, out.height);
+				resolve(out.toDataURL(mime, 0.85));
 			};
 			player.requestSeek(frame);
 		});
@@ -64,10 +73,11 @@ async function boot() {
 			const cx = p.x;
 			const cy = p.y;
 			return {
+				visible: n.absoluteOpacity() > 0.001,
 				name: n.key === 'caption' ? 'caption' : n.key.slice(4), kind: n instanceof Txt ? 'text' : '',
 				x: cx - s.x / 2, y: cy - s.y / 2, w: s.x, h: s.y,
 			};
-		}).filter((b) => b.w > 0 && b.h > 0);
+		}).filter((b) => b.w > 0 && b.h > 0 && b.visible).map(({visible, ...b}) => b);
 	};
 
 	(window as any).studio = {

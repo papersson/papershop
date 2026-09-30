@@ -15,7 +15,7 @@ One engine per video.
   terms before using it for a company.
 - **Motion Canvas** (work). Scenes are generators (`yield*` animations), written against Motion
   Canvas's 2D nodes. Use it where Remotion's licence is a problem, or where a scene is naturally a
-  sequence of tweens. The kit is smaller (below).
+  sequence of tweens. The kit has the same components (below).
 
 ## Motion Canvas scenes
 
@@ -35,11 +35,30 @@ clip's end so the clips tile the video. The context `c` gives:
 Anything Motion Canvas offers is available: import from `@motion-canvas/core` and
 `@motion-canvas/2d` (the engine resolves them for you). `spring(t)` is exported as well.
 
-## What Motion Canvas doesn't have yet
+## The Motion Canvas kit
 
-The map and close-up components, `PixelCanvas` (pixel art), `Shot` (captured assets) and `Footage`
-(edits) exist for Remotion only, so pixel, launch and footage videos use Remotion. A video that
-needs both should pick Remotion. Nothing prevents porting them; each is a small module.
+Everything the Remotion kit has, in generator form. Scenes drive the components from `c.every((t) =>
+...)`, which runs on every frame with the clip time, so each frame is still a pure function of time:
+
+| | Remotion | Motion Canvas |
+|---|---|---|
+| text and boxes in stage units | `Txt`, `Rect` | `c.text`, `c.box` (or any Motion Canvas node) |
+| map, token, ghost card, close-up | `MapView`, `Token`, `GhostCard`, `CloseUp` | `new MapView(c, nodes, edges)` then `map.update({visible, lit})`; `Token`, `GhostCard`, `CloseUp` likewise |
+| pixel art | `PixelCanvas` | `pixelCanvas(c, w, h, palette, draw)` (the drawing helper and bitmap font are one shared file) |
+| captured assets | `Shot` | `shot(c, file, at, h, {aspect, crop})` |
+| footage edits | `Footage` | `footage(c, {aspect, fit})` |
+| easing and springs | `ramp`, `spring`, `track`, `swapAlpha`, `loopT`, `rng` | the same names |
+
+Two things differ. Footage is transcoded once to a seekable WebM proxy (`.cache/mc-footage/`),
+because Chrome's headless builds don't decode H.264; it is cached by modification time and seeks
+frame-exact. And a scene must end at its clip's end: `studioScene` holds its last frame until then,
+counting frames on the thread's `fixed` clock (its `time` is the exact sum of the waits, and drifts
+from the frame count after `waitFor(0.7)`). A project needs one scene per clip in the timeline, so a
+video with a placeholder chapter fails with "no scene number N": add each scene as its chapter is
+written.
+
+Starters exist for motion, pixel, launch and footage (`studio new NAME --genre G --engine
+motion-canvas`), and each passes its genre's checks unchanged.
 
 ## Measured (an 8-core Apple silicon machine)
 

@@ -1,38 +1,17 @@
 // The Motion Canvas engine's scene kit: the same contract as the Remotion kit (a stage of
 // 8 units tall above the caption band, cues from timeline.json), written for generator scenes.
+// Everything is re-exported from here, so a scene imports `@studio-mc` and nothing else.
 import {makeScene2D, Rect, Txt, type Node} from '@motion-canvas/2d';
 import {all, useScene, useThread, waitFor, Vector2, type ThreadGenerator} from '@motion-canvas/core';
 import timeline from '@timeline';
 import layout from '@layout';
+import {BAND, BG, INK, MONO, SANS, band, px, pt, unit, type TimelineJson} from './base';
 
-export type LayoutJson = {width: number; height: number; fps: number; band: {height: number; style: string; font?: number; chars?: number}};
-export type TimelineJson = {
-	fps: number; duration: number; cues: Record<string, number>;
-	tracks: {
-		scene: {id: string; start: number; end: number}[];
-		narration: {id: string; start: number; end: number; words: {w: string; start: number; end: number}[]}[];
-		captions: {start: number; end: number; lines: string[]}[];
-	};
-};
-
-export const BG = '#0F1318';
-export const BAND = '#0A0D11';
-export const INK = '#E6EBF0';
-export const MUTED = '#8C97A4';
-export const ICE = '#8FD3FF';
-export const AMBER = '#F2A93B';
-export const CORAL = '#E4715F';
-export const SANS = 'IBM Plex Sans';
-export const MONO = 'IBM Plex Mono';
-
-const band = layout.band.height;
-export const stageH = layout.height - band;
-/** Pixels per stage unit: the stage is 8 units tall, as in the Remotion engine. */
-export const unit = stageH / 8;
-/** A point in stage units (origin at the stage centre, y up) as a view position in pixels. */
-export const px = (x: number, y: number) => new Vector2(x * unit, -y * unit - band / 2);
-/** A Manim-style font size in pixels (matches the Remotion kit's `pt`). */
-export const pt = (size: number) => (size * unit * 1.82) / 135;
+export * from './base';
+export * from './map';
+export * from './pixel';
+export * from './shot';
+export * from './footage';
 
 export type Ctx = {
 	view: Node;
@@ -46,6 +25,12 @@ export type Ctx = {
 	/** Wait until clip time t (does nothing if it has passed). */
 	until: (t: number) => ThreadGenerator;
 	now: () => number;
+	/** Run `fn(t)` on every frame, t in clip seconds: set node properties from the time, and any frame renders alone. */
+	every: (fn: (t: number) => void) => void;
+	/** A URL for a file in the video's assets/ folder. */
+	asset: (file: string) => string;
+	/** A clip's start on the whole timeline, in seconds (footage segments are placed on it). */
+	start: number;
 	/** A labelled text node at a stage point, reported by `studio boxes`. */
 	text: (s: string, at: [number, number], o?: {size?: number; color?: string; font?: 'mono' | 'sans'; weight?: number; opacity?: number; name?: string}) => Txt;
 	/** A labelled rectangle at a stage point, w and h in stage units. */
@@ -93,7 +78,9 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 			return;
 		}
 		const ctx: Ctx = {
-			view, clip, dur,
+			view, clip, dur, start: me.start,
+			every: () => {},
+			asset: (file) => __STUDIO_ASSETS__ + file,
 			at: (id, off = 0) => sentence(id).start - me.start + off,
 			end: (id, off = 0) => sentence(id).end - me.start + off,
 			word: (id, i, off = 0) => {
@@ -106,9 +93,13 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 				return T.cues[name] - me.start + off;
 			},
 			now: () => useThread().time(),
+			// Whole frames, rounding halves up like the kit and the other engine, so a clip's scene lasts
+			// exactly its timeline frames. A bare `yield` advances one frame, so counting frames is exact
+			// (a thread's `time` is the exact sum of its waits, `fixed` the frame-quantised clock: only `fixed` counts frames).
 			*until(t: number) {
-				const d = t - useThread().time();
-				if (d > 1 / T.fps) yield* waitFor(d);
+				const fps = T.fps;
+				const target = Math.floor(t * fps + 0.5);
+				while (Math.round(useThread().fixed * fps) < target) yield;
 			},
 			text: (s, at, o = {}) => {
 				const n = new Txt({
@@ -127,6 +118,20 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 				return r;
 			},
 		};
+		const ticks: ((t: number) => void)[] = [];
+		ctx.every = (fn) => {
+			ticks.push(fn);
+			fn(useThread().time());
+		};
+		// Runs every registered per-frame update, then lets the frame render: each update is a function of
+		// the clip time, so any frame is the same however it is reached.
+		yield (function* () {
+			for (;;) {
+				const t = useThread().time();
+				for (const f of ticks) f(t);
+				yield;
+			}
+		})();
 		const tasks: ThreadGenerator[] = [
 			(function* () {
 				yield* body(ctx);
@@ -159,14 +164,3 @@ function* captions(view: Node, start: number, end: number, T: TimelineJson): Thr
 	}
 }
 
-/** Manim's smooth easing and closed-form springs, as in the Remotion kit. */
-export function spring(t: number, k = 170, d = 26): number {
-	if (t <= 0) return 0;
-	const w0 = Math.sqrt(k);
-	const z = d / (2 * w0);
-	if (z < 1) {
-		const wd = w0 * Math.sqrt(1 - z * z);
-		return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + ((z * w0) / wd) * Math.sin(wd * t));
-	}
-	return 1 - Math.exp(-w0 * t) * (1 + w0 * t);
-}

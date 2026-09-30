@@ -126,7 +126,9 @@ Vite dev server serves the video's scenes, a headless browser loads a page that 
 own Player and Stage, and the driver seeks to exactly the frames it needs. The kit's checks pass
 unchanged on a Motion Canvas video (length, determinism, bounds, band through the `layers` project
 variable, contrast, legibility, dead beats and the loop seam), and it exports every format. Its scene
-kit is smaller than Remotion's; `references/engines.md` says what is missing.
+kit has the same components as Remotion's (map and close-up, pixel art, captured assets, footage
+edits), driven from a per-frame `c.every`; pixel, launch, footage and motion videos pass their genre
+checks on it.
 
 ## Evals
 
@@ -142,6 +144,5 @@ passed.
 
 | What | Done when |
 |---|---|
-| **Motion Canvas kit parity**: the map and close-up components, `PixelCanvas`, `Shot` and `Footage` for Motion Canvas | a pixel, launch or footage video renders on Motion Canvas and passes its checks |
 | **Notes from real use**: the loop is proven with scripted notes and by the user's use of the review page | a video goes through several rounds of the user's own notes |
 | **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |

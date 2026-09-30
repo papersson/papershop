@@ -20,7 +20,7 @@ from .env import ROOT
 FROM_SKILL = ["bin", "prompts", "kit/src", "kit/pyproject.toml", "kit/uv.lock", "kit/.python-version",
               "engines/remotion/cli.mjs", "engines/remotion/src", "engines/remotion/package.json",
               "engines/remotion/package-lock.json", "engines/remotion/tsconfig.json",
-              "engines/motion-canvas/cli.mjs", "engines/motion-canvas/render.html", "engines/motion-canvas/src",
+              "engines/shared", "engines/motion-canvas/cli.mjs", "engines/motion-canvas/render.html", "engines/motion-canvas/src",
               "engines/motion-canvas/package.json", "engines/motion-canvas/package-lock.json", "engines/motion-canvas/tsconfig.json"]
 FROM_PLUGIN = ["flake.nix", "flake.lock", "shell.nix"]
 GITIGNORE = ".cache/\nkit/.venv/\nengines/*/node_modules/\n__pycache__/\n"

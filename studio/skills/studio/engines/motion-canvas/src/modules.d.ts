@@ -8,3 +8,5 @@ declare module '@layout' {
 	export default layout;
 }
 declare const __STUDIO_PROJECT__: string;
+declare const __STUDIO_ASSETS__: string;
+declare const __STUDIO_FOOTAGE__: string;

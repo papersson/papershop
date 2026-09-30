@@ -8,7 +8,14 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "paths": {"@studio": ["./src/kit/index.ts"]}
+    "paths": {
+      "@studio": [
+        "./src/kit/index.ts"
+      ]
+    }
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "../shared"
+  ]
 }
