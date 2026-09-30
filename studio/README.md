@@ -21,7 +21,7 @@ lock file. Python packages are pinned by `kit/uv.lock`, the engine's by
 `engines/remotion/package-lock.json`. On a new machine:
 
 ```
-skills/studio/bin/studio doctor --fetch --extra kokoro --extra align
+skills/studio/bin/studio doctor --fetch --extra kokoro --extra align   # add --engine motion-canvas if a video uses it
 ```
 
 installs the engine's packages and its headless browser, local narration (Kokoro, with torch) and

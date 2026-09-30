@@ -58,6 +58,7 @@ COMMANDS = {
         A("--fetch", action="store_true", help="install the engines' node packages and headless browser first"),
         A("--net", action="store_true", help="also check the hosts downloads come from"),
         A("--extra", action="append", default=[], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
+        A("--engine", action="append", default=[], choices=["motion-canvas"], help="with --fetch: also install this engine (Remotion always is)"),
     ], "doctor:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),
@@ -67,6 +68,7 @@ COMMANDS = {
         A("--genre", default="explainer", choices=["explainer", "motion", "launch", "pixel", "footage"]),
         A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
+        A("--engine", default="remotion", choices=["remotion", "motion-canvas"], help="which engine renders the scenes"),
     ], "new:main"),
     "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
         A("source"), A("name"), A("--dir"), A("--title"),

@@ -39,6 +39,11 @@ def _hash_tree(h, p, root=None):
         h.update(p.read_bytes())
 
 
+def _engine_of(video):
+    f = Path(video) / "video.json"
+    return json.loads(f.read_text()).get("engine", "remotion") if f.exists() else "remotion"
+
+
 def _hash_listing(h, p):
     p = Path(p)
     if p.is_dir():
@@ -48,7 +53,8 @@ def _hash_listing(h, p):
                 h.update(f"{f.relative_to(p)}:{st.st_size}:{int(st.st_mtime)}".encode())
 
 
-def clip_key(video, timeline, clip_id, quality, engine="remotion", fmt=None):
+def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
+    engine = engine or _engine_of(video)
     video = Path(video)
     clip_ids = {c["id"] for c in timeline["tracks"]["scene"]}
     h = hashlib.sha1(quality.encode())
@@ -93,7 +99,7 @@ def plan(video, timeline, quality, fmt=None):
     cache = Path(video) / ".cache" / "clips"
     rows = []
     for c in timeline["tracks"]["scene"]:
-        key = clip_key(video, timeline, c["id"], quality, c.get("engine", "remotion"), fmt)
+        key = clip_key(video, timeline, c["id"], quality, c.get("engine") or _engine_of(video), fmt)
         f = cache / f"{c['id']}-{quality}-{key}.mp4"
         rows.append((c["id"], key, f if f.exists() else None))
     return rows

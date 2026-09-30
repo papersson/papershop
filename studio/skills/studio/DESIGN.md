@@ -118,10 +118,27 @@ from; pixel art is a fixed grid, a palette and whole-number scaling; footage is 
 with captions from the footage's own transcript. Formats (16:9, 9:16, 1:1) each have their own stage
 and caption band, bundle cache and clip keys, so one timeline exports all of them.
 
+## Engines
+
+Remotion is the default; Motion Canvas is the second, for work (Remotion's licence) and for scenes
+that are naturally tweens. It was written from the packages against the same four operations: a
+Vite dev server serves the video's scenes, a headless browser loads a page that runs Motion Canvas's
+own Player and Stage, and the driver seeks to exactly the frames it needs. The kit's checks pass
+unchanged on a Motion Canvas video (length, determinism, bounds, band through the `layers` project
+variable, contrast, legibility, dead beats and the loop seam), and it exports every format. Its scene
+kit is smaller than Remotion's; `references/engines.md` says what is missing.
+
+## Evals
+
+`evals/` holds eight cases in the plugin eval format (routing for each genre and drive, a negative
+case, revising from notes). The first run cost $4.25 and scored 0.91 overall; the two low runs were
+the sandbox (the agent led with having no shell, and the judge found no plan), which the prompt now
+addresses.
+
 ## Still open
 
 | What | Done when |
 |---|---|
-| **Motion Canvas engine**: the work port (a Playwright driver with no dev server, and its component kit) behind the engine interface | the checks pass unchanged on a Motion Canvas video |
+| **Motion Canvas kit parity**: the map and close-up components, `PixelCanvas`, `Shot` and `Footage` for Motion Canvas | a pixel, launch or footage video renders on Motion Canvas and passes its checks |
 | **Notes from real use**: the loop is proven with scripted notes and by the user's use of the review page | a video goes through several rounds of the user's own notes |
-| **Freezing an old video**: `studio init` pins a video's kit; nothing yet migrates old videos to a newer kit | `studio init --update` on a real video, and its stills compared before and after |
+| **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |

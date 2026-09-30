@@ -37,10 +37,13 @@ def check_tool(name, cmd, minimum=None, level=FAIL, why=""):
     return OK, name, shutil.which(cmd[0]), ""
 
 
+ENGINE_MARKER = {"remotion": "remotion", "motion-canvas": "@motion-canvas/core"}
+
+
 def check_engine(name):
     d = engine_dir(name)
-    if not (d / "node_modules" / "remotion").is_dir():
-        return FAIL, f"engine {name}", "node packages not installed", "studio doctor --fetch"
+    if not (d / "node_modules" / ENGINE_MARKER[name]).is_dir():
+        return FAIL if name == "remotion" else WARN, f"engine {name}", "node packages not installed", f"studio doctor --fetch{'' if name == 'remotion' else ' --engine ' + name}"
     if not (d / "node_modules" / "@fontsource" / "ibm-plex-mono").is_dir():
         return FAIL, f"engine {name}", "bundled fonts missing", "studio doctor --fetch"
     return OK, f"engine {name}", str(d), ""
@@ -76,11 +79,13 @@ def fetch(engines=("remotion",), extras=()):
     any optional Python extras (e.g. `align`). Inexact, so extras installed earlier stay."""
     for name in engines:
         subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=engine_dir(name), check=True)
+        if name != "remotion":
+            continue           # every engine uses the browser Remotion's renderer downloads
         # The headless shell; a blocked download is not fatal, the installed Chrome still works.
         get = subprocess.run(["node", "-e", "import('@remotion/renderer').then(r => r.ensureBrowser())"],
                              cwd=engine_dir(name))
         if get.returncode != 0:
-            print(f"warn: {name}'s headless shell did not download; falling back to an installed Chrome")
+            print("warn: the headless shell did not download; falling back to an installed Chrome")
     if extras:
         cmd = ["uv", "sync", "--quiet", "--frozen", "--inexact", "--project", str(ROOT / "kit")]
         subprocess.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)
@@ -97,6 +102,7 @@ def checks(net=False):
         check_tool("sox", ["sox", "--version"], level=WARN, why=" (needed for the audio finish)"),
         check_tool("uv", ["uv", "--version"]),
         check_engine("remotion"),
+        check_engine("motion-canvas"),
         check_browser(),
     ]
     if net:
@@ -106,7 +112,7 @@ def checks(net=False):
 
 def main(args):
     if args.fetch:
-        fetch(extras=args.extra)
+        fetch(engines=tuple(dict.fromkeys(("remotion", *args.engine))), extras=args.extra)
     rows = checks(net=args.net)
     for level, name, detail, fix in rows:
         print(f"{level:4}  {name:22} {detail}" + (f"\n      fix: {fix}" if fix and level != OK else ""))

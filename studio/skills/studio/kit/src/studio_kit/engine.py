@@ -11,6 +11,7 @@ from pathlib import Path
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
+ENGINES = ("remotion", "motion-canvas")
 LAYERS = ("all", "no-captions", "no-band", "background")
 
 
@@ -19,19 +20,23 @@ class EngineError(RuntimeError):
 
 
 class Engine:
-    def __init__(self, video, name="remotion", fmt=None):
+    def __init__(self, video, name=None, fmt=None):
         self.video = Path(video).resolve()
-        self.name = name
+        self.name = name or self._video_engine()
         self.fmt = fmt
         self.browser, _ = resolve_browser()
+
+    def _video_engine(self):
+        f = self.video / "video.json"
+        return json.loads(f.read_text()).get("engine", "remotion") if f.exists() else "remotion"
 
     def layout(self):
         """The layout this engine renders (the video's, with its format applied)."""
         return tl.layout(self.video, self.fmt)
 
     def _command(self, op, *args):
-        if self.name != "remotion":
-            raise EngineError(f"no engine named {self.name}")
+        if self.name not in ENGINES:
+            raise EngineError(f"no engine named {self.name}; known: {', '.join(ENGINES)}")
         cmd = ["node", str(engine_dir(self.name) / "cli.mjs"), op, "--video", str(self.video), *args]
         if self.browser:
             cmd += ["--browser", self.browser]

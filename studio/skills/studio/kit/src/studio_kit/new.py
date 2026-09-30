@@ -30,14 +30,14 @@ def source_record(path):
     return rec
 
 
-def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None):
+def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion"):
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
-           "drive": drive, "destination": "private-page", "engine": "remotion", "poster": None}
+           "drive": drive, "destination": "private-page", "engine": engine, "poster": None}
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
     if genre == "pixel":
@@ -62,6 +62,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
         (video / "SCRIPT.md").write_text(script)
         scenes = TEMPLATES / "scenes"
+    if engine == "motion-canvas":
+        scenes = TEMPLATES / "motion-canvas" / "scenes"      # generator scenes; the script and timeline are unchanged
     for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)
@@ -73,7 +75,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
 
 
 def main(args):
-    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration)
+    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine)
     print(f"new video at {video}\nlearner model: {learner}")
     return 0
 

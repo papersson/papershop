@@ -59,8 +59,8 @@ Everything runs through `bin/studio` (it enters its own pinned environment; no s
 
 | Command | Does |
 |---|---|
-| `studio doctor [--fetch] [--extra audio\|align\|kokoro] [--net]` | Checks every layer of the environment and prints fixes |
-| `studio new NAME [--genre G] [--dir D] [--title T] [--drive …] [--source REPO] [--duration N]` | A video folder (default `$STUDIO_HOME/NAME`, STUDIO_HOME defaults to `~/studio`). `--duration` starts a narration-less piece (motion, launch) |
+| `studio doctor [--fetch] [--extra audio\|align\|kokoro] [--engine motion-canvas] [--net]` | Checks every layer of the environment and prints fixes |
+| `studio new NAME [--genre G] [--engine remotion\|motion-canvas] [--dir D] [--title T] [--drive …] [--source REPO] [--duration N]` | A video folder (default `$STUDIO_HOME/NAME`, STUDIO_HOME defaults to `~/studio`). `--duration` starts a narration-less piece (motion, launch) |
 | `studio narrate VIDEO [--estimate] [--plan] [--list] [--fetch-only] [--yes]` | Narration from SCRIPT.md into `audio/` and the timeline (with word timings). `--estimate`: timings from word counts, no audio, so scenes can be built before the voice |
 | `studio voice-check VIDEO` · `studio align VIDEO` | Transcribes every sentence and scores it (the audio review, since you can't listen) · word timings by speech recognition |
 | `studio review VIDEO ROUND [--narrative FILE]` | One round of fresh-context reviewers (expert, student, editor) |
@@ -121,6 +121,7 @@ VIDEO/
 - `references/explainer.md`: research, evidence, script, review, narration, look, scenes, cuts, frame review.
 - `references/style.md`: what a finished video looks and sounds like, with the reasons.
 - `references/publishing.md`: the review loop, the page, publishing, revising from notes, re-voicing.
+- `references/engines.md`: Remotion and Motion Canvas (a video picks one in video.json; Remotion is the default).
 - `references/genres/motion.md`, `launch.md`, `pixel.md`, `footage.md`: the other genres.
 - `prompts/build_agent.md`, `prompts/frame_review.md`, `prompts/reviewers/`: prompts for fresh contexts.
 - `DESIGN.md`: why the studio is shaped this way, and what is designed but not built.
