@@ -89,7 +89,7 @@ def notes_text(video, cut=None):
     lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else ", round not sent")]
     for i, x in enumerate(notes, 1):
         m, s = divmod(x["t"], 60)
-        lines.append(f"{i}. [{int(m)}:{s:04.1f} {x['sentence_id']} {x['kind']}] {x['note'] or '(here)'}")
+        lines.append(f"{i}. [{int(m)}:{s:04.1f} {x['sentence_id'] or x['clip']} {x['kind']}] {x['note'] or '(here)'}")
         lines.append(f"   on screen: {x['sentence']}")
     return "\n".join(lines)
 

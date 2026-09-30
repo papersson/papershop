@@ -123,7 +123,12 @@ def composite(video, timeline, clip_files, out):
         f.unlink()
 
 
+NO_NARRATION_STEP = 1.5          # seconds between stills of a clip that has no narration
+
+
 def still_requests(timeline, outdir, clips=None):
+    """One still near the end of every sentence, and, for a clip with no narration (a motion piece,
+    a product film), one every NO_NARRATION_STEP seconds, so the review page always has frames to browse."""
     reqs = []
     for s in timeline["tracks"]["narration"]:
         if clips and s["clip"] not in clips:
@@ -132,6 +137,16 @@ def still_requests(timeline, outdir, clips=None):
         t = max(s["start"], s["end"] - STILL_BEFORE_END) - c["start"]
         reqs.append({"id": s["id"], "clip": s["clip"], "t": round(t, 3), "out": str(outdir / f"{s['id']}.jpg"),
                      "scale": STILL_SCALE, "caption": s["caption"], "at": round(s["start"], 3)})
+    narrated = {s["clip"] for s in timeline["tracks"]["narration"]}
+    for c in timeline["tracks"]["scene"]:
+        if c["id"] in narrated or (clips and c["id"] not in clips):
+            continue
+        dur = c["end"] - c["start"]
+        for i in range(max(3, int(dur / NO_NARRATION_STEP))):
+            local = min(dur - 1 / timeline["fps"], (i + 0.5) * dur / max(3, int(dur / NO_NARRATION_STEP)))
+            sid = f"{c['id']}_t{i + 1:02d}"
+            reqs.append({"id": sid, "clip": c["id"], "t": round(local, 3), "out": str(outdir / f"{sid}.jpg"),
+                         "scale": STILL_SCALE, "caption": f"{c['start'] + local:.1f} s", "at": round(c["start"] + local, 3)})
     return reqs
 
 

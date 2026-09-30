@@ -163,7 +163,8 @@ function clock(t) { var m = Math.floor(t / 60), s = Math.floor(t - 60 * m); retu
 function sentenceAt(t) {
   var cur = null, prev = null;
   S.narration.forEach(function (s) { if (s.start <= t + 0.001) { prev = cur; cur = s; } });
-  return {cur: cur || S.narration[0], prev: cur ? prev : null};
+  // A video with no narration has no sentence to quote: the note carries its time and chapter only.
+  return {cur: cur || S.narration[0] || {id: null, caption: '(no narration in this video)'}, prev: cur ? prev : null};
 }
 function chapterAt(t) {
   var c = S.chapters[0];

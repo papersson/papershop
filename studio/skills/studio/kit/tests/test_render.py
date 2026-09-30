@@ -84,3 +84,12 @@ def test_changing_data_rerenders_every_clip(tmp_path):
     (tmp_path / "data" / "runs.json").write_text('{"n": 2}')
     after = keys(tmp_path, t)
     assert all(after[c] != before[c] for c in before)
+
+
+def test_clips_without_narration_get_stills_at_even_intervals(tmp_path):
+    t = make_video(tmp_path)
+    t["tracks"]["narration"] = [s for s in t["tracks"]["narration"] if s["clip"] == "s1"]
+    reqs = render.still_requests(t, tmp_path)
+    s2 = [r for r in reqs if r["clip"] == "s2"]
+    assert [r["id"] for r in s2] == ["s2_t01", "s2_t02", "s2_t03"]
+    assert all(0 <= r["t"] < 2.0 for r in s2) and [r["id"] for r in reqs if r["clip"] == "s1"] == ["s1_01"]
