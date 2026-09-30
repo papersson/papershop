@@ -83,15 +83,26 @@ shell: a full Chrome in headless mode rendered at about 18 frames a second, the 
 An installed Chrome is the fallback behind a proxy that blocks the download. `studio doctor` checks
 every layer and prints the fix.
 
+## Measured
+
+On an 8-core Apple silicon machine, with "Charged Twice" (4:35, seven chapters) rebuilt in Remotion:
+a frame after editing a scene, including the rebundle, 1.6 s; one chapter at draft quality after an
+edit, 13.5 s; the next cut after editing one chapter, 24.8 s; a full draft cut from nothing, 2:05;
+21 of 21 sampled frames identical across two renders. The narration port reproduced the tutor's
+ElevenLabs build of "From LLM to Agent" to the millisecond (125 sentences), and its voice check gave
+the same result.
+
 ## Designed, not built
 
-- **Genres beyond the explainer**: motion graphics (reference-driven, springs, beat grid), launch
-  videos (real captured UI only), pixel art (fixed grid, palette limits), and footage editing (a
-  paper edit from the transcript). Each is a genre file naming its engines and checks.
-- **Engines beyond Remotion**: Motion Canvas (a working port exists from a work project) and ffmpeg
-  for footage. The engine interface (still, render, boxes, duration) is the contract they implement.
-- **Kit copies per project**: videos run on the installed plugin; pinning a kit copy per project,
-  as the tutor did, would guarantee an old video renders identically after a plugin update.
-- **Checks through the interface**: the band pixel check, caption contrast and alignment from
-  `boxes`; today the frame review and the craft critique cover them.
-- **Map and close-up components** in the engine kit, and a sound lab with synthesised effects.
+Each item has the check that would prove it done.
+
+| Next | What | Done when |
+|---|---|---|
+| **Genres** | a genre file each, naming its engines and checks: **motion** (a named reference or style guide, something new every 2–4 s, closed-form springs, one shape that never cuts; checks for phone readability, dead beats, the loop seam), **launch** (hook in 2 s, the product assembling itself, three features as real UI moments, one number, a CTA; captured screenshots and brand assets only; every format from one timeline), **pixel** (a fixed logical grid scaled by an integer, a palette limit, nearest-neighbour scaling; checks for grid alignment and palette), **footage** (a paper edit from the transcript, then overlays; checks for jump cuts, filler words, sync, levels) | one short video per genre through at least one note round |
+| **Assets** | capture (Playwright screenshots and recordings), generation (image and video models, a video model's output as a base layer drawn over in code), provenance rows for both | a launch video uses only captured assets with provenance, and exports 16:9 and 9:16 from one timeline |
+| **Checks** | the band pixel check (a no-captions render against a background-only render), caption contrast against the brightest pixel under the band, alignment from `boxes`, the audio finish (48 kHz via soxr, one fixed gain to −16 LUFS, a true-peak limiter), and a sound lab for choosing effects | the idempotency video passes them, and an element moved into the band fails |
+| **Motion Canvas** | the work port (a Playwright driver with no dev server, and its component kit) behind the engine interface | the checks pass unchanged on a Motion Canvas video |
+| **Kit copies** | `studio init` copies the kit and flake into a project, so an old video renders identically after a plugin update | a video pinned to an older kit rebuilds byte-identical after an update |
+| **Map and close-up components** | the map, close-up camera with minimap, token and ghost card, in the engine kit | a new explainer's look cut uses them |
+| **Audience variants** | a derived video with the same evidence, assets and look, and its own learner and vocabulary | a stakeholder cut built without rerunning any sim |
+| **Evals** | `evals/evals.json` run with the plugin eval tooling, per drive and genre | the suite runs, and a deliberately broken router fails it |
