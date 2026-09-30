@@ -17,6 +17,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import audio
 from . import timeline as tl
 from .engine import Engine
 from .env import engine_dir
@@ -91,17 +92,17 @@ def _ffmpeg(*args):
 
 
 def composite(video, timeline, clip_files, out):
-    """Concatenate the clips' videos (identical encodes, so no re-encode) and mux the narration."""
-    video = Path(video)
+    """Concatenate the clips' videos (identical encodes, so no re-encode) and mux the mixed soundtrack."""
     lst = out.with_suffix(".txt")
     lst.write_text("".join(f"file '{f.resolve()}'\n" for f in clip_files))
     silent = out.with_name("silent.mp4")
     _ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", silent)
-    audio = video / timeline["tracks"]["audio"][0]["file"]
-    _ffmpeg("-i", silent, "-i", audio, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac",
-            "-b:a", "160k", "-t", f"{timeline['duration']:.3f}", "-movflags", "+faststart", out)
-    lst.unlink()
-    silent.unlink()
+    sound = out.with_name("sound.m4a")
+    audio.mix(video, timeline, sound)
+    _ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
+            "-movflags", "+faststart", out)
+    for f in (lst, silent, sound):
+        f.unlink()
 
 
 def still_requests(timeline, outdir, clips=None):

@@ -171,3 +171,13 @@ def serve(video, port=8765, host="127.0.0.1"):
 
 
 PAGE = (Path(__file__).parent / "page.html").read_text(encoding="utf-8")
+
+
+def main_serve(args):
+    serve(args.video, args.port)
+    return 0
+
+
+def main_notes(args):
+    print(notes_text(args.video, args.cut))
+    return 0

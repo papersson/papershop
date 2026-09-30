@@ -12,7 +12,8 @@ import {ClipContext} from './time';
 import {BAND, BG, INK, SANS} from './theme';
 import type {Layout, Timeline} from './types';
 
-export type Layers = 'all' | 'no-captions' | 'background';
+// all; no-captions (band, no caption text); no-band (the scene alone, no band); background (nothing but the background).
+export type Layers = 'all' | 'no-captions' | 'no-band' | 'background';
 
 const FONTS = ['400 20px "IBM Plex Sans"', '500 20px "IBM Plex Sans"', '600 20px "IBM Plex Sans"',
 	'400 20px "IBM Plex Mono"', '500 20px "IBM Plex Mono"'];
@@ -42,9 +43,9 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 	useLayoutEffect(() => {
 		if (!reportBoxes || !ready || !root.current) return;
 		const origin = root.current.getBoundingClientRect();
-		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box]')].map((el) => {
+		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box],[data-caption]')].map((el) => {
 			const r = el.getBoundingClientRect();
-			return {name: el.dataset.box, x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height};
+			return {name: el.dataset.box ?? 'caption', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height};
 		});
 		console.log('STUDIO_BOXES ' + JSON.stringify({band: {y: stageH, h: l.band.height}, boxes}));
 	}, [reportBoxes, ready, frame, stageH, l.band.height]);
@@ -57,7 +58,9 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 					</ClipContext.Provider>
 				</StageContext.Provider>
 			)}
-			<CaptionBand top={stageH} height={l.band.height} time={first / fps + frame / fps} show={ready && layers === 'all'} />
+			{layers !== 'no-band' && layers !== 'background' && (
+				<CaptionBand top={stageH} height={l.band.height} time={first / fps + frame / fps} show={ready && layers === 'all'} />
+			)}
 		</AbsoluteFill>
 	);
 };

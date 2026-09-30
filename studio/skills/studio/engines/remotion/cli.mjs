@@ -5,9 +5,11 @@
 //   node cli.mjs stills   --video DIR --requests JSON        [{clip, t, out, layers?, scale?}], one browser
 //   node cli.mjs render   --video DIR --clip ID --out MP4 [--quality draft|final] [--range A B]
 //   node cli.mjs boxes    --video DIR --clip ID --t SEC
+//   node cli.mjs boxesAt  --video DIR --requests JSON        [{clip, t}], one browser
 //   node cli.mjs duration --video DIR --clip ID
 //
-// Layers: all (default), no-captions (the caption band stays, its text goes), background (no scene).
+// Layers: all (default), no-captions (the band stays, its text goes), no-band (the scene alone),
+// background (nothing but the background).
 // The bundle is cached per content hash of the engine source, the video's scenes, timeline and
 // layout, so a still after an edit costs one incremental bundle plus one frame.
 import {bundle} from '@remotion/bundler';
@@ -130,20 +132,36 @@ async function stills(video, requests) {
 	return {bundleCached: cached, stills: done};
 }
 
-async function boxes(video, clip, t) {
+async function boxesAt(video, requests) {
 	const {serveUrl} = await getBundle(video);
 	const inputProps = {layers: 'all', reportBoxes: true};
-	const comp = await composition(serveUrl, clip, inputProps);
-	let found = null;
-	await renderStill({
-		composition: comp, serveUrl, frame: frameAt(comp, t), inputProps, overwrite: true,
-		output: path.join(tmpdir(), `studio-boxes-${process.pid}.png`), logLevel: 'error', ...browserOptions(),
-		onBrowserLog: (l) => {
-			if (l.text.startsWith('STUDIO_BOXES ')) found = JSON.parse(l.text.slice('STUDIO_BOXES '.length));
-		},
-	});
-	if (!found) throw new Error('the frame reported no boxes');
-	return {clip, t: Number(t), boxes: found};
+	const browser = await openBrowser('chrome', browserOptions());
+	const comps = {};
+	const frames = [];
+	try {
+		for (const r of requests) {
+			comps[r.clip] ??= await composition(serveUrl, r.clip, inputProps, browser);
+			let found = null;
+			await renderStill({
+				composition: comps[r.clip], serveUrl, frame: frameAt(comps[r.clip], r.t), inputProps, overwrite: true,
+				output: path.join(tmpdir(), `studio-boxes-${process.pid}.png`), logLevel: 'error',
+				puppeteerInstance: browser, ...browserOptions(),
+				onBrowserLog: (l) => {
+					if (l.text.startsWith('STUDIO_BOXES ')) found = JSON.parse(l.text.slice('STUDIO_BOXES '.length));
+				},
+			});
+			if (!found) throw new Error(`the frame at ${r.clip} t=${r.t} reported no boxes`);
+			frames.push({clip: r.clip, t: Number(r.t), band: found.band, boxes: found.boxes});
+		}
+	} finally {
+		await browser.close({silent: true});
+	}
+	return {frames};
+}
+
+async function boxes(video, clip, t) {
+	const {frames} = await boxesAt(video, [{clip, t}]);
+	return {clip, t: Number(t), boxes: {band: frames[0].band, boxes: frames[0].boxes}};
 }
 
 async function render(video, clip, out, quality, range) {
@@ -175,6 +193,7 @@ const ops = {
 	stills: () => stills(opt.video, JSON.parse(readFileSync(opt.requests, 'utf8'))),
 	render: () => render(opt.video, opt.clip, opt.out, opt.quality, opt.range),
 	boxes: () => boxes(opt.video, opt.clip, opt.t),
+	boxesAt: () => boxesAt(opt.video, JSON.parse(readFileSync(opt.requests, 'utf8'))),
 	duration: () => duration(opt.video, opt.clip),
 	bundle: () => getBundle(opt.video),
 };

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .env import engine_dir, resolve_browser
 
-LAYERS = ("all", "no-captions", "background")
+LAYERS = ("all", "no-captions", "no-band", "background")
 
 
 class EngineError(RuntimeError):
@@ -57,6 +57,15 @@ class Engine:
         if range_:
             args += ["--range", range_[0], range_[1]]
         return self._call("render", *args)
+
+    def boxes_at(self, requests):
+        """Boxes for many frames in one browser session: [{clip, t}] -> [{clip, t, band, boxes}]."""
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(requests, f)
+        try:
+            return self._call("boxesAt", "--requests", f.name)["frames"]
+        finally:
+            Path(f.name).unlink(missing_ok=True)
 
     def boxes(self, clip, t):
         """Pixel boxes of every labelled element at clip time t, and the caption band's position."""

@@ -28,13 +28,13 @@ def source_record(path):
     return rec
 
 
-def create(name, directory=None, title=None, drive="author", source=None):
+def create(name, directory=None, title=None, drive="author", source=None, genre="explainer"):
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     (video / "research").mkdir(exist_ok=True)
-    cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": "explainer",
+    cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": "remotion", "poster": None}
     if source:
         cfg["source"] = source_record(source)
@@ -54,6 +54,6 @@ def create(name, directory=None, title=None, drive="author", source=None):
 
 
 def main(args):
-    video, learner = create(args.name, args.dir, args.title, args.drive, args.source)
+    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre)
     print(f"new video at {video}\nlearner model: {learner}")
     return 0

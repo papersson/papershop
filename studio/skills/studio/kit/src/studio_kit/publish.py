@@ -16,7 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from . import render
+from . import audio, render
 from . import timeline as tl
 
 WEB_CRF = 27
@@ -52,6 +52,8 @@ def build(video):
     video = Path(video).resolve()
     cfg = json.loads((video / "video.json").read_text()) if (video / "video.json").exists() else {}
     t = tl.load(video)
+    finish = audio.finish(video)
+    print(f"audio: {finish['lufs']:.1f} LUFS, true peak {finish['true_peak_dbtp']:.1f} dBTP")
     rec = final_cut(video)
     src = render.cuts_dir(video) / f"cut{rec['cut']}" / rec["video"]
     out, page = video / "out", video / "out" / "page"
