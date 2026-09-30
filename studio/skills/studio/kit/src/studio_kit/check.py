@@ -28,11 +28,14 @@ SLACK = 1.0                              # px of tolerance on box edges
 
 
 def sample_times(t, per_clip):
-    """[{clip, t}]: `per_clip` moments per clip, each near the end of a sentence spread over the clip."""
+    """[{clip, t}]: `per_clip` moments per clip, each near the end of a sentence spread over the clip
+    (evenly spread when the clip has no narration)."""
     out = []
     for c in t["tracks"]["scene"]:
         sents = [s for s in t["tracks"]["narration"] if s["clip"] == c["id"]]
-        if not sents:
+        if not sents:      # no narration (a motion piece, a product film): spread the moments evenly
+            dur = c["end"] - c["start"]
+            out += [{"clip": c["id"], "t": round(dur * (i + 1) / (per_clip + 1), 3)} for i in range(per_clip)]
             continue
         picks = sorted({sents[min(len(sents) - 1, round(i * (len(sents) - 1) / max(1, per_clip - 1)))]["id"]
                         for i in range(per_clip)})
@@ -165,24 +168,35 @@ def band_pixels_check(video, samples=3, engine=None):
 
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
+MORE = "legible (text at least 18 px tall), provenance (assets used are recorded), dead and loop (motion)"
+
+
+def config(video):
+    f = Path(video) / "video.json"
+    return json.loads(f.read_text()) if f.exists() else {}
 
 
 def genre(video):
-    f = Path(video) / "video.json"
-    return json.loads(f.read_text()).get("genre", "explainer") if f.exists() else "explainer"
+    return config(video).get("genre", "explainer")
 
 
 def run(video, samples=3, only=None, engine=None, fmt=None):
-    extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments")}.get(genre(video), ())
-    only = set(only or CHECKS + extra)
+    default = only is None
+    extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
+             "motion": ("dead",), "launch": ()}.get(genre(video), ())
+    always = ("legible",) + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    only = set(only or CHECKS + extra + always)
     engine = engine or Engine(video, fmt=fmt)
     rows = []
     if "length" in only:
         rows += length(video, engine)
     if "determinism" in only:
         rows += determinism(video, samples, engine)
-    if only & {"bounds", "band"}:
+    if only & {"bounds", "band", "legible"}:
         boxes = _boxes(video, samples, engine)
+        if "legible" in only:
+            from . import motion
+            rows += motion.legible(video, samples, engine, boxes)
         if "bounds" in only:
             rows += bounds(video, samples, engine, boxes)
         if "band" in only:
@@ -193,6 +207,15 @@ def run(video, samples=3, only=None, engine=None, fmt=None):
     if genre(video) == "footage" and only & {"filler", "cuts", "levels", "sync", "segments"}:
         from . import footage
         rows += [r for r in footage.checks(video) if r["check"] in only]
+    if "dead" in only:
+        from . import motion
+        rows += motion.dead_beats(video, engine=engine)
+    if "loop" in only or (default and config(video).get("loop")):
+        from . import motion
+        rows += motion.loop_seam(video, engine)
+    if "provenance" in only:
+        from . import motion
+        rows += motion.provenance(video)
     if only & {"grid", "palette"}:
         from . import pixel
         rows += [r for r in pixel.run(video, samples, engine) if r["check"] in only]

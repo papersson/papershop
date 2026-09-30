@@ -45,7 +45,7 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 		const origin = root.current.getBoundingClientRect();
 		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box],[data-caption]')].map((el) => {
 			const r = el.getBoundingClientRect();
-			return {name: el.dataset.box ?? 'caption', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height};
+			return {name: el.dataset.box ?? 'caption', kind: el.dataset.kind ?? '', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height};
 		});
 		console.log('STUDIO_BOXES ' + JSON.stringify({band: {y: stageH, h: l.band.height}, boxes}));
 	}, [reportBoxes, ready, frame, stageH, l.band.height]);

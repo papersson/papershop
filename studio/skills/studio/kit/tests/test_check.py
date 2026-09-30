@@ -56,3 +56,11 @@ def test_tile_joins_images_into_one_sheet(tmp_path):
     w, h = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", str(out)],
                           capture_output=True, text=True).stdout.strip().split("x")
     assert int(w) == 4 * 80 + 3 * 4 and int(h) == 2 * 45 + 1 * 4       # 4 columns, 2 rows, 4 px between
+
+
+def test_a_clip_without_narration_is_still_sampled(tmp_path):
+    t = make_video(tmp_path)
+    t["tracks"]["narration"] = []
+    times = check.sample_times(t, 3)
+    assert [r["clip"] for r in times] == ["s1"] * 3 + ["s2"] * 3
+    assert times[0]["t"] == 0.5 and times[2]["t"] == 1.5           # a 2 s clip: quarter points

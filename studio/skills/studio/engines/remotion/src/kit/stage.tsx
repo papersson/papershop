@@ -38,6 +38,7 @@ export const Txt: React.FC<{
 	return (
 		<div
 			data-box={name ?? String(children)}
+			data-kind="text"
 			style={{
 				position: 'absolute', left, top, whiteSpace: 'pre', color, opacity, lineHeight: 1,
 				fontFamily: font === 'mono' ? MONO : SANS, fontSize: pt(s, size), fontWeight: weight,

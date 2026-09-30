@@ -66,6 +66,7 @@ COMMANDS = {
         A("--drive", default="author", choices=["author", "learner"]),
         A("--genre", default="explainer", choices=["explainer", "motion", "launch", "pixel", "footage"]),
         A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
+        A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
     ], "new:main"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         A("video"),

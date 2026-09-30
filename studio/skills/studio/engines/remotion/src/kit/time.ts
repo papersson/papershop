@@ -110,3 +110,34 @@ export class Beats {
 		return this.play(d);
 	}
 }
+
+/**
+ * A value that changes target several times: keys are [time, value] sorted by time, and each change
+ * adds one spring starting at its own time, so the motion stays continuous and any frame still
+ * renders alone (no simulating frames 0..n-1).
+ */
+export function track(t: number, keys: [number, number][], k = 170, d = 26): number {
+	let v = keys[0][1];
+	for (let i = 1; i < keys.length; i++) v += (keys[i][1] - keys[i - 1][1]) * spring(t - keys[i][0], k, d);
+	return v;
+}
+
+/** Text inside a morphing container: in just after the morph starts, out just before the next one. */
+export function swapAlpha(t: number, tIn: number, tOut: number): number {
+	const clamp = (x: number) => Math.min(1, Math.max(0, x));
+	return Math.min(clamp((t - tIn - 0.08) / 0.12), clamp((tOut - 0.1 - t) / 0.1));
+}
+
+/** Wrap time so a piece loops seamlessly: pin the last frame's state to the first's. */
+export const loopT = (t: number, dur: number) => ((t % dur) + dur) % dur;
+
+/** Seeded noise (mulberry32), never Math.random: a render must be identical every run. */
+export function rng(seed: number): () => number {
+	return () => {
+		seed |= 0;
+		seed = (seed + 0x6d2b79f5) | 0;
+		let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
