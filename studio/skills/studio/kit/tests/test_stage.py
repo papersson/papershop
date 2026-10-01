@@ -16,7 +16,7 @@ def test_marks_report_the_previous_stage_and_the_budget(tmp_path):
     stage.mark(v, "research", now=0)
     lines = stage.mark(v, "script", now=600)
     assert lines[0] == "research: 10m00s"
-    assert "10m00s into the first cut (budget 1h00m)" in lines[1]
+    assert "10m00s into the first cut (budget 20m00s)" in lines[1]
     assert not any("OVER BUDGET" in ln for ln in lines)
 
 
@@ -31,9 +31,15 @@ def test_a_revision_round_has_its_own_budget(tmp_path):
     v = video(tmp_path)
     stage.mark(v, "research", now=0)
     stage.mark(v, "round", now=3 * 3600)
-    lines = stage.mark(v, "cut", now=3 * 3600 + 11 * 60)
-    assert "into this revision round (budget 10m00s)" in lines[1]
+    lines = stage.mark(v, "cut", now=3 * 3600 + 6 * 60)
+    assert "into this revision round (budget 5m00s)" in lines[1]
     assert any("OVER BUDGET by 1m00s" in ln for ln in lines)
+
+
+def test_a_deep_dive_has_the_longer_budget(tmp_path):
+    (tmp_path / "video.json").write_text(json.dumps({"level": "deep-dive"}))
+    stage.mark(tmp_path, "research", now=0)
+    assert "(budget 1h00m)" in stage.mark(tmp_path, "script", now=60)[1]
 
 
 def test_report_shares_add_up(tmp_path):

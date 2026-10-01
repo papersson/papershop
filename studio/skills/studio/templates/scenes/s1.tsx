@@ -1,20 +1,18 @@
 import React from 'react';
-import {Beats, Chapter, Chip, ICE, INK, Rect, TRAY_EDGE, TRAY_FILL, Txt, ramp, useClip} from '@studio';
+import {Box, Card, Chapter, Chip, Link, span, ramp, useClip} from '@studio';
 
 // Chapter 1. Every value derives from `t`; sentence times come from the timeline: at('01') is
-// when sentence s1_01 starts. Beats sequences animations like a list of play() calls.
+// when sentence s1_01 starts. The building blocks (Box, Card, Link, Panel, Term, Stack, span, lin)
+// come from the kit; a chapter should be mostly layout and timing.
 export const S1: React.FC = () => {
 	const {t, at} = useClip();
-	const b = new Beats();
-	const chipIn = b.at(at('01'), 0.4);
-	const boxIn = b.play(0.6);
+	const idea = span(t, at, '01');
 	return (
 		<Chapter>
-			<Chip text="{{Chapter title}}" opacity={ramp(t, chipIn, 0.4)} />
-			<Rect at={[0, 0]} w={4} h={1.2} radius={0.12} stroke={TRAY_EDGE} strokeWidth={2.5} fill={TRAY_FILL}
-				opacity={ramp(t, boxIn, 0.6)} name="the thing" />
-			<Txt at={[0, 0]} size={24} color={INK} opacity={ramp(t, boxIn, 0.6)}>{'{{the thing}}'}</Txt>
-			<Txt at={[0, -1.2]} size={18} color={ICE} opacity={ramp(t, boxIn + 0.6, 0.4)}>a label, not a caption</Txt>
+			<Chip text="{{Chapter title}}" opacity={ramp(t, at('01'), 0.4)} />
+			<Box at={[-3, 0.5]} w={3.6} text="{{the thing}}" lit={ramp(t, at('01', 1), 0.4)} opacity={idea} />
+			<Link from={[-1.1, 0.5]} to={[1.1, 0.5]} opacity={idea} progress={ramp(t, at('01', 1.5), 0.6)} />
+			<Card at={[3.6, 0.5]} w={5.2} lines={['{{a label, not a caption}}']} opacity={idea} />
 		</Chapter>
 	);
 };

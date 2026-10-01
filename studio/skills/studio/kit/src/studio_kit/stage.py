@@ -13,7 +13,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-DEFAULT_BUDGET = {"first_cut": 60, "round": 10}   # minutes
+DEFAULT_BUDGET = {"first_cut": 20, "round": 5}    # minutes, for the default "intro" level
+LEVEL_BUDGET = {"intro": DEFAULT_BUDGET, "deep-dive": {"first_cut": 60, "round": 10}}
 ROUND_STAGES = {"round", "revision"}              # a mark named like this starts a revision round
 
 
@@ -31,7 +32,7 @@ def read(video):
 def budget(video):
     f = Path(video) / "video.json"
     cfg = json.loads(f.read_text()) if f.exists() else {}
-    return {**DEFAULT_BUDGET, **cfg.get("budget", {})}
+    return {**LEVEL_BUDGET.get(cfg.get("level", "intro"), DEFAULT_BUDGET), **cfg.get("budget", {})}
 
 
 def fmt(seconds):

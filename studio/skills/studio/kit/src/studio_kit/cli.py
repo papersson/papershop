@@ -69,6 +69,8 @@ COMMANDS = {
         A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
         A("--engine", default="remotion", choices=["remotion", "motion-canvas"], help="which engine renders the scenes"),
+        A("--level", default="intro", choices=["intro", "deep-dive"],
+          help="intro: an undergrad explainer, 3-4 big ideas, about five minutes (default); deep-dive: evidence-heavy"),
     ], "new:main"),
     "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
         A("source"), A("name"), A("--dir"), A("--title"),

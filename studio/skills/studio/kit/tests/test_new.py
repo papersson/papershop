@@ -11,6 +11,7 @@ def test_new_video_is_ready_for_a_script_and_an_estimate(tmp_path, monkeypatch):
     assert video == tmp_path / "home" / "retry-safety" and learner.exists()
     cfg = json.loads((video / "video.json").read_text())
     assert cfg["title"] == "Retry safety" and cfg["source"]["path"] == str(tmp_path.resolve())
+    assert cfg["level"] == "intro" and cfg["budget"] == {"first_cut": 20, "round": 5}
     (video / "SCRIPT.md").write_text((video / "SCRIPT.md").read_text().replace(
         "> {{Narration paragraph", "> Retries can charge twice. {{Narration paragraph"))
     assert script.load(video)[0][0] == "s1"

@@ -30,7 +30,14 @@ def source_record(path):
     return rec
 
 
-def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion"):
+# How deep a video goes. "intro" (the default) is an undergrad explainer: 3-4 big ideas, a toy
+# example, about five minutes, one-shot planning; "deep-dive" is the older, evidence-heavy build.
+# A search video built the deep way was "a barrage of details" to its learner (references/levels.md).
+LEVEL_BUDGETS = {"intro": {"first_cut": 20, "round": 5}, "deep-dive": {"first_cut": 60, "round": 10}}
+
+
+def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
+           level="intro"):
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
@@ -38,7 +45,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
-           "budget": {"first_cut": 60, "round": 10}}     # minutes; `studio stage` reports against it
+           "level": level, "budget": dict(LEVEL_BUDGETS[level])}     # minutes; `studio stage` reports against it
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
     if genre == "pixel":
@@ -78,7 +85,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
 
 
 def main(args):
-    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine)
+    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine,
+                            getattr(args, "level", "intro"))
     print(f"new video at {video}\nlearner model: {learner}")
     return 0
 

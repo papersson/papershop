@@ -7,3 +7,4 @@ export * from './map';
 export * from './shot';
 export * from './pixel';
 export * from './footage';
+export * from './blocks';
