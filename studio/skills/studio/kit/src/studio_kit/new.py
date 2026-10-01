@@ -37,7 +37,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
-           "drive": drive, "destination": "private-page", "engine": engine, "poster": None}
+           "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
+           "budget": {"first_cut": 60, "round": 10}}     # minutes; `studio stage` reports against it
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
     if genre == "pixel":

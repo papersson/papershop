@@ -113,6 +113,9 @@ COMMANDS = {
     "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into the timeline", [A("video"), A("file")], "beats:main"),
     "sfx": ("synthesised effects from a cues file, on the timeline", [A("video"), A("cues", help="JSON list of {t, type, gain}")], "sfx:main"),
     "sound-lab": ("a page to choose effect candidates by listening", [A("video")], "sfx:main_lab"),
+    "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [
+        A("video"), A("name", nargs="?"), A("--report", action="store_true"),
+    ], "stage:main"),
     "review": ("one round of fresh-context reviewers on SCRIPT.md or a narrative", [
         A("video"), A("round", type=int),
         A("--narrative", help="review this narrative file instead of the script"),

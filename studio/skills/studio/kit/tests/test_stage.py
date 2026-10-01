@@ -1,0 +1,45 @@
+import json
+
+from studio_kit import stage
+
+
+def video(tmp_path, budget=None):
+    cfg = {"title": "t"}
+    if budget:
+        cfg["budget"] = budget
+    (tmp_path / "video.json").write_text(json.dumps(cfg))
+    return tmp_path
+
+
+def test_marks_report_the_previous_stage_and_the_budget(tmp_path):
+    v = video(tmp_path)
+    stage.mark(v, "research", now=0)
+    lines = stage.mark(v, "script", now=600)
+    assert lines[0] == "research: 10m00s"
+    assert "10m00s into the first cut (budget 1h00m)" in lines[1]
+    assert not any("OVER BUDGET" in ln for ln in lines)
+
+
+def test_over_budget_says_so(tmp_path):
+    v = video(tmp_path, {"first_cut": 30})
+    stage.mark(v, "research", now=0)
+    lines = stage.mark(v, "scenes", now=31 * 60)
+    assert any(ln.startswith("OVER BUDGET by 1m00s") for ln in lines)
+
+
+def test_a_revision_round_has_its_own_budget(tmp_path):
+    v = video(tmp_path)
+    stage.mark(v, "research", now=0)
+    stage.mark(v, "round", now=3 * 3600)
+    lines = stage.mark(v, "cut", now=3 * 3600 + 11 * 60)
+    assert "into this revision round (budget 10m00s)" in lines[1]
+    assert any("OVER BUDGET by 1m00s" in ln for ln in lines)
+
+
+def test_report_shares_add_up(tmp_path):
+    v = video(tmp_path)
+    for name, t in [("research", 0), ("script", 300), ("scenes", 900)]:
+        stage.mark(v, name, now=t)
+    rows = stage.report(v, now=1200)
+    assert rows[0].startswith("research") and "5m00s" in rows[0]
+    assert rows[-1].startswith("total") and "20m00s" in rows[-1]

@@ -27,7 +27,9 @@ from .script import sections
 
 PROMPTS = ROOT / "prompts" / "reviewers"
 ROLES = ("expert", "student", "editor")
-DEFAULT_MAX_ROUNDS = {"full": 6, "economy": 2}
+# Rounds are the slowest loop in a build (one search video spent six rounds reaching the gate), so
+# the default is two rounds plus one more for an expert's blocking finding; "thorough" restores six.
+DEFAULT_MAX_ROUNDS = {"thorough": 6, "default": 3, "economy": 2}
 
 
 def video_config(video):
@@ -142,7 +144,8 @@ def run_reviewer(text, runner=None):
 def main(args, runner=None):
     video = Path(args.video).resolve()
     cfg = video_config(video)
-    cap = cfg.get("max_rounds", DEFAULT_MAX_ROUNDS["economy" if cfg.get("economy") else "full"])
+    pace = "thorough" if cfg.get("thorough") else "economy" if cfg.get("economy") else "default"
+    cap = cfg.get("max_rounds", DEFAULT_MAX_ROUNDS[pace])
     if not args.narrative and args.round > cap:
         raise SystemExit(f"round {args.round} is past max_rounds ({cap}): lock the script with every open finding "
                          "logged, or ask the learner to raise the cap")

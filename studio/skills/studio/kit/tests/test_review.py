@@ -43,6 +43,7 @@ Status: revised, before review round 2
 
 
 def make(tmp_path, cfg=None):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "SCRIPT.md").write_text(SCRIPT)
     (tmp_path / "learner.md").write_text("# L\n\n## Background\n\nA backend developer.\n")
     (tmp_path / "video.json").write_text(json.dumps({"learner": "learner.md", **(cfg or {})}))
@@ -92,3 +93,10 @@ def test_a_round_writes_reviews_and_verdicts(tmp_path, capsys):
     review.main(args(tmp_path, 2), runner=lambda t, cwd: subprocess.CompletedProcess([], 0, "ok\nVERDICT: PASS\n", ""))
     assert (tmp_path / "research" / "reviews" / "round02_expert.md").read_text().endswith("VERDICT: PASS\n")
     assert "VERDICT: PASS" in capsys.readouterr().out
+
+
+def test_the_default_cap_is_three_rounds_and_thorough_restores_six(tmp_path):
+    with pytest.raises(SystemExit, match=r"past max_rounds \(3\)"):
+        review.main(args(make(tmp_path / "a"), 4))
+    with pytest.raises(SystemExit, match=r"past max_rounds \(6\)"):
+        review.main(args(make(tmp_path / "b", {"thorough": True}), 7))
