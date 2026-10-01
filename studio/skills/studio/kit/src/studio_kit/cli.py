@@ -86,6 +86,7 @@ COMMANDS = {
     "voice-check": ("transcribe every sentence and score it against the script", [
         A("video"), A("--model", default="small.en"),
         A("--below", type=float, default=0.8, help="flag sentences scoring under this"),
+        A("--all", action="store_true", help="transcribe every sentence again, ignoring the cache"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [A("video"), A("--model", default="small.en")], "align:main"),
     "capture": ("a screenshot of a page into assets/, recorded with its source", [

@@ -4,13 +4,16 @@
   phone.png         a sample of the whole video at 360 px wide, how it reads on a phone
   strip_CLIP_T.png  with --strip CLIP T: 12 consecutive frames around T, to catch pops and overlaps
   crops/            full-resolution crops of every small label (under --below px tall), with
-                    crops/index.json giving each one's sentence, text and rendered size at 1080p
+                    crops/index.json giving each one's sentences, text and rendered size at 1080p;
+                    a label that looks the same in several sentences of a chapter is cropped once,
+                    and unchanged frames reuse their crops (.cache/crops/)
 
 A downscaled sheet misjudges text: four frame reviews reported "labels are 15-18 px" from sheets
 when the labels measured 26 px. The crops and their sizes are what the frame review judges from.
 """
 import json
 import math
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -88,39 +91,87 @@ def strip(video, out, clip, t0, engine=None, frames=12, width=320):
     return path
 
 
+def _crop_all(src, boxes, outdir, names):
+    """Every crop of one frame in a single ffmpeg call (one process per frame, not per label)."""
+    if not boxes:
+        return
+    split = f"[0:v]split={len(boxes)}" + "".join(f"[s{i}]" for i in range(len(boxes)))
+    chains = [f"[s{i}]crop={w}:{h}:{x}:{y}[o{i}]" for i, (x, y, w, h) in enumerate(boxes)]
+    cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", ";".join([split, *chains])]
+    for i, name in enumerate(names):
+        cmd += ["-map", f"[o{i}]", str(outdir / name)]
+    subprocess.run(cmd, check=True)
+
+
 def crops(video, out, below=40, ids=None, engine=None):
-    """Full-resolution crops of small labels, and their measured sizes."""
+    """Full-resolution crops of small labels, and their measured sizes.
+
+    Incremental and deduplicated: a frame whose clip key and frame number are unchanged reuses its
+    crops from .cache/crops/, and a label that looks the same (same text and size) in several
+    sentences of a chapter is cropped once, with every sentence it appears in listed in the index.
+    """
     engine, t = engine or Engine(video), tl.load(video)
+    video = Path(video)
     out = Path(out) / "crops"
     out.mkdir(parents=True, exist_ok=True)
+    cache = video / ".cache" / "crops"
+    cache.mkdir(parents=True, exist_ok=True)
+    keys = {c["id"]: render.clip_key(video, t, c["id"], "crops") for c in t["tracks"]["scene"]}
     reqs = []
     for s in t["tracks"]["narration"]:
         if ids and s["id"] not in ids:
             continue
         c = tl.clip(t, s["clip"])
-        reqs.append({"clip": s["clip"], "t": round(max(s["start"], s["end"] - 0.15) - c["start"], 3), "id": s["id"],
-                     "text": s["caption"]})
-    frames = engine.boxes_at([{"clip": r["clip"], "t": r["t"]} for r in reqs])
-    full = [{"clip": r["clip"], "t": r["t"], "out": str(out / f"_{r['id']}.png")} for r in reqs]
-    engine.stills(full)
-    index = []
-    for r, f in zip(reqs, frames):
-        n = 0
-        for b in f["boxes"]:
-            if b["name"] in ("caption", "rect") or b["name"].startswith(("node ", "lane ", "step ")) or b["h"] >= below or b["w"] < 4:
-                continue
-            n += 1
-            name = f"{r['id']}_{n:02d}.png"
-            pad = 6
-            x, y = max(0, int(b["x"]) - pad), max(0, int(b["y"]) - pad)
-            w, h = int(b["w"]) + 2 * pad, int(b["h"]) + 2 * pad
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(out / f"_{r['id']}.png"), "-vf",
-                            f"crop={w}:{h}:{x}:{y}", str(out / name)], check=True)
-            index.append({"file": name, "sentence": r["id"], "text": b["name"], "height_px": round(b["h"], 1),
-                          "width_px": round(b["w"], 1)})
+        at = round(max(s["start"], s["end"] - 0.15) - c["start"], 3)
+        key = f"{s['clip']}-{keys[s['clip']]}-{tl.half_up(at * t['fps'])}"
+        reqs.append({"clip": s["clip"], "t": at, "id": s["id"], "key": key})
+    todo = [r for r in reqs if not (cache / r["key"] / "boxes.json").exists()]
+    if todo:
+        frames = engine.boxes_at([{"clip": r["clip"], "t": r["t"], "out": str(cache / r["key"] / "frame.png")}
+                                  for r in todo] if engine.boxes_keep_frames else
+                                 [{"clip": r["clip"], "t": r["t"]} for r in todo])
+        if not engine.boxes_keep_frames:
+            engine.stills([{"clip": r["clip"], "t": r["t"], "out": str(cache / r["key"] / "frame.png")} for r in todo])
+        for r, f in zip(todo, frames):
+            d = cache / r["key"]
+            d.mkdir(exist_ok=True)
+            kept = []
+            for b in f["boxes"]:
+                if b["name"] in ("caption", "rect") or b["name"].startswith(("node ", "lane ", "step ")) or b["h"] >= below or b["w"] < 4:
+                    continue
+                pad = 6
+                kept.append({"text": b["name"], "height_px": round(b["h"], 1), "width_px": round(b["w"], 1),
+                             "box": [max(0, int(b["x"]) - pad), max(0, int(b["y"]) - pad), int(b["w"]) + 2 * pad, int(b["h"]) + 2 * pad]})
+            # identical labels within the frame (the same text and size twice) are cropped once
+            uniq = list({(k["text"], k["height_px"], k["width_px"]): k for k in kept}.values())
+            _crop_all(d / "frame.png", [(x, y, w, h) for x, y, w, h in (k["box"] for k in uniq)], d,
+                      [f"{i + 1:02d}.png" for i in range(len(uniq))])
+            (d / "frame.png").unlink(missing_ok=True)
+            (d / "boxes.json").write_text(json.dumps([{**k, "file": f"{i + 1:02d}.png"} for i, k in enumerate(uniq)]))
+    wanted = {r["key"] for r in reqs}
+    if not ids:
+        for old in cache.iterdir():
+            if old.name not in wanted:
+                shutil.rmtree(old, ignore_errors=True)
+    for old in out.glob("*.png"):
+        old.unlink()
+    index, seen = [], {}
     for r in reqs:
-        (out / f"_{r['id']}.png").unlink(missing_ok=True)
+        for k in json.loads((cache / r["key"] / "boxes.json").read_text()):
+            same = (r["clip"], k["text"], k["height_px"], k["width_px"])
+            if same in seen:                       # already cropped from an earlier sentence of this chapter
+                seen[same]["sentences"].append(r["id"])
+                continue
+            name = f"{r['id']}_{k['file']}"
+            shutil.copyfile(cache / r["key"] / k["file"], out / name)
+            entry = {"file": name, "sentence": r["id"], "sentences": [r["id"]], "text": k["text"],
+                     "height_px": k["height_px"], "width_px": k["width_px"]}
+            seen[same] = entry
+            index.append(entry)
     (out / "index.json").write_text(json.dumps(index, indent=1, ensure_ascii=False) + "\n")
+    made = len(todo)
+    print(f"crops: {made} frames measured, {len(reqs) - made} unchanged (reused); "
+          f"{len(index)} distinct labels")
     return index
 
 

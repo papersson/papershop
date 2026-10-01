@@ -6,8 +6,14 @@ out on both sides first. Writes audio/voice_check.txt: one line per sentence wit
 and what was heard, then the sentences under the threshold. A low score usually means a clipped or
 garbled word, a mispronounced term (add a "spoken" respelling to narration.json), or the
 recogniser's own spelling of a name: read what was heard before re-rendering anything.
+
+Incremental: what was heard is cached per sentence (audio/voice_check_cache.json), keyed by the
+sentence's audio samples, its spoken text and the model, so after an edit only the sentences whose
+audio changed are transcribed again. --all ignores the cache.
 """
 import difflib
+import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -42,20 +48,33 @@ def main(args):
     if not wav.exists():
         raise SystemExit("no audio/narration.wav: run `studio narrate` first (the mp3 is too lossy to judge)")
     audio, sr = sf.read(wav, dtype="float32")
-    model = WhisperModel(args.model, device="cpu", compute_type="int8")
+    cache_file = video / "audio" / "voice_check_cache.json"
+    cache = {} if getattr(args, "all", False) or not cache_file.exists() else json.loads(cache_file.read_text())
+    model = None
     pad = np.zeros(int(0.3 * sr), dtype=np.float32)
-    rows, low = [], []
+    rows, low, fresh, heard_now = [], [], 0, {}
     for s in t["tracks"]["narration"]:
-        clip = np.concatenate([pad, audio[int(s["start"] * sr): int(s["end"] * sr)], pad])
-        if sr != 16000:
-            clip = np.interp(np.arange(0, len(clip), sr / 16000), np.arange(len(clip)), clip).astype(np.float32)
-        parts, _ = model.transcribe(clip, language="en", beam_size=5, condition_on_previous_text=False)
-        heard = " ".join(p.text.strip() for p in parts)
+        samples = audio[round(s["start"] * sr): round(s["end"] * sr)]   # as narrate placed it
+        key = hashlib.sha1(samples.tobytes() + s["text"].encode() + args.model.encode()).hexdigest()
+        if key in cache:
+            heard = cache[key]
+        else:
+            if model is None:
+                model = WhisperModel(args.model, device="cpu", compute_type="int8")
+            clip = np.concatenate([pad, samples, pad])
+            if sr != 16000:
+                clip = np.interp(np.arange(0, len(clip), sr / 16000), np.arange(len(clip)), clip).astype(np.float32)
+            parts, _ = model.transcribe(clip, language="en", beam_size=5, condition_on_previous_text=False)
+            heard = " ".join(p.text.strip() for p in parts)
+            fresh += 1
+        heard_now[key] = heard
         sc = score(s["text"], heard)
         rows.append(f"{s['id']} {sc:.2f}  heard: {heard}")
         if sc < args.below:
             low.append(f"{s['id']} {sc:.2f}")
         print(rows[-1])
+    cache_file.write_text(json.dumps(heard_now, indent=0))
+    print(f"transcribed {fresh}, unchanged {len(rows) - fresh} (cached)")
     summary = f"{len(rows)} sentences; under {args.below}: " + (", ".join(low) if low else "none")
     (video / "audio" / "voice_check.txt").write_text("\n".join(rows + ["", summary]) + "\n")
     print(summary)
