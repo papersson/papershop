@@ -68,6 +68,16 @@ phone-shaped frame gets larger, shorter caption lines). Check each format first
 (`studio check VIDEO --format 9:16`): text and images that fit a landscape stage often leave a
 portrait one.
 
+## Disk
+
+Each cut folder holds a draft video and its stills (20–40 MB for a long video), so `studio cut` keeps
+only the newest 3 (`"keep_cuts": N` in video.json), plus the cut of the latest notes round. After a
+video is published, or when space runs short, `studio clean VIDEO --dry-run` lists what can be
+regenerated and its size, and `studio clean VIDEO` removes it (old cuts, caches for older versions,
+narration chunks the script no longer uses, sheets, the web copy and the loudness pass). It never
+touches the script, scenes, data, research, the narration audio, the latest cut, out/master.mp4 or
+out/page. On the 25-minute benchmark video it freed 407 MB of 841 MB.
+
 ## Versions
 
 video.json's `version` names the page's note set. Keep it across minor revisions and put the minor

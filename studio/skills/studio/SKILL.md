@@ -75,6 +75,7 @@ Everything runs through `bin/studio` (it enters its own pinned environment; no s
 | `studio audio VIDEO [--lufs -16] [--peak -1.5]` | The audio finish: 48 kHz, one fixed gain to the target loudness, a limiter for the peaks; run by `publish` |
 | `studio export VIDEO [--formats 16:9,9:16,1:1] [--lufs -14]` | The whole video in several formats from one timeline, into `out/export/` |
 | `studio publish VIDEO` | Final cut (changed chapters only), `out/master.mp4` (1080p), a web encode that fits the Artifact upload limit, poster, and `out/page/` |
+| `studio clean VIDEO [--dry-run]` | Removes what can be regenerated: cuts beyond the newest 3 (`keep_cuts` in video.json; `studio cut` prunes these itself), narration chunks the script no longer uses, stale clip, web, still and crop caches, old bundles and sound mixes, out/sheets, out/web.mp4, audio/final.wav. Never the script, scenes, data, sims, research, narration.json, timeline.json, the narration audio, the ElevenLabs cache, the latest cut, out/master.mp4 or out/page. Prints the bytes freed |
 | `studio capture URL VIDEO` · `studio asset add\|list VIDEO [FILE]` | A page screenshot into `assets/` · files added or listed, each with its source in `assets/provenance.json` |
 | `studio beats VIDEO TRACK` · `studio sfx VIDEO CUES` · `studio sound-lab VIDEO` | A beat grid from music · synthesised effects on beat or cue names · a page to choose effects by ear |
 | `studio ingest FILE VIDEO` · `studio edit VIDEO EDL` | A recording's transcript, shots and paper edit · the timeline from an edit list |

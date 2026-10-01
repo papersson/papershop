@@ -138,6 +138,9 @@ COMMANDS = {
         A("--quality", default="final", choices=["draft", "final"]),
         A("--lufs", type=float, help="finish the audio to this loudness first (-14 for social)"),
     ], "render:main_export"),
+    "clean": ("remove what the studio can regenerate (old cuts, stale caches, sheets) and print what it freed", [
+        A("video"), A("--dry-run", action="store_true", help="only print what would be removed"),
+    ], "clean:main"),
     "check": ("length, determinism, bounds, band and contrast checks", [
         A("video"), A("--samples", type=int, default=3, help="moments per clip"),
         A("--only", help="comma-separated: length,determinism,bounds,band,contrast (pixel videos: grid,palette)"),

@@ -253,6 +253,10 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     if prev:
         _keep_befores(video, prev_n, d, record)
     (d / "cut.json").write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
+    from .clean import keep_cuts, prune_cuts
+    freed = prune_cuts(video)
+    if freed:
+        log(f"old cuts removed (keeping the newest {keep_cuts(video)}): {freed / 1e6:.0f} MB freed")
     return record
 
 

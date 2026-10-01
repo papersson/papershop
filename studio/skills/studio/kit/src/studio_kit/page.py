@@ -74,7 +74,9 @@ def state(video, cut=None):
     if vj.exists():
         title = json.loads(vj.read_text()).get("title", title)
     return {
-        "title": title, "latest": latest, "cuts": list(range(1, latest + 1)), "cut": record,
+        "title": title, "latest": latest, "cut": record,
+        "cuts": sorted(int(p.name[3:]) for p in render.cuts_dir(video).glob("cut*")
+                       if p.name[3:].isdigit() and (p / "cut.json").exists()),
         "narration": [{k: s[k] for k in ("id", "clip", "start", "end", "caption")} for s in t["tracks"]["narration"]],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in t["tracks"]["scene"]],
         "notes": notes, "rounds": rounds,
