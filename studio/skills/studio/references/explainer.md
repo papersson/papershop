@@ -1,5 +1,10 @@
 # The explainer: from an approved narrative to a locked video
 
+At the intro level (the default), read `references/levels.md` first: it replaces the research,
+review and frame-review stages below with one-shot planning, a self-check and a look at the
+stills, and caps numbers and length. The stages below are the deep-dive build; their rules about
+evidence, narration, the look, scenes and cuts hold at every level.
+
 This is the procedure for an explainer, whoever builds it (you in author drive, a background agent
 in learner drive). It records what earlier builds got wrong; keep the reasons when you change a
 step. The narrative is approved (`propose.md`) before this starts, and its chain, charter and
@@ -50,8 +55,9 @@ would be better as an exercise separately instead of adding it to the video.
 
 ## Stage 3: Evidence
 
-- Every number spoken or shown comes from a run in this environment, a simulation written for this
-  video, or a cited source. Typical published values are labelled as typical.
+- Show a number only when it makes an idea land; what you measured is not a reason to show it (an
+  intro video has a budget of two or three; `references/levels.md`). Every number spoken or shown
+  comes from a run in this environment, a simulation written for this video, or a cited source. Typical published values are labelled as typical.
 - Measure what the script compares, both quantities when it contrasts two.
 - A number that depends on the setup is spoken as the setup's number, never as a general law.
 - Choose the demonstration's parameters so the arithmetic the narration states is exact; fix the

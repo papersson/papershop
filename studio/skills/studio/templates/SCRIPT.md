@@ -4,6 +4,8 @@ Status: draft, before review round 1
 
 ## Argument
 
+- **Big ideas.** {{three or four, one sentence each: what the viewer can explain afterwards. Every line of the script serves one of them (references/levels.md)}}
+- **Toy example.** {{the handful of things on screen from the first chapter to the last}}
 - **Audience.** {{who, and what they already know: the student reviewer plays this person}}
 - **Question.** {{the specific question the opening raises}}
 - **Answer.** {{how the ending answers it, with the opening's own evidence}}

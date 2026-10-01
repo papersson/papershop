@@ -1,5 +1,10 @@
 # The narrative stage
 
+At the intro level (the default; `references/levels.md`) most of this page collapses: show the
+user the 3–4 big ideas and the toy example, plan in one pass, and self-check; no research passes
+for a canonical topic and no narrative reviews. What follows is the deep-dive path, and the parts
+that hold at every level (the narrative document, Cut on purpose, Vocabulary, Decisions).
+
 The narrative is the bottleneck. A build with a weak narrative produces a polished video of the
 wrong argument, and nothing downstream (reviewers, animation, voice) can fix it; a build with a
 strong one mostly renders it. So the narrative is settled, in the open, before any script is

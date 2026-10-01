@@ -35,7 +35,7 @@ answer each round with the next cut. Two things decide the result:
    capped, independent work runs in parallel, a rough cut comes early, and every stage is marked
    with `studio stage` so time over budget is seen and cut, not discovered afterwards.
 
-## Before anything: three choices
+## Before anything: four choices
 
 Ask, or infer from the request, and record them in `video.json`:
 
@@ -44,6 +44,7 @@ Ask, or infer from the request, and record them in `video.json`:
 | **Drive** | `author`: the user knows the subject (they may want it for others) · `learner`: the user is learning it and has to trust you | Author: the user's notes are the review, so no reviewer rounds by default. Learner: fresh-context research, one narrative the user approves with its risk flags, capped script reviews, evidence. Read `references/propose.md`. Only explainers have a learner drive; the other genres are directed by the user |
 | **Genre** | `explainer` · `motion` · `launch` · `pixel` · `footage` | The story structure, look defaults, engine and checks: `references/explainer.md` for a narrated explanation; `references/genres/<genre>.md` for the others. Ask which the user means if it isn't clear: "an explainer", "a motion reel", "a launch video for this product", "pixel art", "cut this recording" |
 | **Destination** | `private-page` (default) · `share` · `social` · `files` | Where it goes: `references/publishing.md`. `social` exports 9:16, 1:1 and 16:9 at -14 LUFS |
+| **Level** | `intro` (default) · `deep-dive` | How deep it goes: `references/levels.md`. Intro: an undergrad explainer, 3–4 big ideas, a toy example, two or three numbers, about five minutes, planned in one pass with a self-check instead of reviewer rounds, a first cut in about 20 minutes. Deep-dive: research, measured evidence on real data, reviewer rounds, a fresh frame review. Default to intro unless the user asks for depth; `studio new --level` |
 
 Ask one plain question for the drive ("Do you know this well, or are you learning it?").
 **Pace.** The default is fast: the user approves the narrative, script reviews stop at 3 rounds
@@ -61,7 +62,7 @@ finish the stage with what is open logged and tell the user where the time went.
 | Mode | When | What you do |
 |---|---|---|
 | **setup** | first use on a machine, or a command fails with an environment error | `bin/studio doctor` (add `--fetch`, and `--extra kokoro` for local narration, `--extra align` for the voice check). It prints the fix for each failure |
-| **propose** | a new video | `studio new NAME [--genre G] [--source REPO] [--drive …] [--duration N]`. Explainer: `references/propose.md`, ending with an approved `research/narrative.md`; when the video explains a repo or knowledge base, that folder is the primary source: explore it first (delegate wide reads), and cite files in the Evidence table. Other genres: the brief in `references/genres/<genre>.md` (a state list, a storyboard, an edit list), shown as stills or a paper edit before building |
+| **propose** | a new video | `studio new NAME [--genre G] [--source REPO] [--drive …] [--level intro\|deep-dive] [--duration N]`. Explainer at the intro level: the big ideas and the toy example, approved by the user, then one-shot planning (`references/levels.md`). Explainer at the deep-dive level: `references/propose.md`, ending with an approved `research/narrative.md`; when the video explains a repo or knowledge base, that folder is the primary source: explore it first (delegate wide reads), and cite files in the Evidence table. Other genres: the brief in `references/genres/<genre>.md` (a state list, a storyboard, an edit list), shown as stills or a paper edit before building |
 | **build** | the narrative or brief is approved | Explainer, author drive: build it yourself, in the open, per `references/explainer.md`, showing stills before animation. Explainer, learner drive: spawn one background agent with `prompts/build_agent.md` (the context that shaped the narrative is what the script reviewers must not see), and relay its report. Either way, once the shared scene helpers exist, write the chapters' scenes in parallel (subagents, a few chapters each, each owning its own `sN.tsx`). Other genres: build it yourself per its genre file |
 | **loop** | a cut exists | `references/publishing.md`, "The review loop": serve the cut, wait for a round, answer it with the next cut |
 | **publish** | the user locks the video | `studio publish VIDEO`, then the Artifact tool (`references/publishing.md`) |
@@ -118,14 +119,14 @@ VIDEO/
 
 ## Gates you don't skip
 
-- **The narrative** is approved by the user before any script, in both drives (learner: shown with its risk flags; it takes them minutes). Only when the user has said to go ahead without them does a narrative review round stand in for their approval.
+- **The narrative** (at the intro level: the big ideas and the toy example) is approved by the user before any script, in both drives (learner: shown with its risk flags; it takes them minutes). Only when the user has said to go ahead without them does a narrative review round stand in for their approval.
 - **The look**: a stills-only cut, and the user's pick, before scenes are animated.
-- **Script lock** (learner drive): expert PASS + editor PASS + the student's retelling answers the opening question, or the round cap (3 by default) with every open finding logged. Rules in `references/explainer.md`.
+- **Script lock** (learner drive, deep-dive; at the intro level the one-shot self-check in `references/levels.md` replaces it): expert PASS + editor PASS + the student's retelling answers the opening question, or the round cap (3 by default) with every open finding logged. Rules in `references/explainer.md`.
 - **Pronunciation and voice check** before the first animated cut: every finding in
   `audio/pronunciation.txt` resolved (a phoneme, a respelling, or accepted as it is), then read what
   was heard for every sentence under 0.8.
 - **Checks**: `studio check` passes before a cut goes to the user, and `studio sheets` and the craft critique (explainer.md Stage 8; motion.md for the scored loop) have been run on what changed.
-- **Frame review** before publishing (`prompts/frame_review.md`, fresh context). Verify each finding against a full-resolution still. The first publish reviews every chapter; a re-publish after a revision round reviews the chapters the round changed (the cut's `changed` list) and their neighbours.
+- **Frame review** before publishing a deep-dive or a video going to other people (`prompts/frame_review.md`, fresh context); at the intro level, look at a handful of the cut's stills yourself instead. Verify each finding against a full-resolution still. The first publish reviews every chapter; a re-publish after a revision round reviews the chapters the round changed (the cut's `changed` list) and their neighbours.
 - **Evidence**: a number on screen without a row in the Evidence table is a bug.
 
 ## Standing rules
