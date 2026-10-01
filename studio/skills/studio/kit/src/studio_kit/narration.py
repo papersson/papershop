@@ -24,6 +24,12 @@ narration.json also holds:
   holds         {"s2_07": 1.0}   extra silence after a sentence, where the picture needs time
   spoken        [["BM25", "B M twenty-five"]]   written form -> spoken form, everywhere
   spoken_by_id  {"s3_02": [["x", "y"]]}   ... for one sentence only
+                Both match whole words, case-sensitively, so a rule for "A" leaves "All" alone.
+  phonemes      {"JSON": "ʤˈAsᵊn"}   a word's exact pronunciation, in Kokoro's phoneme alphabet
+                (misaki), everywhere; the captions and the timeline keep the written word
+  phonemes_by_id {"s6_17": {"A": "ˈA"}}   ... for one sentence only: the way to say a capital
+                letter that names something ("A reads one"), since Kokoro reads a lone "A" as the
+                article. Kokoro only; ElevenLabs ignores them and `studio narrate` says so.
   tail          seconds of silence after the last sentence, for the end card (default 6)
 """
 import base64
@@ -47,6 +53,11 @@ CHUNK_WORDS = 90     # longest run of sentences sent in one call
 ASK_ABOVE = 2000     # ElevenLabs characters that need --yes
 
 
+def whole_word(word):
+    """A pattern for `word` that doesn't match inside a longer word (letters, digits, underscore)."""
+    return re.compile(rf"(?<![\w]){re.escape(word)}(?![\w])")
+
+
 class Settings:
     def __init__(self, video, config=None):
         self.video = Path(video).resolve()
@@ -65,11 +76,23 @@ class Settings:
         self.holds = cfg.get("holds", {})
         self.spoken_pairs = [tuple(p) for p in cfg.get("spoken", [])]
         self.spoken_by_id = {k: [tuple(p) for p in v] for k, v in cfg.get("spoken_by_id", {}).items()}
+        self.phonemes = cfg.get("phonemes", {})
+        self.phonemes_by_id = cfg.get("phonemes_by_id", {})
         self.audio = self.video / "audio"
 
     def spoken(self, text, lid=None):
         for written, said in self.spoken_pairs + self.spoken_by_id.get(lid, []):
-            text = text.replace(written, said)
+            text = whole_word(written).sub(said, text)
+        return text
+
+    def phonemes_for(self, lid=None):
+        return {**self.phonemes, **self.phonemes_by_id.get(lid, {})}
+
+    def marked(self, text, lid=None):
+        """The spoken text with phoneme overrides as Kokoro's markup, `[A](/ˈA/)`. Kokoro reports the
+        plain text back as its graphemes, so word offsets still index the unmarked text."""
+        for word, ph in self.phonemes_for(lid).items():
+            text = whole_word(word).sub(lambda m: f"[{m.group(0)}](/{ph}/)", text)
         return text
 
     def voice_info(self):
@@ -194,15 +217,16 @@ def kokoro_engine(S):
     cache = S.video / ".cache" / "narration"
     pipe = None
 
-    def synth(full, _prev, _next):
+    def synth(full, _prev, _next, marked=None):
         nonlocal pipe
-        key = kokoro_key(S, full)
+        marked = marked or full
+        key = kokoro_key(S, marked)
         wav, meta = cache / f"{key}.npy", cache / f"{key}.json"
         if wav.exists() and meta.exists():
             return np.load(wav), [tuple(w) for w in json.loads(meta.read_text())]
         pipe = pipe or kokoro_pipeline()
         audio, words, pos = [], [], 0
-        for part in pipe(full, voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None):
+        for part in pipe(marked, voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None):
             at = full.find(part.graphemes, pos)
             assert at >= 0, (part.graphemes, full)
             off, c = sum(len(x) for x in audio) / RATE, at
@@ -319,8 +343,9 @@ def paragraph_clips(S, synth, chunks):
     for chunk, prev, nxt in chunks:
         texts = [t for _, t, _ in chunk]
         full = " ".join(texts)
+        marked = " ".join(S.marked(t, lid) for lid, t, _ in chunk)
         begins = [sum(len(t) + 1 for t in texts[:i]) for i in range(len(texts))]
-        audio, words = synth(full, prev, nxt)
+        audio, words = synth(full, prev, nxt, marked) if marked != full else synth(full, prev, nxt)
         runs = silence_runs(audio, RATE)
         firsts = [next(w for w in words if w[0] >= b) for b in begins]
         starts = []
@@ -357,7 +382,7 @@ def sentence_clips(S, sents):
     pipe = kokoro_pipeline()
     clips, phonemes = {}, {}
     for key, cap in sents:
-        parts = list(pipe(S.spoken(cap, key), voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None))
+        parts = list(pipe(S.marked(S.spoken(cap, key), key), voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None))
         audio = np.concatenate([p.audio.numpy() for p in parts])
         nz = np.flatnonzero(np.abs(audio) > 0.01)   # trim Kokoro's own silence
         clips[key] = audio[max(nz[0] - 240, 0): nz[-1] + 480]
@@ -385,12 +410,17 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     S.audio.mkdir(exist_ok=True)
     chapters = sc.load(S.video)
     sents = [(lid, cap) for _, _, ss in chapters for lid, cap, _ in ss]
+    from . import pronounce
+    pronounce.report(S, chapters)
     if estimate:
         timings = layout(S, chapters, {k: len(c.split()) / 2.8 + 0.3 for k, c in sents})
         write_timeline(S, timings)
         print(f"estimated total {timings['total']:.1f}s (no audio; scenes can be timed against it)")
         return timings
     chunks = all_chunks(S, chapters)
+    if S.engine == "elevenlabs" and (S.phonemes or S.phonemes_by_id):
+        print("note: phoneme overrides are Kokoro-only; ElevenLabs speaks those words as written "
+              "(give them a text respelling under \"spoken\" instead)")
     if fetch_only:
         if S.engine != "elevenlabs":
             raise SystemExit("--fetch-only is for the elevenlabs engine")
@@ -439,7 +469,8 @@ def plan(video, config=None):
         if S.engine == "elevenlabs":
             cached = eleven_request(S, full, prev, nxt)[1].exists()
         else:
-            cached = (S.video / ".cache" / "narration" / f"{kokoro_key(S, full)}.npy").exists()
+            marked = " ".join(S.marked(t, lid) for lid, t, _ in chunk)
+            cached = (S.video / ".cache" / "narration" / f"{kokoro_key(S, marked)}.npy").exists()
         if not cached:
             todo.append((chunk, full))
     return S, chunks, todo

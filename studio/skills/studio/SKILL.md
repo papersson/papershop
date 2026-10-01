@@ -84,7 +84,7 @@ Everything runs through `bin/studio` (it enters its own pinned environment; no s
 VIDEO/
   video.json        title, version, genre, drive, destination, engine, poster, source, learner, economy, loop, pixel
   SCRIPT.md         Argument · Chain · Format · Ledgers · Script · Evidence · Review log
-  narration.json    engine, voice, holds, spoken respellings
+  narration.json    engine, voice, holds, spoken respellings, phoneme overrides
   research/         research reports, narrative.md, reviews/, frame_review/, annotations_vN.txt
   sims/  data/      every run behind every number on screen
   scenes/           index.ts + s1.tsx … (one component per chapter) + shared files
@@ -103,7 +103,9 @@ VIDEO/
 - **The narrative** is approved by the user before any script (author: they approve it; learner: after reviewers, with risk flags).
 - **The look**: a stills-only cut, and the user's pick, before scenes are animated.
 - **Script lock** (learner drive): expert PASS + editor PASS + the student's retelling answers the opening question. Rules in `references/explainer.md`.
-- **Voice check** before the first animated cut: read what was heard for every sentence under 0.8.
+- **Pronunciation and voice check** before the first animated cut: every finding in
+  `audio/pronunciation.txt` resolved (a phoneme, a respelling, or accepted as it is), then read what
+  was heard for every sentence under 0.8.
 - **Checks**: `studio check` passes before a cut goes to the user, and `studio sheets` and the craft critique (explainer.md Stage 8; motion.md for the scored loop) have been run on what changed.
 - **Frame review** before publishing (`prompts/frame_review.md`, fresh context). Verify each finding against a full-resolution still.
 - **Evidence**: a number on screen without a row in the Evidence table is a bug.

@@ -1,3 +1,4 @@
+import pytest
 import json
 
 import numpy as np
@@ -102,3 +103,40 @@ def test_voice_check_spells_numbers_before_comparing():
     from studio_kit.voice_check import score
     assert score("It took 18 doublings in 2023.", "it took eighteen doublings in twenty twenty-three") > 0.95
     assert score("It took 18 doublings.", "it took doublings") < 0.8      # a dropped word is flagged
+
+
+def test_spoken_respellings_match_whole_words_only(tmp_path):
+    S = nr.Settings(video(tmp_path, {"spoken": [["A", "Ay"], ["rr", "R R"]]}))
+    assert S.spoken("All of A, and rr's error", "s1_01") == "All of Ay, and R R's error"
+
+
+def test_phoneme_overrides_mark_kokoro_input_only(tmp_path):
+    S = nr.Settings(video(tmp_path, {"phonemes": {"JSON": "ʤˈAsᵊn"}, "phonemes_by_id": {"s1_02": {"A": "ˈA"}}}))
+    assert S.marked("A JSON reply", "s1_01") == "A [JSON](/ʤˈAsᵊn/) reply"
+    assert S.marked("A reads All", "s1_02") == "[A](/ˈA/) reads All"
+    seen = []
+
+    def synth(full, prev, nxt, marked=None):
+        seen.append((full, marked))
+        return tone_and_silence([(0.2, False), (1.0, True), (0.2, False)]), [(0, 0.2, 0.6), (2, 0.6, 1.2)]
+
+    nr.paragraph_clips(S, synth, [([("s1_02", "A reads.", 0)], "", "")])
+    assert seen == [("A reads.", "[A](/ˈA/) reads.")]
+
+
+def test_pronunciation_lint_flags_a_lone_letter_read_as_the_article(tmp_path):
+    pytest.importorskip("misaki")
+    from studio_kit import pronounce
+
+    (tmp_path / "SCRIPT.md").write_text("# T\n\n## Script\n\n### 1. One\n\n> A reads one. Then B writes. A unit test passes.\n"
+                                        "> Encode it as JSON with rr, keyed by id.\n\n## Evidence\n")
+    S = nr.Settings(tmp_path)
+    found = pronounce.find(S, sc.load(tmp_path))
+    kinds = {(k, lid, w) for k, lid, w, _, _ in found}
+    assert ("letter", "s1_01", "A") in kinds and ("letter", "s1_03", "A") in kinds   # the author decides which names something
+    assert not any(w == "B" for _, _, w in kinds)                                     # B is read as its name
+    assert ("acronym", "s1_04", "JSON") in kinds and ("unknown", "s1_04", "rr") in kinds
+    assert ("word", "s1_04", "id") in kinds                                             # read as the Freudian id
+    S = nr.Settings(tmp_path)
+    S.phonemes_by_id = {"s1_01": {"A": "ˈA"}}
+    assert ("letter", "s1_01", "A") not in {(k, lid, w) for k, lid, w, _, _ in pronounce.find(S, sc.load(tmp_path))}

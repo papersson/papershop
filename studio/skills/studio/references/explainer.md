@@ -144,10 +144,21 @@ words. Settings live in `narration.json`:
   scenes are right. A faster voice can shorten a sentence below the animation written for it, so
   re-check the stills after switching. `studio narrate --plan` shows what it would cost.
 - Holds give the picture time after a reveal. Spoken respellings keep captions correct while the
-  voice says "B M twenty-five".
+  voice says "B M twenty-five"; they match whole words only.
+- **Pronunciation.** `studio narrate` (and `--estimate`) first runs the pronunciation lint and
+  writes `audio/pronunciation.txt`: every lone capital letter the voice won't say as its name,
+  every acronym with the reading it will get, lowercase abbreviations the lexicon knows as words
+  ("id" is said like the Freudian id), and words the lexicon lacks. Resolve each one before the
+  first animated cut. A letter that names something ("A reads one": Kokoro says the article "uh")
+  gets a per-sentence phoneme, `"phonemes_by_id": {"s6_17": {"A": "ˈA"}}`; a word gets `"phonemes"`
+  or a `spoken` respelling. Respelled text can backfire ("Ay" is read "eye"), so prefer phonemes
+  with Kokoro, and re-run the lint to see what each fix will sound like. Write abbreviations in
+  capitals in the script (ID, not id). Accepting a finding as it is is fine; ignoring it isn't.
 
 Then `studio voice-check VIDEO`: read what was heard for every sentence under 0.8. A mispronounced
-term gets a `spoken` respelling; a clipped sentence means a timing bug.
+term gets a `spoken` respelling or a phoneme; a clipped sentence means a timing bug. The voice check
+can't hear a letter read as the article, or an acronym said as a word, since the recogniser writes
+both the same way: that is the lint's job.
 
 ## Stage 7: The look (a gate)
 

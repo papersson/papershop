@@ -101,6 +101,11 @@ which the learner heard as robotic. ElevenLabs (`eleven_multilingual_v2`, or `el
 hosted option; `eleven_v3` returns no timestamps, which the scenes cue from. Develop with Kokoro and
 switch at the end.
 
+Names and terms are said right. A learner heard "uh reads one" for "A reads one", and "id" said as
+the Freudian id: a lone capital letter is read as the article, a lowercase abbreviation as a word.
+The pronunciation lint lists these before any audio exists, and every finding gets a fix or a
+decision (explainer.md, Stage 6).
+
 The finish is `studio audio` (run by `publish`): 48 kHz via soxr, one fixed gain to -16 LUFS
 measured over the whole file, and a limiter that touches only the peaks over the -1.5 dBTP ceiling
 (fixed gain alone pushed the raw voice to about +6.5 dBTP on a few samples). It is not room tone and
