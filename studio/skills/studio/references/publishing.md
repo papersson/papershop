@@ -21,7 +21,11 @@ Each round is a cut the user watches and a batch of notes you answer.
 5. **Answer fast.** When a frame settles a picture note, show the updated still first (`studio
    still`); then `studio cut VIDEO --changelog FILE`, where FILE is a JSON list of
    `{"note": "3. the labels are too small", "change": "labels 18 → 24 pt in s2"}`. Only the
-   chapters a change touches re-render, and the page shows before/after stills for them.
+   chapters a change touches re-render, and the page shows before/after stills for them. Keep the
+   round's whole-video steps incremental too: `studio check`, `studio voice-check` (changed
+   sentences) and `studio sheets` (changed frames), and hand a frame reviewer only the changed
+   chapters. The user is waiting on this round: time from notes to the next cut is the thing to
+   keep short, without dropping a check.
 6. Repeat until the user locks the video. Final quality is rendered once, by `studio publish`.
 
 A picture note about something reviewers passed is still right: the user spotted an off-centre
@@ -29,8 +33,12 @@ label on the first frame of a build that had passed every review.
 
 ## Publishing
 
-`studio publish VIDEO` renders the final cut (1080p) unless the latest cut is one, encodes
-`out/web.mp4`, grabs the poster frame (`video.json` `"poster": ["s5_07", -0.2]`: a sentence id and
+`studio publish VIDEO` renders the final cut (1080p) unless the latest cut is one (only chapters
+whose key changed since the last final render re-render), links it as `out/master.mp4`, encodes
+`out/web.mp4` to fit the Artifact tool's upload limit for one binary file (15 MiB: 1080p up to
+about 16 minutes, 720p up to about 28, 540p beyond; it prints the settings it chose; each chapter is
+encoded once and cached, so a re-publish encodes only the chapters that changed), grabs the
+poster frame (`video.json` `"poster": ["s5_07", -0.2]`: a sentence id and
 an offset, negative to count back from its end; pick the video's central picture, not a title
 card), and writes `out/page/`: `index.html`, `video.mp4`, `poster.jpg`.
 
@@ -40,7 +48,8 @@ picture, ±1 s). Notes go to the artifact's database, collection `feedback`. The
 toggle: captions are burned in.
 
 **With the Artifact tool:** publish `out/page/index.html` with
-`files: {"video.mp4": "out/page/video.mp4", "poster.jpg": "out/page/poster.jpg"}`,
+`files: {"video.mp4": "out/page/video.mp4", "poster.jpg": "out/page/poster.jpg"}` (the web encode,
+already under the upload limit; `out/master.mp4` is the 1080p master, for the user to open locally),
 `capabilities: {"db": {}}`, `icon: "video"`, and `description` from video.json (one sentence: the
 question the video answers). After publishing, confirm the store with `ArtifactData list` on
 `feedback` (empty, not an error). The page is private until the user shares it from its Share menu;

@@ -155,7 +155,9 @@ words. Settings live in `narration.json`:
   with Kokoro, and re-run the lint to see what each fix will sound like. Write abbreviations in
   capitals in the script (ID, not id). Accepting a finding as it is is fine; ignoring it isn't.
 
-Then `studio voice-check VIDEO`: read what was heard for every sentence under 0.8. A mispronounced
+Then `studio voice-check VIDEO`: read what was heard for every sentence under 0.8. It transcribes
+only sentences whose audio changed (the rest come from `audio/voice_check_cache.json`); run it with
+`--all` once before the first publish. A mispronounced
 term gets a `spoken` respelling or a phoneme; a clipped sentence means a timing bug. The voice check
 can't hear a letter read as the article, or an acronym said as a word, since the recogniser writes
 both the same way: that is the lint's job.
@@ -188,7 +190,10 @@ Write one scene per chapter (`scenes/sN.tsx`, registered in `scenes/index.ts`), 
 - Data comes from `data/` (import the JSON), never from literals typed into the scene.
 
 Then iterate: `studio still` to check a frame (about 1.6 s after an edit), and `studio cut VIDEO`
-for a draft cut (only changed chapters re-render). Before showing a cut to the user, run
+for a draft cut (only changed chapters re-render; it prints each chapter as rendered or cached, and
+how many stills it reused). Keep edits local so the loop stays fast: a change to a shared scene file
+re-renders every chapter, a change to one chapter's file re-renders that chapter, and a narration
+edit re-renders only the chapter it is in. Before showing a cut to the user, run
 `studio check VIDEO` (length, determinism, bounds, the caption band, contrast, legibility, and
 provenance when assets are used; fix every failure) and `studio sheets VIDEO out/sheets` (chapter
 sheets, a phone-width sheet, and full-resolution crops of small labels), then the craft critique on

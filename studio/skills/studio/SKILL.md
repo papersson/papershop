@@ -24,7 +24,10 @@ answer each round with the next cut. Two things decide the result:
    it is settled with the user before any script exists, and the build treats it as fixed.
 2. **The loop is the product.** Speed from note to visible change is what makes iteration work:
    render only what changed, answer picture notes with stills first, and keep final quality for
-   the end.
+   the end. Every step is incremental and says what it reused: a narration edit re-renders only
+   the chapter it is in (later chapters move by whole frames and stay cached), and stills, label
+   crops, the voice check, the soundtrack and the audio finish redo only what changed. Run the
+   whole-video passes (`voice-check --all`, a full frame review) once, before the first publish.
 
 ## Before anything: three choices
 
@@ -62,16 +65,16 @@ Everything runs through `bin/studio` (it enters its own pinned environment; no s
 | `studio doctor [--fetch] [--extra audio\|align\|kokoro] [--engine motion-canvas] [--net]` | Checks every layer of the environment and prints fixes |
 | `studio new NAME [--genre G] [--engine remotion\|motion-canvas] [--dir D] [--title T] [--drive …] [--source REPO] [--duration N]` | A video folder (default `$STUDIO_HOME/NAME`, STUDIO_HOME defaults to `~/studio`). `--duration` starts a narration-less piece (motion, launch) |
 | `studio narrate VIDEO [--estimate] [--plan] [--list] [--fetch-only] [--yes]` | Narration from SCRIPT.md into `audio/` and the timeline (with word timings). `--estimate`: timings from word counts, no audio, so scenes can be built before the voice |
-| `studio voice-check VIDEO` · `studio align VIDEO` | Transcribes every sentence and scores it (the audio review, since you can't listen) · word timings by speech recognition |
+| `studio voice-check VIDEO [--all]` · `studio align VIDEO` | Transcribes the sentences whose audio changed and scores every sentence (the audio review, since you can't listen); `--all` re-transcribes everything · word timings by speech recognition |
 | `studio review VIDEO ROUND [--narrative FILE]` | One round of fresh-context reviewers (expert, student, editor) |
-| `studio cut VIDEO [--stills-only] [--changelog FILE] [--quality final]` | The next cut: stills first, then only changed clips, then the composite |
+| `studio cut VIDEO [--stills-only] [--changelog FILE] [--quality final]` | The next cut: stills first (unchanged frames reused), then only changed clips (on every core), then the composite; it prints what it rendered and what it reused |
 | `studio serve VIDEO` · `studio notes VIDEO` | The review page (http://127.0.0.1:8765/) · the notes on a cut, numbered |
 | `studio still VIDEO CLIP T --out PNG [--layers all\|no-captions\|no-band\|background]` · `studio boxes VIDEO CLIP T` | One frame (about 1.6 s after an edit) · pixel boxes of named elements |
 | `studio check VIDEO [--samples N] [--only …] [--format F]` | length, determinism, bounds, band, contrast, legible, and by genre: grid and palette (pixel), dead and loop (motion), filler, cuts, levels, sync and segments (footage), provenance (assets). Run before a cut goes to the user |
-| `studio sheets VIDEO OUTDIR [--strip CLIP T]` | Chapter contact sheets, a 360 px phone sheet, fast-action strips, and full-resolution label crops with measured sizes (what the frame review judges from) |
+| `studio sheets VIDEO OUTDIR [--strip CLIP T]` | Chapter contact sheets, a 360 px phone sheet, fast-action strips, and full-resolution label crops with measured sizes (what the frame review judges from; unchanged frames reuse their crops, a label repeated across a chapter is cropped once) |
 | `studio audio VIDEO [--lufs -16] [--peak -1.5]` | The audio finish: 48 kHz, one fixed gain to the target loudness, a limiter for the peaks; run by `publish` |
 | `studio export VIDEO [--formats 16:9,9:16,1:1] [--lufs -14]` | The whole video in several formats from one timeline, into `out/export/` |
-| `studio publish VIDEO` | Final cut, web encode, poster, and `out/page/` |
+| `studio publish VIDEO` | Final cut (changed chapters only), `out/master.mp4` (1080p), a web encode that fits the Artifact upload limit, poster, and `out/page/` |
 | `studio capture URL VIDEO` · `studio asset add\|list VIDEO [FILE]` | A page screenshot into `assets/` · files added or listed, each with its source in `assets/provenance.json` |
 | `studio beats VIDEO TRACK` · `studio sfx VIDEO CUES` · `studio sound-lab VIDEO` | A beat grid from music · synthesised effects on beat or cue names · a page to choose effects by ear |
 | `studio ingest FILE VIDEO` · `studio edit VIDEO EDL` | A recording's transcript, shots and paper edit · the timeline from an edit list |
@@ -107,7 +110,7 @@ VIDEO/
   `audio/pronunciation.txt` resolved (a phoneme, a respelling, or accepted as it is), then read what
   was heard for every sentence under 0.8.
 - **Checks**: `studio check` passes before a cut goes to the user, and `studio sheets` and the craft critique (explainer.md Stage 8; motion.md for the scored loop) have been run on what changed.
-- **Frame review** before publishing (`prompts/frame_review.md`, fresh context). Verify each finding against a full-resolution still.
+- **Frame review** before publishing (`prompts/frame_review.md`, fresh context). Verify each finding against a full-resolution still. The first publish reviews every chapter; a re-publish after a revision round reviews the chapters the round changed (the cut's `changed` list) and their neighbours.
 - **Evidence**: a number on screen without a row in the Evidence table is a bug.
 
 ## Standing rules
