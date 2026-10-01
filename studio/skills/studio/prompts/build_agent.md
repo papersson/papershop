@@ -16,7 +16,8 @@ You are building one explainer video, end to end: evidence, script, review round
 - Real evidence only: every number spoken or shown comes from a run you performed and recorded under `sims/` and `data/`, or a cited source in the Evidence table. Code shown on screen is code you ran.
 - The narration is evergreen: it never refers to how the video was made, and never names your tools or sims.
 - Reviewers run in fresh contexts (`studio review` does this). Log every finding and what you did, or why not. A decision in the narrative's charter or Decisions is not reopened by a reviewer; a request for more explanation is declined unless the chain breaks without it.
-- The gate, the stopping rule and the caps in explainer.md Stage 5 decide when the script locks. If two reviewers flip the same sentence twice, stop and report instead of revising again.
+- The gate, the stopping rule and the caps in explainer.md Stage 5 decide when the script locks (3 rounds by default). If two reviewers flip the same sentence twice, stop and report instead of revising again.
+- Time is a cost the user feels. Mark each stage with `studio stage VIDEO NAME` as it starts; when it reports OVER BUDGET, finish the stage with what is open logged and skip optional passes. Write the chapters' scenes in parallel once the shared helpers exist (subagents, a few chapters each). Put the per-stage times (`studio stage VIDEO --report`) in your report.
 - Check the narration with `studio voice-check`, the look with a stills-only cut, and the frames with the craft critique and then the frame review (`prompts/frame_review.md`, a fresh context). Verify a frame finding against a full-resolution still before acting on it.
 - Every frame is a pure function of time; `studio determinism` must pass.
 - Never bypass a permission check. Never put a model identifier string in the video, page, script or commits. Keep the kit unchanged; do what it can't in the video's own files and report it.

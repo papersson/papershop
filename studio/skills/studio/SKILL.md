@@ -28,6 +28,12 @@ answer each round with the next cut. Two things decide the result:
    the chapter it is in (later chapters move by whole frames and stay cached), and stills, label
    crops, the voice check, the soundtrack and the audio finish redo only what changed. Run the
    whole-video passes (`voice-check --all`, a full frame review) once, before the first publish.
+3. **Wall-clock time is a cost the user feels.** A first cut in about an hour, a revision round in
+   about ten minutes (video.json `budget`). The slow builds were loops nobody timed: three
+   competing narratives, six script review rounds, polish passes repeated until perfect. So the
+   user approves the narrative (minutes of their time beat an hour of reviewers), reviews are
+   capped, independent work runs in parallel, a rough cut comes early, and every stage is marked
+   with `studio stage` so time over budget is seen and cut, not discovered afterwards.
 
 ## Before anything: three choices
 
@@ -35,13 +41,20 @@ Ask, or infer from the request, and record them in `video.json`:
 
 | Choice | Options | What it changes |
 |---|---|---|
-| **Drive** | `author`: the user knows the subject (they may want it for others) · `learner`: the user is learning it and has to trust you | Author: the user's notes are the review, so no reviewer rounds by default. Learner: fresh-context research, competing narratives, reviewers, evidence, risk flags. Read `references/propose.md`. Only explainers have a learner drive; the other genres are directed by the user |
+| **Drive** | `author`: the user knows the subject (they may want it for others) · `learner`: the user is learning it and has to trust you | Author: the user's notes are the review, so no reviewer rounds by default. Learner: fresh-context research, one narrative the user approves with its risk flags, capped script reviews, evidence. Read `references/propose.md`. Only explainers have a learner drive; the other genres are directed by the user |
 | **Genre** | `explainer` · `motion` · `launch` · `pixel` · `footage` | The story structure, look defaults, engine and checks: `references/explainer.md` for a narrated explanation; `references/genres/<genre>.md` for the others. Ask which the user means if it isn't clear: "an explainer", "a motion reel", "a launch video for this product", "pixel art", "cut this recording" |
 | **Destination** | `private-page` (default) · `share` · `social` · `files` | Where it goes: `references/publishing.md`. `social` exports 9:16, 1:1 and 16:9 at -14 LUFS |
 
 Ask one plain question for the drive ("Do you know this well, or are you learning it?").
-Economy mode (`"economy": true` in video.json) is for a short budget: one agent, at most two
-review rounds, one frame review.
+**Pace.** The default is fast: the user approves the narrative, script reviews stop at 3 rounds
+(2, plus 1 for an expert's blocking finding), one craft-critique round, one frame review, and its
+SHOULD FIX items that take a minute; the rest is logged as open. `"thorough": true` in video.json
+restores competing narratives, 6 review rounds and 3 critique rounds, for a video that must be
+right more than soon; use it only when the user asks. `"economy": true` is tighter still: one
+agent, 2 review rounds. Mark each stage as it starts (`studio stage VIDEO research`, `narrative`,
+`evidence`, `script`, `review`, `narration`, `scenes`, `cut`, `frame-review`, `publish`, and
+`round` for each revision round); it prints the time against the budget, and over budget you
+finish the stage with what is open logged and tell the user where the time went.
 
 ## Modes
 
@@ -49,12 +62,12 @@ review rounds, one frame review.
 |---|---|---|
 | **setup** | first use on a machine, or a command fails with an environment error | `bin/studio doctor` (add `--fetch`, and `--extra kokoro` for local narration, `--extra align` for the voice check). It prints the fix for each failure |
 | **propose** | a new video | `studio new NAME [--genre G] [--source REPO] [--drive …] [--duration N]`. Explainer: `references/propose.md`, ending with an approved `research/narrative.md`; when the video explains a repo or knowledge base, that folder is the primary source: explore it first (delegate wide reads), and cite files in the Evidence table. Other genres: the brief in `references/genres/<genre>.md` (a state list, a storyboard, an edit list), shown as stills or a paper edit before building |
-| **build** | the narrative or brief is approved | Explainer, author drive: build it yourself, in the open, per `references/explainer.md`, showing stills before animation. Explainer, learner drive: spawn one background agent with `prompts/build_agent.md` (the context that shaped the narrative is what the script reviewers must not see), and relay its report. Other genres: build it yourself per its genre file |
+| **build** | the narrative or brief is approved | Explainer, author drive: build it yourself, in the open, per `references/explainer.md`, showing stills before animation. Explainer, learner drive: spawn one background agent with `prompts/build_agent.md` (the context that shaped the narrative is what the script reviewers must not see), and relay its report. Either way, once the shared scene helpers exist, write the chapters' scenes in parallel (subagents, a few chapters each, each owning its own `sN.tsx`). Other genres: build it yourself per its genre file |
 | **loop** | a cut exists | `references/publishing.md`, "The review loop": serve the cut, wait for a round, answer it with the next cut |
 | **publish** | the user locks the video | `studio publish VIDEO`, then the Artifact tool (`references/publishing.md`) |
 | **revise** | notes on the published page, or in chat | `references/publishing.md`, "Revising from notes" |
 | **revoice** | a voice or timing change | edit `narration.json`, `studio narrate`, `studio voice-check`, `studio cut`, check the stills, republish |
-| **status** | "where did it get to" | SCRIPT.md's status line, `research/reviews/`, `cuts/`, `review/notes.jsonl`; report the last completed stage and resume |
+| **status** | "where did it get to" | `studio stage VIDEO --report` (time per stage), SCRIPT.md's status line, `research/reviews/`, `cuts/`, `review/notes.jsonl`; report the last completed stage and resume |
 
 ## Commands
 
@@ -67,6 +80,7 @@ Everything runs through `bin/studio` (it enters its own pinned environment; no s
 | `studio narrate VIDEO [--estimate] [--plan] [--list] [--fetch-only] [--yes]` | Narration from SCRIPT.md into `audio/` and the timeline (with word timings). `--estimate`: timings from word counts, no audio, so scenes can be built before the voice |
 | `studio voice-check VIDEO [--all]` · `studio align VIDEO` | Transcribes the sentences whose audio changed and scores every sentence (the audio review, since you can't listen); `--all` re-transcribes everything · word timings by speech recognition |
 | `studio review VIDEO ROUND [--narrative FILE]` | One round of fresh-context reviewers (expert, student, editor) |
+| `studio stage VIDEO NAME` · `studio stage VIDEO --report` | Mark a stage's start; prints the last stage's time and the total against video.json's `budget` · the time per stage |
 | `studio cut VIDEO [--stills-only] [--changelog FILE] [--quality final]` | The next cut: stills first (unchanged frames reused), then only changed clips (on every core), then the composite; it prints what it rendered and what it reused |
 | `studio serve VIDEO` · `studio notes VIDEO` | The review page (http://127.0.0.1:8765/) · the notes on a cut, numbered |
 | `studio still VIDEO CLIP T --out PNG [--layers all\|no-captions\|no-band\|background]` · `studio boxes VIDEO CLIP T` | One frame (about 1.6 s after an edit) · pixel boxes of named elements |
@@ -86,7 +100,7 @@ Everything runs through `bin/studio` (it enters its own pinned environment; no s
 
 ```
 VIDEO/
-  video.json        title, version, genre, drive, destination, engine, poster, source, learner, economy, loop, pixel
+  video.json        title, version, genre, drive, destination, engine, poster, source, learner, budget, thorough, economy, loop, pixel
   SCRIPT.md         Argument · Chain · Format · Ledgers · Script · Evidence · Review log
   narration.json    engine, voice, holds, spoken respellings, phoneme overrides
   research/         research reports, narrative.md, reviews/, frame_review/, annotations_vN.txt
@@ -104,9 +118,9 @@ VIDEO/
 
 ## Gates you don't skip
 
-- **The narrative** is approved by the user before any script (author: they approve it; learner: after reviewers, with risk flags).
+- **The narrative** is approved by the user before any script, in both drives (learner: shown with its risk flags; it takes them minutes). Only when the user has said to go ahead without them does a narrative review round stand in for their approval.
 - **The look**: a stills-only cut, and the user's pick, before scenes are animated.
-- **Script lock** (learner drive): expert PASS + editor PASS + the student's retelling answers the opening question. Rules in `references/explainer.md`.
+- **Script lock** (learner drive): expert PASS + editor PASS + the student's retelling answers the opening question, or the round cap (3 by default) with every open finding logged. Rules in `references/explainer.md`.
 - **Pronunciation and voice check** before the first animated cut: every finding in
   `audio/pronunciation.txt` resolved (a phoneme, a respelling, or accepted as it is), then read what
   was heard for every sentence under 0.8.

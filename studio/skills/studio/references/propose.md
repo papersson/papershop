@@ -84,25 +84,26 @@ Iterating with an expert is cheap, so optimise for fast, precise rounds.
 
 ## Learner drive (the user is learning the subject)
 
-The user can't check correctness, so you have to earn their trust, and the narrative is judged by
-reviewers before they see it.
+The user can't check correctness, so you have to earn their trust; but they can judge, in a few
+minutes, whether a story is the one they want to learn. Their approval replaces the hour that
+competing drafts and narrative reviews took.
 
-1. **Competing drafts.** Draft two or three narratives, each in its own fresh context (`claude -p`
-   in an empty folder, given only the research reports, the audience and the learner model), each
-   with a different organising choice (history-first vs mechanism-first; one worked example vs a
-   survey).
-2. **Review the narratives**: `studio review VIDEO 1 --narrative research/narrative_A.md` runs the
-   narrative expert, student and editor. It is far cheaper than reviewing a script, and it catches
-   the errors that matter most: a wrong claim, a non-canonical order, a chain the student can't
-   follow.
-3. **Choose or merge** against stated criteria: no blocking expert findings, the student's verdict
-   FOLLOWABLE, the editor's chain test, the learner model. Write the reasons down.
-4. **Show the user** the chosen narrative, why it won, what was rejected, and a short list of
-   **risk flags**: claims a reviewer doubted, places the student got lost, anything not verified
-   against a primary source. They don't need expertise to judge whether this is what they want to
-   learn.
-5. Log their decision, then build. Their questions during the loop get answers in chat; a question
-   that shows a gap in the video also becomes a change.
+1. **One draft** from the research reports, written after both reports are in (a fresh context if
+   your own has a framing to shake off).
+2. **One narrative review round** (`studio review VIDEO 1 --narrative research/narrative.md`: the
+   narrative expert, student and editor, in parallel). It is cheap, and it catches the errors that
+   matter most: a wrong claim, a non-canonical order, a chain the student can't follow. Fix what
+   it finds; don't run a second round unless the expert found a blocking error.
+3. **Show the user** the narrative, and a short list of **risk flags**: claims a reviewer doubted,
+   places the student got lost, anything not verified against a primary source. Ask at most two
+   questions. Log their decision, then build.
+4. Their questions during the loop get answers in chat; a question that shows a gap in the video
+   also becomes a change.
+
+If the user has said to go ahead without them, the review round stands in for their approval:
+record that in Decisions and build. Competing drafts (two or three narratives in fresh contexts,
+each with a different organising choice, reviewed and then chosen or merged against stated
+criteria) are for `"thorough": true` only.
 
 ## What the build gets
 

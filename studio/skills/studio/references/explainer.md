@@ -115,8 +115,10 @@ All three also get the charter (Cut on purpose, vocabulary). Rules for the loop:
   and covers every objective.
 - **Stopping:** once a round passes, apply its SHOULD FIX items once and run one final round; lock
   if it passes too. Don't polish NITs after a passing final round.
-- **Caps:** rounds stop at video.json's `max_rounds` (6; 2 in economy mode); at the cap, lock with
-  every open finding logged. **If two reviewers give opposite verdicts on the same sentence twice,
+- **Caps:** rounds stop at video.json's `max_rounds`: 3 by default (two rounds, and a third only
+  for an expert's blocking finding), 6 with `"thorough": true`, 2 in economy mode. At the cap, lock
+  with every open finding logged and listed for the user; don't spend a round on SHOULD FIX items
+  alone. **If two reviewers give opposite verdicts on the same sentence twice,
   stop and ask the user** instead of revising again (the expert and the editor once alternated on
   one sentence for five rounds).
 - If `studio review` fails because a reviewer can't run in isolation, don't fall back to
@@ -201,8 +203,8 @@ the changed chapters:
 
 - look at the cut's stills, and a phone-width look (the stills at 480 px wide are close to it);
 - score each chapter 1–10 on phone-width readability, motion, composition, clarity of the beat,
-  sound sync and polish; fix the three worst problems; repeat until every score is 8 or more, at
-  most three rounds (one in economy mode);
+  sound sync and polish; fix the three worst problems; one round by default (three with
+  `"thorough": true`);
 - hunt for the banned defaults in `style.md`, text off centre in its box, sibling boxes of
   different sizes, connectors that miss their targets, and anything in the caption band.
 
