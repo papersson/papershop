@@ -115,8 +115,22 @@ def final_cut(video):
     return render.make_cut(video, "final")
 
 
-def build(video):
+def gate(video):
+    """The full check, every chapter, before anything is published."""
+    from . import check
+    rows = check.run(video, everything=True)
+    bad = [r for r in rows if not r["ok"]]
+    print(f"publish gate: full check, {len(rows)} results, {len(bad)} failed")
+    if bad:
+        for r in bad[:20]:
+            print(f"FAIL  {r['check']:11} {r.get('clip', '')} {r.get('t', '')} {r['detail']}")
+        raise SystemExit("publish stopped: the full check failed (fix, then `studio publish` again)")
+
+
+def build(video, skip_gate=False):
     video = Path(video).resolve()
+    if not skip_gate:
+        gate(video)
     cfg = json.loads((video / "video.json").read_text()) if (video / "video.json").exists() else {}
     t = tl.load(video)
     finish = audio.finish(video)

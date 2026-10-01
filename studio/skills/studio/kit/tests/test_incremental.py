@@ -85,3 +85,51 @@ def test_crops_reuse_unchanged_frames_and_crop_a_repeated_label_once(tmp_path):
     sheets.crops(tmp_path, tmp_path / "out", engine=eng)
     assert eng.frames == 2                       # unchanged frames: no renders
     assert json.loads((tmp_path / "out" / "crops" / "index.json").read_text()) == idx
+
+
+class CheckEngine:
+    """Answers the check's engine calls with passing results, recording which clips it was asked about."""
+    boxes_keep_frames = True
+
+    def __init__(self, video, fail=()):
+        self.video, self.fail, self.asked = video, set(fail), []
+
+    def layout(self):
+        return tl.layout(self.video)
+
+    def durations(self, clips):
+        self.asked += list(clips)
+        t = tl.load(self.video)
+        return {c: tl.frames(t, c)[1] for c in clips}
+
+    def stills(self, requests):
+        self.asked += [r["clip"] for r in requests]
+        for r in requests:
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=1920x1080:d=1",
+                            "-frames:v", "1", r["out"]], check=True)
+
+    def boxes_at(self, requests):
+        self.asked += [r["clip"] for r in requests]
+        return [{**r, "band": {}, "boxes": [{"name": "label", "kind": "text", "x": 10, "y": 10, "w": 100,
+                                              "h": 10 if r["clip"] in self.fail else 30}]} for r in requests]
+
+
+def test_check_reruns_only_changed_chapters_and_forgets_failures(tmp_path, capsys):
+    from studio_kit import check
+    make_video(tmp_path)
+    eng = CheckEngine(tmp_path)
+    rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert {r["clip"] for r in rows if r["check"] in check.PER_CLIP} == {"s1", "s2"} and all(r["ok"] for r in rows)
+    eng.asked.clear()
+    assert check.run(tmp_path, samples=1, engine=eng, everything=False) == [] or not eng.asked
+    assert "skipping s1, s2" in capsys.readouterr().out
+    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited\n")
+    eng = CheckEngine(tmp_path, fail={"s2"})                      # the edit makes s2's text illegible
+    rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert set(eng.asked) == {"s2"} and any(not r["ok"] and r["check"] == "legible" for r in rows)
+    eng = CheckEngine(tmp_path)
+    check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert set(eng.asked) == {"s2"}                               # a failure is never remembered as a pass
+    eng = CheckEngine(tmp_path)
+    check.run(tmp_path, samples=1, engine=eng, everything=True)
+    assert set(eng.asked) == {"s1", "s2"}                         # --all and the publish gate check everything

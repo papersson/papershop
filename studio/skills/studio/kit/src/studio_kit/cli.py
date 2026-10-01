@@ -142,6 +142,7 @@ COMMANDS = {
         A("video"), A("--samples", type=int, default=3, help="moments per clip"),
         A("--only", help="comma-separated: length,determinism,bounds,band,contrast (pixel videos: grid,palette)"),
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
+        A("--all", action="store_true", help="check every chapter, not only those changed since their last pass"),
     ], "check:main"),
     "sheets": ("contact sheets, a phone-width sheet, strips and full-resolution label crops", [
         A("video"), A("outdir"), A("--cut", type=int),
