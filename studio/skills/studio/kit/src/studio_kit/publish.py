@@ -1,8 +1,9 @@
 """`studio publish VIDEO`: the final cut, its web encode, and the page to publish.
 
-Renders a final-quality cut unless the latest cut already is one, encodes out/web.mp4 (small
-enough for an artifact page), grabs the poster frame named in video.json, and writes out/page/:
-index.html, video.mp4 and poster.jpg. The page is the video, its chapters and a feedback button
+Renders a final-quality cut unless the latest cut already is one (only chapters whose key changed
+re-render), links it as out/master.mp4 (1080p), encodes out/web.mp4 to fit the Artifact tool's
+per-file limit (15 MiB: 1080p for short videos, 720p or 540p for long ones, see web_settings), grabs
+the poster frame named in video.json, and writes out/page/: index.html, video.mp4 and poster.jpg. The page is the video, its chapters and a feedback button
 that saves the moment to the artifact's database (collection "feedback"):
   learner drive: "Lost me here", the time and the sentence on screen, with an optional note;
   author drive:  "Annotate", the same plus whether it is about the narration or the picture, and
@@ -20,6 +21,72 @@ from . import audio, render
 from . import timeline as tl
 
 WEB_CRF = 27
+# The page's video must fit the Artifact tool's per-file limit for binary files (15 MiB, base64-encoded
+# into one upload). web_encode picks the largest frame height and audio bitrate that fit the video's
+# length, caps the bitrate, and re-encodes smaller if a pass still comes out too big.
+WEB_LIMIT = 15 * 2**20
+WEB_HEADROOM = 0.93
+HEIGHTS = ((1080, 90), (720, 40), (540, 0))       # (height, the least video kbps it needs: measured, diagrams at crf 27)
+
+
+def web_settings(duration, limit=WEB_LIMIT):
+    """(height, video kbps cap, audio kbps) for a video of `duration` seconds to fit in `limit` bytes."""
+    total = limit * 8 * WEB_HEADROOM / duration / 1000          # kbps for audio and video together
+    audio_kbps = 64 if total > 400 else 48 if total > 160 else 28
+    video = total - audio_kbps
+    height = next(h for h, need in HEIGHTS if video >= need)
+    return height, int(video), audio_kbps
+
+
+def _encode_part(src, dst, height, video_kbps):
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-an", "-vf", f"scale=-2:{height}:flags=lanczos",
+                    "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", str(WEB_CRF),
+                    "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p",
+                    str(dst)], check=True)
+
+
+def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cache=None):
+    """The page's video: as sharp as fits in `limit` bytes. Returns the settings used.
+
+    With `parts` (the final clips, in order, each a silent video) and `sound` (the mixed soundtrack),
+    each clip is encoded on its own and cached under `cache` by its file name (which carries its
+    key) and the settings, then the parts are joined without re-encoding: a re-publish after a
+    revision round encodes only the chapters that changed."""
+    height, video_kbps, audio_kbps = web_settings(duration, limit)
+    dst = Path(dst)
+    for attempt in range(4):
+        if parts:
+            cache.mkdir(parents=True, exist_ok=True)
+            tag = f"{height}p-{video_kbps}k-crf{WEB_CRF}"
+            files, made = [], 0
+            for p in parts:
+                f = cache / f"{Path(p).stem}-{tag}.mp4"
+                if not f.exists():
+                    _encode_part(p, f, height, video_kbps)
+                    made += 1
+                files.append(f)
+            for old in cache.glob("*.mp4"):
+                if old not in files:
+                    old.unlink()
+            lst = dst.with_suffix(".txt")
+            lst.write_text("".join(f"file '{f.resolve()}'\n" for f in files))
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(sound),
+                            "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", f"{audio_kbps}k",
+                            "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1", "-t", f"{duration:.3f}",
+                            "-movflags", "+faststart", str(dst)], check=True)
+            lst.unlink()
+            print(f"web video: encoded {made} chapter(s), {len(parts) - made} unchanged (cached)")
+        else:
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-vf", f"scale=-2:{height}:flags=lanczos",
+                            "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", str(WEB_CRF),
+                            "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p",
+                            "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1",
+                            "-movflags", "+faststart", str(dst)], check=True)
+        size = dst.stat().st_size
+        if size <= limit:
+            return {"height": height, "video_kbps": video_kbps, "audio_kbps": audio_kbps, "bytes": size, "passes": attempt + 1}
+        video_kbps = int(video_kbps * limit / size * 0.9)
+    raise SystemExit(f"could not fit the web video under {limit / 2**20:.0f} MiB; the master is {src}")
 
 
 def mmss(t):
@@ -58,9 +125,21 @@ def build(video):
     src = render.cuts_dir(video) / f"cut{rec['cut']}" / rec["video"]
     out, page = video / "out", video / "out" / "page"
     page.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-c:v", "libx264", "-preset", "slow",
-                    "-crf", str(WEB_CRF), "-tune", "animation", "-pix_fmt", "yuv420p", "-c:a", "aac",
-                    "-b:a", "128k", "-movflags", "+faststart", str(out / "web.mp4")], check=True)
+    # the master: the final cut at full quality (1080p), for downloads and re-encodes
+    master = out / "master.mp4"
+    master.unlink(missing_ok=True)
+    try:
+        master.hardlink_to(src)
+    except OSError:
+        shutil.copyfile(src, master)
+    parts = [f for _, _, f in render.plan(video, t, "final")]
+    if all(parts) and render.clip_files_fresh(video, t, "final"):
+        web = web_encode(src, out / "web.mp4", t["duration"], parts=parts, sound=render.mixed_sound(video, t),
+                         cache=video / ".cache" / "web")
+    else:
+        web = web_encode(src, out / "web.mp4", t["duration"])
+    print(f"web video: {web['height']}p, video ≤{web['video_kbps']} kbps, audio {web['audio_kbps']} kbps, "
+          f"{web['bytes'] / 2**20:.1f} MiB (limit {WEB_LIMIT / 2**20:.0f} MiB); master: {master}")
     shutil.copyfile(out / "web.mp4", page / "video.mp4")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{poster_time(t, cfg.get('poster')):.2f}", "-i", str(src),
                     "-frames:v", "1", "-vf", "scale=1280:-2", "-q:v", "4", str(page / "poster.jpg")], check=True)
