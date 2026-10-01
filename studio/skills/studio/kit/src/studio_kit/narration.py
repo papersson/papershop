@@ -91,9 +91,14 @@ class Settings:
     def marked(self, text, lid=None):
         """The spoken text with phoneme overrides as Kokoro's markup, `[A](/ˈA/)`. Kokoro reports the
         plain text back as its graphemes, so word offsets still index the unmarked text."""
-        for word, ph in self.phonemes_for(lid).items():
-            text = whole_word(word).sub(lambda m: f"[{m.group(0)}](/{ph}/)", text)
-        return text
+        table = self.phonemes_for(lid)
+        if not table:
+            return text
+        # One pass, longest word first, so "A's" and "A" can both have entries without one rule
+        # rewriting inside the other's markup.
+        words = sorted(table, key=len, reverse=True)
+        pattern = re.compile(r"(?<![\w])(" + "|".join(map(re.escape, words)) + r")(?![\w'’])")
+        return pattern.sub(lambda m: f"[{m.group(0)}](/{table[m.group(0)]}/)", text)
 
     def voice_info(self):
         if self.engine == "elevenlabs":

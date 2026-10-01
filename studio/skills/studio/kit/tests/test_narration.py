@@ -114,6 +114,8 @@ def test_phoneme_overrides_mark_kokoro_input_only(tmp_path):
     S = nr.Settings(video(tmp_path, {"phonemes": {"JSON": "ʤˈAsᵊn"}, "phonemes_by_id": {"s1_02": {"A": "ˈA"}}}))
     assert S.marked("A JSON reply", "s1_01") == "A [JSON](/ʤˈAsᵊn/) reply"
     assert S.marked("A reads All", "s1_02") == "[A](/ˈA/) reads All"
+    S.phonemes_by_id["s1_03"] = {"A": "ˈA", "A's": "ˈAz"}
+    assert S.marked("A's turn, then A", "s1_03") == "[A's](/ˈAz/) turn, then [A](/ˈA/)"
     seen = []
 
     def synth(full, prev, nxt, marked=None):
