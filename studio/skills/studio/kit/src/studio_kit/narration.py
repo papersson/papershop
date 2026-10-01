@@ -35,6 +35,7 @@ narration.json also holds:
 import base64
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -49,6 +50,12 @@ LEAD_IN = 0.8        # silence before the first sentence
 SENTENCE_GAP = 0.3   # between sentences of one paragraph (Kokoro per-sentence mode only)
 PARAGRAPH_GAP = 0.5  # between paragraphs
 SEGMENT_GAP = 1.2    # between chapters
+# Each chapter's first sentence starts on a 0.1 s grid (a whole number of frames at 30 fps, and of
+# milliseconds), and its clip starts PRE_ROLL_FRAMES before it. So an edit that lengthens one chapter
+# moves every later chapter by whole frames and whole milliseconds, and their clips, keyed on times
+# relative to their own first frame, stay cached: only the edited chapter re-renders.
+CHAPTER_GRID = 0.1
+PRE_ROLL_FRAMES = 10
 CHUNK_WORDS = 90     # longest run of sentences sent in one call
 ASK_ABOVE = 2000     # ElevenLabs characters that need --yes
 
@@ -119,23 +126,31 @@ def layout(S, chapters, durations, gaps=None, words=None):
     for ci, (cid, title, sents) in enumerate(chapters):
         if ci:
             t += SEGMENT_GAP
+            t = math.ceil(round(t / CHAPTER_GRID, 6)) * CHAPTER_GRID
         seg = {"id": cid, "title": title, "start": t, "lines": []}
+        # times inside a chapter are offsets from its (grid) start, rounded as offsets, so a chapter
+        # that moves keeps exactly the same relative times
+        g, r = round(t, 3), 0.0
+        at = lambda x: round(g + round(x, 3), 3)
         prev_p = prev_id = None
         for lid, cap, pi in sents:
             if prev_p is not None:
-                t += gaps.get(prev_id, SENTENCE_GAP) if pi == prev_p else PARAGRAPH_GAP
+                r += gaps.get(prev_id, SENTENCE_GAP) if pi == prev_p else PARAGRAPH_GAP
             d = durations[lid]
             seg["lines"].append({"id": lid, "text": S.spoken(cap, lid), "caption": cap, "paragraph": pi,
-                                 "start": round(t, 3), "end": round(t + d, 3),
-                                 "words": [{"w": w, "start": round(t + a, 3), "end": round(t + b, 3)}
+                                 "start": at(r), "end": at(r + d),
+                                 "words": [{"w": w, "start": at(r + a), "end": at(r + b)}
                                            for w, a, b in words.get(lid, [])]})
-            t += d + S.holds.get(lid, 0.0)
+            r += d + S.holds.get(lid, 0.0)
             prev_p, prev_id = pi, lid
+        t = g + r
         out.append(seg)
     total = t + S.tail
     out[0]["start"] = 0.0
+    fps = tl.layout(S.video)["fps"]
     for a, b in zip(out, out[1:]):
-        b["start"] = round(b["lines"][0]["start"] - 0.35, 3)
+        # PRE_ROLL_FRAMES before the chapter's first sentence, exactly on the frame grid
+        b["start"] = (tl.half_up(b["lines"][0]["start"] * fps) - PRE_ROLL_FRAMES) / fps
         a["end"] = b["start"]
     out[-1]["end"] = round(total, 3)
     return {**S.voice_info(), "total": round(total, 3), "segments": out}

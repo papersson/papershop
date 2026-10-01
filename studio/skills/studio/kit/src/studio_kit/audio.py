@@ -48,6 +48,15 @@ def finish(video, lufs=-16.0, peak=-1.5):
     if not src.exists():
         raise SystemExit(f"no narration in {video / 'audio'}: run `studio narrate` first")
     out = video / "audio" / "final.wav"
+    # Already finished from this very source at these targets: nothing to do (a re-publish after a
+    # picture-only change).
+    st = src.stat()
+    stamp = f"{src.name}:{st.st_size}:{st.st_mtime_ns}:{lufs}:{peak}"
+    if (video / "timeline.json").exists() and out.exists():
+        done = tl.load(video).get("audio_finish", {})
+        if done.get("stamp") == stamp:
+            print("audio finish: unchanged source, kept")
+            return done
     before, before_tp = measure(src)
     gain = lufs - before
     ceiling = peak
@@ -67,7 +76,8 @@ def finish(video, lufs=-16.0, peak=-1.5):
         if tp > peak + 0.05:
             ceiling -= (tp - peak) + 0.05
     result = {"target_lufs": lufs, "lufs": got, "true_peak_dbtp": tp, "ceiling_dbtp": peak,
-              "gain_db": round(gain, 2), "source": src.name, "input_lufs": before, "input_true_peak_dbtp": before_tp}
+              "gain_db": round(gain, 2), "source": src.name, "input_lufs": before, "input_true_peak_dbtp": before_tp,
+              "stamp": stamp}
     if (video / "timeline.json").exists():
         t = tl.load(video)
         t["audio_finish"] = result

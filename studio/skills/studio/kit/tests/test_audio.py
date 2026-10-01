@@ -61,3 +61,18 @@ def test_a_video_without_audio_gets_silence_of_its_length(tmp_path):
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
                                 str(tmp_path / "m.m4a")], capture_output=True, text=True).stdout)
     assert 1.9 < dur < 2.3
+
+
+def test_finish_is_skipped_when_its_source_is_unchanged(tmp_path, monkeypatch):
+    from studio_kit import timeline as tl
+    v = video(tmp_path)
+    tl.save(v, {"version": 1, "fps": 30, "duration": 6.0, "cues": {},
+                "tracks": {"scene": [], "narration": [], "captions": [], "audio": []}})
+    first = audio.finish(v)
+    calls = []
+    real = audio.measure
+    monkeypatch.setattr(audio, "measure", lambda f: calls.append(f) or real(f))
+    assert audio.finish(v) == first and calls == []
+    (v / "audio" / "narration.wav").touch()          # the narration changed
+    audio.finish(v)
+    assert calls

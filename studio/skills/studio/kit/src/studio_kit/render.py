@@ -1,9 +1,10 @@
 """Cuts: render what changed, composite, and write what the review page shows.
 
 A clip's cache key hashes everything its frames depend on: the engine, the video's shared scene
-files, the clip's own scene file (scenes/<clip>.tsx), its slice of the timeline and the layout.
-So an edit to one chapter's scene re-renders that chapter only, and an edit to a shared file
-re-renders them all.
+files, the clip's own scene file (scenes/<clip>.tsx), its slice of the timeline (as times relative
+to the clip's first frame) and the layout. So an edit to one chapter's scene re-renders that
+chapter only, a narration edit re-renders the chapter it is in (later chapters move by whole frames,
+see narration.CHAPTER_GRID, and keep their keys), and an edit to a shared file re-renders them all.
 
 videos/<name>/cuts/cutN/
   video.mp4      the composite with narration (draft: 540p)
@@ -66,10 +67,16 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     _hash_tree(h, video / "data")       # scenes import their numbers from data/
     _hash_listing(h, video / "assets")  # assets: names, sizes and times (footage is too big to read)
     c = tl.clip(timeline, clip_id)
+    first, count = tl.frames(timeline, clip_id)
+    t0 = first / timeline["fps"]
+    rel = lambda x: round(x - t0, 4)   # the clip's frames depend on times relative to its first frame only
     part = {
-        "clip": c, "frames": tl.frames(timeline, clip_id), "fps": timeline["fps"],
-        "narration": [s for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
-        "captions": [x for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
+        "clip": {**c, "start": rel(c["start"]), "end": rel(c["end"])}, "frames": count, "fps": timeline["fps"],
+        "narration": [{**s, "start": rel(s["start"]), "end": rel(s["end"]),
+                       "words": [{**w, "start": rel(w["start"]), "end": rel(w["end"])} for w in s.get("words", [])]}
+                      for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
+        "captions": [{**x, "start": rel(x["start"]), "end": rel(x["end"])}
+                     for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
         "cues": timeline.get("cues", {}),
         "footage": timeline["tracks"].get("footage", []),
         "beats": timeline.get("beats", {}),
@@ -109,17 +116,38 @@ def _ffmpeg(*args):
     subprocess.run(["ffmpeg", "-v", "error", "-y", *map(str, args)], check=True)
 
 
+def mixed_sound(video, timeline):
+    """The mixed soundtrack, cached under .cache/sound/ by its inputs (the audio track entries, each
+    file's size and time, and the duration), so a cut that changed only pictures doesn't re-mix it."""
+    video = Path(video)
+    h = hashlib.sha1(json.dumps([timeline["tracks"]["audio"], timeline["duration"]], sort_keys=True).encode())
+    for e in timeline["tracks"]["audio"]:
+        f = audio.pick(video, e["file"])
+        if f.exists():
+            st = f.stat()
+            h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
+    cache = video / ".cache" / "sound"
+    cache.mkdir(parents=True, exist_ok=True)
+    f = cache / f"{h.hexdigest()[:16]}.m4a"
+    if f.exists():
+        log("soundtrack: unchanged, cached")
+    else:
+        for old in cache.glob("*.m4a"):
+            old.unlink()
+        audio.mix(video, timeline, f)
+    return f
+
+
 def composite(video, timeline, clip_files, out):
     """Concatenate the clips' videos (identical encodes, so no re-encode) and mux the mixed soundtrack."""
     lst = out.with_suffix(".txt")
     lst.write_text("".join(f"file '{f.resolve()}'\n" for f in clip_files))
     silent = out.with_name("silent.mp4")
     _ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", silent)
-    sound = out.with_name("sound.m4a")
-    audio.mix(video, timeline, sound)
+    sound = mixed_sound(video, timeline)
     _ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
             "-movflags", "+faststart", out)
-    for f in (lst, silent, sound):
+    for f in (lst, silent):
         f.unlink()
 
 
@@ -150,6 +178,35 @@ def still_requests(timeline, outdir, clips=None):
     return reqs
 
 
+def cached_stills(video, timeline, engine, reqs):
+    """Render the stills whose frame changed, and copy the rest from .cache/stills/. A still's key is
+    its clip's key and its frame number, so a still is reused exactly when its frame is the same.
+    Returns (rendered, reused)."""
+    cache = Path(video) / ".cache" / "stills"
+    cache.mkdir(parents=True, exist_ok=True)
+    keys = {c["id"]: clip_key(video, timeline, c["id"], "still") for c in timeline["tracks"]["scene"]}
+    fps = timeline["fps"]
+    todo, wanted = [], set()
+    for r in reqs:
+        f = cache / f"{r['clip']}-{keys[r['clip']]}-{tl.half_up(r['t'] * fps)}-{r['scale']}.jpg"
+        wanted.add(f.name)
+        r["cache"] = f
+        if not f.exists():
+            todo.append({"clip": r["clip"], "t": r["t"], "out": str(f), "scale": r["scale"]})
+    if todo:
+        engine.stills(todo)
+    for r in reqs:
+        shutil.copyfile(r.pop("cache"), r["out"])
+    for old in cache.glob("*.jpg"):          # stills of frames that no longer exist
+        if old.name not in wanted:
+            old.unlink()
+    return len(todo), len(reqs) - len(todo)
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
 def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=None):
     """Render cut N+1: stills first (the fastest answer), then only the clips whose key changed,
     then the composite. Returns the cut record."""
@@ -171,8 +228,9 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
 
     t0 = time.monotonic()
     reqs = still_requests(timeline, d / "stills")
-    engine.stills([{k: r[k] for k in ("clip", "t", "out", "scale")} for r in reqs])
+    made, reused = cached_stills(video, timeline, engine, reqs)
     timings["stills"] = round(time.monotonic() - t0, 1)
+    log(f"stills: {made} rendered, {reused} unchanged (reused)")
 
     clips = []
     if not stills_only:
@@ -222,10 +280,20 @@ def render_clips(video, timeline, engine, quality="draft", fmt=None):
         if not f.exists():
             for old in cache.glob(f"{cid}-{quality}{tag}-*.mp4"):
                 old.unlink()
-            engine.render(cid, f, quality)
+            log(f"render {cid} ({quality}): changed")
+            r = engine.render(cid, f, quality)
+            log(f"  {r.get('frames', '?')} frames in {r.get('seconds', 0):.0f} s")
+        else:
+            log(f"render {cid} ({quality}): unchanged, cached")
         records.append({"id": cid, "key": key, "rendered": cached is None, "seconds": round(time.monotonic() - started, 1)})
         files.append(f)
     return files, records
+
+
+def clip_files_fresh(video, timeline, quality, fmt=None):
+    """Whether every clip's cached video exists for the current keys (so the parts of a composite
+    can be reused, as publish's web encode does)."""
+    return all(f is not None for _, _, f in plan(video, timeline, quality, fmt))
 
 
 def export_formats(video, formats, quality="final", lufs=None, name=None):

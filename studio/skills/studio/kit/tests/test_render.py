@@ -1,5 +1,6 @@
 import copy
 import json
+from pathlib import Path
 
 from studio_kit import render
 from studio_kit import timeline as tl
@@ -93,3 +94,46 @@ def test_clips_without_narration_get_stills_at_even_intervals(tmp_path):
     s2 = [r for r in reqs if r["clip"] == "s2"]
     assert [r["id"] for r in s2] == ["s2_t01", "s2_t02", "s2_t03"]
     assert all(0 <= r["t"] < 2.0 for r in s2) and [r["id"] for r in reqs if r["clip"] == "s1"] == ["s1_01"]
+
+
+def test_a_chapter_moved_by_whole_frames_keeps_its_key(tmp_path):
+    """A narration edit earlier in the video moves later chapters by whole frames (narration
+    CHAPTER_GRID); their frames are the same, so their clips stay cached."""
+    t = make_video(tmp_path)
+    before = keys(tmp_path, t)
+    t2 = copy.deepcopy(t)
+    shift = 0.3                                   # 9 frames, 300 ms
+    t2["tracks"]["scene"][0]["end"] += shift
+    t2["tracks"]["scene"][1]["start"] += shift
+    t2["tracks"]["scene"][1]["end"] += shift
+    for s in t2["tracks"]["narration"][1:]:
+        s["start"] += shift
+        s["end"] += shift
+    t2["tracks"]["captions"] = tl.chunk_captions(t2["tracks"]["narration"])
+    after = keys(tmp_path, t2)
+    assert after["s2"] == before["s2"] and after["s1"] != before["s1"]
+
+
+class StillEngine:
+    """Writes a tiny file per requested still and counts them."""
+    def __init__(self):
+        self.calls = []
+
+    def stills(self, requests):
+        self.calls.append(len(requests))
+        for r in requests:
+            Path(r["out"]).write_bytes(f"{r['clip']} {r['t']}".encode())
+
+
+def test_stills_are_reused_unless_their_frame_changed(tmp_path):
+    t = make_video(tmp_path)
+    eng = StillEngine()
+    reqs = lambda d: render.still_requests(t, d)
+    (tmp_path / "a").mkdir()
+    assert render.cached_stills(tmp_path, t, eng, reqs(tmp_path / "a")) == (2, 0)
+    (tmp_path / "b").mkdir()
+    assert render.cached_stills(tmp_path, t, eng, reqs(tmp_path / "b")) == (0, 2)
+    assert (tmp_path / "b" / "s1_01.jpg").read_bytes() == (tmp_path / "a" / "s1_01.jpg").read_bytes()
+    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited\n")
+    (tmp_path / "c").mkdir()
+    assert render.cached_stills(tmp_path, t, eng, reqs(tmp_path / "c")) == (1, 1)

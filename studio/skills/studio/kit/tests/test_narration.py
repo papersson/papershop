@@ -1,5 +1,6 @@
 import pytest
 import json
+import math
 
 import numpy as np
 
@@ -47,8 +48,10 @@ def test_layout_places_gaps_holds_and_chapter_edges(tmp_path):
     s1, s2 = t["segments"]
     starts = [l["start"] for l in s1["lines"]]
     assert starts == [nr.LEAD_IN, nr.LEAD_IN + 1.25, nr.LEAD_IN + 1.25 + 1.0 + 1.0 + nr.PARAGRAPH_GAP]
-    assert s2["lines"][0]["start"] == round(starts[-1] + 1.0 + nr.SEGMENT_GAP, 3)
-    assert s1["end"] == s2["start"] == round(s2["lines"][0]["start"] - 0.35, 3)
+    # the next chapter starts on the 0.1 s grid, and its clip PRE_ROLL_FRAMES before that, on the frame grid
+    grid = math.ceil(round((starts[-1] + 1.0 + nr.SEGMENT_GAP) / nr.CHAPTER_GRID, 6)) * nr.CHAPTER_GRID
+    assert s2["lines"][0]["start"] == round(grid, 3)
+    assert s1["end"] == s2["start"] == (round(grid * 30) - nr.PRE_ROLL_FRAMES) / 30
     assert t["total"] == round(s2["lines"][0]["end"] + 2.0, 3)
 
 
@@ -142,3 +145,35 @@ def test_pronunciation_lint_flags_a_lone_letter_read_as_the_article(tmp_path):
     S = nr.Settings(tmp_path)
     S.phonemes_by_id = {"s1_01": {"A": "ˈA"}}
     assert ("letter", "s1_01", "A") not in {(k, lid, w) for k, lid, w, _, _ in pronounce.find(S, sc.load(tmp_path))}
+
+
+def test_a_longer_chapter_shifts_later_chapters_by_whole_frames_and_milliseconds(tmp_path):
+    """So later chapters' clips, keyed on times relative to their first frame, stay cached."""
+    S = nr.Settings(video(tmp_path))
+    chapters = sc.load(tmp_path)
+    durs = {k: 1.0 for _, _, ss in chapters for k, _, _ in ss}
+    a = nr.layout(S, chapters, durs)
+    durs["s1_02"] = 1.37
+    b = nr.layout(S, chapters, durs)
+    shift = b["segments"][1]["start"] - a["segments"][1]["start"]
+    assert shift > 0 and abs(shift * 30 - round(shift * 30)) < 1e-9 and abs(shift * 1000 - round(shift * 1000)) < 1e-6
+    rel = lambda t: [round(l["start"] - t["segments"][1]["start"], 6) for l in t["segments"][1]["lines"]]
+    assert rel(a) == rel(b)
+
+
+def test_moved_chapters_keep_identical_relative_times_and_clip_keys(tmp_path):
+    """Float drift in absolute times once changed a later chapter's key by 1 ms; offsets are exact."""
+    from studio_kit import render, timeline as tl
+    v = video(tmp_path)
+    (v / "scenes").mkdir()
+    (v / "scenes" / "s1.tsx").write_text("//")
+    (v / "scenes" / "s2.tsx").write_text("//")
+    S = nr.Settings(v)
+    chapters = sc.load(v)
+    durs = {"s1_01": 2.217, "s1_02": 1.873, "s1_03": 3.331, "s2_01": 2.0}
+    keys = []
+    for extra in (0.0, 0.456, 1.2345):
+        d = {**durs, "s1_02": durs["s1_02"] + extra}
+        t = tl.from_timings(nr.layout(S, chapters, d))
+        keys.append(render.clip_key(v, t, "s2", "draft"))
+    assert keys[0] == keys[1] == keys[2]
