@@ -5,8 +5,10 @@
 //   node cli.mjs stills   --video DIR --requests JSON        [{clip, t, out, layers?, scale?}], one browser
 //   node cli.mjs render   --video DIR --clip ID --out MP4 [--quality draft|final] [--range A B]
 //   node cli.mjs boxes    --video DIR --clip ID --t SEC
-//   node cli.mjs boxesAt  --video DIR --requests JSON        [{clip, t}], one browser
+//   node cli.mjs boxesAt  --video DIR --requests JSON        [{clip, t, out?}], one browser
 //   node cli.mjs duration --video DIR --clip ID
+//   node cli.mjs durations --video DIR --clips ID,ID,...      one browser
+//   node cli.mjs render ... [--concurrency N]                 default: every core
 //
 // Layers: all (default), no-captions (the band stays, its text goes), no-band (the scene alone),
 // background (nothing but the background).
@@ -16,7 +18,7 @@ import {bundle} from '@remotion/bundler';
 import {openBrowser, renderMedia, renderStill, selectComposition} from '@remotion/renderer';
 import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import {availableParallelism, tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -38,6 +40,24 @@ for (let i = 0; i < rest.length; i++) {
 	}
 }
 const log = (...a) => console.error(...a);
+// Every core by default: Remotion's own default is half of them, and rendering is CPU-bound (on an
+// 8-core M3 a 1080p chapter went from 43 to 68 frames/s). --concurrency overrides it.
+const CONCURRENCY = opt.concurrency ? Number(opt.concurrency) : availableParallelism();
+// Stills render in parallel tabs of one browser; past a handful of tabs they only contend.
+const STILL_TABS = Math.max(1, Math.min(6, CONCURRENCY));
+
+/** Run `fn` over `items` with at most `n` in flight, keeping results in order. */
+async function pool(items, n, fn) {
+	const out = new Array(items.length);
+	let next = 0;
+	await Promise.all(Array.from({length: Math.min(n, items.length)}, async () => {
+		while (next < items.length) {
+			const i = next++;
+			out[i] = await fn(items[i], i);
+		}
+	}));
+	return out;
+}
 
 // Names relative to the hashed root, so a moved or copied video keeps its bundle key.
 // Names, sizes and times only: assets can be large footage, and reading it on every render is slow.
@@ -125,21 +145,26 @@ async function stills(video, requests) {
 	const {serveUrl, cached} = await getBundle(video);
 	const browser = await openBrowser('chrome', browserOptions());
 	const comps = {};
-	const done = [];
+	let done;
 	try {
+		// Compositions first (one per clip and layer set), then the frames in parallel tabs.
 		for (const r of requests) {
 			const inputProps = {layers: r.layers ?? 'all'};
 			const key = `${r.clip}/${inputProps.layers}`;
 			comps[key] ??= await composition(serveUrl, r.clip, inputProps, browser);
-			const frame = frameAt(comps[key], r.t);
+		}
+		done = await pool(requests, STILL_TABS, async (r) => {
+			const inputProps = {layers: r.layers ?? 'all'};
+			const comp = comps[`${r.clip}/${inputProps.layers}`];
+			const frame = frameAt(comp, r.t);
 			mkdirSync(path.dirname(r.out), {recursive: true});
 			await renderStill({
-				composition: comps[key], serveUrl, output: r.out, frame, inputProps,
+				composition: comp, serveUrl, output: r.out, frame, inputProps,
 				scale: Number(r.scale ?? 1), imageFormat: r.out.endsWith('.jpg') ? 'jpeg' : 'png',
 				puppeteerInstance: browser, overwrite: true, logLevel: 'error', ...browserOptions(),
 			});
-			done.push({clip: r.clip, t: Number(r.t), frame, out: r.out});
-		}
+			return {clip: r.clip, t: Number(r.t), frame, out: r.out};
+		});
 	} finally {
 		await browser.close({silent: true});
 	}
@@ -147,30 +172,51 @@ async function stills(video, requests) {
 }
 
 async function boxesAt(video, requests) {
+	// [{clip, t, out?}]: each frame's labelled boxes; with `out`, the full-resolution frame is kept
+	// there too, so a caller that needs both renders the frame once.
 	const {serveUrl} = await getBundle(video);
 	const inputProps = {layers: 'all', reportBoxes: true};
 	const browser = await openBrowser('chrome', browserOptions());
 	const comps = {};
-	const frames = [];
+	let frames;
 	try {
-		for (const r of requests) {
-			comps[r.clip] ??= await composition(serveUrl, r.clip, inputProps, browser);
+		for (const r of requests) comps[r.clip] ??= await composition(serveUrl, r.clip, inputProps, browser);
+		frames = await pool(requests, STILL_TABS, async (r, i) => {
 			let found = null;
+			const output = r.out ?? path.join(tmpdir(), `studio-boxes-${process.pid}-${i}.png`);
+			if (r.out) mkdirSync(path.dirname(r.out), {recursive: true});
 			await renderStill({
 				composition: comps[r.clip], serveUrl, frame: frameAt(comps[r.clip], r.t), inputProps, overwrite: true,
-				output: path.join(tmpdir(), `studio-boxes-${process.pid}.png`), logLevel: 'error',
+				output, logLevel: 'error', imageFormat: output.endsWith('.jpg') ? 'jpeg' : 'png',
 				puppeteerInstance: browser, ...browserOptions(),
 				onBrowserLog: (l) => {
 					if (l.text.startsWith('STUDIO_BOXES ')) found = JSON.parse(l.text.slice('STUDIO_BOXES '.length));
 				},
 			});
+			if (!r.out) rmSync(output, {force: true});
 			if (!found) throw new Error(`the frame at ${r.clip} t=${r.t} reported no boxes`);
-			frames.push({clip: r.clip, t: Number(r.t), band: found.band, boxes: found.boxes});
-		}
+			return {clip: r.clip, t: Number(r.t), band: found.band, boxes: found.boxes, out: r.out ?? null};
+		});
 	} finally {
 		await browser.close({silent: true});
 	}
 	return {frames};
+}
+
+async function durations(video, clips) {
+	// Every clip's frame count in one browser session (the length check asked one process per clip).
+	const {serveUrl} = await getBundle(video);
+	const browser = await openBrowser('chrome', browserOptions());
+	try {
+		const out = [];
+		for (const clip of clips) {
+			const comp = await composition(serveUrl, clip, {layers: 'all'}, browser);
+			out.push({clip, frames: comp.durationInFrames, fps: comp.fps});
+		}
+		return {clips: out};
+	} finally {
+		await browser.close({silent: true});
+	}
 }
 
 async function boxes(video, clip, t) {
@@ -190,7 +236,7 @@ async function render(video, clip, out, quality, range) {
 	await renderMedia({
 		composition: comp, serveUrl, codec: 'h264', outputLocation: out, inputProps, muted: true,
 		scale: q.scale, crf: q.crf, jpegQuality: q.jpegQuality, imageFormat: 'jpeg', frameRange,
-		overwrite: true, logLevel: 'error', concurrency: opt.concurrency ? Number(opt.concurrency) : null, ...browserOptions(),
+		overwrite: true, logLevel: 'error', concurrency: CONCURRENCY, ...browserOptions(),
 	});
 	return {clip, out, quality: quality ?? 'draft', frames: comp.durationInFrames, bundleCached: cached,
 		seconds: (Date.now() - started) / 1000};
@@ -209,6 +255,7 @@ const ops = {
 	boxes: () => boxes(opt.video, opt.clip, opt.t),
 	boxesAt: () => boxesAt(opt.video, JSON.parse(readFileSync(opt.requests, 'utf8'))),
 	duration: () => duration(opt.video, opt.clip),
+	durations: () => durations(opt.video, String(opt.clips).split(',')),
 	bundle: () => getBundle(opt.video),
 };
 

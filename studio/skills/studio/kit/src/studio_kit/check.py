@@ -48,9 +48,10 @@ def sample_times(t, per_clip):
 def length(video, engine=None):
     engine, t = engine or Engine(video), tl.load(video)
     rows = []
+    got_all = engine.durations([c["id"] for c in t["tracks"]["scene"]])
     for c in t["tracks"]["scene"]:
         want = tl.frames(t, c["id"])[1]
-        got = engine.duration(c["id"])["frames"]
+        got = got_all[c["id"]]
         rows.append({"check": "length", "clip": c["id"], "ok": got == want, "detail": f"engine {got} frames, timeline {want}"})
     return rows
 

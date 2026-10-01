@@ -86,3 +86,15 @@ class Engine:
 
     def duration(self, clip):
         return self._call("duration", "--clip", clip)
+
+    def durations(self, clips):
+        """{clip: frames} for many clips; one browser session where the engine supports it."""
+        if self.name == "remotion":
+            return {r["clip"]: r["frames"] for r in self._call("durations", "--clips", ",".join(clips))["clips"]}
+        return {c: self.duration(c)["frames"] for c in clips}
+
+    @property
+    def boxes_keep_frames(self):
+        """Whether boxes_at can also save each frame (requests with "out"), so a caller needing
+        both renders every frame once."""
+        return self.name == "remotion"
