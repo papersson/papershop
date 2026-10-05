@@ -109,7 +109,7 @@ def poster_time(timeline, poster):
 def final_cut(video):
     n = render.latest_cut(video)
     rec = render.read_cut(video, n) if n else None
-    if rec and rec["quality"] == "final" and rec["video"] and not any(
+    if rec and rec["quality"] == "final" and rec["video"] and len(rec["clips"]) == len(tl.load(video)["tracks"]["scene"]) and not any(
             c["key"] != k for c, (_, k, _) in zip(rec["clips"], render.plan(video, tl.load(video), "final"))):
         return rec
     return render.make_cut(video, "final")
@@ -118,6 +118,13 @@ def final_cut(video):
 def gate(video):
     """The full check, every chapter, before anything is published."""
     from . import check
+    cfg = json.loads((Path(video) / "video.json").read_text()) if (Path(video) / "video.json").exists() else {}
+    if cfg.get("teaching_contract"):
+        from .review_state import require, required_roles
+        for role in required_roles(cfg):
+            require(video, role)
+        if cfg.get("level") == "deep-dive" or cfg.get("destination") in ("share", "social") or cfg.get("frame_review"):
+            require(video, "frames", frames=True)
     rows = check.run(video, everything=True)
     bad = [r for r in rows if not r["ok"]]
     print(f"publish gate: full check, {len(rows)} results, {len(bad)} failed")
@@ -136,6 +143,10 @@ def build(video, skip_gate=False):
     finish = audio.finish(video)
     print(f"audio: {finish['lufs']:.1f} LUFS, true peak {finish['true_peak_dbtp']:.1f} dBTP")
     rec = final_cut(video)
+    from .cuts import media_info
+    movie = render.cuts_dir(video) / f"cut{rec['cut']}" / rec["video"]
+    media = media_info(movie)
+    print(f"master: {media['width']}×{media['height']}, {media['fps']:g} fps, quality=final, final=true; user approval is separate")
     src = render.cuts_dir(video) / f"cut{rec['cut']}" / rec["video"]
     out, page = video / "out", video / "out" / "page"
     page.mkdir(parents=True, exist_ok=True)

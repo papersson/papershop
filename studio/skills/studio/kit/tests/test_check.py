@@ -1,4 +1,7 @@
 import subprocess
+import struct
+import zlib
+from pathlib import Path
 
 from studio_kit import check, sheets
 from test_render import make_video
@@ -64,3 +67,38 @@ def test_a_clip_without_narration_is_still_sampled(tmp_path):
     times = check.sample_times(t, 3)
     assert [r["clip"] for r in times] == ["s1"] * 3 + ["s2"] * 3
     assert times[0]["t"] == 0.5 and times[2]["t"] == 1.5           # a 2 s clip: quarter points
+
+
+def png(pixel, comment):
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)) + \
+        chunk(b"tEXt", b"Comment\0" + comment) + chunk(b"IDAT", zlib.compress(b"\0" + bytes(pixel))) + chunk(b"IEND", b"")
+
+
+class PixelEngine:
+    def __init__(self, colors):
+        self.colors, self.calls = colors, 0
+
+    def stills(self, requests):
+        for r in requests:
+            Path(r["out"]).write_bytes(png(self.colors[self.calls], str(self.calls).encode()))
+        self.calls += 1
+
+
+def test_determinism_compares_decoded_pixels_not_png_metadata(tmp_path):
+    make_video(tmp_path)
+    engine = PixelEngine([(1, 2, 3, 255)] * 2)
+    rows = check.determinism(tmp_path, samples=1, engine=engine, clips={"s1"})
+    assert all(r["ok"] for r in rows) and engine.calls == 2
+    assert not (tmp_path / "research/determinism").exists()
+
+
+def test_determinism_retries_but_preserves_a_flaky_failure_and_evidence(tmp_path):
+    make_video(tmp_path)
+    engine = PixelEngine([(1, 2, 3, 255), (2, 3, 4, 255), (1, 2, 3, 255), (1, 2, 3, 255)])
+    rows = check.determinism(tmp_path, samples=1, engine=engine, clips={"s1"})
+    assert engine.calls == 4 and not rows[0]["ok"]
+    assert "FLAKY" in rows[0]["detail"] and "differing pixels 1" in rows[0]["detail"]
+    evidence = next((tmp_path / "research/determinism").iterdir())
+    assert len(list(evidence.glob("*.png"))) == 4 and (evidence / "results.json").exists()

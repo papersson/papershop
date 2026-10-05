@@ -10,8 +10,10 @@ claude plugin install studio@papershop
 ```
 
 Then ask for a video from anywhere ("make an explainer of how this repo's sync engine works",
-"teach me Raft as a video"). The skill asks whether you know the subject (you give notes) or are
-learning it (fresh-context research and reviewers check it for you).
+"teach me Raft as a video"). The skill distinguishes subject expertise from audience needs. Teaching explainers get a fresh
+student script pass; learner drive or deep-dive level also gets expert/editor script review.
+Deep-dive and shared videos get independent frame review. Code lessons build
+runnable programs around motivated ideas, with recorded outputs and optional reference sidebars.
 
 ## Environment
 
@@ -31,7 +33,14 @@ the engine's headless shell (four times faster per frame than a full Chrome in h
 yourself. ElevenLabs narration needs `ELEVENLABS_API_KEY`.
 
 Videos go to `$STUDIO_HOME/NAME` (default `~/studio`), which also holds `learner.md`, the learner
-model the student reviewer plays.
+model the student reviewer plays. Optional `house.md` and `lexicon.json` are snapshotted into new
+videos. `studio new NAME --from VIDEO --include data/example.json` starts a related episode.
+
+Cuts and MP4s are preserved by default. `studio open VIDEO` protects a player handoff; explicit
+`clean --videos` still excludes watched, final and noted cuts. Existing pinned videos need an
+explicit `studio init VIDEO --update` to get the new retention policy; protect their cuts first.
+`studio commit` checkpoints source separately from generated media. See the skill command index
+for steps, inline pauses, ownership, review bundles and setup diagnostics.
 
 See [`skills/studio/SKILL.md`](skills/studio/SKILL.md), and [`DESIGN.md`](skills/studio/DESIGN.md)
 for why it is shaped this way.

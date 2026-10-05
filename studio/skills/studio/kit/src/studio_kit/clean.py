@@ -1,29 +1,13 @@
-"""`studio clean VIDEO [--dry-run]`: remove what the studio can regenerate, and say how much it freed.
-
-Removed:
-  cuts beyond the newest `keep_cuts` (video.json, default 3), except the cut of the latest notes round
-  narration chunks in .cache/narration that the current script no longer uses (Kokoro)
-  rendered clips (.cache/clips), web-encode parts (.cache/web), stills (.cache/stills) and label
-  crops (.cache/crops) whose key no longer matches the timeline and scenes
-  older Remotion bundles (.cache/bundle: the newest per layout is kept)
-  mixed soundtracks other than the current one (.cache/sound)
-  out/sheets (contact sheets and crops: `studio sheets` rebuilds them), out/web.mp4 (a copy of
-  out/page/video.mp4) and audio/final.wav (the loudness pass: `studio publish` redoes it)
-
-Never touched: SCRIPT.md, scenes/, data/, sims/, research/, assets/, narration.json, timeline.json,
-layout.json, video.json, review/, audio/narration.mp3 and narration.wav, the ElevenLabs response
-cache (paid for; committed with the video), the latest cut, out/master.mp4 and out/page/.
-
-After every cut, `studio cut` applies the same rule to old cuts (prune_cuts).
-"""
+"""Remove regenerable caches and old draft previews; MP4 deletion is explicit and protected."""
 import json
 import shutil
 from pathlib import Path
 
-from . import render
+from . import cuts, render
+from .workspace import atomic_json, locked, now
 from . import timeline as tl
 
-KEEP_CUTS = 3
+KEEP_CUTS = 10
 
 
 def keep_cuts(video):
@@ -40,29 +24,35 @@ def _size(p):
 
 
 def stale_cuts(video):
-    """Cut folders to remove: all but the newest keep_cuts, never the latest, never the cut the latest
-    notes round was about."""
-    video = Path(video)
-    nums = sorted(int(p.name[3:]) for p in render.cuts_dir(video).glob("cut*") if p.name[3:].isdigit())
-    if not nums:
-        return []
-    keep = set(nums[-keep_cuts(video):]) | {nums[-1]}
-    log = video / "review" / "notes.jsonl"
-    if log.exists():
-        rounds = [json.loads(l) for l in log.read_text().splitlines() if l.strip()]
-        rounds = [r for r in rounds if r.get("type") == "round"]
-        if rounds:
-            keep.add(int(rounds[-1]["cut"]))
-    return [render.cuts_dir(video) / f"cut{n}" for n in nums if n not in keep]
+    """Unprotected old drafts whose previews may be removed; records always survive."""
+    recs = cuts.records(video)
+    movies = sorted(n for n in recs if cuts.playable(video, n))
+    previews = sorted(n for n in recs if not cuts.playable(video, n))
+    keep = cuts.protected(video, recs) | set(movies[-keep_cuts(video):]) | set(previews[-keep_cuts(video):])
+    return [Path(video) / "cuts" / f"cut{n}" for n in sorted(recs) if n not in keep]
+
+
+def cut_plan(video, videos=False):
+    items = []
+    for d in stale_cuts(video):
+        for name in ("stills", "before", "crops", "silent.mp4"):
+            if (d / name).exists():
+                items.append((d / name, "old draft preview"))
+        if videos and (d / "video.mp4").exists():
+            items.append((d / "video.mp4", "unprotected old draft video"))
+    return items
 
 
 def prune_cuts(video):
-    """Remove old cuts after a new one; returns bytes freed."""
-    freed = 0
-    for d in stale_cuts(video):
-        freed += _size(d)
-        shutil.rmtree(d, ignore_errors=True)
-    return freed
+    with locked(video):
+        items = cut_plan(video)
+        freed = sum(_size(p) for p, _ in items)
+        for p, _ in items:
+            if p.is_dir():
+                shutil.rmtree(p)
+            else:
+                p.unlink()
+        return freed
 
 
 def _narration_stale(video):
@@ -139,10 +129,10 @@ def _sound_stale(video, t):
     return files[:-1]
 
 
-def plan(video):
+def plan(video, videos=False):
     """[(path, reason)] of everything clean would remove."""
     video = Path(video).resolve()
-    items = [(d, "old cut") for d in stale_cuts(video)]
+    items = cut_plan(video, videos)
     items += [(f, "narration chunk not in the current script") for f in _narration_stale(video)]
     if (video / "timeline.json").exists():
         t = tl.load(video)
@@ -157,8 +147,8 @@ def plan(video):
     return items
 
 
-def clean(video, dry_run=False):
-    items = plan(video)
+def _clean(video, dry_run=False, videos=False):
+    items = plan(video, videos)
     total = 0
     by = {}
     for p, why in items:
@@ -172,11 +162,23 @@ def clean(video, dry_run=False):
                 shutil.rmtree(p, ignore_errors=True)
             else:
                 p.unlink(missing_ok=True)
+                if why == "unprotected old draft video":
+                    record = p.parent / "cut.json"
+                    rec = json.loads(record.read_text())
+                    rec.update(video=None, media_removed=now())
+                    atomic_json(record, rec)
     return total, by
 
 
+def clean(video, dry_run=False, videos=False):
+    if dry_run:
+        return _clean(video, True, videos)
+    with locked(video):
+        return _clean(video, dry_run, videos)
+
+
 def main(args):
-    total, by = clean(args.video, args.dry_run)
+    total, by = clean(args.video, args.dry_run, args.videos)
     for why, (n, size) in sorted(by.items(), key=lambda x: -x[1][1]):
         print(f"{size / 1e6:9.1f} MB  {n:5} × {why}")
     print(f"{'would free' if args.dry_run else 'freed'} {total / 1e6:.1f} MB ({total} bytes)")

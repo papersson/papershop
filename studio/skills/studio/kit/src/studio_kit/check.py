@@ -21,6 +21,9 @@ import hashlib
 import json
 import subprocess
 import tempfile
+import shutil
+import struct
+import uuid
 from pathlib import Path
 
 from . import timeline as tl
@@ -81,14 +84,42 @@ def determinism(video, samples=3, engine=None, clips=None):
         reqs += [{"clip": c["id"], "t": round(dur * (i + 1) / (samples + 1), 3)} for i in range(samples)]
     if not reqs:
         return []
+    def pixels(path):
+        data = Path(path).read_bytes()
+        dimensions = struct.unpack(">II", data[16:24])
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgba", "-"],
+                             capture_output=True, check=True).stdout
+        return digest(struct.pack(">II", *dimensions) + raw), digest(data), raw
+
+    digest = lambda data: hashlib.sha256(data).hexdigest()
+    rows = []
     with tempfile.TemporaryDirectory() as tmp:
-        runs = []
-        for run in ("a", "b"):
-            batch = [{**r, "out": str(Path(tmp) / f"{run}-{r['clip']}-{r['t']}.png")} for r in reqs]
-            engine.stills(batch)
-            runs.append([hashlib.sha256(Path(r["out"]).read_bytes()).hexdigest() for r in batch])
-    return [{"check": "determinism", "clip": r["clip"], "t": r["t"], "ok": a == b, "detail": f"{a[:10]} {b[:10]}"}
-            for r, a, b in zip(reqs, *runs)]
+        def pair(requests, tag):
+            runs = []
+            for run in ("a", "b"):
+                batch = [{**r, "out": str(Path(tmp) / f"{tag}-{run}-{r['clip']}-{r['t']}.png")} for r in requests]
+                engine.stills(batch)
+                runs.append([(r["out"], *pixels(r["out"])) for r in batch])
+            return list(zip(*runs))
+        first = pair(reqs, "first")
+        failed = [i for i, (a, b) in enumerate(first) if a[1] != b[1]]
+        retry = dict(zip(failed, pair([reqs[i] for i in failed], "retry"))) if failed else {}
+        evidence = Path(video) / "research" / "determinism" / uuid.uuid4().hex[:12]
+        for i, (r, (a, b)) in enumerate(zip(reqs, first)):
+            same = a[1] == b[1]
+            detail = f"pixels {a[1]} {b[1]}; png {a[2]} {b[2]}"
+            if not same:
+                evidence.mkdir(parents=True, exist_ok=True)
+                c, d = retry[i]
+                for item in (a, b, c, d):
+                    shutil.copyfile(item[0], evidence / Path(item[0]).name)
+                differences = sum(a[3][j:j+4] != b[3][j:j+4] for j in range(0, min(len(a[3]), len(b[3])), 4))
+                detail += f"; retry {c[1]} {d[1]}; {'FLAKY' if c[1] == d[1] else 'REPEATED'}; differing pixels {differences}; evidence {evidence}"
+            rows.append({"check": "determinism", "clip": r["clip"], "t": r["t"], "ok": same, "detail": detail})
+        if failed:
+            (evidence / "results.json").write_text(json.dumps({"engine": getattr(engine, "name", "test"),
+                "browser": getattr(engine, "browser", None), "rows": rows}, indent=1) + "\n")
+    return rows
 
 
 def _boxes(video, per_clip, engine, clips=None):
@@ -243,6 +274,18 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
     always = ("legible",) + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
+    known = set(CHECKS) | {"legible", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
+    if only - known:
+        raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
+    preflight = []
+    if "script" in only or (default and config(video).get("teaching_contract")):
+        from . import script_check
+        preflight += script_check.run(video)
+    if "code-source" in only or (default and (Path(video) / "data" / "steps" / "index.json").exists()):
+        from . import steps
+        preflight += steps.check(video)
+    if only <= {"script", "code-source"}:
+        return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))
     keys, todo = changed_clips(video, kinds, samples, fmt)
@@ -252,7 +295,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         print(f"check: {len(todo)} chapter(s) changed since their last pass"
               + (f"; skipping {', '.join(skipped)} (unchanged, passed before)" if skipped else "")
               + " (--all checks every chapter)", flush=True)
-    rows = []
+    rows = preflight
     if "length" in only:
         rows += length(video, engine, clips)
     if "determinism" in only:
@@ -293,7 +336,7 @@ def main(args):
                everything=getattr(args, "all", False))
     for r in rows:
         where = f"{r['clip']}" + (f" t={r['t']}" if "t" in r else "")
-        print(f"{'ok  ' if r['ok'] else 'FAIL'}  {r['check']:11} {where:16} {r['detail']}".rstrip())
+        print(f"{'WARN' if r.get('severity') == 'warning' else 'ok  ' if r['ok'] else 'FAIL'}  {r['check']:11} {where:16} {r['detail']}".rstrip())
     by = {}
     for r in rows:
         by.setdefault(r["check"], [0, 0])[0 if r["ok"] else 1] += 1

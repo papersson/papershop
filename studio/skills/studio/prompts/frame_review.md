@@ -21,4 +21,10 @@ Check, for every frame:
 9. Beat timing: each animation has finished by the word it illustrates, and camera moves and content changes are staged, not simultaneous.
 10. The map and the band: on an overview map, any text that is not a component name is a SHOULD FIX; anything other than captions inside the caption band at the bottom is a MUST FIX.
 
+11. Motion/placement: does any movement imply a mechanism the narration does not claim? Inspect
+    transition strips as well as endpoints. A copied record must not move its geographic object;
+    a reference link must not imply value ownership or data transfer that does not occur.
+12. Prediction timing: the question and needed information remain visible during the pause;
+    the answer is not revealed before the viewer's attempt.
+
 End with counts (MUST FIX n · SHOULD FIX n · NIT n) and the line "FRAMES: PASS" if there are no MUST FIX items, otherwise "FRAMES: FIX".

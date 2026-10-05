@@ -15,19 +15,21 @@ any script exists.
 ## Two drives, because expertise changes who can judge
 
 When the user knows the subject (author drive), they are the best reviewer and iteration is cheap,
-so their notes are the review and reviewer rounds are optional. When they don't (learner drive),
+so their notes guide revisions. A student pass still checks whether the intended audience can follow;
+subject-review rounds remain optional when the author can judge correctness. When they don't (learner drive),
 correctness has to be established by fresh-context reviewers before they see it, and they get risk
 flags rather than a false sense of a finished product. In the work projects, the user was the
-expert and the reviewer machinery was friction: one lock took 18 rounds, and reviewers asking for
+expert and repeated three-role reviewer rounds were friction: one lock took 18 rounds, and reviewers asking for
 more explanation doubled a six-minute plan. Hence the charter, the caps and the oscillation stop.
 
 ## Fresh contexts where content is judged
 
 A context that holds a draft anchors every later judgment to it. Research, competing narratives,
 script reviews and the frame review run in fresh contexts, each seeing only what it needs; reviewers
-run in empty folders because, in one build, reviewers with file access read earlier reviews and
+run with selected inputs in empty folders because, in one build, reviewers with file access read earlier reviews and
 repeated them. When isolation failed once, the fallback subagents loaded the project's context and
-the "newcomer" knew far too much, so a failed reviewer now stops the round loudly. The in-agent
+the "newcomer" knew far too much, so a failed reviewer stops the round loudly. An empty folder reduces context leakage, but is not a
+filesystem sandbox; the main session owns reviewer dispatch and records capability limits. The in-agent
 craft critique is allowed because it judges legibility and motion, not content.
 
 ## One timeline, frames as functions of time
@@ -132,8 +134,8 @@ checks on it.
 
 ## Evals
 
-`evals/` holds eight cases in the plugin eval format (routing for each genre and drive, a negative
-case, revising from notes), run with `claude plugin eval` against a clean checkout (the installed
+`evals/` covers genre/drive routing, a negative case, exhaustive code coverage, and revisions
+including mid-flight requests. Run with `claude plugin eval` against a clean checkout (the installed
 `node_modules` push a plugin folder past the tool's 20,000-entry limit). The first run cost $4.25
 and scored 0.91: the two low runs were the sandbox (with only read tools the agent led with having
 no shell, and the judge found no plan), so the prompts now say so up front. The routing cases then
@@ -146,3 +148,35 @@ passed.
 |---|---|
 | **Notes from real use**: the loop is proven with scripted notes and by the user's use of the review page | a video goes through several rounds of the user's own notes |
 | **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |
+
+
+## What the next three productions changed (0.6.0)
+
+A 26-minute line-by-line Rust tour failed even though its facts were correct. A construction story
+with four marked ideas, real intermediate runs and optional language sidebars worked. The method
+now lives in one pedagogy reference: model delta and transfer questions precede the outline,
+abstractions earn their place, and prediction beats leave actual silence. Intro describes
+scaffolding rather than an exemption from evidence/review. Runtime follows the cognitive arc;
+engagement measurements do not establish a universal learning duration.
+
+An expert author is not a substitute for a beginner's perspective. One student pass applies to
+teaching explainers in either drive, with receipts tied to the current script. Builders hand
+frame bundles back to the main session so independent review does not require nested delegation.
+A review that could not run is unavailable, never an implicit pass. Reaching a cap leaves findings
+open rather than certifying correctness. Simulated students remain diagnostics, not learning data.
+
+Cut pruning deleted a video the user had just watched. Cut records and MP4s are now retained by
+default; explicit media cleanup excludes watched/final/noted cuts. The local player and page share
+the same protection. Git checkpoints track source and evidence rather than rotating binary
+renders into history. These are separate forms of preservation. Older pinned kits must be updated
+explicitly before their old pruning code is used again.
+
+Inline pauses belong to source sentences, not a hand-maintained map of positional IDs. The parser
+serves narration and pre-render diagnostics. Old narration settings keep their old timing; new
+intro defaults add breathing room. Prediction reveal cues, like other timeline cues, must remain
+relative to a shifted chapter for incremental rendering to remain valid.
+
+Revisions now begin with a merge/trim analysis. Only changed dependencies render, but the editorial
+change covers the smallest coherent argument, not necessarily only the annotated sentence. One
+folder has one writer, late requests are queued, and structural revisions get different forecasts.
+Personal style/lexicon and series evidence are snapshotted so global edits cannot change old cuts.

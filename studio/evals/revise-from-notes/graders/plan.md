@@ -3,5 +3,5 @@ type: llm
 weight: 3
 ---
 
-PASS if the response plans the review loop: read the notes (studio notes), save them, map each to its sentence and chapter, group them into themes and PROPOSE the changes before applying; change only what the notes point at (script and re-narration for the narration note, a scene for the picture note, answering a picture note with a still first when possible); treat the empty note as 'here' rather than ignoring it; and make the next cut with a changelog mapping each note to its change.
-FAIL if it plans to rebuild the whole video, ignores the empty note, or applies changes without proposing them.
+PASS if the response reads and saves the notes (studio notes), maps each to its sentence and chapter, groups them into themes, and explains the intended changes before applying them. It first identifies duplication and material made obsolete, shipping relevant cleanup with the revision; changes speech/scenes and regenerates affected chapters; treats the empty note as 'here'; and maps each note to the next cut's changelog. It preserves existing authorization and requests direction only for a consequential unresolved choice.
+FAIL if it rebuilds unaffected chapters, ignores the empty note, treats every revision as additive, or makes routine authorized fixes wait for another approval.

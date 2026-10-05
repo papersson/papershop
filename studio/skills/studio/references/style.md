@@ -45,8 +45,10 @@ between chapters.
 
 ## Motion
 
-- Objects move rather than cut: transform the thing into its next state where the viewer should see
-  what stays the same; fade through the background only between chapters.
+- Motion preserves the actual mechanism. A copy creates another record; it does not move a road
+  to a new geographic location. When place/record or value/reference are different views, show
+  both and link them. Transform only when identity really persists; cut/fade when that is clearer.
+  Inspect transition frames, not just endpoints, for a false implication.
 - Springs with at most a tiny overshoot on UI-like things, none on type. A value that changes
   target several times sums one spring per change.
 - Every animation finishes by the word it illustrates. Camera moves and content changes are staged,
@@ -87,8 +89,8 @@ videos look alike). The craft critique hunts for them:
 ## Narration
 
 - **Written for the ear:** short clauses, one new number per sentence, parameter names as words.
-- **Evergreen.** The narration never refers to how the video was made: no "we ran", no tool names
-  from the sims. Provenance lives in the Evidence table.
+- **Evergreen.** The narration does not refer to production decisions, briefs or sessions. Code/tool
+  names that are the subject of the explanation are legitimate; names from production-only sims are not. Provenance lives in the Evidence table.
 - **Concrete before abstract, and the wrong intuition shown failing.** A general claim is scoped to
   what was shown ("in a task group, when one fails…", not "in structured concurrency…").
 - **Say what is skipped**, once, in one sentence.
@@ -116,5 +118,5 @@ placed in pauses, and chosen with `studio sound-lab`.
 
 ## Length
 
-What the argument needs after the deletion test. Past videos ran 4½ to 8 minutes, and the two
-longest (10–11 minutes) were the two liked least.
+Choose it from the learning brief and the deletion test in `pedagogy.md`. Give longer arcs local
+closure. Keep optional reference separate from the main story; engagement alone is not learning.

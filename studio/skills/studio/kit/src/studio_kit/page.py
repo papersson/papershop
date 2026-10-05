@@ -20,7 +20,8 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import render
+from . import cuts, render
+from .workspace import locked
 from . import timeline as tl
 
 _lock = threading.Lock()
@@ -34,7 +35,7 @@ def append(video, entry):
     f = notes_file(video)
     f.parent.mkdir(parents=True, exist_ok=True)
     entry = {**entry, "created": time.strftime("%Y-%m-%d %H:%M:%S")}
-    with _lock, f.open("a", encoding="utf-8") as out:
+    with _lock, locked(video), f.open("a", encoding="utf-8") as out:
         out.write(json.dumps(entry, ensure_ascii=False) + "\n")
     return entry
 
@@ -67,7 +68,13 @@ def state(video, cut=None):
     latest = render.latest_cut(video)
     n = cut or latest
     record = render.read_cut(video, n) if n else None
-    t = tl.load(video)
+    snapshot = video / "cuts" / f"cut{n}" / "timeline.json"
+    t = json.loads(snapshot.read_text()) if snapshot.exists() else tl.load(video)
+    if record and record.get("video") and not cuts.playable(video, n):
+        record = {**record, "video": None}
+    if record:
+        record = {**record, "stills": [s for s in record.get("stills", [])
+                                      if (video / "cuts" / f"cut{n}" / s["file"]).exists()]}
     notes, rounds = fold(read_log(video), n)
     title = t.get("title") or video.name
     vj = video / "video.json"
@@ -127,6 +134,8 @@ class Handler(BaseHTTPRequestHandler):
         if m and ".." not in m.group(2):
             f = render.cuts_dir(self.video) / f"cut{m.group(1)}" / m.group(2)
             if f.is_file():
+                if f.name == "video.mp4":
+                    cuts.mark_watched(self.video, int(m.group(1)))
                 return self._file(f)
         self._send(404, b"not found", "text/plain")
 

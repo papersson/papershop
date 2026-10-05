@@ -47,7 +47,12 @@ class Engine:
     def _call(self, op, *args):
         run = subprocess.run(self._command(op, *map(str, args)), capture_output=True, text=True)
         if run.returncode != 0:
-            raise EngineError(f"{self.name} {op} failed:\n{run.stderr.strip()[-3000:]}")
+            cause = run.stderr.strip()[-3000:]
+            browser_failure = any(s in cause.lower() for s in ("failed to launch", "browser process", "sandbox", "operation not permitted", "eacces"))
+            hint = ("\nBrowser launch failed. Try this studio invocation directly instead of through a helper shell; "
+                    "run studio doctor and set STUDIO_BROWSER to a working browser. Use the host's approved "
+                    "execution path for sandbox restrictions; do not disable its sandbox.") if browser_failure else ""
+            raise EngineError(f"{self.name} {op} failed:\n{cause}{hint}")
         return json.loads(run.stdout.strip().splitlines()[-1])
 
     def still(self, clip, t, out, layers="all", scale=1.0):

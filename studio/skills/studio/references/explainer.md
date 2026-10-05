@@ -1,240 +1,140 @@
-# The explainer: from an approved narrative to a locked video
+# Build an explainer
 
-At the intro level (the default), read `references/levels.md` first: it replaces the research,
-review and frame-review stages below with one-shot planning, a self-check and a look at the
-stills, and caps numbers and length. The stages below are the deep-dive build; their rules about
-evidence, narration, the look, scenes and cuts hold at every level.
+Start from the agreed `research/narrative.md`. Read `pedagogy.md`, `levels.md`, `style.md`, the
+learner model and the video's snapshotted `research/house.md`. For code, also read `code.md`.
+The same stages apply at either level; depth and claim risk determine additional review effort.
 
-This is the procedure for an explainer, whoever builds it (you in author drive, a background agent
-in learner drive). It records what earlier builds got wrong; keep the reasons when you change a
-step. The narrative is approved (`propose.md`) before this starts, and its chain, charter and
-Decisions are binding.
+## Ownership and checkpoints
 
-The script is the product and everything else renders it, so do no animation until the script is
-locked. Commit after every stage and every cut, so an interrupted build resumes.
+One builder owns the folder: `studio lock VIDEO acquire --owner NAME`, then use the printed
+`STUDIO_OWNER` for its commands. Keep ownership across stages and direct file edits. The main
+session queues additions with `studio request VIDEO "text"`; read pending requests at stage
+boundaries and resolve each incorporated request with `studio request VIDEO --resolve ID`.
+Explicit stop/correction applies immediately. Reviewers use snapshots, never edit the folder.
+Release the lease when handing ownership back; recover only an abandoned build.
 
-## Stage 1: Sources and research
+Mark stages with `studio stage VIDEO NAME`; `waiting` excludes user wait from active budgets and
+`finished` closes timing. Over-budget reports are advisory: re-estimate changed scope and report
+where time went, without skipping correctness. Commit at authorized stages through `studio commit`.
+Never push a video's repository without authorization. See `publishing.md` for revision rounds.
 
-The narrative stage gathered sources (a repo, or two fresh-context research reports). Read them;
-research further only for a question they leave open.
+## Stage 1: Sources
 
-Whatever sits in your context (a draft, an earlier framing) anchors your judgment, and the video
-must teach established knowledge the way the standard sources teach it. The research questions,
-for a fresh-context pass with a neutral prompt (never your ideas or a draft): the canonical worked
-example and why it is standard (and the main competitor); the standard progression, and which
-simpler version comes first; the standard model and notation, with clashes between fields; the key
-results with exact formulas and assumptions; standard numeric examples; the misconceptions
-students bring and how the canonical treatment corrects them; what is essential, a common extra, or
-out of scope; real systems canonically cited, with their mechanism; claims commonly overstated;
-which parts are best watched, which done, which read. Ask for citations, and for uncertain items to
-be marked.
+Use sources gathered during proposal. Research further only for unresolved claims. Read the code
+behind repository claims; cite files, commit and any uncommitted content hashes. Verify exact
+outputs, defaults and formulas against a primary source or a recorded run. Avoid claiming a
+simulation proves behavior outside its assumptions.
 
-When the source is a repo, the code and its docs are the canon: read the implementation behind
-every claim, run it where you can, and cite the file and commit.
+## Stage 2: Argument and chain
 
-Whenever you are about to rely on a fact you haven't verified in this session (a tool's default,
-the exact text a tool prints, a formula's exact form), check it against a primary source or run it.
-
-## Stage 2: The argument
-
-Write SCRIPT.md (the template is already in the video folder), starting with the argument:
-
-- **Question.** The specific question the opening raises. The strongest openings show a real,
-  runnable demonstration with a surprising outcome.
-- **Answer.** How the ending answers it, using the opening's own evidence.
-- **Takeaway.** The rule the viewer leaves with, in one or two sentences.
-- **Wrong model.** The intuition the audience brings that the video must dislodge.
-- **Objectives.** Three or four things the viewer can do afterwards.
-- **The chain.** One sentence per chapter, each joined to the next by "but" or "therefore".
-- **Ledgers.** Setups and payoffs; vocabulary (every term, where first used, its definition, no
-  synonyms afterwards, the narrative's banned substitutes); two or three numbers to remember.
-
-Then a **Format** table: chapter, format, why. Timing, motion and things that build up suit
-narrated animation; a skill is learned by doing; reference detail is read. Offer a chapter that
-would be better as an exercise separately instead of adding it to the video.
+Populate the template's Argument with the agreed learning brief and the Chain with chapter
+questions, motivated ideas, predictions and closure. Apply `pedagogy.md`. Reference detail can
+be a sidebar/document; it need not inflate the main story. Keep a vocabulary and number ledger.
 
 ## Stage 3: Evidence
 
-- Show a number only when it makes an idea land; what you measured is not a reason to show it (an
-  intro video has a budget of two or three; `references/levels.md`). Every number spoken or shown
-  comes from a run in this environment, a simulation written for this video, or a cited source. Typical published values are labelled as typical.
-- Measure what the script compares, both quantities when it contrasts two.
-- A number that depends on the setup is spoken as the setup's number, never as a general law.
-- Choose the demonstration's parameters so the arithmetic the narration states is exact; fix the
-  evidence rather than explaining a mismatch. (GNU sort with 100-byte records spent half its buffer
-  on bookkeeping, so the runs didn't match the narration; 10,000-byte records fixed it.)
-- One unit system everywhere (decimal MB and GB by default). Mixing `88M` (MiB) with a decimal file
-  size produced an error an expert caught.
-- If the script says a real system behaves a certain way, capture the real output and replay it:
-  terminal sessions, query plans, file listings. Step-by-step animations replay an event log from a
-  small instrumented implementation. Real captures and screenshots, when available, beat
-  illustrations; record their source and capture parameters.
-- Keep an Evidence table in SCRIPT.md: claim, how it was checked, value. Runs go in `sims/`, their
-  outputs in `data/`, and scenes read `data/` rather than literals.
+Every asserted number or behavior has an Evidence row. Keep extraction/measurement scripts in
+`sims/`, their outputs in `data/`, and import those outputs into scenes. Show the actual small
+record and transformations for a data system; an explicitly synthetic worked example is allowed.
+Measure both sides of comparisons, use consistent units, and state setup-dependent results as
+such. Real terminal output, query plans and event logs beat an invented reconstruction. Choose
+parameters that make a worked example's arithmetic match what is actually shown.
 
-## Stage 4: The script
+## Stage 4: Script
 
-Narration is written for the ear: short clauses, parameter names spoken as words, formulas
-described rather than read, at most one new number per sentence, and a reason given with a number
-("eighteen doublings take you from one item to a quarter of a million"). Next to every paragraph,
-write what is on screen (`*Screen:*`); those notes become the scene specifications.
+Write short spoken clauses with `*Screen:*` notes specifying the visual change and its sentence.
+Use `[pause 2]`, `[predict 3]` or `[beat]` immediately after a complete sentence. These become
+inserted silence after speech, in addition to its natural gap; they are never spoken or captioned.
+An explicit marker replaces the default/legacy hold on that sentence. A sentence may have one
+marker. Intro defaults on new videos: speed 0.95, chapter-end hold 2s, chapter gap 1.2s, beat 0.5s.
+Override in `narration.json.timing` and voice settings. Old videos retain their timing defaults.
 
-The principles, each with a test:
+Run the pedagogy self-check and `studio check VIDEO --only script` before narration. Fill the
+brief, log substantive diagnostics and accepted exceptions. `script_check` in video.json accepts
+`products` (name → aliases), `product_budget`, `number_budget`, and scoped accepted findings such
+as `"meta:s1_01"`. It counts narration and screen notes, not arbitrary scene code. Scene cues and
+per-ID pronunciation overrides remain positional; validate/update them after sentence edits.
 
-1. **One question, answered with its own evidence.** The last minute refers back to the first.
-2. **"But" and "therefore", never "and then".** Any "and then" marks a list or a tangent.
-3. **Derive, don't reveal.** Before each new idea, a visible problem it fixes.
-4. **Setups pay off, and payoffs are set up.** Check the ledger both ways.
-5. **One vocabulary.** Defined where first used; no concept has two names.
-6. **A budget of numbers.** Two or three to retain; the rest support them on screen.
-7. **Concrete before abstract.** A formula summarizes something already watched.
-8. **Show the wrong model failing,** don't argue against it.
-9. **Depth over breadth.** One application understood beats five named.
-10. **Words and pictures split the work.** The narration explains, the picture shows, on-screen
-    text only labels.
-11. **The deletion test.** Delete each line in turn; if nothing later breaks and the takeaway
-    doesn't weaken, it goes.
+## Stage 5: Independent script review
 
-Estimate about 150 words per minute. Watch time on lecture videos levels off around six minutes
-(Guo, Kim and Rubin, 2014): two questions are two videos.
+Every teaching explainer gets one student pass before synthesis, including author/intro:
+`studio review VIDEO ROUND --only student`. SCRIPT.md's status names the round. The main session
+owns dispatch; a child builder reports **ready for script review** with the revision and inputs.
+The existing CLI starts fresh processes; use a fresh main-session reviewer only when needed and
+record unavailable isolation honestly. An empty directory is not a filesystem sandbox.
 
-## Stage 5: Review (learner drive; optional in author drive)
+Learner drive or deep-dive level also requires expert and editor review. For risky claims in an
+author/intro video, record additional roles in `video.json.review_roles`. Inputs are separated: expert
+gets script/evidence, student gets audience/script/transfer questions without answers, editor gets
+argument/chain/script. None gets the Review log or prior verdicts. Respect the charter; add detail
+only if the learning chain needs it. Review receipts are tied to the current teaching material.
 
-`studio review VIDEO ROUND` runs three fresh-context reviewers, each in an empty folder:
-
-- **Expert:** the script with screen notes, and the evidence table.
-- **Student:** the learner model (background and standing instructions) and the script.
-- **Editor:** the argument and chain, and the script, but not your ledgers.
-
-All three also get the charter (Cut on purpose, vocabulary). Rules for the loop:
-
-- After each round, revise and log every finding in the Review log: what changed, or why it was
-  declined. Decline only for a reason a domain expert would accept.
-- **A finding that asks for more explanation is declined unless the chain breaks without it**; log
-  it as "declined: outside the chain". A finding that reopens the charter is declined the same way.
-- Apply revisions with replacements that each match exactly once, and write nothing if any
-  doesn't. Start a round only after the revision is on disk: `studio review` refuses a round unless
-  SCRIPT.md's status line names it (two rounds once started on half-applied revisions).
-- Run all three reviewers after every revision: fixes introduce errors (one round's revision
-  introduced two blocking errors that only the next round caught).
-- **The gate:** expert PASS, editor PASS, and the student's retelling answers the opening question
-  and covers every objective.
-- **Stopping:** once a round passes, apply its SHOULD FIX items once and run one final round; lock
-  if it passes too. Don't polish NITs after a passing final round.
-- **Caps:** rounds stop at video.json's `max_rounds`: 3 by default (two rounds, and a third only
-  for an expert's blocking finding), 6 with `"thorough": true`, 2 in economy mode. At the cap, lock
-  with every open finding logged and listed for the user; don't spend a round on SHOULD FIX items
-  alone. **If two reviewers give opposite verdicts on the same sentence twice,
-  stop and ask the user** instead of revising again (the expert and the editor once alternated on
-  one sentence for five rounds).
-- If `studio review` fails because a reviewer can't run in isolation, don't fall back to
-  subagents that can read the project; if you must continue, tell the subagent to read only the
-  files it is given, and log "reviewers not isolated from round N".
-- Check for these before the first round; each reached a reviewer once: a ratio in the opening
-  that doesn't match the count derived from it; mixed units; an off-by-one in a capacity claim; a
-  simulation's number stated as a general fact; "same big-O, so same speed"; a tool's behavior
-  described slightly wrong; a claim about a naive approach worded as a claim about a language; one
-  word at two scales; a real default that contradicts the rule just taught; two examples called
-  by the same words.
+Fix blockers and apply relevant smaller fixes once. Default cap is three rounds (third for a
+blocking issue), economy two, thorough six. Repeatedly opposed advice is surfaced to the user,
+not endlessly rewritten. Caps leave findings open; they never turn a failed check into a pass.
+After a material teaching edit, rerun the affected review. A simulated student is a diagnostic,
+not evidence of real learning. If a required review is unavailable, report it; a user-authorized
+waiver is recorded with `studio review-status VIDEO student waived --reason "authorization"`.
 
 ## Stage 6: Narration
 
-`studio narrate VIDEO` reads the locked Script section (the single source of truth, so the audio
-can't drift from the reviewed text), synthesises each paragraph in one call, and writes the audio
-and the timeline: every sentence's id (s2_13), spoken and caption text, start and end, and its
-words. Settings live in `narration.json`:
+`studio narrate VIDEO --estimate` gives a timeline without synthesis. Actual `studio narrate`
+requires a current student pass for new teaching videos. `narration.json` owns engine, voice,
+speed, timing and pronunciation. Kokoro paragraph mode preserves intonation; ElevenLabs can be
+chosen when appropriate. `--plan` reports cached/costed work, `--fetch-only --yes` fills its paid
+response cache. Retain that cache. Recheck visual timing after a voice change.
 
-- Kokoro `af_heart` in paragraph mode is the default: local, free, deterministic, and its chunks
-  are cached, so re-narrating after an edit re-synthesises only the changed paragraphs. Develop
-  with it; `studio narrate --estimate` gives timings with no audio at all, so scenes can start
-  before the voice exists.
-- ElevenLabs (`"engine": "elevenlabs"`) is the hosted voice; switch at the end, once the script and
-  scenes are right. A faster voice can shorten a sentence below the animation written for it, so
-  re-check the stills after switching. `studio narrate --plan` shows what it would cost.
-- Holds give the picture time after a reveal. Spoken respellings keep captions correct while the
-  voice says "B M twenty-five"; they match whole words only.
-- **Pronunciation.** `studio narrate` (and `--estimate`) first runs the pronunciation lint and
-  writes `audio/pronunciation.txt`: every lone capital letter the voice won't say as its name,
-  every acronym with the reading it will get, lowercase abbreviations the lexicon knows as words
-  ("id" is said like the Freudian id), and words the lexicon lacks. Resolve each one before the
-  first animated cut. A letter that names something ("A reads one": Kokoro says the article "uh")
-  gets a per-sentence phoneme, `"phonemes_by_id": {"s6_17": {"A": "ˈA"}}`; a word gets `"phonemes"`
-  or a `spoken` respelling. Respelled text can backfire ("Ay" is read "eye"), so prefer phonemes
-  with Kokoro, and re-run the lint to see what each fix will sound like. Write abbreviations in
-  capitals in the script (ID, not id). Accepting a finding as it is is fine; ignoring it isn't.
+The per-video `lexicon.json` snapshot supplies shared pronunciations; narration.json overrides it,
+then per-sentence overrides win. `studio lexicon add WORD --spoken "…" [--phonemes "…"]` promotes
+a deliberate fix for future videos. Resolve or accept pronunciation lint findings (narration.json
+`accepted`: words or `sentence:word`). Do not suppress a genuine variable A as an article.
+Run `studio voice-check`; inspect every score under 0.8. It cannot reliably distinguish an acronym
+read as letters from the same acronym read as a word. Run `--all` once before first delivery.
+Missing extras/models print the precise doctor command; models are installed during setup.
 
-Then `studio voice-check VIDEO`: read what was heard for every sentence under 0.8. It transcribes
-only sentences whose audio changed (the rest come from `audio/voice_check_cache.json`); run it with
-`--all` once before the first publish. A mispronounced
-term gets a `spoken` respelling or a phoneme; a clipped sentence means a timing bug. The voice check
-can't hear a letter read as the article, or an acronym said as a word, since the recogniser writes
-both the same way: that is the lint's job.
+## Stage 7: The look
 
-## Stage 7: The look (a gate)
+Make real static scenes for the main picture and a close-up; `studio cut --stills-only` records
+these without displacing playable cuts. Get the user's choice before animation unless already
+settled/authorized. Existing house style can supply a direction rather than requiring alternatives.
 
-Before animating, agree on the look from real frames. Write the main picture and one close-up as
-scenes (static is fine), and make a stills-only cut (`studio cut VIDEO --stills-only`): two or three
-directions if the style is open, one if the user already set it. Serve it and get the user's pick.
-Two static rounds like this each saved a full build in earlier work. The approved scenes are also
-the start of the build: they are the real components.
+## Stage 8: Scenes, cuts and craft
 
-## Stage 8: Scenes and cuts
+One scene per chapter. Every frame is a pure function of `useClip().t` (no timers, accumulated
+state or unseeded randomness). `at`, `end` and `word` cue sentences; `cue('reveal:s1_03')` lands
+a reveal after an inline hold. `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
+Stage coordinates are centered, y up, eight units high, above the reserved caption band.
 
-Write one scene per chapter (`scenes/sN.tsx`, registered in `scenes/index.ts`), following
-`style.md`. What the Remotion engine expects:
+Use `@studio` primitives and the explainer components documented in `code.md`: CodePanel,
+Terminal, JsonTree, RowTable, ColumnStrips, GeoMap, VarCard and Thread. These new components are
+Remotion components; the data contracts are portable, but Motion Canvas scenes use its own kit.
+Name important text/boxes for checks. Keep shared helpers small; changing one invalidates its users.
+Motion must preserve the meaning of identity, copying, references and location (`style.md`).
 
-- **Every frame is a pure function of time.** Everything derives from `useClip().t`: no timers, no
-  state carried between frames, no `Math.random` (seed any noise). `studio determinism` checks it.
-- **Time comes from the narration.** `at('03')` is when sentence 3 of this chapter starts,
-  `end('03', 0.5)` half a second after it ends, `word('03', 4)` its fifth word. A picture that a
-  sentence describes appears as it is said, and each animation finishes by its key word. `Beats`
-  sequences animations like play() calls; `ramp`, `pulse` and `spring` (closed-form) ease.
-  Stage camera moves and content changes; don't run them at once.
-- **Stage units:** origin at the stage centre, y up, 8 units tall, above the caption band. Nothing
-  enters the band; it belongs to the captions track. `Txt` sizes are Manim-style points.
-- **Name what matters** (`name=` on Txt and Rect) so `studio boxes` reports it.
-- Keep anything two chapters use in a shared file; `Chapter` fades a scene out over its last half
-  second so consecutive chapters cut on the background.
-- Data comes from `data/` (import the JSON), never from literals typed into the scene.
+Check a frame with `studio still`, then `studio cut` for changed clips only. Before sharing:
+`studio check`, `studio sheets`, and one craft pass on changed chapters for readability, motion,
+composition, synchronization and banned defaults. Inspect full-resolution crops; a reduced
+contact sheet does not establish font size. Fix the significant findings; avoid endless polish.
+`studio open VIDEO [CUT]` opens and protects an MP4; `studio serve` provides annotation playback.
 
-Then iterate: `studio still` to check a frame (about 1.6 s after an edit), and `studio cut VIDEO`
-for a draft cut (only changed chapters re-render; it prints each chapter as rendered or cached, and
-how many stills it reused). Keep edits local so the loop stays fast: a change to a shared scene file
-re-renders every chapter, a change to one chapter's file re-renders that chapter, and a narration
-edit re-renders only the chapter it is in. Before showing a cut to the user, run
-`studio check VIDEO` (length, determinism, bounds, the caption band, contrast, legibility, and
-provenance when assets are used; fix every failure) and `studio sheets VIDEO out/sheets` (chapter
-sheets, a phone-width sheet, and full-resolution crops of small labels), then the craft critique on
-the changed chapters:
+## Stage 9: Independent frame review
 
-- look at the cut's stills, and a phone-width look (the stills at 480 px wide are close to it);
-- score each chapter 1–10 on phone-width readability, motion, composition, clarity of the beat,
-  sound sync and polish; fix the three worst problems; one round by default (three with
-  `"thorough": true`);
-- hunt for the banned defaults in `style.md`, text off centre in its box, sibling boxes of
-  different sizes, connectors that miss their targets, and anything in the caption band.
+Required before delivering a deep-dive, a shared video, or when video.json `frame_review` is true.
+First run `studio sheets VIDEO VIDEO/out/sheets` for the current cut, adding `--strip CLIP T` for
+mechanism-sensitive transitions. `studio review-frames VIDEO` packages that directory together
+with the current cut's stills, script and data; sheets saved elsewhere are not included.
+The builder reports **ready for frame review**. The main session dispatches a fresh image-capable
+reviewer using `prompts/frame_review.md`; the command itself does not start an agent. Include
+transition strips for mechanism-sensitive motion. Validate findings against full-resolution frames.
+Import the response with `studio review-frames VIDEO --result FILE`; it must include the bundle's
+REVISION and FRAMES verdict. A changed frame/source invalidates the receipt. Never label a builder's
+own pass independent. Unavailable/authorized waived reviews use `studio review-status`.
 
-The critique judges craft only. Content is judged by the reviewers and the frame review, in fresh
-contexts.
+## Stage 10: Finish and hand over
 
-## Stage 9: The frame review (a gate before publishing)
-
-A fresh context (`prompts/frame_review.md`) gets the cut's stills, the script, the evidence table
-and the data, and returns MUST / SHOULD / NIT findings. Give it the crops and their measured sizes from
-`studio sheets` (`crops/index.json`): four builds of frame reviewers reported "labels are 15–18
-px" from downscaled sheets when they measured 26 px. Before acting on a finding, check it against
-the full-resolution frame. In earlier builds this review caught, after many passing script rounds:
-a code card that did not compile, a narration line that was wrong, an axis labelled "time" on two
-panels each scaled to its own run, a gauge forced to the cap, and one example's count shown under
-the other example's file. Log each finding with what was done, fix, and re-cut.
-
-Check in every frame: nothing overlaps, runs off the stage or enters the band; every label is
-legible; every number matches the evidence and the narration; the thing to watch is visible; each
-animation finishes before the line that follows; every chapter's length matches its narration.
-
-## Stage 10: Hand over
-
-Publish (`publishing.md`). Add the video's row to the learner model (length, and where reviewers
-predicted the viewer would be lost), and finish with the page link, the length, the review rounds,
-the frame review's findings and what was done, the voice check's result, and anything you could
-not verify.
+Run `studio publish VIDEO` for the local final-quality master, including files-only delivery;
+external uploading remains a separate authorized action (`publishing.md`). Default landscape is
+1920×1080, but report actual dimensions and fps, quality, final-quality status and user approval
+separately. The compressed web copy may have lower resolution. Report the cut/path or page, main
+and sidebar lengths, model delta, changes, review/voice findings, late requests, stage times,
+open issues and checkpoint. Add useful real viewer evidence to the learner model.

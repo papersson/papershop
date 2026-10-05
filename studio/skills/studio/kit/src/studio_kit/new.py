@@ -16,7 +16,9 @@ from . import timeline as tl
 from .timeline import DEFAULT_LAYOUT
 
 TEMPLATES = ROOT / "templates"
-GITIGNORE = ".cache/\naudio/*.wav\ncuts/*/silent.mp4\n"
+from .checkpoint import GITIGNORE
+from . import checkpoint, preferences
+from .stage import LEVEL_BUDGET as LEVEL_BUDGETS
 
 
 def source_record(path):
@@ -30,12 +32,6 @@ def source_record(path):
     return rec
 
 
-# How deep a video goes. "intro" (the default) is an undergrad explainer: 3-4 big ideas, a toy
-# example, about five minutes, one-shot planning; "deep-dive" is the older, evidence-heavy build.
-# A search video built the deep way was "a barrage of details" to its learner (references/levels.md).
-LEVEL_BUDGETS = {"intro": {"first_cut": 20, "round": 5}, "deep-dive": {"first_cut": 60, "round": 10}}
-
-
 def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
            level="intro"):
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
@@ -45,7 +41,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
-           "level": level, "budget": dict(LEVEL_BUDGETS[level])}     # minutes; `studio stage` reports against it
+           "level": level, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": 10,
+           "teaching_contract": genre == "explainer"}     # minutes; `studio stage` reports against it
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
     if genre == "pixel":
@@ -66,7 +63,11 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
                         "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": cfg["title"], "start": 0.0, "end": float(duration)}],
                                    "narration": [], "captions": [], "audio": []}})
     else:
-        shutil.copyfile(TEMPLATES / "narration.json", video / "narration.json")
+        nr = json.loads((TEMPLATES / "narration.json").read_text())
+        if genre == "explainer" and level == "intro":
+            nr["kokoro"]["speed"] = 0.95
+            nr["timing"] = {"beat": 0.5, "chapter_hold": 2.0, "chapter_gap": 1.2}
+        (video / "narration.json").write_text(json.dumps(nr, indent=1) + "\n")
         script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
         (video / "SCRIPT.md").write_text(script)
         scenes = TEMPLATES / "scenes"
@@ -81,19 +82,32 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     if not learner.exists():
         learner.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(TEMPLATES / "learner.md", learner)
+    preferences.snapshot(video)
+    checkpoint.init(video)
     return video, learner
 
 
 def main(args):
+    source_cfg = json.loads((Path(args.from_video) / "video.json").read_text()) if args.from_video else {}
+    args.engine = args.engine or source_cfg.get("engine", "remotion")
+    args.level = args.level or source_cfg.get("level", "intro")
     video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine,
                             getattr(args, "level", "intro"))
+    if args.from_video:
+        copied = preferences.inherit(video, args.from_video, args.include)
+        cfg = json.loads((video / "video.json").read_text())
+        cfg["series_of"] = str(Path(args.from_video).resolve())
+        if not args.source and source_cfg.get("source"):
+            cfg["source"] = source_cfg["source"]
+        (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
+        print("series files copied: " + (", ".join(copied) or "look and pronunciation only"))
     print(f"new video at {video}\nlearner model: {learner}")
     return 0
 
 
 # What a variant keeps from its source: the evidence, the assets and the look. Everything that
 # depends on the words (script, narration, timeline, cuts) is rewritten for the new audience.
-KEEP = ["data", "sims", "assets", "scenes", "captures", "layout.json", "narration.json"]
+KEEP = ["data", "sims", "assets", "scenes", "captures", "layout.json", "narration.json", "lexicon.json"]
 
 
 def variant(source, name, directory=None, learner=None, vocabulary=None, title=None):
@@ -126,6 +140,13 @@ def variant(source, name, directory=None, learner=None, vocabulary=None, title=N
         cfg["vocabulary"] = str(Path(vocabulary).expanduser().resolve())
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
     (video / ".gitignore").write_text(GITIGNORE)
+    n = video / "narration.json"
+    if n.exists():
+        nr = json.loads(n.read_text())
+        for key in ("holds", "spoken_by_id", "phonemes_by_id", "accepted"):
+            nr.pop(key, None)
+        n.write_text(json.dumps(nr, indent=1) + "\n")
+    checkpoint.init(video)
     return video
 
 

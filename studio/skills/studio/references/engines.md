@@ -70,3 +70,24 @@ motion-canvas`), and each passes its genre's checks unchanged.
 
 Both start their bundle or dev server on every call; Motion Canvas's first call after installing
 takes about 20 s while Vite optimises its dependencies, and is quick afterwards.
+
+
+## Setup and render diagnostics
+
+`studio doctor VIDEO` lists the extras needed by narration and voice-check. Install with
+`studio doctor --fetch --extra kokoro --extra align`. The compatible en-core-web-sm wheel is
+installed through UV_INDEX_URL, or PIP_INDEX_URL when UV_INDEX_URL is unset. A mirror without that
+wheel must supply it; narration never calls spaCy's GitHub downloader. Doctor distinguishes a
+reachable host from HTTP access denial. Optional extras and model wheels survive subsequent
+wrapper invocations; after a pinned-kit upgrade, run the repair command printed for that kit.
+
+A browser launch blocked from a helper script may work when the same studio command is invoked
+directly through the host's approved execution path. Inspect preserved stderr, run doctor, and
+select an installed browser with STUDIO_BROWSER if appropriate. Do not disable the browser or
+host sandbox as an automatic workaround.
+
+Determinism compares decoded pixels as well as recording PNG file hashes. On mismatch, the kit
+keeps both images, retries the pair once and records both attempts under research/determinism/.
+A retry match is reported as flaky and does not enter the pass cache. Remotion already waits for
+its configured fonts; inspect cold/warm rendering, font availability and time/state behavior
+before blaming fonts. Unresolved visual nondeterminism blocks final delivery.

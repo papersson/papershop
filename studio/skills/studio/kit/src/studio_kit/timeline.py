@@ -216,14 +216,15 @@ def from_timings(t, engine="remotion", audio_file="audio/narration.mp3"):
         for line in seg["lines"]:
             narration.append({"id": line["id"], "clip": seg["id"], "text": line["text"],
                               "caption": line["caption"], "paragraph": line["paragraph"],
-                              "start": line["start"], "end": line["end"], "words": line.get("words", [])})
+                              "start": line["start"], "end": line["end"], "words": line.get("words", []),
+                              **({"pause": line["pause"]} if "pause" in line else {})})
     fps = DEFAULT_LAYOUT["fps"]
     return {"version": 1, "fps": fps, "duration": t["total"],
             "voice": {k: t[k] for k in ("engine", "voice", "model", "speed", "mode", "credit") if t.get(k) is not None},
             "tracks": {"scene": scenes, "narration": narration,
                        "captions": chunk_captions(narration, fps),
                        "audio": [{"file": audio_file, "start": 0.0}]},
-            "cues": {}}
+            "cues": {f"reveal:{s['id']}": s["pause"]["end"] for s in narration if "pause" in s}}
 
 
 def from_tutor(lesson, video, engine="remotion"):

@@ -45,11 +45,11 @@ def durations(marks, now=None):
     now = now if now is not None else time.time()
     out = []
     for a, b in zip(marks, marks[1:] + [{"t": now}]):
-        out.append((a["stage"], b["t"] - a["t"]))
+        out.append((a["stage"], max(0, b["t"] - a["t"]) if a["stage"] != "finished" else 0))
     return out
 
 
-def mark(video, name, now=None):
+def mark(video, name, now=None, kind="local", summary=None):
     """Append a mark and return the lines to print."""
     now = now if now is not None else time.time()
     marks = read(video)
@@ -57,21 +57,28 @@ def mark(video, name, now=None):
     if marks:
         prev = marks[-1]
         lines.append(f"{prev['stage']}: {fmt(now - prev['t'])}")
-    marks.append({"stage": name, "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds")})
+    marks.append({"stage": name, "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"), "kind": kind})
     f = log_path(video)
     f.parent.mkdir(parents=True, exist_ok=True)
     with f.open("a") as out:
         out.write(json.dumps(marks[-1]) + "\n")
     b = budget(video)
     rounds = [m for m in marks if m["stage"] in ROUND_STAGES]
-    if rounds and name not in ROUND_STAGES:
-        spent, limit, what = now - rounds[-1]["t"], b["round"] * 60, "this revision round"
-    else:
-        spent, limit, what = now - marks[0]["t"], b["first_cut"] * 60, "the first cut"
+    start = marks.index(rounds[-1]) if rounds else 0
+    spent = sum(d for stage, d in durations(marks[start:], now) if stage not in ("waiting", "finished"))
+    structural = bool(rounds and rounds[-1].get("kind") == "structural")
+    limit = (b.get("structural_round", b["round"] * 4) if structural else b["round"] if rounds else b["first_cut"]) * 60
+    what = "this structural revision round" if structural else "this revision round" if rounds else "the first cut"
     lines.append(f"now: {name} · {fmt(spent)} into {what} (budget {fmt(limit)})")
     if spent > limit:
         lines.append(f"OVER BUDGET by {fmt(spent - limit)}: finish this stage with what is open logged, "
-                     "skip optional passes, and tell the user where the time went")
+                     "treat the budget as advisory, re-estimate changed scope, and report stage time")
+    if summary:
+        from .script import append_review
+        append_review(video, f"{datetime.fromtimestamp(now).isoformat(timespec='seconds')} {kind} revision: {summary}")
+    requests = Path(video) / "research" / "requests.md"
+    if requests.exists():
+        lines += ["pending: " + line[6:] for line in requests.read_text().splitlines() if line.startswith("- [ ] ")]
     return lines
 
 
@@ -82,13 +89,14 @@ def report(video, now=None):
     rows = durations(marks, now)
     total = sum(s for _, s in rows)
     width = max(len(n) for n, _ in rows)
-    out = [f"{n:<{width}}  {fmt(s):>7}  {100 * s / total:4.0f}%" for n, s in rows]
-    return out + [f"{'total':<{width}}  {fmt(total):>7}"]
+    out = [f"{n:<{width}}  {fmt(s):>7}  {100 * s / max(total, 1):4.0f}%" for n, s in rows]
+    active = sum(s for n, s in rows if n not in ("waiting", "finished"))
+    return out + [f"{'total':<{width}}  {fmt(total):>7}", f"active {fmt(active)} · waiting {fmt(total - active)}"]
 
 
 def main(args):
     if args.report or not args.name:
         print("\n".join(report(args.video)))
         return 0
-    print("\n".join(mark(args.video, args.name)))
+    print("\n".join(mark(args.video, args.name, kind=args.kind, summary=args.summary)))
     return 0

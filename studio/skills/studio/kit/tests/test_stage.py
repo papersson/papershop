@@ -48,4 +48,5 @@ def test_report_shares_add_up(tmp_path):
         stage.mark(v, name, now=t)
     rows = stage.report(v, now=1200)
     assert rows[0].startswith("research") and "5m00s" in rows[0]
-    assert rows[-1].startswith("total") and "20m00s" in rows[-1]
+    assert rows[-2].startswith("total") and "20m00s" in rows[-2]
+    assert "active 20m00s" in rows[-1]

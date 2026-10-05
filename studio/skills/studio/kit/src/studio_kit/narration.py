@@ -81,16 +81,26 @@ class Settings:
         self.late = 0.35 if self.engine == "elevenlabs" and v4 else 0.2
         self.tail = cfg.get("tail", 6.0)
         self.holds = cfg.get("holds", {})
-        self.spoken_pairs = [tuple(p) for p in cfg.get("spoken", [])]
+        self.timing = {"beat": 0.5, "chapter_hold": 0.0, "chapter_gap": SEGMENT_GAP, **cfg.get("timing", {})}
+        for key, value in self.timing.items():
+            if not isinstance(value, (float, int)) or not math.isfinite(value) or value < 0:
+                raise SystemExit(f"narration.json timing.{key} must be finite and nonnegative")
+        from .preferences import lexicon
+        shared = lexicon(video)
+        self.spoken_pairs = list({**dict(shared.get("spoken", [])), **dict(cfg.get("spoken", []))}.items())
+        self.accepted = cfg.get("accepted", [])
         self.spoken_by_id = {k: [tuple(p) for p in v] for k, v in cfg.get("spoken_by_id", {}).items()}
-        self.phonemes = cfg.get("phonemes", {})
+        self.phonemes = {**shared.get("phonemes", {}), **cfg.get("phonemes", {})}
         self.phonemes_by_id = cfg.get("phonemes_by_id", {})
         self.audio = self.video / "audio"
 
     def spoken(self, text, lid=None):
-        for written, said in self.spoken_pairs + self.spoken_by_id.get(lid, []):
-            text = whole_word(written).sub(said, text)
-        return text
+        table = {**dict(self.spoken_pairs), **dict(self.spoken_by_id.get(lid, []))}
+        if not table:
+            return text
+        words = sorted(table, key=len, reverse=True)
+        pattern = re.compile(r"(?<![\w])(" + "|".join(map(re.escape, words)) + r")(?![\w])")
+        return pattern.sub(lambda m: table[m.group()], text)
 
     def phonemes_for(self, lid=None):
         return {**self.phonemes, **self.phonemes_by_id.get(lid, {})}
@@ -122,10 +132,14 @@ def layout(S, chapters, durations, gaps=None, words=None):
     sentence, measured in its paragraph's audio; it replaces SENTENCE_GAP there. `words`: each
     sentence's words relative to its own start."""
     gaps, words = gaps or {}, words or {}
+    events = {s.id: s for c in sc.read(S.video, S.timing["beat"]) for s in c.sentences}
+    dangling = set(S.holds) | set(S.spoken_by_id) | set(S.phonemes_by_id)
+    if dangling - events.keys():
+        print("warn: dangling narration sentence IDs: " + ", ".join(sorted(dangling - events.keys())))
     t, out = LEAD_IN, []
     for ci, (cid, title, sents) in enumerate(chapters):
         if ci:
-            t += SEGMENT_GAP
+            t += S.timing["chapter_gap"]
             t = math.ceil(round(t / CHAPTER_GRID, 6)) * CHAPTER_GRID
         seg = {"id": cid, "title": title, "start": t, "lines": []}
         # times inside a chapter are offsets from its (grid) start, rounded as offsets, so a chapter
@@ -141,7 +155,16 @@ def layout(S, chapters, durations, gaps=None, words=None):
                                  "start": at(r), "end": at(r + d),
                                  "words": [{"w": w, "start": at(r + a), "end": at(r + b)}
                                            for w, a, b in words.get(lid, [])]})
-            r += d + S.holds.get(lid, 0.0)
+            event = events.get(lid)
+            hold = S.holds.get(lid, S.timing["chapter_hold"] if lid == sents[-1][0] else 0.0)
+            if event and event.pause is not None:
+                if lid in S.holds:
+                    print(f"warn: {lid} inline pause replaces narration.json hold")
+                hold = event.pause
+            if hold:
+                seg["lines"][-1]["pause"] = {"seconds": hold, "prediction": bool(event and event.prediction),
+                                                   "start": at(r + d), "end": at(r + d + hold)}
+            r += d + hold
             prev_p, prev_id = pi, lid
         t = g + r
         out.append(seg)
@@ -218,6 +241,8 @@ def cut(audio, a, b):
 # --- engines: each returns synth(text, previous, next) -> (audio at RATE, [(char offset, start s, end s)] per word)
 
 def kokoro_pipeline():
+    from .doctor import require_extra
+    require_extra("kokoro")
     try:
         from kokoro import KPipeline
     except ImportError:
@@ -418,7 +443,7 @@ def write_timeline(S, timings):
     t = tl.from_timings(timings, engine=(old or {}).get("tracks", {}).get("scene", [{}])[0].get("engine", "remotion"),
                         audio_file="audio/narration.mp3")
     if old:
-        t["cues"] = old.get("cues", {})
+        t["cues"] = {**{k: v for k, v in old.get("cues", {}).items() if not k.startswith("reveal:")}, **t["cues"]}
     tl.save(video, t)
     if not (video / "layout.json").exists():
         (video / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT, indent=1) + "\n")
@@ -433,10 +458,21 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     from . import pronounce
     pronounce.report(S, chapters)
     if estimate:
-        timings = layout(S, chapters, {k: len(c.split()) / 2.8 + 0.3 for k, c in sents})
+        timings = layout(S, chapters, {k: len(c.split()) / (2.8 * (S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"])) + 0.3 for k, c in sents})
         write_timeline(S, timings)
         print(f"estimated total {timings['total']:.1f}s (no audio; scenes can be timed against it)")
         return timings
+    from .doctor import require_extra
+    require_extra("kokoro" if S.engine == "kokoro" else "audio")
+    cfg = json.loads((S.video / "video.json").read_text()) if (S.video / "video.json").exists() else {}
+    if cfg.get("teaching_contract"):
+        from .script_check import run as check_script
+        failures = [r["detail"] for r in check_script(S.video) if not r["ok"]]
+        if failures:
+            raise SystemExit("script is not ready: " + "; ".join(failures))
+        from .review_state import require, required_roles
+        for role in required_roles(cfg):
+            require(S.video, role)
     chunks = all_chunks(S, chapters)
     if S.engine == "elevenlabs" and (S.phonemes or S.phonemes_by_id):
         print("note: phoneme overrides are Kokoro-only; ElevenLabs speaks those words as written "

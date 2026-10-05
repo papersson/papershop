@@ -17,7 +17,7 @@ from pathlib import Path
 from .env import ROOT
 
 # What is copied, relative to the skill folder (ROOT) and the plugin folder above it.
-FROM_SKILL = ["bin", "prompts", "kit/src", "kit/pyproject.toml", "kit/uv.lock", "kit/.python-version",
+FROM_SKILL = ["bin", "prompts", "templates", "references", "SKILL.md", "DESIGN.md", "kit/src", "kit/pyproject.toml", "kit/uv.lock", "kit/.python-version",
               "engines/remotion/cli.mjs", "engines/remotion/src", "engines/remotion/package.json",
               "engines/remotion/package-lock.json", "engines/remotion/tsconfig.json",
               "engines/shared", "engines/motion-canvas/cli.mjs", "engines/motion-canvas/render.html", "engines/motion-canvas/src",

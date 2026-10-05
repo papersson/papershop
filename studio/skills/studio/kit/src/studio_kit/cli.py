@@ -35,7 +35,9 @@ def _cut(args):
     rec = make_cut(args.video, args.quality, args.stills_only, log)
     done = [c["id"] for c in rec["clips"] if c["rendered"]]
     what = "stills only" if args.stills_only else f"rendered {', '.join(done) or 'no clips (all cached)'}"
-    print(f"cut {rec['cut']}: {what}; seconds {rec['seconds']}")
+    m = rec["media"]
+    print(f"cut {rec['cut']}: {what}; {m['width']}×{m['height']}, {m['fps']:g} fps; "
+          f"quality={rec['quality']}, final={str(rec['final']).lower()}; seconds {rec['seconds']}")
     return 0
 
 
@@ -55,9 +57,10 @@ def A(*names, **kw):
 
 COMMANDS = {
     "doctor": ("check the environment and print fixes", [
+        A("video", nargs="?", help="diagnose extras required by this video"),
         A("--fetch", action="store_true", help="install the engines' node packages and headless browser first"),
         A("--net", action="store_true", help="also check the hosts downloads come from"),
-        A("--extra", action="append", default=[], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
+        A("--extra", action="append", default=[], choices=["audio", "align", "kokoro"], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
         A("--engine", action="append", default=[], choices=["motion-canvas"], help="with --fetch: also install this engine (Remotion always is)"),
     ], "doctor:main"),
     "new": ("a video folder, ready for a script", [
@@ -66,11 +69,13 @@ COMMANDS = {
         A("--title"),
         A("--drive", default="author", choices=["author", "learner"]),
         A("--genre", default="explainer", choices=["explainer", "motion", "launch", "pixel", "footage"]),
+        A("--from", dest="from_video", help="inherit look and pronunciation from a series episode"),
+        A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
         A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
-        A("--engine", default="remotion", choices=["remotion", "motion-canvas"], help="which engine renders the scenes"),
-        A("--level", default="intro", choices=["intro", "deep-dive"],
-          help="intro: an undergrad explainer, 3-4 big ideas, about five minutes (default); deep-dive: evidence-heavy"),
+        A("--engine", choices=["remotion", "motion-canvas"], help="which engine renders the scenes"),
+        A("--level", choices=["intro", "deep-dive"],
+          help="intro: scaffold 3-4 key ideas (default); deep-dive: more detail and evidence"),
     ], "new:main"),
     "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
         A("source"), A("name"), A("--dir"), A("--title"),
@@ -117,12 +122,34 @@ COMMANDS = {
     "sound-lab": ("a page to choose effect candidates by listening", [A("video")], "sfx:main_lab"),
     "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [
         A("video"), A("name", nargs="?"), A("--report", action="store_true"),
+        A("--kind", choices=["local", "structural"], default="local"),
+        A("--summary", help="revision refactoring entry: merge/trim plan and expected runtime change"),
     ], "stage:main"),
     "review": ("one round of fresh-context reviewers on SCRIPT.md or a narrative", [
         A("video"), A("round", type=int),
         A("--narrative", help="review this narrative file instead of the script"),
         A("--only", default="expert,student,editor"),
     ], "review:main"),
+    "open": ("open and protect a playable cut", [A("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
+    "commit": ("checkpoint this video's sources, respecting git.sign", [A("video"), A("message")], "checkpoint:main"),
+    "steps": ("run program versions in scratch projects and record evidence", [A("video"), A("manifest")], "steps:main"),
+    "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [
+        A("action", choices=["add"]), A("word"), A("--spoken"), A("--phonemes"),
+    ], "preferences:main_lexicon"),
+    "lock": ("claim a video folder across stages", [
+        A("video"), A("action", choices=["acquire", "release", "status"]), A("--owner", default="builder"),
+        A("--recover", action="store_true", help="explicitly recover an abandoned owner's lease"),
+    ], "workspace:main_lock"),
+    "request": ("queue or resolve a mid-flight request", [
+        A("video"), A("text", nargs="?"), A("--resolve", metavar="ID"),
+    ], "workspace:main_request"),
+    "review-frames": ("prepare a fresh frame-review bundle or import its result", [
+        A("video"), A("--cut", type=int), A("--result", help="review response including its REVISION and FRAMES verdict"),
+    ], "review_state:main_frames"),
+    "review-status": ("record an unavailable or explicitly waived review", [
+        A("video"), A("role", choices=["student", "expert", "editor", "frames"]),
+        A("status", choices=["unavailable", "waived"]), A("--reason"),
+    ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
         A("video"), A("clip"), A("t", type=float), A("--out", required=True),
         A("--layers", default="all", choices=LAYERS), A("--scale", type=float, default=1.0),
@@ -143,12 +170,13 @@ COMMANDS = {
         A("--quality", default="final", choices=["draft", "final"]),
         A("--lufs", type=float, help="finish the audio to this loudness first (-14 for social)"),
     ], "render:main_export"),
-    "clean": ("remove what the studio can regenerate (old cuts, stale caches, sheets) and print what it freed", [
+    "clean": ("remove stale caches and unprotected draft previews; keep cut videos by default and print what it freed", [
         A("video"), A("--dry-run", action="store_true", help="only print what would be removed"),
+        A("--videos", action="store_true", help="also remove eligible unprotected old draft videos"),
     ], "clean:main"),
     "check": ("length, determinism, bounds, band and contrast checks", [
         A("video"), A("--samples", type=int, default=3, help="moments per clip"),
-        A("--only", help="comma-separated: length,determinism,bounds,band,contrast (pixel videos: grid,palette)"),
+        A("--only", help="comma-separated checks, including script and code-source (no browser required)"),
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
         A("--all", action="store_true", help="check every chapter, not only those changed since their last pass"),
     ], "check:main"),
@@ -180,6 +208,12 @@ def main(argv=None):
     if isinstance(handler, str):
         module, func = handler.split(":")
         handler = getattr(importlib.import_module(f".{module}", __package__), func)
+    mutating = {"narrate", "align", "voice-check", "cut", "render", "still", "check", "sheets", "export", "clean", "publish",
+                "init", "audio", "capture", "asset", "ingest", "edit", "beats", "sfx", "steps", "commit", "stage"}
+    if args.cmd in mutating and not (args.cmd == "clean" and args.dry_run):
+        from .workspace import operation
+        with operation(args.video):
+            return handler(args) or 0
     return handler(args) or 0
 
 

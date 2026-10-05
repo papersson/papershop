@@ -13,20 +13,47 @@ def cuts(video, n):
     for i in range(1, n + 1):
         d = video / "cuts" / f"cut{i}"
         (d / "stills").mkdir(parents=True)
-        (d / "cut.json").write_text("{}")
+        (d / "cut.json").write_text(json.dumps({"cut": i, "quality": "draft", "video": "video.mp4"}))
+        (d / "stills" / "s1.jpg").write_bytes(b"s" * 100)
         (d / "video.mp4").write_bytes(b"x" * 1000)
 
 
-def test_prune_keeps_the_newest_cuts_and_the_cut_of_the_latest_round(tmp_path):
-    cuts(tmp_path, 6)
+def test_prune_keeps_all_movies_and_records_but_removes_old_unprotected_previews(tmp_path):
+    cuts(tmp_path, 14)
+    (tmp_path / "video.json").write_text(json.dumps({"keep_cuts": 3}))
     (tmp_path / "review").mkdir()
-    (tmp_path / "review" / "notes.jsonl").write_text(json.dumps({"type": "round", "cut": 2}) + "\n")
+    (tmp_path / "review" / "notes.jsonl").write_text("\n".join(json.dumps({"type": "round", "cut": n}) for n in (2, 4)) + "\n")
+    from studio_kit.cuts import mark_watched
+    mark_watched(tmp_path, 3)
+    (tmp_path / "cuts/cut5/cut.json").write_text(json.dumps({"quality": "final"}))
+    (tmp_path / "cuts/cut6/cut.json").write_text("{}")  # unknown legacy quality
     freed = clean.prune_cuts(tmp_path)
-    assert sorted(p.name for p in (tmp_path / "cuts").iterdir()) == ["cut2", "cut4", "cut5", "cut6"]
-    assert freed > 2000
-    (tmp_path / "video.json").write_text(json.dumps({"keep_cuts": 1}))
-    clean.prune_cuts(tmp_path)
-    assert sorted(p.name for p in (tmp_path / "cuts").iterdir()) == ["cut2", "cut6"]
+    assert freed > 0
+    for n in range(1, 15):
+        assert (tmp_path / f"cuts/cut{n}/video.mp4").exists()
+        assert (tmp_path / f"cuts/cut{n}/cut.json").exists()
+        assert (tmp_path / f"cuts/cut{n}/stills").exists() == (n in (2, 3, 4, 5, 6, 12, 13, 14))
+    clean.clean(tmp_path, videos=True)
+    for n in range(1, 15):
+        assert (tmp_path / f"cuts/cut{n}/video.mp4").exists() == (n in (2, 3, 4, 5, 6, 12, 13, 14))
+        assert (tmp_path / f"cuts/cut{n}/cut.json").exists()
+    assert json.loads((tmp_path / "cuts/cut1/cut.json").read_text())["video"] is None
+
+
+def test_stills_only_does_not_displace_playable_or_noted_cut(tmp_path):
+    cuts(tmp_path, 2)
+    (tmp_path / "video.json").write_text('{"keep_cuts": 1}')
+    (tmp_path / "review").mkdir()
+    (tmp_path / "review/notes.jsonl").write_text('{"type":"note","cut":1}\n')
+    for n in range(3, 20):
+        d = tmp_path / f"cuts/cut{n}"
+        d.mkdir()
+        (d / "cut.json").write_text('{"quality":"draft","video":null}')
+    clean.clean(tmp_path, videos=True)
+    assert (tmp_path / "cuts/cut1/video.mp4").exists()
+    assert (tmp_path / "cuts/cut2/video.mp4").exists()
+
+
 
 
 def test_clean_removes_regenerable_files_only_and_dry_run_removes_nothing(tmp_path):
@@ -65,4 +92,4 @@ def test_clean_removes_regenerable_files_only_and_dry_run_removes_nothing(tmp_pa
     assert not (cache / "narration" / "deadbeefdeadbeef.npy").exists()
     assert (cache / "narration" / f"{used}.npy").exists()
     assert not (tmp_path / "out" / "sheets").exists() and not (tmp_path / "out" / "web.mp4").exists()
-    assert sorted(p.name for p in (tmp_path / "cuts").iterdir()) == ["cut3", "cut4", "cut5"]
+    assert sorted(p.name for p in (tmp_path / "cuts").iterdir()) == ["cut1", "cut2", "cut3", "cut4", "cut5"]

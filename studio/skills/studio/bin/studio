@@ -8,7 +8,12 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # A video that pinned its kit (`studio init`) runs that copy, so a plugin update can't change how it renders.
-if [ -z "${STUDIO_PINNED:-}" ]; then
+# An explicit update must run the installed kit, not route back into the old pinned copy.
+updating=0
+if [ "${1:-}" = init ]; then
+  for arg in "$@"; do [ "$arg" != --update ] || updating=1; done
+fi
+if [ -z "${STUDIO_PINNED:-}" ] && [ "$updating" = 0 ] && [ "${1:-}" != new ] && [ "${1:-}" != variant ]; then
   for arg in "$@"; do
     if [ -x "$arg/.studio/bin/studio" ] && [ "$(cd "$arg/.studio" && pwd)" != "$here" ]; then
       STUDIO_PINNED=1 exec "$arg/.studio/bin/studio" "$@"
@@ -34,4 +39,6 @@ if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/d
   source "$env_file"
 fi
 
-exec uv run --quiet --frozen --project "$here/kit" studio "$@"
+# Sync base dependencies without removing extras or separately installed model wheels.
+uv sync --quiet --frozen --inexact --project "$here/kit"
+exec uv run --quiet --no-sync --project "$here/kit" studio "$@"

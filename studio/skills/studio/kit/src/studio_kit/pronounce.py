@@ -37,6 +37,9 @@ NAMES = dict(zip("ABCDEFGHJKLMNOPQRSTUVWXYZ",
 
 
 def _g2p():
+    from .doctor import extra_checks, FAIL
+    if any(level == FAIL for level, *_ in extra_checks(["kokoro"])):
+        return None, None
     try:
         from misaki import en, espeak
     except ImportError:
@@ -73,6 +76,13 @@ def find(S, chapters, g2p=None):
             for m in LETTER.finditer(text):
                 w = m.group(0)
                 ph = heard.get(w, "")
+                # Be conservative: retain "A reads one" (a variable), suppress clear noun phrases.
+                after = text[m.end():].lstrip().split()
+                article = w == "A" and after and after[0].lower().strip(".,") in {
+                    "unit", "record", "packet", "file", "value", "node", "request", "single", "new", "small", "copy", "table", "key", "list", "program", "row", "road"}
+                letters_list = bool(re.search(r"\b[A-Z]\s*,\s*[A-Z]\b", text))
+                if article and not letters_list:
+                    continue
                 if w not in fixed and ph and ph.replace("ˌ", "") != NAMES[w]:
                     out.append(("letter", lid, w, ph,
                                 f'if "{w}" names something here: "phonemes_by_id": {{"{lid}": {{"{w}": "{NAMES[w]}"}}}}'))
@@ -92,7 +102,7 @@ def find(S, chapters, g2p=None):
                     seen.add(("unknown", w))
                     g = (dict(_tokens(guess, w)).get(w) or "?") if guess is not plain else "?"
                     out.append(("unknown", lid, w, g, f'if that is wrong: "phonemes": {{"{w}": "..."}}'))
-    return out
+    return [r for r in out if r[2] not in getattr(S, "accepted", []) and f"{r[1]}:{r[2]}" not in getattr(S, "accepted", [])]
 
 
 def report(S, chapters):

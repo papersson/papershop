@@ -138,7 +138,7 @@ def test_pronunciation_lint_flags_a_lone_letter_read_as_the_article(tmp_path):
     S = nr.Settings(tmp_path)
     found = pronounce.find(S, sc.load(tmp_path))
     kinds = {(k, lid, w) for k, lid, w, _, _ in found}
-    assert ("letter", "s1_01", "A") in kinds and ("letter", "s1_03", "A") in kinds   # the author decides which names something
+    assert ("letter", "s1_01", "A") in kinds and ("letter", "s1_03", "A") not in kinds   # obvious article; preserve the variable warning
     assert not any(w == "B" for _, _, w in kinds)                                     # B is read as its name
     assert ("acronym", "s1_04", "JSON") in kinds and ("unknown", "s1_04", "rr") in kinds
     assert ("word", "s1_04", "id") in kinds                                             # read as the Freudian id

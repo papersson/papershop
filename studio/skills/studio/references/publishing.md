@@ -1,35 +1,36 @@
 # The review loop, publishing, and revising
 
-## The review loop
+## One revision procedure
 
-Each round is a cut the user watches and a batch of notes you answer.
+Local page notes and published/chat notes enter the same loop. Serve with `studio serve`, or
+open the MP4 with `studio open VIDEO [CUT]` to protect it. The page records playback handoffs too.
+Wait for a submitted batch (or explicit chat instructions), read `studio notes`, save the original
+annotations, and map each note to the sentence/chapter of that cut. An empty note still means “here.”
 
-1. **Serve the cut.** `studio cut VIDEO` (a stills-only cut before animation), then
-   `studio serve VIDEO` in the background, and give the user http://127.0.0.1:8765/. The server
-   keeps running across cuts; the page picks up a new cut by itself.
-2. **Wait for the round.** On the page the user pauses, presses A, says whether the note is about
-   the narration, the picture or both, and clicks Send round. Every change is a line appended to
-   `review/notes.jsonl`; a `"type": "round"` line means the batch is ready. Watch the file (a
-   Monitor on it, or ask the user to tell you) rather than polling in a loop.
-3. **Read the batch**: `studio notes VIDEO` prints the notes numbered, each with its time, sentence
-   id and the sentence on screen. Save them as `research/annotations_cutN.txt`.
-4. **Propose before applying.** Map each note to its sentence and chapter, group the notes into
-   themes, and say what you'll change. A narration note changes SCRIPT.md (then `studio narrate`:
-   only the edited paragraphs re-synthesise, and in learner drive the reviewers re-check the
-   changed sentences); a picture note changes a scene. Log each decision under the narrative's
-   Decisions ("## After cut N").
-5. **Answer fast.** When a frame settles a picture note, show the updated still first (`studio
-   still`); then `studio cut VIDEO --changelog FILE`, where FILE is a JSON list of
-   `{"note": "3. the labels are too small", "change": "labels 18 → 24 pt in s2"}`. Only the
-   chapters a change touches re-render, and the page shows before/after stills for them. Keep the
-   round's whole-video steps incremental too: `studio check`, `studio voice-check` (changed
-   sentences) and `studio sheets` (changed frames), and hand a frame reviewer only the changed
-   chapters. The user is waiting on this round: time from notes to the next cut is the thing to
-   keep short, without dropping a check.
-6. Repeat until the user locks the video. Final quality is rendered once, by `studio publish`.
+1. Read the narrative Decisions, current review findings and pending research/requests.md.
+2. Start a round: `studio stage VIDEO round --kind local|structural --summary "…"`. The summary
+   records repeated ideas, obsolete material, merges/trims, affected chapters and expected change
+   in length. Classify a new chapter or a changed arc as structural. Honor already authorized notes;
+   present a genuine scope change before applying it, not a new approval ritual for routine fixes.
+3. Revise the smallest coherent argument affected. An addition ships with the consolidation it
+   makes possible, even when that touches a neighboring chapter. Update the learning brief and
+   narrative Decisions together when needed. Record each note's disposition.
+4. Recheck the teaching chain if the script changed; rerun the student review and any required
+   subject review after material changes. Keep sentence cues/per-ID pronunciation overrides in
+   sync. Narrate and voice-check only changed speech; a timing-only edit should reuse synthesis.
+5. Answer picture notes with a still where useful, then `studio cut VIDEO --changelog FILE`.
+   FILE is a JSON list of `{note, change}`. Run incremental checks/sheets/craft on the actual
+   dependency changes; shared helpers may affect more than one chapter. Required independent
+   frame review uses the new bundle and includes affected transitions/neighbors.
+6. Report the cut, actual width×height/fps, quality and final-quality status, runtime change,
+   note dispositions, late requests and measured stage times. Do not guess per-request minutes.
+   Mark waiting/finished boundaries and checkpoint at authorized stages.
 
-A picture note about something reviewers passed is still right: the user spotted an off-centre
-label on the first frame of a build that had passed every review.
+New requests are queued by the main session with `studio request VIDEO "text"` and incorporated
+at a stage boundary; explicit stop/correction is immediate. One builder owns the folder. Do not
+change sources during a render or launch a second writer. Preserve the record of what was deferred.
+A changed chapter without a new Review log entry produces a cut warning; a re-encode need not
+invent an editorial revision.
 
 ## Publishing
 
@@ -60,7 +61,9 @@ say so. To update, republish with the same `url`, so the link and the notes surv
 no database, so ask the user for notes in chat or on the local review page. Say that notes aren't
 collected automatically.
 
-**destination: files:** hand over `out/web.mp4` and the poster.
+**destination: files:** finish with `studio publish VIDEO` locally, then hand over `out/master.mp4`
+and the poster (plus the smaller web copy when useful). Report both resolutions; no external upload
+is required for a files-only deliverable.
 
 **destination: social:** `studio export VIDEO --formats 9:16,1:1,16:9 --lufs -14` renders every
 format from the same scenes into `out/export/`, each with its own stage and caption band (a
@@ -68,15 +71,29 @@ phone-shaped frame gets larger, shorter caption lines). Check each format first
 (`studio check VIDEO --format 9:16`): text and images that fit a landscape stage often leave a
 portrait one.
 
-## Disk
+## Retention and checkpoints
 
-Each cut folder holds a draft video and its stills (20–40 MB for a long video), so `studio cut` keeps
-only the newest 3 (`"keep_cuts": N` in video.json), plus the cut of the latest notes round. After a
-video is published, or when space runs short, `studio clean VIDEO --dry-run` lists what can be
-regenerated and its size, and `studio clean VIDEO` removes it (old cuts, caches for older versions,
-narration chunks the script no longer uses, sheets, the web copy and the loudness pass). It never
-touches the script, scenes, data, research, the narration audio, the latest cut, out/master.mp4 or
-out/page. On the 25-minute benchmark video it freed 407 MB of 841 MB.
+Automatic pruning keeps every cut record and MP4. It removes only expendable previews/intermediates
+from unprotected old drafts. `keep_cuts` defaults to ten playable drafts; stills-only previews have
+a separate ten-preview allowance and do not evict playable cuts. Watched/opened, final-quality,
+pinned and any noted cuts are protected, as are the latest playable cut and latest preview. A
+legacy record without enough metadata is retained conservatively. “Watched” records a playback
+handoff, not completion of viewing.
+
+`studio clean VIDEO --dry-run` previews cache/preview cleanup. `--videos` additionally permits
+removal of eligible old unprotected draft MP4s, never protected cuts or their records. The page
+marks removed media unavailable. Do not delete cuts manually to satisfy a budget. Pinned older
+kits retain their older pruning behavior until explicitly updated: protect/back up their cuts
+before resuming production and run the installed `studio init VIDEO --update`.
+
+`studio new` initializes Git for a standalone folder or reuses its enclosing repository. Generated
+media and caches are ignored; source/evidence/review records and paid narration responses remain
+checkpointable. `studio commit VIDEO "message"` uses a private index and stages only video source
+paths, preserving unrelated staged work. `video.json.git.sign` is null/inherit by default, true
+for explicit signing, false only when unsigned commits are authorized. It never changes global
+Git settings or silently falls back from signed to unsigned. Commit only at authorized stages.
+Existing tracked binaries need an explicit index migration; ignoring a formerly tracked MP4 does
+not remove it or its history. Cut retention is separate from Git backup.
 
 ## Versions
 
@@ -84,24 +101,13 @@ video.json's `version` names the page's note set. Keep it across minor revisions
 version in the description ("v2.1: shorter chapter 3"), so notes on the page survive; bump it for a
 major change, which starts a new note set.
 
-## Revising from notes
+## Published notes
 
-Notes from the published page: `ArtifactData list` on `feedback`. Each names a time, a chapter,
-the sentence on screen and the one before, a note (possibly empty, which still says "here"), and
-the version.
-
-1. Save them to `research/annotations_vN.txt`, map each to its sentence, group into themes, and
-   propose the changes before applying any.
-2. In learner drive, add what each note shows to the learner model's evidence table (a skipped
-   step, a term used before it was defined, two ideas in one sentence, pace), and add a standing
-   instruction when a pattern recurs across videos.
-3. Revise only what the notes point at. Keep sentence ids stable where the text doesn't change; a
-   split or added sentence renumbers that chapter's later ids, so update its scene's `at()` calls.
-4. Learner drive: re-run the reviewers until the gate holds (the student plays the updated model).
-5. `studio narrate`, `studio voice-check`, `studio cut` (changed chapters only), check the stills,
-   `studio publish`, republish to the same link.
-6. Tell the user what changed, chapter by chapter, and which note each change answers. Leave the
-   notes in place.
+Use `ArtifactData list` on feedback when that connector is available; save its output to
+research/annotations_vN.txt and follow the revision procedure above. Each note identifies version,
+time, chapter and sentence. In learner drive, add observed gaps to the learner model; simulated
+reviewer predictions remain labeled predictions. Republish to the same link for minor revisions
+and leave the notes intact. Do not claim notes were collected when no feedback connector exists.
 
 ## Re-voicing
 

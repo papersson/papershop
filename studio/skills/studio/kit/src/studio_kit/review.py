@@ -1,7 +1,7 @@
 """`studio review VIDEO ROUND`: one round of three fresh-context reviewers, on SCRIPT.md or on a
 narrative (the outline that comes before any script).
 
-Each reviewer is a separate `claude -p` process started in an empty folder, so it cannot read the
+Each reviewer is a separate `claude -p` process started in an empty folder to reduce accidental exposure to the
 video's other files (earlier reviews, drafts, the review log), and it sees only its own material:
   expert:  the script with screen notes, and the evidence table
   student: the learner model (who they play) and the script with screen notes
@@ -69,6 +69,8 @@ def charter(video):
     narrative = Path(video) / "research" / "narrative.md"
     if narrative.exists():
         s = sections(narrative.read_text())
+        if "Vocabulary" in s:
+            parts.append(s["Vocabulary"])
         if "Cut on purpose" in s:
             parts.append(s["Cut on purpose"].replace("## Cut on purpose", "Cut on purpose (decided with the learner):"))
     vocab = video_config(video).get("vocabulary")
@@ -98,9 +100,11 @@ def script_inputs(video, rnd):
             raise SystemExit(f"SCRIPT.md has no '## {need}' section")
     script, evidence, argument = s["Script"], s["Evidence"], s["Argument"] + "\n" + s["Chain"]
     extra = charter(video)
+    questions = re.search(r"^- \*\*Transfer questions[.:]?\*\*.*(?:\n(?!- \*\*|## ).+)*", s["Argument"], re.M)
+    transfer = "\n\nTransfer cases (use only the model taught):\n" + questions.group() if questions else ""
     out = {
         "expert": prompt(video, "expert.md") + extra + "\n\n---\n\n" + script + "\n" + evidence,
-        "student": prompt(video, "student.md") + extra + "\n\n---\n\n" + script,
+        "student": prompt(video, "student.md") + extra + "\n\n---\n\n" + script + transfer,
         "editor": prompt(video, "editor.md") + extra + "\n\n---\n\n" + argument + "\n" + script,
     }
     # Each reviewer sees only its own material.
@@ -154,15 +158,28 @@ def main(args, runner=None):
     narrative = Path(args.narrative).resolve() if args.narrative else None
     inputs = narrative_inputs(video, narrative) if narrative else script_inputs(video, args.round)
     tag = f"narrative_{narrative.stem}_round{args.round:02d}" if narrative else f"round{args.round:02d}"
+    unknown = set(args.only.split(",")) - set(ROLES)
+    if unknown:
+        raise SystemExit("unknown reviewer roles: " + ", ".join(sorted(unknown)))
+    from . import review_state
+    revision = review_state.fingerprint(video)
     todo = [(k, v) for k, v in inputs.items() if k in args.only.split(",")]
     for name, text in todo:
         (out_dir / f"{tag}_{name}.input.md").write_text(text)
 
     def one(item):
         name, text = item
-        body = run_reviewer(text, runner)
+        try:
+            body = run_reviewer(text, runner)
+        except Exception as e:
+            if not narrative:
+                review_state.record(video, name, revision, "unavailable", str(e))
+            raise
         (out_dir / f"{tag}_{name}.md").write_text(body)
         verdict = [line for line in body.splitlines() if "VERDICT" in line]
+        if not narrative:
+            status = "passed" if verdict and verdict[-1].strip() == "VERDICT: PASS" else "findings"
+            review_state.record(video, name, revision, status, str(out_dir / f"{tag}_{name}.md"))
         return name, verdict[-1].strip() if verdict else "(no verdict line)", len(body)
 
     with ThreadPoolExecutor(max_workers=3) as ex:

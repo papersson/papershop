@@ -4,20 +4,19 @@ Status: draft, before review round 1
 
 ## Argument
 
-- **Big ideas.** {{three or four, one sentence each: what the viewer can explain afterwards. Every line of the script serves one of them (references/levels.md)}}
-- **Toy example.** {{the handful of things on screen from the first chapter to the last}}
-- **Audience.** {{who, and what they already know: the student reviewer plays this person}}
-- **Question.** {{the specific question the opening raises}}
-- **Answer.** {{how the ending answers it, with the opening's own evidence}}
-- **Takeaway.** {{the rule the viewer leaves with, one or two sentences}}
-- **Wrong model.** {{the intuition the audience brings that the lesson dislodges}}
-- **Objectives.** {{three or four things the viewer can do afterwards}}
+- **Audience.** {{background and prerequisites}}
+- **Model delta.** {{Before: current model or limitation. After: what they can explain, predict or do}}
+- **Opening question and payoff.** {{puzzle/capability and the compact model that resolves it}}
+- **Key ideas.** {{usually three or four; importance markers and recap positions}}
+- **Recurring example.** {{small visible case used throughout; real or explicitly synthetic}}
+- **Wrong model or missing link.** {{plausible intuition to test or dependency to supply}}
+- **Transfer questions.** {{three new cases; expected reasoning belongs in research/transfer-answers.md}}
 
 ## Chain
 
-1. {{one sentence for chapter 1}}
-2. therefore / but {{chapter 2}}
-3. ...
+| Chapter | Question/limitation | New idea | New prediction | Local closure |
+|---|---|---|---|---|
+| 1 | {{...}} | {{...}} | {{...}} | {{...}} |
 
 ## Format
 
@@ -27,22 +26,23 @@ Status: draft, before review round 1
 
 ## Ledgers
 
-- **Setups and payoffs.** {{setup → where it pays off}}
-- **Vocabulary.** {{term: first used in chapter N, definition; no synonyms afterwards}}
-- **Numbers to remember.** {{two or three, with their meaning}}
+- **Setups and payoffs.** {{setup → payoff}}
+- **Vocabulary.** {{canonical term, first use, definition}}
+- **Numbers to remember.** {{two or three meaningful quantities; record values and identifiers are separate}}
+- **Runtime.** {{target and estimate: main story, optional reference, thinking pauses}}
 
 ## Script
 
 ### 1. {{Chapter title}}
 
-> {{Narration paragraph: short sentences, written for the ear. Each "> " line is one paragraph; the pipeline splits it into sentences with ids s1_01, s1_02, ...}}
+> {{Narration paragraph: short sentences written for the ear. Each quoted line is a paragraph; sentence IDs are positional.}}
 > {{Next paragraph.}}
 
-*Screen:* {{what is on screen during this chapter, moment by moment, naming the sentence each change lands on}}
+*Screen:* {{picture changes and their sentence cues; label text and important values}}
 
 ### 2. {{Chapter title}}
 
-> {{...}}
+> {{Narration paragraph.}}
 
 *Screen:* {{...}}
 
@@ -50,8 +50,9 @@ Status: draft, before review round 1
 
 | Claim | Source |
 |---|---|
-| {{a number or behaviour stated on screen or in the narration}} | {{sims/x.py → data/y.txt; or the cited source, with chapter or section}} |
+| {{value or behavior}} | {{sims/script → data/output, or source file/commit/section}} |
 
 ## Review log
 
-{{One entry per round: verdicts, each finding and what was done or why it was declined. Written by the build, never shown to reviewers.}}
+{{Self-check with sentence IDs/quotes; independent verdicts and dispositions. Each revision records
+what to merge/trim/replace, affected chapters and expected runtime change.}}

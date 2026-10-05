@@ -3,6 +3,11 @@
 Run at setup, and first whenever a command fails with an environment error.
 """
 import re
+import os
+import json
+import importlib.util
+from pathlib import Path
+from importlib.metadata import version, PackageNotFoundError
 import shutil
 import subprocess
 import sys
@@ -14,7 +19,7 @@ OK, WARN, FAIL = "ok", "warn", "FAIL"
 
 NIX_FIX = "run through bin/studio (it loads `nix develop .#studio`), or install it"
 
-HOSTS = ["https://registry.npmjs.org/", "https://huggingface.co/", "https://cache.nixos.org/"]
+HOSTS = ["https://registry.npmjs.org/", "https://huggingface.co/", "https://cache.nixos.org/", "https://raw.githubusercontent.com/explosion/spacy-models/master/compatibility.json"]
 
 
 def _version(cmd):
@@ -68,8 +73,9 @@ def check_host(url):
     try:
         urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=10)
         return OK, f"host {url}", "reachable", ""
-    except urllib.error.HTTPError:
-        return OK, f"host {url}", "reachable", ""       # an error status still proves the route
+    except urllib.error.HTTPError as e:
+        return WARN, f"host {url}", f"HTTP {e.code}: reachable but access failed", \
+            "for the spaCy model: configure a wheel mirror/index and run studio doctor --fetch --extra kokoro"
     except OSError as e:
         return WARN, f"host {url}", f"unreachable ({e})", "allowlist it, or prefetch on a machine that can reach it"
 
@@ -89,6 +95,67 @@ def fetch(engines=("remotion",), extras=()):
     if extras:
         cmd = ["uv", "sync", "--quiet", "--frozen", "--inexact", "--project", str(ROOT / "kit")]
         subprocess.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)
+        if "kokoro" in extras:
+            install_spacy_model()
+
+
+EXTRAS = {"audio": ("numpy", "soundfile", "num2words"),
+          "align": ("numpy", "soundfile", "num2words", "faster_whisper"),
+          "kokoro": ("numpy", "soundfile", "num2words", "kokoro", "misaki", "en_core_web_sm")}
+
+
+def repair(extra):
+    return f"{ROOT / 'bin/studio'} doctor --fetch --extra {extra}"
+
+
+def required(video):
+    p = Path(video) / "narration.json"
+    if not p.exists():
+        return ()
+    cfg = json.loads(p.read_text())
+    return ("kokoro" if cfg.get("engine", "kokoro") == "kokoro" else "audio", "align")
+
+
+def extra_checks(extras=()):
+    rows = []
+    for extra in dict.fromkeys(extras):
+        if extra not in EXTRAS:
+            raise SystemExit(f"unknown extra {extra}")
+        missing = [m for m in EXTRAS[extra] if importlib.util.find_spec(m) is None]
+        if extra == "kokoro" and "en_core_web_sm" not in missing:
+            try:
+                version("en-core-web-sm")
+            except PackageNotFoundError:
+                missing.append("en_core_web_sm")
+        rows.append((FAIL if missing else OK, f"extra {extra}",
+                     "missing: " + ", ".join(missing) if missing else "installed", repair(extra)))
+    return rows
+
+
+def require_extra(extra):
+    bad = [r for r in extra_checks([extra]) if r[0] == FAIL]
+    if bad:
+        raise SystemExit(f"{bad[0][2]}; run `{bad[0][3]}` before narration (no model download during synthesis)")
+
+
+def install_spacy_model():
+    # spaCy and its language model share a major/minor compatibility family.
+    probe = subprocess.run([str(ROOT / "kit/.venv/bin/python"), "-c",
+                            "from importlib.metadata import version; print('.'.join(version('spacy').split('.')[:2]))"],
+                           capture_output=True, text=True, check=True)
+    family = probe.stdout.strip()
+    if not re.fullmatch(r"\d+\.\d+", family):
+        raise SystemExit("could not determine the installed spaCy model compatibility family")
+    env = dict(os.environ)
+    if not env.get("UV_INDEX_URL") and env.get("PIP_INDEX_URL"):
+        env["UV_INDEX_URL"] = env["PIP_INDEX_URL"]
+    cmd = ["uv", "pip", "install", "--python", str(ROOT / "kit/.venv/bin/python"),
+           f"en-core-web-sm~={family}.0"]
+    r = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit("spaCy model wheel unavailable through the configured index. Supply a compatible "
+                         "en-core-web-sm wheel on UV_INDEX_URL/PIP_INDEX_URL, then rerun " + repair("kokoro") +
+                         ". No GitHub fallback was attempted.")
 
 
 def checks(net=False):
@@ -113,7 +180,13 @@ def checks(net=False):
 def main(args):
     if args.fetch:
         fetch(engines=tuple(dict.fromkeys(("remotion", *args.engine))), extras=args.extra)
-    rows = checks(net=args.net)
+    extras = tuple(dict.fromkeys([*args.extra, *(required(args.video) if args.video else EXTRAS)]))
+    rows = checks(net=args.net) + extra_checks(extras)
+    if args.video:
+        print("video requires: " + ", ".join(required(args.video)))
+    if not args.video and not args.extra:
+        rows = [(WARN if level == FAIL and name.startswith("extra ") else level, name, detail, fix)
+                for level, name, detail, fix in rows]
     for level, name, detail, fix in rows:
         print(f"{level:4}  {name:22} {detail}" + (f"\n      fix: {fix}" if fix and level != OK else ""))
     failed = [r for r in rows if r[0] == FAIL]

@@ -73,11 +73,13 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     part = {
         "clip": {**c, "start": rel(c["start"]), "end": rel(c["end"])}, "frames": count, "fps": timeline["fps"],
         "narration": [{**s, "start": rel(s["start"]), "end": rel(s["end"]),
+                       "pause": {**s["pause"], "start": rel(s["pause"]["start"]), "end": rel(s["pause"]["end"])} if "pause" in s else None,
                        "words": [{**w, "start": rel(w["start"]), "end": rel(w["end"])} for w in s.get("words", [])]}
                       for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
         "captions": [{**x, "start": rel(x["start"]), "end": rel(x["end"])}
                      for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
-        "cues": timeline.get("cues", {}),
+        "cues": {k: rel(v) for k, v in timeline.get("cues", {}).items()
+                 if not k.startswith("reveal:") or k.startswith(f"reveal:{clip_id}_")},
         "footage": timeline["tracks"].get("footage", []),
         "beats": timeline.get("beats", {}),
         "layout": tl.layout(video, fmt),
@@ -241,7 +243,25 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     else:
         clips = [{"id": cid, "key": key, "rendered": False, "seconds": 0} for cid, key, _ in rows]
 
+    from .cuts import media_info
+    from .workspace import atomic_json
+    media = media_info(d / "video.mp4") if not stills_only else {
+        "width": round(tl.layout(video)["width"] * STILL_SCALE),
+        "height": round(tl.layout(video)["height"] * STILL_SCALE), "fps": timeline["fps"]}
+    script_path = video / "SCRIPT.md"
+    script_text = script_path.read_text() if script_path.exists() else ""
+    from .script import sections
+    review_hash = hashlib.sha256(sections(script_text).get("Review log", "").encode()).hexdigest()
+    if prev and changed and prev.get("review_log_hash") == review_hash and prev.get("quality") == quality:
+        log("warn: changed chapters have no new Review log entry; record merges, cuts and expected runtime change")
+    atomic_json(d / "timeline.json", timeline)
+    if script_path.exists():
+        shutil.copyfile(script_path, d / "SCRIPT.md")
+    from .review_state import fingerprint
     record = {
+        "source_revision": fingerprint(video, frames=True),
+        "media": media, "final": quality == "final" and not stills_only,
+        "review_log_hash": review_hash,
         "cut": n, "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": quality,
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in timeline["tracks"]["scene"]],
@@ -256,7 +276,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     from .clean import keep_cuts, prune_cuts
     freed = prune_cuts(video)
     if freed:
-        log(f"old cuts removed (keeping the newest {keep_cuts(video)}): {freed / 1e6:.0f} MB freed")
+        log(f"old draft previews removed (keeping the newest {keep_cuts(video)}): {freed / 1e6:.0f} MB freed")
     return record
 
 
