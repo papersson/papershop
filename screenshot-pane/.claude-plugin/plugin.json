@@ -1,0 +1,29 @@
+{
+  "name": "screenshot-pane",
+  "version": "0.2.0",
+  "description": "See every screenshot Claude takes in a side pane, flip before/after, and point Claude at one with a keypress",
+  "author": {
+    "name": "Patrik Persson"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "autoOpen": {
+      "type": "boolean",
+      "title": "Open the pane on new screenshots",
+      "description": "Open the pane when Claude takes a screenshot. Off: a toast tells you, and /screenshots opens it.",
+      "default": true
+    },
+    "history": {
+      "type": "number",
+      "title": "Screenshots kept",
+      "description": "How many screenshots the pane keeps per session.",
+      "default": 50
+    },
+    "cellRatio": {
+      "type": "number",
+      "title": "Cell height / width",
+      "description": "How many times taller a terminal cell is than it is wide. Raise it if pictures look squashed, lower it if they look stretched.",
+      "default": 2.4
+    }
+  }
+}

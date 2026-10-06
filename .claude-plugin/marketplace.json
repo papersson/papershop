@@ -35,6 +35,10 @@
     {
       "name": "studio",
       "source": "./studio"
+    },
+    {
+      "name": "screenshot-pane",
+      "source": "./screenshot-pane"
     }
   ]
 }
