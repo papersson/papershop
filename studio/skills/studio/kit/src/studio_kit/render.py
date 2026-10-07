@@ -61,9 +61,12 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     h = hashlib.sha1(quality.encode())
     _hash_tree(h, engine_dir(engine) / "src")
     _hash_tree(h, engine_dir(engine) / "package-lock.json")
-    for f in sorted((video / "scenes").iterdir()):
+    scenes = sorted((video / "scenes").iterdir()) if (video / "scenes").is_dir() else []
+    for f in scenes:
         if f.stem == clip_id or f.stem not in clip_ids:
             _hash_tree(h, f)
+    if quality == "boards" or not any(f.stem == clip_id for f in scenes):
+        _hash_tree(h, video / "boards")  # the chapter renders its board
     _hash_tree(h, video / "data")       # scenes import their numbers from data/
     _hash_listing(h, video / "assets")  # assets: names, sizes and times (footage is too big to read)
     c = tl.clip(timeline, clip_id)
@@ -180,13 +183,14 @@ def still_requests(timeline, outdir, clips=None):
     return reqs
 
 
-def cached_stills(video, timeline, engine, reqs):
-    """Render the stills whose frame changed, and copy the rest from .cache/stills/. A still's key is
-    its clip's key and its frame number, so a still is reused exactly when its frame is the same.
-    Returns (rendered, reused)."""
-    cache = Path(video) / ".cache" / "stills"
+def cached_stills(video, timeline, engine, reqs, boards=False, cache_name=None):
+    """Render the stills whose frame changed, and copy the rest from .cache/stills/ (board stills from
+    .cache/board-stills/). A still's key is its clip's key and its frame number, so a still is reused
+    exactly when its frame is the same. Each cache_name keeps its own folder, since a call removes the
+    cached stills it no longer wants. Returns (rendered, reused)."""
+    cache = Path(video) / ".cache" / (cache_name or ("board-stills" if boards else "stills"))
     cache.mkdir(parents=True, exist_ok=True)
-    keys = {c["id"]: clip_key(video, timeline, c["id"], "still") for c in timeline["tracks"]["scene"]}
+    keys = {c["id"]: clip_key(video, timeline, c["id"], "boards" if boards else "still") for c in timeline["tracks"]["scene"]}
     fps = timeline["fps"]
     todo, wanted = [], set()
     for r in reqs:
@@ -194,7 +198,7 @@ def cached_stills(video, timeline, engine, reqs):
         wanted.add(f.name)
         r["cache"] = f
         if not f.exists():
-            todo.append({"clip": r["clip"], "t": r["t"], "out": str(f), "scale": r["scale"]})
+            todo.append({"clip": r["clip"], "t": r["t"], "out": str(f), "scale": r["scale"], "boards": boards})
     if todo:
         engine.stills(todo)
     for r in reqs:
@@ -209,14 +213,17 @@ def log(msg):
     print(msg, flush=True)
 
 
-def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=None):
+def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=None, boards=False):
     """Render cut N+1: stills first (the fastest answer), then only the clips whose key changed,
-    then the composite. Returns the cut record."""
+    then the composite. With boards, a stills-only cut of every chapter's board. Returns the cut record."""
     video = Path(video).resolve()
+    stills_only = stills_only or boards
+    from . import boards as bd
+    bd.write_notes(video)
     timeline = tl.load(video)
     engine = engine or Engine(video)
     from . import cuts
-    prev_n = cuts.latest(video, cuts.SCENE_STILLS)
+    prev_n = cuts.latest(video, ("boards",) if boards else cuts.SCENE_STILLS)
     prev = read_cut(video, prev_n) if prev_n else None
     n = latest_cut(video) + 1
     d = cuts_dir(video) / f"cut{n}"
@@ -231,7 +238,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
 
     t0 = time.monotonic()
     reqs = still_requests(timeline, d / "stills")
-    made, reused = cached_stills(video, timeline, engine, reqs)
+    made, reused = cached_stills(video, timeline, engine, reqs, boards=boards)
     timings["stills"] = round(time.monotonic() - t0, 1)
     log(f"stills: {made} rendered, {reused} unchanged (reused)")
 
@@ -249,6 +256,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     media = media_info(d / "video.mp4") if not stills_only else {
         "width": round(tl.layout(video)["width"] * STILL_SCALE),
         "height": round(tl.layout(video)["height"] * STILL_SCALE), "fps": timeline["fps"]}
+    notes = bd.notes(video)
     script_path = video / "SCRIPT.md"
     script_text = script_path.read_text() if script_path.exists() else ""
     from .script import sections
@@ -263,12 +271,13 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "source_revision": fingerprint(video, frames=True),
         "media": media, "final": quality == "final" and not stills_only,
         "review_log_hash": review_hash,
-        "cut": n, "kind": "stills" if stills_only else "final" if quality == "final" else "cut",
+        "cut": n, "kind": "boards" if boards else "stills" if stills_only else "final" if quality == "final" else "cut",
         "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": quality,
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in timeline["tracks"]["scene"]],
         "clips": clips, "changed": changed if prev else [],
-        "stills": [{k: r[k] for k in ("id", "clip", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"} for r in reqs],
+        "stills": [{k: r[k] for k in ("id", "clip", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"}
+                   | ({"note": notes[r["id"]]} if r["id"] in notes else {}) for r in reqs],
         "changelog": changelog or [],
         "seconds": timings,
     }

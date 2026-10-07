@@ -7,6 +7,14 @@ declare module '@timeline' {
 	const timeline: unknown;
 	export default timeline;
 }
+declare module '@boards' {
+	const boards: unknown;
+	export default boards;
+}
+declare module '@board-notes' {
+	const notes: unknown;
+	export default notes;
+}
 declare module '@layout' {
 	const layout: unknown;
 	export default layout;

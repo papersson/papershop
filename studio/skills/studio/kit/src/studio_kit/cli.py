@@ -165,6 +165,12 @@ COMMANDS = {
         A("--stills-only", action="store_true", help="stills only (a look gate, or a quick answer)"),
         A("--changelog", help="JSON list of {note, change} answering the previous cut's notes"),
     ], _cut),
+    "boards": ("a stills cut of every chapter's board (boards/boards.json, notes from the screen notes)", [
+        A("video"),
+    ], "boards:main"),
+    "animatic": ("stills or boards held to the narration, with its audio, and a pacing report", [
+        A("video"), A("--boards", action="store_true", help="boards for every chapter (default: scenes, boards where a chapter has none)"),
+    ], "animatic:main"),
     "export": ("the whole video in several formats (16:9, 9:16, 1:1) from one timeline, into out/export/", [
         A("video"), A("--formats", default="16:9,9:16,1:1"),
         A("--quality", default="final", choices=["draft", "final"]),
@@ -208,7 +214,7 @@ def main(argv=None):
     if isinstance(handler, str):
         module, func = handler.split(":")
         handler = getattr(importlib.import_module(f".{module}", __package__), func)
-    mutating = {"narrate", "align", "voice-check", "cut", "render", "still", "check", "sheets", "export", "clean", "publish",
+    mutating = {"narrate", "align", "voice-check", "cut", "boards", "animatic", "render", "still", "check", "sheets", "export", "clean", "publish",
                 "init", "audio", "capture", "asset", "ingest", "edit", "beats", "sfx", "steps", "commit", "stage"}
     if args.cmd in mutating and not (args.cmd == "clean" and args.dry_run):
         from .workspace import operation

@@ -9,3 +9,4 @@ export * from './pixel';
 export * from './footage';
 export * from './blocks';
 export * from './explain';
+export * from './board';

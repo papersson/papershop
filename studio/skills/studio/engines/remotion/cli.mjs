@@ -2,7 +2,7 @@
 // prints one JSON object on stdout (logs go to stderr).
 //
 //   node cli.mjs still    --video DIR --clip ID --t SEC --out PNG [--layers L] [--scale S]
-//   node cli.mjs stills   --video DIR --requests JSON        [{clip, t, out, layers?, scale?}], one browser
+//   node cli.mjs stills   --video DIR --requests JSON        [{clip, t, out, layers?, scale?, boards?}], one browser
 //   node cli.mjs render   --video DIR --clip ID --out MP4 [--quality draft|final] [--range A B]
 //   node cli.mjs boxes    --video DIR --clip ID --t SEC
 //   node cli.mjs boxesAt  --video DIR --requests JSON        [{clip, t, out?}], one browser
@@ -84,10 +84,15 @@ function hashTree(h, p, root = p) {
 	}
 }
 
+function boardFile(video, name) {
+	const f = path.join(video, 'boards', name);
+	return existsSync(f) ? f : path.join(ENGINE, 'src', 'empty.json');
+}
+
 async function getBundle(video) {
 	const h = createHash('sha1');
 	for (const p of [path.join(ENGINE, 'src'), path.join(ENGINE, 'package-lock.json'),
-		path.join(video, 'scenes'), path.join(video, 'data'), path.join(video, 'timeline.json'),
+		path.join(video, 'scenes'), path.join(video, 'data'), path.join(video, 'boards'), path.join(video, 'timeline.json'),
 		opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json')]) {
 		hashTree(h, p);
 	}
@@ -113,6 +118,9 @@ async function getBundle(video) {
 					'@video': path.join(video, 'scenes'),
 					'@timeline': path.join(video, 'timeline.json'),
 					'@layout': existsSync(layoutFile) ? layoutFile : path.join(ENGINE, 'src', 'default-layout.json'),
+					// Boards are optional: a video without them gets empty ones.
+					'@boards': boardFile(video, 'boards.json'),
+					'@board-notes': boardFile(video, 'notes.json'),
 				},
 				// Scene files live outside the engine, so resolve their imports from the engine's packages.
 				modules: [path.join(ENGINE, 'node_modules'), 'node_modules'],
@@ -149,13 +157,13 @@ async function stills(video, requests) {
 	try {
 		// Compositions first (one per clip and layer set), then the frames in parallel tabs.
 		for (const r of requests) {
-			const inputProps = {layers: r.layers ?? 'all'};
-			const key = `${r.clip}/${inputProps.layers}`;
+			const inputProps = {layers: r.layers ?? 'all', boards: Boolean(r.boards)};
+			const key = `${r.clip}/${inputProps.layers}/${inputProps.boards}`;
 			comps[key] ??= await composition(serveUrl, r.clip, inputProps, browser);
 		}
 		done = await pool(requests, STILL_TABS, async (r) => {
-			const inputProps = {layers: r.layers ?? 'all'};
-			const comp = comps[`${r.clip}/${inputProps.layers}`];
+			const inputProps = {layers: r.layers ?? 'all', boards: Boolean(r.boards)};
+			const comp = comps[`${r.clip}/${inputProps.layers}/${inputProps.boards}`];
 			const frame = frameAt(comp, r.t);
 			mkdirSync(path.dirname(r.out), {recursive: true});
 			await renderStill({
