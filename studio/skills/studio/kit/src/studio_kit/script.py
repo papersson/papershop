@@ -3,6 +3,10 @@
 Every "> " line under a "### N. Title" heading in the "## Script" section is a paragraph of
 narration, split here into sentences with ids like s2_13 (chapter 2, sentence 13). Chapter N is
 scene clip sN.
+
+A "*Screen:*" line says what the picture shows. It may name the sentences it belongs to
+("s2_03: … s2_05–s2_07: …"); text before the first id, or a note without ids, belongs to the
+paragraph above it. Boards and checks read these as ScreenNote(start, end, text).
 """
 import re
 import math
@@ -27,10 +31,37 @@ class Sentence:
 
 
 @dataclass
+class ScreenNote:
+    start: str              # first sentence id it belongs to
+    end: str                # last sentence id (the same as start for one sentence)
+    text: str
+    line: int
+
+
+@dataclass
 class Chapter:
     id: str
     title: str
     sentences: list[Sentence] = field(default_factory=list)
+    screen: list[ScreenNote] = field(default_factory=list)
+
+
+CUE = re.compile(r"\b(s\d+_\d+)(?:\s*[–-]\s*(s\d+_\d+))?:")
+
+
+def screen_notes(note, line, paragraph_ids):
+    """Split one "*Screen:*" line into notes by the sentence ids it names. `paragraph_ids` are the
+    sentences of the paragraph above it (for text that names none)."""
+    marks = list(CUE.finditer(note))
+    out = []
+    lead = note[:marks[0].start()] if marks else note
+    if lead.strip(" .;") and paragraph_ids:
+        out.append(ScreenNote(paragraph_ids[0], paragraph_ids[-1], lead.strip(), line))
+    for i, m in enumerate(marks):
+        text = note[m.end():marks[i + 1].start() if i + 1 < len(marks) else len(note)].strip()
+        if text:
+            out.append(ScreenNote(m[1], m[2] or m[1], text, line))
+    return out
 
 
 def paragraph(text, line, beat):
@@ -89,6 +120,9 @@ def read(video, beat=0.5):
                 chapter.sentences.append(Sentence(f"{chapter.id}_{len(chapter.sentences)+1:02d}", cap, pi,
                                                   lineno, pause, prediction))
             pi += 1
+        elif line.startswith("*Screen:*") and chapter:
+            above = [s.id for s in chapter.sentences if s.paragraph == pi - 1]
+            chapter.screen += screen_notes(line[len("*Screen:*"):].strip(), lineno, above)
     if not chapters or any(not c.sentences for c in chapters):
         raise SystemExit("SCRIPT.md needs a '## Script' section with narrated '### 1. Title' chapters")
     return chapters

@@ -53,8 +53,18 @@ def run(video):
                 add(s.id, f"narration numerals: {', '.join(nums)}", "info", "numbers")
         add(chapter.id, f"distinct declared product names: {len(found_names)} ({', '.join(sorted(found_names)) or 'none'})",
             "warning" if len(found_names) > policy.get("product_budget", 3) else "info", "products")
-    labels = re.findall(r"^\*Screen:\*\s*(.*)$", sections.get("Script", ""), re.M)
-    add("Screen", f"{len(NUMBER.findall(' '.join(labels)))} numerals in screen notes; arbitrary scene text is not counted", "info", "numbers")
+    notes = [n for c in chapters for n in c.screen]
+    add("Screen", f"{len(NUMBER.findall(' '.join(n.text for n in notes)))} numerals in screen notes; arbitrary scene text is not counted", "info", "numbers")
+    for chapter in chapters:
+        ids = [x.id for x in chapter.sentences]
+        for n in chapter.screen:
+            # Sentence ids are positional: an edit renumbers them, and a stale cue points at the wrong line.
+            for sid in {n.start, n.end}:
+                if sid not in ids:
+                    add(chapter.id, f"screen note at SCRIPT.md:{n.line} names {sid}, which is not a sentence of {chapter.id} "
+                        f"({ids[0]}..{ids[-1]})", rule="screen")
+            if n.start in ids and n.end in ids and ids.index(n.end) < ids.index(n.start):
+                add(chapter.id, f"screen note at SCRIPT.md:{n.line} has a backwards range {n.start}–{n.end}", rule="screen")
     ledger = sections.get("Ledgers", "")
     remember = re.search(r"\*\*Numbers to remember\.\*\*\s*(.*)", ledger)
     if remember:
