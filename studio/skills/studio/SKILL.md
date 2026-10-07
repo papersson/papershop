@@ -25,6 +25,7 @@ Infer these choices or ask only what affects the result; record them in video.js
 | Genre | `explainer`, `motion`, `launch`, `pixel`, `footage`; code construction is an explainer format |
 | Level | `intro` (default): scaffold a few key ideas; `deep-dive`: more mechanisms, assumptions and evidence |
 | Destination | `private-page` (default), `share`, `social`, `files` |
+| Checkpoints | `few` (default): the user approves the narrative, picks the look and reviews cuts; `many`: also boards, the animatic, the first finished chapter and each chapter as it is done. Offer `many` when the user wants to follow or steer the work |
 
 Depth, runtime and production effort are separate. Read `references/levels.md` for depth and
 `references/pedagogy.md` for explainers. Every teaching explainer gets a student script pass,
@@ -53,7 +54,8 @@ Do not launch multiple writers against the same folder. Reviewers use immutable 
 Release ownership at handoff; `--recover` is for an abandoned build, never a way to displace a live one.
 
 The main session owns independent review dispatch. A background builder can report **ready for
-script review**, **ready for look choice**, or **ready for frame review** and receive results back.
+script review**, **ready for look choice**, or **ready for frame review** and receive results back
+(with `checkpoints: many`, also **ready for boards**, **ready for the animatic** and **chapter ready**).
 It need not spawn children. Do not substitute a self-review for an unavailable independent review.
 
 The stages and what must hold before each next one are listed once: the table at the top of
@@ -81,7 +83,7 @@ All commands run through `bin/studio` in its pinned environment. `--help` lists 
 | Command | Purpose |
 |---|---|
 | `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--net]` | Environment, package/model and network diagnostics |
-| `new NAME [--source REPO] [--drive …] [--level …] [--genre …] [--engine …]` | New folder, source repository and snapshotted defaults |
+| `new NAME [--source REPO] [--drive …] [--level …] [--checkpoints few\|many] [--genre …] [--engine …]` | New folder, source repository and snapshotted defaults |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
 | `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue |
@@ -94,7 +96,9 @@ All commands run through `bin/studio` in its pinned environment. `--help` lists 
 | `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
 | `lexicon add WORD --spoken TEXT [--phonemes IPA]` | Promote a pronunciation for future videos |
-| `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; reports actual output dimensions |
+| `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; reports actual output dimensions. Chapters without a scene show their boards |
+| `boards VIDEO` | A stills cut of every chapter's board (`boards/boards.json`, notes from the screen notes); reports sentences with nothing on screen |
+| `animatic VIDEO [--boards]` | Pictures held to the real narration with its audio, and a pacing report (runtime, chapter lengths, unchanged stretches, empty sentences) |
 | `open VIDEO [CUT]` · `serve VIDEO` · `notes VIDEO` | Protected system playback, review page, numbered feedback |
 | `still VIDEO CLIP T --out PNG` · `boxes VIDEO CLIP T` | Inspect a frame or named-element bounds |
 | `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR` | Incremental render checks, contact sheets and label crops |
@@ -110,7 +114,8 @@ All commands run through `bin/studio` in its pinned environment. `--help` lists 
 ## Durable files and personal defaults
 
 `SCRIPT.md` owns narration and its learning brief; narrative Decisions own settled direction.
-`narration.json` owns effective voice/timing settings. `sims/` and `data/` hold evidence.
+`narration.json` owns effective voice/timing settings. `boards/` holds the boards (boards.json is
+written by the builder; notes.json is generated). `sims/` and `data/` hold evidence.
 `timeline.json` is generated. `research/` holds reviews, snapshots, timing and pending requests.
 `cuts/cutN/` retains a record and MP4; watched/final/noted cuts also retain their review previews.
 `out/master.mp4` is the final-quality local master; the web copy may be smaller.

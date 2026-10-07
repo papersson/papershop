@@ -16,10 +16,18 @@ This table is the one list of the explainer's stages; SKILL.md and the build pro
 | 4 Script | narration with screen notes | pedagogy self-check, `studio check --only script` | builder |
 | 5 Script review | review receipts | current student pass (plus expert and editor for learner drive or deep-dive) | fresh reviewers; the main session dispatches |
 | 6 Narration | audio, timeline with word times | voice-check scores under 0.8 inspected | builder |
-| 7 The look | a stills-only cut | the user's pick, unless a house style already settles it | user |
-| 8 Scenes, cuts, craft | cuts | `studio check` passes; craft pass on changed chapters | builder; the user reviews cuts |
-| 9 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
-| 10 Finish | local master, page | `studio publish` gate passes | user |
+| 7 Boards | boards/boards.json, a boards cut | every sentence has a board or a screen note on screen | builder (user with `checkpoints: many`) |
+| 8 Animatic | an animatic cut and its pacing report | runtime, unchanged stretches and empty sentences read and addressed | builder (user with `checkpoints: many`) |
+| 9 The look | a stills-only cut | the user's pick, unless a house style already settles it | user |
+| 10 Scenes, cuts, craft | cuts, chapter by chapter | `studio check` passes; craft pass on changed chapters | builder; the user reviews cuts |
+| 11 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
+| 12 Finish | local master, page | `studio publish` gate passes | user |
+
+`checkpoints` in video.json sets how often the user sees work in progress. With `few` (the
+default) the user approves the narrative, picks the look and reviews cuts; boards and the animatic
+are the builder's own checks. With `many` the builder also stops at stages 7 and 8, shows the first
+chapter finished at final look before building the rest, and shares a cut as each chapter is done
+(chapters not yet built show their boards).
 
 ## Ownership and checkpoints
 
@@ -113,15 +121,41 @@ Run `studio voice-check`; inspect every score under 0.8. It cannot reliably dist
 read as letters from the same acronym read as a word. Run `--all` once before first delivery.
 Missing extras/models print the precise doctor command; models are installed during setup.
 
-## Stage 7: The look
+## Stage 7: Boards
+
+Before any scene code, settle what each beat shows and where. Write `boards/boards.json`: for each
+chapter, frames that start at a sentence (`"from": "s2_04"`) and hold until the next, each a few
+rough elements: `{"box": label, "at": [x, y], "w", "h"}`, `{"text", "at", "size"}`,
+`{"arrow": [[x, y], [x, y]]}`, `{"line": …}`, `{"dot": [x, y]}`, in stage units (centred, y up,
+eight high). A board is a layout decision, not a drawing: boxes and labels where the real elements
+will go, enough to see an empty stage, a crowded one or a picture that never changes. Screen notes
+fill in where no frame is drawn, so a chapter can start from its notes alone.
+
+`studio boards VIDEO` makes a boards cut: one still per sentence with its screen note, and before and
+after stills on the review page when boards change. It reports sentences with neither a board nor
+a note. A chapter without a scene file renders its board in every cut, so boards stay useful as
+scenes replace them one chapter at a time.
+
+## Stage 8: The animatic
+
+`studio animatic VIDEO` holds each sentence's picture (scenes where they exist, boards elsewhere;
+`--boards` for all) to the real narration, with its audio, and reports the runtime against
+`target_minutes`, each chapter's length, the longest stretch where the picture does not change and
+sentences with nothing on screen. Watch it, or at least read the report, before animating: a chapter
+that runs long or a stage that sits empty while the voice talks is a board or script change now and a
+rebuild later. It needs real narration (Kokoro is quick), so narrate before boards.
+
+## Stage 9: The look
 
 Make real static scenes for the main picture and a close-up; `studio cut --stills-only` records
 these without displacing playable cuts. Get the user's choice before animation unless already
 settled/authorized. Existing house style can supply a direction rather than requiring alternatives.
 
-## Stage 8: Scenes, cuts and craft
+## Stage 10: Scenes, cuts and craft
 
-One scene per chapter. Every frame is a pure function of `useClip().t` (no timers, accumulated
+One scene per chapter, built in order and cut as each is done: unbuilt chapters show their boards,
+so every cut plays the whole video. With `checkpoints: many`, show the first finished chapter before
+building the rest. Every frame is a pure function of `useClip().t` (no timers, accumulated
 state or unseeded randomness). `at`, `end` and `word` cue sentences; `cue('reveal:s1_03')` lands
 a reveal after an inline hold. `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
 Stage coordinates are centered, y up, eight units high, above the reserved caption band.
@@ -138,7 +172,7 @@ composition, synchronization and banned defaults. Inspect full-resolution crops;
 contact sheet does not establish font size. Fix the significant findings; avoid endless polish.
 `studio open VIDEO [CUT]` opens and protects an MP4; `studio serve` provides annotation playback.
 
-## Stage 9: Independent frame review
+## Stage 11: Independent frame review
 
 Required before delivering a deep-dive, a shared video, or when video.json `frame_review` is true.
 First run `studio sheets VIDEO VIDEO/out/sheets` for the current cut, adding `--strip CLIP T` for
@@ -151,7 +185,7 @@ Import the response with `studio review-frames VIDEO --result FILE`; it must inc
 REVISION and FRAMES verdict. A changed frame/source invalidates the receipt. Never label a builder's
 own pass independent. Unavailable/authorized waived reviews use `studio review-status`.
 
-## Stage 10: Finish and hand over
+## Stage 12: Finish and hand over
 
 Run `studio publish VIDEO` for the local final-quality master, including files-only delivery;
 external uploading remains a separate authorized action (`publishing.md`). Default landscape is

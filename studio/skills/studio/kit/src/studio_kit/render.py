@@ -13,6 +13,7 @@ videos/<name>/cuts/cutN/
 """
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import time
@@ -45,6 +46,17 @@ def _engine_of(video):
     return settings.load(video)["engine"]
 
 
+def has_scene(video, clip_id, engine=None):
+    """Whether a chapter renders its own scene rather than its board: as the Remotion root decides,
+    a scenes/<clip>.tsx registered in scenes/index.ts. Motion Canvas videos always render scenes."""
+    video = Path(video)
+    if (engine or _engine_of(video)) != "remotion":
+        return True
+    index = next((p for p in (video / "scenes" / "index.ts", video / "scenes" / "index.tsx") if p.exists()), None)
+    registered = bool(index and re.search(rf"(?<![\w-]){re.escape(clip_id)}\s*:", index.read_text()))
+    return registered and any((video / "scenes" / f"{clip_id}{ext}").exists() for ext in (".tsx", ".ts", ".jsx", ".js"))
+
+
 def _hash_listing(h, p):
     p = Path(p)
     if p.is_dir():
@@ -65,7 +77,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     for f in scenes:
         if f.stem == clip_id or f.stem not in clip_ids:
             _hash_tree(h, f)
-    if quality == "boards" or not any(f.stem == clip_id for f in scenes):
+    if quality == "boards" or not has_scene(video, clip_id, engine):
         _hash_tree(h, video / "boards")  # the chapter renders its board
     _hash_tree(h, video / "data")       # scenes import their numbers from data/
     _hash_listing(h, video / "assets")  # assets: names, sizes and times (footage is too big to read)

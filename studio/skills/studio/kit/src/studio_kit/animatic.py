@@ -66,8 +66,7 @@ def pacing(video, timeline, cut_dir, stills, segs, boards=False):
     chapters = [{"id": c["id"], "title": c["title"], "seconds": round(c["end"] - c["start"], 1)} for c in timeline["tracks"]["scene"]]
     from . import boards as bd
     cov = bd.coverage(video, timeline)
-    scenes = {f.stem for f in (Path(video) / "scenes").iterdir()} if (Path(video) / "scenes").is_dir() else set()
-    on_board = {c["id"] for c in timeline["tracks"]["scene"] if boards or c["id"] not in scenes}
+    on_board = {c["id"] for c in timeline["tracks"]["scene"] if boards or not render.has_scene(video, c["id"])}
     clip_of = {s["id"]: s["clip"] for s in timeline["tracks"]["narration"]}
     report = {
         "seconds": round(timeline["duration"], 1),

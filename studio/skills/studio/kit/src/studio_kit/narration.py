@@ -437,13 +437,18 @@ def sentence_clips(S, sents):
     return clips, phonemes
 
 
-WORDS_PER_SECOND = 2.8   # spoken words per second at speed 1.0, for timing a script before its audio exists
+# Spoken words per second at speed 1.0, and seconds added per sentence, for timing a script before its
+# audio exists. Kokoro af_heart measured 3.51 and 3.60 over two narrated videos (1,135 and 1,386
+# words), sentence ends included; 3.55 predicts both within 2%. The ElevenLabs figures are the older
+# estimate, not re-measured.
+PACE = {"kokoro": (3.55, 0.0), "elevenlabs": (2.8, 0.3)}
 
 
 def estimate_durations(S, chapters):
     """Each sentence's spoken length guessed from its word count and the voice's speed."""
+    wps, extra = PACE.get(S.engine, PACE["elevenlabs"])
     speed = S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"]
-    return {sid: len(cap.split()) / (WORDS_PER_SECOND * speed) + 0.3 for _, _, ss in chapters for sid, cap, _ in ss}
+    return {sid: len(cap.split()) / (wps * speed) + extra for _, _, ss in chapters for sid, cap, _ in ss}
 
 
 def write_timeline(S, timings, timing="narrated"):

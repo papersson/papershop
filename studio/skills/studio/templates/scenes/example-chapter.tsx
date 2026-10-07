@@ -4,7 +4,7 @@ import {Box, Card, Chapter, Chip, Link, span, ramp, useClip} from '@studio';
 // Chapter 1. Every value derives from `t`; sentence times come from the timeline: at('01') is
 // when sentence s1_01 starts. The building blocks (Box, Card, Link, Panel, Term, Stack, span, lin)
 // come from the kit; a chapter should be mostly layout and timing.
-export const S1: React.FC = () => {
+export const Example: React.FC = () => {
 	const {t, at} = useClip();
 	const idea = span(t, at, '01');
 	return (

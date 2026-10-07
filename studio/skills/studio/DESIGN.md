@@ -150,6 +150,7 @@ passed.
 |---|---|
 | **Notes from real use**: the loop is proven with scripted notes and by the user's use of the review page | a video goes through several rounds of the user's own notes |
 | **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |
+| **Boards in Motion Canvas**: a Remotion chapter without a scene renders its board; Motion Canvas still requires every scene | the Motion Canvas project falls back to a board scene |
 
 
 ## What the next three productions changed (0.6.0)
@@ -182,3 +183,38 @@ Revisions now begin with a merge/trim analysis. Only changed dependencies render
 change covers the smallest coherent argument, not necessarily only the annotated sentence. One
 folder has one writer, late requests are queued, and structural revisions get different forecasts.
 Personal style/lexicon and series evidence are snapshotted so global edits cannot change old cuts.
+
+
+## Boards, the animatic and checkpoints (0.7.0)
+
+Two explainers made after 0.6.0 found their worst problems only after scenes were built: a
+chapter that opened on an empty stage, a close-up that sat empty for two sentences, a runtime
+8:42 against a 7:00 target, and a note ("show concretely what a script or a storyboard is") that
+was about what the picture shows, not how it moves, yet cost a scene rewrite. Animation studios
+settle those questions with storyboards and an animatic before animating, because each stage is
+cheaper to change than the next. The studio borrows the two that make videos better.
+
+Boards are layout decisions in data (boards/boards.json: boxes, text, arrows per beat), drawn
+rough on purpose; screen notes fill the gaps, so a chapter has a picture from the moment its script
+exists. They live outside scenes/ because a change to a shared scene file changes every chapter's
+render key; a chapter's key includes the boards only when it renders them. A chapter without a
+scene renders its board in every cut, which is what makes progressive cuts possible: finished
+chapters animated, the rest as boards.
+
+The animatic holds each sentence's picture to the real narration. It renders its own stills at
+half resolution (upscaled page thumbnails made board text unreadable) into its own cache, since a
+still cache removes the stills a call no longer wants. It refuses an estimated timeline: a
+timeline written by `narrate --estimate` now says so, where before the animatic would have played
+silence. Kokoro stays the voice from first narration to publishing, so the animatic's timing is the
+final timing; the word-count estimate was recalibrated against two Kokoro narrations (3.55 words
+per second at speed 1.0, sentence ends included, within 2% of both; the old 2.8 + 0.3 s overstated
+one video by 27%).
+
+`checkpoints: few | many` is how much the user follows along. The boards and animatic checks run
+either way; `many` only adds the stops.
+
+Considered and left out: a picture-lock state. In film it protects work that depends on frozen
+timing (sound, colour, other people's schedules); here re-rendering after a late timing change
+costs seconds, so a lock would only make late fixes harder. Cut records now carry a kind (stills,
+boards, animatic, cut, final) so the new kinds never reach publish or frame review, and
+`settings.py` lists every video.json key in one place.

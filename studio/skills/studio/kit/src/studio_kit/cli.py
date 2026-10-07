@@ -74,6 +74,8 @@ COMMANDS = {
         A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
         A("--engine", choices=["remotion", "motion-canvas"], help="which engine renders the scenes"),
+        A("--checkpoints", choices=["few", "many"],
+          help="few (default): narrative, look and cuts; many: also boards, the animatic, the first finished chapter and each chapter"),
         A("--level", choices=["intro", "deep-dive"],
           help="intro: scaffold 3-4 key ideas (default); deep-dive: more detail and evidence"),
     ], "new:main"),
