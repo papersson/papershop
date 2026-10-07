@@ -7,7 +7,6 @@ Each sentence's still holds from that sentence's start until the next sentence s
 still of a chapter also covers the chapter's lead-in). The animatic is a cut of kind "animatic":
 it is shown on the review page and never chosen by publish or frame review.
 """
-import hashlib
 import json
 import shutil
 import time
@@ -43,13 +42,24 @@ def segments(timeline, stills):
     return out
 
 
+def stage_digest(still, stage_fraction):
+    """A hash of the still above the caption band: captions change every sentence, so hashing the
+    whole frame would never find the same picture twice."""
+    import subprocess
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(still), "-vf", f"crop=iw:trunc(ih*{stage_fraction:.4f}/2)*2:0:0",
+                        "-f", "md5", "-"], capture_output=True, text=True, check=True)
+    return r.stdout.strip()
+
+
 def pacing(video, timeline, cut_dir, stills, segs, boards=False):
     """The numbers worth reading before animating."""
     cfg = settings.load(video)
+    lay = tl.layout(video)
+    stage = (lay["height"] - lay["band"]["height"]) / lay["height"]
     digest = {}
     for s in stills:
         p = cut_dir / s["file"]
-        digest[s["file"]] = hashlib.sha1(p.read_bytes()).hexdigest() if p.exists() else s["file"]
+        digest[s["file"]] = stage_digest(p, stage) if p.exists() else s["file"]
     runs, current, length = [], None, 0.0
     t = 0.0
     start = 0.0
