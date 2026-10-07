@@ -38,7 +38,7 @@ Status: draft, before review round 1
 > {{Narration paragraph: short sentences written for the ear. Each quoted line is a paragraph; sentence IDs are positional.}}
 > {{Next paragraph.}}
 
-*Screen:* {{picture changes and their sentence cues; label text and important values}}
+*Screen:* {{s1_01: what the picture shows from this sentence. s1_03–s1_05: the next change; label text and important values}}
 
 ### 2. {{Chapter title}}
 

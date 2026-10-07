@@ -99,9 +99,10 @@ videos look alike). The craft critique hunts for them:
 
 Kokoro `af_heart` in paragraph mode: intonation carries across a paragraph and pauses follow the
 punctuation. One sentence per call made every sentence start at the same pitch after the same gap,
-which the learner heard as robotic. ElevenLabs (`eleven_multilingual_v2`, or `eleven_v4`) is the
-hosted option; `eleven_v3` returns no timestamps, which the scenes cue from. Develop with Kokoro and
-switch at the end.
+which the learner heard as robotic. Kokoro is the voice from the first narration to the finished
+video. ElevenLabs (`eleven_multilingual_v2`, or `eleven_v4`) is the hosted option when the user asks
+for it, chosen before scenes are timed, since a new voice moves every word; `eleven_v3` returns no
+timestamps, which the scenes cue from.
 
 Names and terms are said right. A learner heard "uh reads one" for "A reads one", and "id" said as
 the Freudian id: a lone capital letter is read as the article, a lowercase abbreviation as a word.

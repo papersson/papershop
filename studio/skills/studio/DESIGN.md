@@ -61,7 +61,9 @@ boundaries, at least 1.2 s). The page drops its captions toggle so they don't sh
 
 Kokoro `af_heart` sounded robotic synthesised sentence by sentence: every sentence started at the
 same pitch after the same gap. One call per paragraph doubled the sentence-to-sentence pitch
-variation at no cost. ElevenLabs is the hosted option, its responses cached and committed so a
+variation at no cost. Kokoro stays the voice through to publishing: a late switch re-times every
+word, which changes every chapter's render key and reopens every sync decision. ElevenLabs is the
+hosted option when a user asks for it, its responses cached and committed so a
 rebuild never pays twice (the port reproduces the tutor kit's ElevenLabs timings exactly). Nobody
 can listen, so the voice check transcribes every sentence; it caught a synthesis that silently
 dropped two sentences. A one-pass loudness "finish" once raised the room tone in every pause, so the

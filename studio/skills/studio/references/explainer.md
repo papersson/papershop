@@ -4,6 +4,23 @@ Start from the agreed `research/narrative.md`. Read `pedagogy.md`, `levels.md`, 
 learner model and the video's snapshotted `research/house.md`. For code, also read `code.md`.
 The same stages apply at either level; depth and claim risk determine additional review effort.
 
+## Stages at a glance
+
+This table is the one list of the explainer's stages; SKILL.md and the build prompt point here.
+
+| Stage | Produces | Before the next stage | Decided by |
+|---|---|---|---|
+| 1 Sources | research notes, source hashes | claims to verify are listed | builder |
+| 2 Argument and chain | SCRIPT.md Argument and Chain | matches the approved narrative | user (at the narrative) |
+| 3 Evidence | sims/, data/, Evidence rows | every asserted number has a row | builder |
+| 4 Script | narration with screen notes | pedagogy self-check, `studio check --only script` | builder |
+| 5 Script review | review receipts | current student pass (plus expert and editor for learner drive or deep-dive) | fresh reviewers; the main session dispatches |
+| 6 Narration | audio, timeline with word times | voice-check scores under 0.8 inspected | builder |
+| 7 The look | a stills-only cut | the user's pick, unless a house style already settles it | user |
+| 8 Scenes, cuts, craft | cuts | `studio check` passes; craft pass on changed chapters | builder; the user reviews cuts |
+| 9 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
+| 10 Finish | local master, page | `studio publish` gate passes | user |
+
 ## Ownership and checkpoints
 
 One builder owns the folder: `studio lock VIDEO acquire --owner NAME`, then use the printed
@@ -42,7 +59,9 @@ parameters that make a worked example's arithmetic match what is actually shown.
 
 ## Stage 4: Script
 
-Write short spoken clauses with `*Screen:*` notes specifying the visual change and its sentence.
+Write short spoken clauses with `*Screen:*` notes specifying the visual change and its sentence:
+`*Screen:* s2_01: … s2_03–s2_05: …`; text without an id belongs to the paragraph above. Sentence ids
+are positional, so `studio check --only script` reports notes that name a sentence that no longer exists.
 Use `[pause 2]`, `[predict 3]` or `[beat]` immediately after a complete sentence. These become
 inserted silence after speech, in addition to its natural gap; they are never spoken or captioned.
 An explicit marker replaces the default/legacy hold on that sentence. A sentence may have one
@@ -80,9 +99,11 @@ waiver is recorded with `studio review-status VIDEO student waived --reason "aut
 
 `studio narrate VIDEO --estimate` gives a timeline without synthesis. Actual `studio narrate`
 requires a current student pass for new teaching videos. `narration.json` owns engine, voice,
-speed, timing and pronunciation. Kokoro paragraph mode preserves intonation; ElevenLabs can be
-chosen when appropriate. `--plan` reports cached/costed work, `--fetch-only --yes` fills its paid
-response cache. Retain that cache. Recheck visual timing after a voice change.
+speed, timing and pronunciation. Kokoro in paragraph mode is the voice from the first narration to
+the published video, so the timing scenes are built against is the final timing. ElevenLabs is used
+only when the user asks for it, and is chosen before scenes are timed: `--plan` reports
+cached/costed work, `--fetch-only --yes` fills its paid response cache; retain that cache. A voice
+change moves every word, so recheck visual timing after one.
 
 The per-video `lexicon.json` snapshot supplies shared pronunciations; narration.json overrides it,
 then per-sentence overrides win. `studio lexicon add WORD --spoken "…" [--phonemes "…"]` promotes

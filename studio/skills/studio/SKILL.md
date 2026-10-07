@@ -56,16 +56,13 @@ The main session owns independent review dispatch. A background builder can repo
 script review**, **ready for look choice**, or **ready for frame review** and receive results back.
 It need not spawn children. Do not substitute a self-review for an unavailable independent review.
 
+The stages and what must hold before each next one are listed once: the table at the top of
+`references/explainer.md` for explainers, and each genre file for the other genres. These rules
+hold at every stage:
+
 - Agree on the learning brief and chain before scripting, unless already authorized to proceed.
-  The brief includes audience, model delta, key ideas, example and transfer questions.
-- Run the pedagogy self-check and script diagnostics before narration. `studio review --only
-  student` uses a fresh process; new teaching videos require its current pass before synthesis.
-- Settle the look from stills before animation, unless already selected/authorized.
-- Resolve or accept pronunciation findings and inspect low voice-check scores before an animated cut.
-- Run mechanical checks and the craft pass on changed chapters before showing a cut.
-- Before delivering a deep-dive/shared video, prepare `studio review-frames` and have the main
-  session dispatch a fresh image-capable reviewer. Import the revision-tagged result. Frame
-  review judges full-resolution crops and mechanism-sensitive transition frames, not just thumbnails.
+- Frame review judges full-resolution crops and mechanism-sensitive transition frames, not just
+  thumbnails; import the revision-tagged result.
 - Every asserted number or behavior has an Evidence row. Recorded code/data drive the scenes.
 - Review caps leave open findings; they do not make them pass. Record unavailable or explicitly
   user-waived checks with `studio review-status`, including the reason. A material edit invalidates

@@ -10,19 +10,13 @@ Read pending research/requests.md at each stage; resolve incorporated request ID
 scope/time changes. Do not spawn additional writers in this folder. Mark stages, including
 waiting and finished. Checkpoint only at authorized stages through studio commit; do not push.
 
-Produce real evidence under sims/ and data/. Narration describes the subject, not its production.
-Code scenes consume recorded source/output. Apply the shared pedagogy self-check and script lint.
-Report ready for script review before synthesis; the main session arranges the student review
-and any required expert/editor review. A cap never makes unresolved errors pass.
-
-Stop at the look gate with a stills-only cut unless that choice was already authorized. For frame
-review, run `studio sheets VIDEO VIDEO/out/sheets` and `studio review-frames VIDEO`, then report ready for frame review with the
-manifest. The main session arranges a fresh image-capable reviewer and returns findings. Do not
-replace independent review with your own pass or claim a reviewer ran when it did not.
-
-Run voice-check, deterministic/frame checks and the craft pass. Every frame derives from time.
-Use studio check --only determinism, not a separate determinism command. Verify visual findings
-at full resolution and inspect transition strips when motion could imply the wrong mechanism.
+Follow the stages in the table at the top of references/explainer.md. Where it names a decision
+for fresh reviewers or the user (script review, the look, frame review), stop and report ready for
+that decision: for frame review, run `studio sheets VIDEO VIDEO/out/sheets` and
+`studio review-frames VIDEO` and include the manifest. The main session arranges the reviewers and
+the user's choice and returns them. Do not replace an independent review with your own pass or
+claim a reviewer ran when it did not; a cap never makes unresolved errors pass. Determinism is
+`studio check --only determinism`; there is no separate determinism command.
 
 Report cut/path, actual width×height/fps, quality and final-quality status, duration (main/sidebars),
 model delta, evidence, reviews and waivers, voice results, changed chapters, late requests, stage
