@@ -437,12 +437,23 @@ def sentence_clips(S, sents):
     return clips, phonemes
 
 
-def write_timeline(S, timings):
-    """The narration and scene tracks from the laid-out timings; cues and engines are kept."""
+WORDS_PER_SECOND = 2.8   # spoken words per second at speed 1.0, for timing a script before its audio exists
+
+
+def estimate_durations(S, chapters):
+    """Each sentence's spoken length guessed from its word count and the voice's speed."""
+    speed = S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"]
+    return {sid: len(cap.split()) / (WORDS_PER_SECOND * speed) + 0.3 for _, _, ss in chapters for sid, cap, _ in ss}
+
+
+def write_timeline(S, timings, timing="narrated"):
+    """The narration and scene tracks from the laid-out timings; cues and engines are kept. `timing`
+    records where the times came from: "narrated" (the audio) or "estimate" (word counts, no audio)."""
     video = S.video
     old = tl.load(video) if (video / "timeline.json").exists() else None
     t = tl.from_timings(timings, engine=(old or {}).get("tracks", {}).get("scene", [{}])[0].get("engine", "remotion"),
                         audio_file="audio/narration.mp3")
+    t["timing"] = timing
     if old:
         t["cues"] = {**{k: v for k, v in old.get("cues", {}).items() if not k.startswith("reveal:")}, **t["cues"]}
     tl.save(video, t)
@@ -459,8 +470,8 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     from . import pronounce
     pronounce.report(S, chapters)
     if estimate:
-        timings = layout(S, chapters, {k: len(c.split()) / (2.8 * (S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"])) + 0.3 for k, c in sents})
-        write_timeline(S, timings)
+        timings = layout(S, chapters, estimate_durations(S, chapters))
+        write_timeline(S, timings, timing="estimate")
         print(f"estimated total {timings['total']:.1f}s (no audio; scenes can be timed against it)")
         return timings
     from .doctor import require_extra

@@ -177,3 +177,15 @@ def test_moved_chapters_keep_identical_relative_times_and_clip_keys(tmp_path):
         t = tl.from_timings(nr.layout(S, chapters, d))
         keys.append(render.clip_key(v, t, "s2", "draft"))
     assert keys[0] == keys[1] == keys[2]
+
+
+def test_estimated_timelines_say_so(tmp_path):
+    from studio_kit import narration, timeline as tl
+    (tmp_path / "SCRIPT.md").write_text(SCRIPT)
+    narration.narrate(tmp_path, estimate=True)
+    t = tl.load(tmp_path)
+    assert t["timing"] == "estimate" and tl.timing(tmp_path) == "estimate"
+    del t["timing"]                                   # an older timeline: no record, no audio
+    assert tl.timing(tmp_path, t) == "estimate"
+    (tmp_path / "audio" / "narration.mp3").write_bytes(b"mp3")
+    assert tl.timing(tmp_path, t) == "narrated"

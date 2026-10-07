@@ -32,6 +32,16 @@ DEFAULT_LAYOUT = {
 }
 
 
+def timing(video, timeline=None):
+    """Where the timeline's times came from: "estimate" or "narrated". Timelines written before this
+    was recorded count as narrated when their narration audio exists."""
+    t = timeline or load(video)
+    if t.get("timing"):
+        return t["timing"]
+    audio = next((a for a in t.get("tracks", {}).get("audio", []) if a.get("role", "narration") == "narration"), None)
+    return "narrated" if audio and (Path(video) / audio.get("file", "")).exists() else "estimate"
+
+
 def load(video):
     return json.loads((Path(video) / "timeline.json").read_text())
 

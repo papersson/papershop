@@ -62,12 +62,10 @@ def run(video):
         add("Ledgers", f"{n} quantities to remember (budget {policy.get('number_budget', 3)}); data/identifiers are separate",
             "warning" if n > policy.get("number_budget", 3) else "info", "budget")
     if cfg.get("target_minutes"):
-        from .narration import Settings, layout
+        from .narration import Settings, estimate_durations, layout
         S = Settings(video)
         tuples = script.load(video)
-        speed = S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"]
-        seconds = layout(S, tuples, {sid: len(cap.split()) / (2.8 * speed) + 0.3
-                                    for _, _, sentences in tuples for sid, cap, _ in sentences})["total"]
+        seconds = layout(S, tuples, estimate_durations(S, tuples))["total"]
         if seconds > float(cfg["target_minutes"]) * 120:
             add("Runtime", f"estimated {seconds / 60:.1f} min exceeds twice target {cfg['target_minutes']} min; justify scope before building", rule="length")
     return rows
