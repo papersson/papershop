@@ -22,6 +22,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from . import settings
 from .env import ROOT
 from .script import sections
 
@@ -33,8 +34,7 @@ DEFAULT_MAX_ROUNDS = {"thorough": 6, "default": 3, "economy": 2}
 
 
 def video_config(video):
-    f = Path(video) / "video.json"
-    return json.loads(f.read_text()) if f.exists() else {}
+    return settings.load(video)
 
 
 def learner_path(video):

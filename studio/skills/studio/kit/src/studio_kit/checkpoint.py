@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from . import settings
+
 GITIGNORE = """.cache/
 audio/*.wav
 cuts/*/*
@@ -27,7 +29,7 @@ def init(video):
 def commit(video, message):
     video = Path(video).resolve()
     init(video)
-    cfg = json.loads((video / "video.json").read_text()).get("git", {})
+    cfg = settings.raw(video).get("git", {})
     sign = cfg.get("sign")
     if sign is not None and not isinstance(sign, bool):
         raise SystemExit("video.json git.sign must be true, false, or null (inherit)")

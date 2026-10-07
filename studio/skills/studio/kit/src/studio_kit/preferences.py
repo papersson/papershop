@@ -5,6 +5,7 @@ import re
 import shutil
 from pathlib import Path
 
+from . import settings
 from .review import studio_home
 from .workspace import atomic_json, locked
 
@@ -55,7 +56,7 @@ def inherit(video, source, includes=()):
     from .steps import inside
     from .script import sections
     video, source = Path(video), Path(source).resolve()
-    source_cfg = json.loads((source / "video.json").read_text())
+    source_cfg = settings.raw(source)
     copied = {}
 
     def copy(rel):

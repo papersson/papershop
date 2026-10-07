@@ -20,6 +20,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from . import settings
 from . import cuts, render
 from .workspace import locked
 from . import timeline as tl
@@ -77,9 +78,7 @@ def state(video, cut=None):
                                       if (video / "cuts" / f"cut{n}" / s["file"]).exists()]}
     notes, rounds = fold(read_log(video), n)
     title = t.get("title") or video.name
-    vj = video / "video.json"
-    if vj.exists():
-        title = json.loads(vj.read_text()).get("title", title)
+    title = settings.raw(video).get("title", title)
     return {
         "title": title, "latest": latest, "cut": record,
         "cuts": sorted(int(p.name[3:]) for p in render.cuts_dir(video).glob("cut*")

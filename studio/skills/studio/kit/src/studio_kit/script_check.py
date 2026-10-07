@@ -3,6 +3,7 @@ import json
 import re
 from pathlib import Path
 
+from . import settings
 from . import script
 
 META = re.compile(r"\b(?:this video|the [\w-]+ video|this repo|this session|we decided|you're learning this|"
@@ -13,7 +14,7 @@ NUMBER = re.compile(r"(?<!\w)\d+(?:[.,]\d+)*(?:%|\b)")
 def run(video):
     video = Path(video)
     text = (video / "SCRIPT.md").read_text()
-    cfg = json.loads((video / "video.json").read_text()) if (video / "video.json").exists() else {}
+    cfg = settings.load(video)
     chapters = script.read(video)
     sections = script.sections(text)
     policy = cfg.get("script_check", {})

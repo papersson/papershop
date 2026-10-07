@@ -42,6 +42,7 @@ import subprocess
 import urllib.request
 from pathlib import Path
 
+from . import settings
 from . import script as sc
 from . import timeline as tl
 
@@ -464,7 +465,7 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
         return timings
     from .doctor import require_extra
     require_extra("kokoro" if S.engine == "kokoro" else "audio")
-    cfg = json.loads((S.video / "video.json").read_text()) if (S.video / "video.json").exists() else {}
+    cfg = settings.load(S.video)
     if cfg.get("teaching_contract"):
         from .script_check import run as check_script
         failures = [r["detail"] for r in check_script(S.video) if not r["ok"]]

@@ -26,6 +26,7 @@ import struct
 import uuid
 from pathlib import Path
 
+from . import settings
 from . import timeline as tl
 from .engine import Engine
 
@@ -224,8 +225,7 @@ MORE = "legible (text at least 18 px tall), provenance (assets used are recorded
 
 
 def config(video):
-    f = Path(video) / "video.json"
-    return json.loads(f.read_text()) if f.exists() else {}
+    return settings.load(video)
 
 
 def genre(video):

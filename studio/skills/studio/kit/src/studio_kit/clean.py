@@ -3,17 +3,16 @@ import json
 import shutil
 from pathlib import Path
 
+from . import settings
 from . import cuts, render
 from .workspace import atomic_json, locked, now
 from . import timeline as tl
 
-KEEP_CUTS = 10
+KEEP_CUTS = settings.DEFAULTS["keep_cuts"]
 
 
 def keep_cuts(video):
-    f = Path(video) / "video.json"
-    cfg = json.loads(f.read_text()) if f.exists() else {}
-    return max(1, int(cfg.get("keep_cuts", KEEP_CUTS)))
+    return max(1, int(settings.load(video)["keep_cuts"]))
 
 
 def _size(p):

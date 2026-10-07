@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from . import settings
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
@@ -27,8 +28,7 @@ class Engine:
         self.browser, _ = resolve_browser()
 
     def _video_engine(self):
-        f = self.video / "video.json"
-        return json.loads(f.read_text()).get("engine", "remotion") if f.exists() else "remotion"
+        return settings.load(self.video)["engine"]
 
     def layout(self):
         """The layout this engine renders (the video's, with its format applied)."""

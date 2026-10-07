@@ -17,6 +17,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from . import settings
 from . import audio, render
 from . import timeline as tl
 
@@ -118,7 +119,7 @@ def final_cut(video):
 def gate(video):
     """The full check, every chapter, before anything is published."""
     from . import check
-    cfg = json.loads((Path(video) / "video.json").read_text()) if (Path(video) / "video.json").exists() else {}
+    cfg = settings.load(video)
     if cfg.get("teaching_contract"):
         from .review_state import require, required_roles
         for role in required_roles(cfg):
@@ -138,7 +139,7 @@ def build(video, skip_gate=False):
     video = Path(video).resolve()
     if not skip_gate:
         gate(video)
-    cfg = json.loads((video / "video.json").read_text()) if (video / "video.json").exists() else {}
+    cfg = settings.load(video)
     t = tl.load(video)
     finish = audio.finish(video)
     print(f"audio: {finish['lufs']:.1f} LUFS, true peak {finish['true_peak_dbtp']:.1f} dBTP")

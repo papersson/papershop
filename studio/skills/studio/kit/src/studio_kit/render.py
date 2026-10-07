@@ -18,6 +18,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import settings
 from . import audio
 from . import timeline as tl
 from .engine import Engine
@@ -41,8 +42,7 @@ def _hash_tree(h, p, root=None):
 
 
 def _engine_of(video):
-    f = Path(video) / "video.json"
-    return json.loads(f.read_text()).get("engine", "remotion") if f.exists() else "remotion"
+    return settings.load(video)["engine"]
 
 
 def _hash_listing(h, p):
@@ -329,7 +329,7 @@ def export_formats(video, formats, quality="final", lufs=None, name=None):
         audio.finish(video, lufs)
     out = video / "out" / "export"
     out.mkdir(parents=True, exist_ok=True)
-    cfg = json.loads((video / "video.json").read_text()) if (video / "video.json").exists() else {}
+    cfg = settings.raw(video)
     slug = name or "".join(c if c.isalnum() else "-" for c in cfg.get("title", video.name).lower()).strip("-")
     made = []
     for fmt in formats:

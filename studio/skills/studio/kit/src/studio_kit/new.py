@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from . import settings
 from .env import ROOT
 from .review import studio_home
 from . import timeline as tl
@@ -41,7 +42,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
-           "level": level, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": 10,
+           "level": level, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
            "teaching_contract": genre == "explainer"}     # minutes; `studio stage` reports against it
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
@@ -88,7 +89,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
 
 
 def main(args):
-    source_cfg = json.loads((Path(args.from_video) / "video.json").read_text()) if args.from_video else {}
+    source_cfg = settings.raw(args.from_video) if args.from_video else {}
     args.engine = args.engine or source_cfg.get("engine", "remotion")
     args.level = args.level or source_cfg.get("level", "intro")
     video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine,
@@ -113,7 +114,7 @@ KEEP = ["data", "sims", "assets", "scenes", "captures", "layout.json", "narratio
 def variant(source, name, directory=None, learner=None, vocabulary=None, title=None):
     """A sibling video for another audience: same evidence, assets and look, new script."""
     source = Path(source).resolve()
-    scfg = json.loads((source / "video.json").read_text())
+    scfg = settings.raw(source)
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")

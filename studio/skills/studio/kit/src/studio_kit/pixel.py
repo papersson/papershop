@@ -16,13 +16,14 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from . import settings
 from . import timeline as tl
 from .check import SLACK, sample_times
 from .engine import Engine
 
 
 def config(video):
-    cfg = json.loads((Path(video) / "video.json").read_text()).get("pixel")
+    cfg = settings.raw(video).get("pixel")
     if not cfg or "grid" not in cfg or "palette" not in cfg:
         raise SystemExit('video.json needs "pixel": {"grid": [w, h], "palette": ["#rrggbb", ...]}')
     return cfg
