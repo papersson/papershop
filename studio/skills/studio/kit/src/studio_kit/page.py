@@ -74,7 +74,7 @@ def state(video, cut=None):
     if record and record.get("video") and not cuts.playable(video, n):
         record = {**record, "video": None}
     if record:
-        record = {**record, "stills": [s for s in record.get("stills", [])
+        record = {**record, "kind": cuts.kind(record), "stills": [s for s in record.get("stills", [])
                                       if (video / "cuts" / f"cut{n}" / s["file"]).exists()]}
     notes, rounds = fold(read_log(video), n)
     title = t.get("title") or video.name

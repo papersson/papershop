@@ -93,3 +93,30 @@ def test_clean_removes_regenerable_files_only_and_dry_run_removes_nothing(tmp_pa
     assert (cache / "narration" / f"{used}.npy").exists()
     assert not (tmp_path / "out" / "sheets").exists() and not (tmp_path / "out" / "web.mp4").exists()
     assert sorted(p.name for p in (tmp_path / "cuts").iterdir()) == ["cut1", "cut2", "cut3", "cut4", "cut5"]
+
+
+def test_cut_kinds_and_latest_by_kind(tmp_path):
+    from studio_kit import cuts
+    recs = {1: {"video": "video.mp4"}, 2: {"video": None}, 3: {"kind": "animatic", "video": "video.mp4"},
+            4: {"kind": "boards", "video": None}, 5: {"video": "video.mp4", "final": True}}
+    assert [cuts.kind(recs[n]) for n in sorted(recs)] == ["cut", "stills", "animatic", "boards", "final"]
+    for n, r in recs.items():
+        d = tmp_path / "cuts" / f"cut{n}"
+        d.mkdir(parents=True)
+        (d / "cut.json").write_text(json.dumps({"quality": "draft", **r}))
+        if r.get("video"):
+            (d / "video.mp4").write_bytes(b"x")
+    assert cuts.latest(tmp_path) == 5
+    assert cuts.latest(tmp_path, cuts.SCENE_STILLS) == 5
+    assert cuts.latest(tmp_path, ("animatic",)) == 3
+    assert cuts.latest(tmp_path, ("boards",), playable_only=True) == 0
+
+
+def test_a_newer_animatic_keeps_the_last_real_cut_protected(tmp_path):
+    from studio_kit import cuts
+    for n, r in {1: {}, 2: {"kind": "animatic"}}.items():
+        d = tmp_path / "cuts" / f"cut{n}"
+        d.mkdir(parents=True)
+        (d / "cut.json").write_text(json.dumps({"quality": "draft", "video": "video.mp4", **r}))
+        (d / "video.mp4").write_bytes(b"x")
+    assert {1, 2} <= cuts.protected(tmp_path)

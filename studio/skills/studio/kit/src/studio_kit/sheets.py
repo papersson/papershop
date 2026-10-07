@@ -17,7 +17,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from . import render
+from . import cuts, render
 from . import timeline as tl
 from .engine import Engine
 
@@ -45,7 +45,7 @@ def tile(files, out, cols, width=None):
 
 def chapter_sheets(video, out, cut=None):
     video, out = Path(video), Path(out)
-    n = cut or render.latest_cut(video)
+    n = cut or cuts.latest(video, cuts.SCENE_STILLS)
     rec = render.read_cut(video, n)
     (out / "chapters").mkdir(parents=True, exist_ok=True)
     made = []
@@ -182,8 +182,8 @@ def main(args):
     if args.strip:
         print(strip(video, out, args.strip[0], float(args.strip[1]), engine))
         return 0
-    if not render.latest_cut(video):
-        raise SystemExit("no cut yet: run `studio cut VIDEO` first")
+    if not cuts.latest(video, cuts.SCENE_STILLS):
+        raise SystemExit("no cut of the scenes yet: run `studio cut VIDEO` first")
     made = chapter_sheets(video, out, args.cut)
     print(f"chapter sheets: {', '.join(made)}")
     print(f"phone sheet: {phone_sheet(video, out, engine)}")

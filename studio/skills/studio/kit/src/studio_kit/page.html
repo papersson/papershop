@@ -183,7 +183,8 @@ function load(n) {
     $('cutpick').innerHTML = S.cuts.map(function (c) {
       return '<option value="' + c + '"' + (c === cutN ? ' selected' : '') + '>cut ' + c + (c === S.latest ? ' (latest)' : '') + '</option>';
     }).join('');
-    $('cutmeta').textContent = S.cut.quality + ' \u00b7 ' + S.cut.created;
+    const KIND = {stills: 'stills', boards: 'boards', animatic: 'animatic', cut: 'draft cut', final: 'final cut'};
+    $('cutmeta').textContent = (KIND[S.cut.kind] || S.cut.quality) + ' \u00b7 ' + S.cut.created;
     if (first) {
       if (S.cut.video) { video.src = '/cut' + cutN + '/' + S.cut.video; video.hidden = false; }
       else { video.removeAttribute('src'); video.hidden = true; }

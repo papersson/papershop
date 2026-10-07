@@ -81,7 +81,8 @@ def main_status(args):
 def main_frames(args):
     from . import render
     video = Path(args.video).resolve()
-    n = args.cut or render.latest_cut(video)
+    from . import cuts
+    n = args.cut or cuts.latest(video, cuts.RENDERED)
     cut = video / "cuts" / f"cut{n}"
     if not (cut / "cut.json").exists():
         raise SystemExit("make a cut before preparing its frame review")

@@ -1,4 +1,10 @@
-"""Cut protection is shared by cleanup, the review page and the system player."""
+"""Cut records, their kinds and their protection, shared by cleanup, the review page, publish and
+the system player.
+
+A cut's kind says what its pictures are: "stills" (one frame per sentence from the scenes, no
+movie), "boards" (frames drawn from the boards, before scene code), "animatic" (stills or boards
+held to the narration, with its audio), "cut" (the scenes rendered at draft quality) and "final".
+Only "cut" and "final" are the video itself; publish and frame review choose among those."""
 import json
 import subprocess
 import sys
@@ -19,6 +25,26 @@ def records(video):
     return out
 
 
+KINDS = ("stills", "boards", "animatic", "cut", "final")
+RENDERED = ("cut", "final")
+SCENE_STILLS = ("stills", "cut", "final")   # kinds whose stills come from the scene code
+
+
+def kind(rec):
+    """A record's kind; records written before kinds existed are classified by their fields."""
+    if rec.get("kind"):
+        return rec["kind"]
+    if "video" in rec and not rec["video"]:
+        return "stills"           # stills-only cuts record "video": null
+    return "final" if rec.get("final") else "cut"
+
+
+def latest(video, kinds=KINDS, playable_only=False, recs=None):
+    """The highest cut number of one of these kinds (0 when there is none)."""
+    recs = records(video) if recs is None else recs
+    return max((n for n, r in recs.items() if kind(r) in kinds and (not playable_only or playable(video, n))), default=0)
+
+
 def playable(video, n):
     return (Path(video) / "cuts" / f"cut{n}" / "video.mp4").is_file()
 
@@ -31,6 +57,9 @@ def protected(video, recs=None):
     movies = [n for n in recs if playable(video, n)]
     if movies:
         keep.add(max(movies))
+    rendered = latest(video, RENDERED, playable_only=True, recs=recs)
+    if rendered:
+        keep.add(rendered)        # a newer animatic must not leave the last real cut unprotected
     log = Path(video) / "review" / "notes.jsonl"
     if log.exists():
         for line in log.read_text().splitlines():
@@ -57,7 +86,7 @@ def mark_watched(video, n):
 
 def main_open(args):
     recs = records(args.video)
-    n = args.cut or max((n for n in recs if playable(args.video, n)), default=0)
+    n = args.cut or latest(args.video, ("animatic", "cut", "final"), playable_only=True, recs=recs)
     mark_watched(args.video, n)
     p = (Path(args.video) / "cuts" / f"cut{n}" / "video.mp4").resolve()
     command = ["open" if sys.platform == "darwin" else "xdg-open", str(p)]

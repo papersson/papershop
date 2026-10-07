@@ -215,9 +215,10 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     video = Path(video).resolve()
     timeline = tl.load(video)
     engine = engine or Engine(video)
-    prev_n = latest_cut(video)
+    from . import cuts
+    prev_n = cuts.latest(video, cuts.SCENE_STILLS)
     prev = read_cut(video, prev_n) if prev_n else None
-    n = prev_n + 1
+    n = latest_cut(video) + 1
     d = cuts_dir(video) / f"cut{n}"
     if d.exists():
         shutil.rmtree(d)
@@ -262,7 +263,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "source_revision": fingerprint(video, frames=True),
         "media": media, "final": quality == "final" and not stills_only,
         "review_log_hash": review_hash,
-        "cut": n, "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": quality,
+        "cut": n, "kind": "stills" if stills_only else "final" if quality == "final" else "cut",
+        "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": quality,
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in timeline["tracks"]["scene"]],
         "clips": clips, "changed": changed if prev else [],

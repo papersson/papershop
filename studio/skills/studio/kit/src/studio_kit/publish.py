@@ -108,7 +108,8 @@ def poster_time(timeline, poster):
 
 
 def final_cut(video):
-    n = render.latest_cut(video)
+    from . import cuts
+    n = cuts.latest(video, cuts.RENDERED)
     rec = render.read_cut(video, n) if n else None
     if rec and rec["quality"] == "final" and rec["video"] and len(rec["clips"]) == len(tl.load(video)["tracks"]["scene"]) and not any(
             c["key"] != k for c, (_, k, _) in zip(rec["clips"], render.plan(video, tl.load(video), "final"))):
