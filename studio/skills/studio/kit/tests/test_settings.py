@@ -22,8 +22,14 @@ def test_file_values_override_defaults(tmp_path):
     assert settings.raw(tmp_path) == {"engine": "motion-canvas", "checkpoints": "many", "drive": "learner"}
 
 
-@pytest.mark.parametrize("key,value", [("checkpoints", "some"), ("level", "advanced")])
+@pytest.mark.parametrize("key,value", [("checkpoints", "some"), ("level", "advanced"), ("tone", "fun")])
 def test_enumerated_values_are_checked(tmp_path, key, value):
     write(tmp_path, {key: value})
     with pytest.raises(SystemExit, match=key):
         settings.load(tmp_path)
+
+
+def test_tone_is_plain_unless_the_video_says_comic(tmp_path):
+    assert settings.load(tmp_path)["tone"] == "plain"
+    write(tmp_path, {"tone": "comic"})
+    assert settings.load(tmp_path)["tone"] == "comic"

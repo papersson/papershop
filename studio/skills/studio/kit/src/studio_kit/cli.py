@@ -119,6 +119,8 @@ COMMANDS = {
         A("--checkpoints", choices=["few", "many"], help="superseded by --mode (many means interactive)"),
         A("--level", choices=["intro", "deep-dive"],
           help="intro: scaffold 3-4 key ideas (default); deep-dive: more detail and evidence"),
+        A("--tone", choices=["plain", "comic"],
+          help="plain (default): neutral polish; comic: only when the user asks for a comic or cartoon video"),
     ], "new:main"),
     "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
         V("source"), A("name"), A("--dir"), A("--title"),

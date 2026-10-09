@@ -9,6 +9,9 @@ keys without a default are simply absent when unset (callers use .get).
   genre              explainer | motion | launch | pixel | footage            default "explainer"
   drive              author | learner (explainers)
   level              intro | deep-dive                                         default "intro"
+  tone               plain | comic: comic only when the user asks for a comic, cartoon or silly
+                     video (references/styles/comic.md); "fun" or "engaging" is plain polish
+                     default "plain"
   destination        private-page | share | social | files                    default "private-page"
   engine             remotion | motion-canvas | live                           default "remotion" (studio new picks live for explainers)
   mode               background | interactive: an agent builds the video unattended, or the user
@@ -47,6 +50,7 @@ from pathlib import Path
 DEFAULTS = {
     "genre": "explainer",
     "level": "intro",
+    "tone": "plain",
     "destination": "private-page",
     "engine": "remotion",
     "checkpoints": "few",
@@ -59,6 +63,7 @@ CHOICES = {
     "checkpoints": ("few", "many"),
     "mode": MODES,
     "level": ("intro", "deep-dive"),
+    "tone": ("plain", "comic"),
 }
 
 

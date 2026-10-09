@@ -80,6 +80,17 @@ def test_new_video_records_how_often_to_stop_for_the_user(tmp_path, monkeypatch)
     assert json.loads((video / "video.json").read_text())["checkpoints"] == "many"
 
 
+def test_new_records_the_tone_and_a_series_episode_keeps_it(tmp_path, monkeypatch):
+    from studio_kit import cli
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    tone = lambda name: json.loads((tmp_path / "home" / name / "video.json").read_text())["tone"]
+    assert cli.main(["new", "dry"]) == 0 and tone("dry") == "plain"
+    assert cli.main(["new", "silly", "--tone", "comic"]) == 0 and tone("silly") == "comic"
+    assert cli.main(["new", "episode-2", "--from", str(tmp_path / "home" / "silly")]) == 0 and tone("episode-2") == "comic"
+    with pytest.raises(SystemExit):
+        cli.main(["new", "loud", "--tone", "zany"])
+
+
 def test_a_fork_copies_the_sources_and_starts_a_history_of_its_own(tmp_path, monkeypatch):
     import os
     import subprocess

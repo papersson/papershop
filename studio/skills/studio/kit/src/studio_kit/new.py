@@ -36,7 +36,7 @@ def source_record(path):
 
 
 def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
-           level="intro", checkpoints="few", mode="background"):
+           level="intro", checkpoints="few", mode="background", tone="plain"):
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
@@ -44,7 +44,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
-           "level": level, "mode": mode, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
+           "level": level, "tone": tone, "mode": mode, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
            "teaching_contract": genre == "explainer"}     # minutes; `studio stage` reports against it
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
@@ -99,9 +99,11 @@ def main(args):
     # explainers that need the Remotion code components, name their engine.
     args.engine = args.engine or source_cfg.get("engine") or ("live" if args.genre == "explainer" and not args.duration else "remotion")
     args.level = args.level or source_cfg.get("level", "intro")
+    args.tone = getattr(args, "tone", None) or source_cfg.get("tone", "plain")
     video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine,
                             getattr(args, "level", "intro"), getattr(args, "checkpoints", None) or "few",
-                            getattr(args, "mode", None) or ("interactive" if getattr(args, "checkpoints", None) == "many" else "background"))
+                            getattr(args, "mode", None) or ("interactive" if getattr(args, "checkpoints", None) == "many" else "background"),
+                            args.tone)
     if args.from_video:
         copied = preferences.inherit(video, args.from_video, args.include)
         cfg = json.loads((video / "video.json").read_text())
