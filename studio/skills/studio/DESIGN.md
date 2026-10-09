@@ -284,6 +284,9 @@ item: the loop is proven by the user's own notes.
   and Evidence, data/ and each chapter's clip key, which already covers the narration, captions,
   cues, scene code and layout a frame shows. Review kinds (script, frames) declare their roles,
   revision scope, verdict line, round cap and freshness rule in one registry, `reviews.py`.
+  Upgrading changes every frame revision once: existing frame receipts (waived and unavailable
+  ones included) and every cut's `source_revision` stop matching, so a video that requires a frame
+  review needs a fresh cut and a new review or waiver.
 
 | Still open | Done when |
 |---|---|
