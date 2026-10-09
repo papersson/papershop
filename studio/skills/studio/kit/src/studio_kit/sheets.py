@@ -17,7 +17,7 @@ import shutil
 from pathlib import Path
 
 from . import proc
-from . import cuts, render
+from . import cuts, moments, render
 from . import timeline as tl
 from .engine import Engine
 
@@ -58,15 +58,12 @@ def chapter_sheets(video, out, cut=None):
 
 def phone_sheet(video, out, engine=None):
     engine, t = engine or Engine(video), tl.load(video)
-    sents = t["tracks"]["narration"]
-    picks = [sents[round(i * (len(sents) - 1) / max(1, PHONE_FRAMES - 1))] for i in range(min(PHONE_FRAMES, len(sents)))]
+    ends = moments.sentence_ends(t)
+    picks = [ends[round(i * (len(ends) - 1) / max(1, PHONE_FRAMES - 1))] for i in range(min(PHONE_FRAMES, len(ends)))]
     out = Path(out)
     (out / "_tmp").mkdir(parents=True, exist_ok=True)
-    reqs = []
-    for s in picks:
-        c = tl.clip(t, s["clip"])
-        reqs.append({"clip": s["clip"], "t": round(max(s["start"], s["end"] - 0.15) - c["start"], 3),
-                     "out": str(out / "_tmp" / f"{s['id']}.png"), "scale": PHONE_WIDTH / tl.layout(video)["width"]})
+    reqs = [{"clip": m["clip"], "t": m["t"], "out": str(out / "_tmp" / f"{m['id']}.png"),
+             "scale": PHONE_WIDTH / tl.layout(video)["width"]} for m in picks]
     engine.stills(reqs)
     tile([r["out"] for r in reqs], out / "phone.png", 5)
     for f in (out / "_tmp").iterdir():
@@ -77,14 +74,13 @@ def phone_sheet(video, out, engine=None):
 
 def strip(video, out, clip, t0, engine=None, frames=12, width=320):
     engine, t = engine or Engine(video), tl.load(video)
-    fps = t["fps"]
+    m = moments.sequence(t, clip, t0, frames)
     out = Path(out)
     (out / "_tmp").mkdir(parents=True, exist_ok=True)
-    reqs = [{"clip": clip, "t": round(t0 + (i - frames // 2) / fps, 4), "out": str(out / "_tmp" / f"{i:02d}.png"),
-             "scale": width / tl.layout(video)["width"]} for i in range(frames)]
-    reqs = [r for r in reqs if r["t"] >= 0]
+    reqs = [{**r, "out": str(out / "_tmp" / f"{i:02d}.png"), "scale": width / tl.layout(video)["width"]}
+            for i, r in enumerate(moments.requests([m]))]
     engine.stills(reqs)
-    path = tile([r["out"] for r in reqs], out / f"strip_{clip}_{t0}.png", len(reqs))
+    path = tile([r["out"] for r in reqs], out / f"{m['id']}.png", len(reqs))
     for f in (out / "_tmp").iterdir():
         f.unlink()
     (out / "_tmp").rmdir()
@@ -117,14 +113,8 @@ def crops(video, out, below=40, ids=None, engine=None):
     cache = video / ".cache" / "crops"
     cache.mkdir(parents=True, exist_ok=True)
     keys = {c["id"]: render.clip_key(video, t, c["id"], "crops") for c in t["tracks"]["scene"]}
-    reqs = []
-    for s in t["tracks"]["narration"]:
-        if ids and s["id"] not in ids:
-            continue
-        c = tl.clip(t, s["clip"])
-        at = round(max(s["start"], s["end"] - 0.15) - c["start"], 3)
-        key = f"{s['clip']}-{keys[s['clip']]}-{tl.half_up(at * t['fps'])}"
-        reqs.append({"clip": s["clip"], "t": at, "id": s["id"], "key": key})
+    reqs = [{"clip": m["clip"], "t": m["t"], "id": m["id"], "key": f"{m['clip']}-{keys[m['clip']]}-{tl.half_up(m['t'] * t['fps'])}"}
+            for m in moments.sentence_ends(t) if not ids or m["id"] in ids]
     todo = [r for r in reqs if not (cache / r["key"] / "boxes.json").exists()]
     if todo:
         frames = engine.boxes_at([{"clip": r["clip"], "t": r["t"], "out": str(cache / r["key"] / "frame.png")}

@@ -273,6 +273,11 @@ item: the loop is proven by the user's own notes.
 - **Checks after every change.** A text-on-text `overlap` check joins the incremental per-chapter
   set, and a live scene that throws fails with its clip, time and source line, so a collision or a
   crash is caught before the user sees it.
+- **One frame sampler.** The cut's stills, the checks' samples and the sheets' strips each chose
+  their frames in their own code, with the 0.15 s before a sentence's end written three times.
+  `moments.py` now chooses them all, as moments with a clip time, a video time and a kind, so
+  stills at beat events or in a pause, or a frame sequence for a beat window, is one function that
+  every consumer can use. The change was proved against the old samplers on a fixture timeline.
 
 | Still open | Done when |
 |---|---|

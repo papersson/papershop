@@ -11,7 +11,7 @@
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
   filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
-Sample times are spread across each clip's sentences, `--samples` per clip.
+Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
 Incremental by default: the per-chapter checks (length, determinism, bounds, band, contrast,
 legible) re-run only for chapters whose clip key changed since they last passed there; a pass is
@@ -26,6 +26,7 @@ import struct
 import uuid
 from pathlib import Path
 
+from . import moments
 from . import proc
 from . import settings
 from . import timeline as tl
@@ -42,23 +43,8 @@ OVERLAP = 0.3                            # share of the smaller text box another
 
 
 def sample_times(t, per_clip, clips=None):
-    """[{clip, t}]: `per_clip` moments per clip, each near the end of a sentence spread over the clip
-    (evenly spread when the clip has no narration). `clips`: only these clips."""
-    out = []
-    for c in t["tracks"]["scene"]:
-        if clips is not None and c["id"] not in clips:
-            continue
-        sents = [s for s in t["tracks"]["narration"] if s["clip"] == c["id"]]
-        if not sents:      # no narration (a motion piece, a product film): spread the moments evenly
-            dur = c["end"] - c["start"]
-            out += [{"clip": c["id"], "t": round(dur * (i + 1) / (per_clip + 1), 3)} for i in range(per_clip)]
-            continue
-        picks = sorted({sents[min(len(sents) - 1, round(i * (len(sents) - 1) / max(1, per_clip - 1)))]["id"]
-                        for i in range(per_clip)})
-        for s in sents:
-            if s["id"] in picks:
-                out.append({"clip": c["id"], "t": round(max(s["start"], s["end"] - 0.15) - c["start"], 3)})
-    return out
+    """[{clip, t}]: the moments the per-chapter checks look at (moments.check_samples)."""
+    return moments.requests(moments.check_samples(t, per_clip, clips))
 
 
 def length(video, engine=None, clips=None):
@@ -79,12 +65,7 @@ def determinism(video, samples=3, engine=None, clips=None):
     """Render `samples` frames per clip twice, in separate engine calls, and compare their hashes.
     A frame that differs means some state leaks between frames (a timer, unseeded randomness)."""
     engine, t = engine or Engine(video), tl.load(video)
-    reqs = []
-    for c in t["tracks"]["scene"]:
-        if clips is not None and c["id"] not in clips:
-            continue
-        dur = c["end"] - c["start"]
-        reqs += [{"clip": c["id"], "t": round(dur * (i + 1) / (samples + 1), 3)} for i in range(samples)]
+    reqs = moments.requests(moments.even(t, samples, clips))
     if not reqs:
         return []
     def pixels(path):
