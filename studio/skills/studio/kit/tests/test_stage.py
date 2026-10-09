@@ -50,3 +50,24 @@ def test_report_shares_add_up(tmp_path):
     assert rows[0].startswith("research") and "5m00s" in rows[0]
     assert rows[-2].startswith("total") and "20m00s" in rows[-2]
     assert "active 20m00s" in rows[-1]
+
+
+def test_status_reads_the_current_stage_and_its_scope_as_data(tmp_path):
+    v = video(tmp_path, {"first_cut": 30, "scenes": 10})
+    stage.mark(v, "research", now=0)
+    stage.mark(v, "scenes", now=15 * 60)
+    s = stage.status(v, now=27 * 60)
+    assert (s["stage"], s["kind"], s["spent"], s["budget"], s["over"]) == ("scenes", "local", 12 * 60, 600, True)
+    assert s["scope"] == {"name": "first_cut", "spent": 27 * 60, "limit": 30 * 60, "ratio": 0.9, "over": False}
+    stage.mark(v, "round", now=40 * 60, kind="structural")
+    s = stage.status(v, now=50 * 60)
+    assert s["budget"] is None and s["scope"]["name"] == "structural_round" and s["scope"]["limit"] == 20 * 60
+
+
+def test_a_stage_budget_from_video_json_is_reported_when_the_stage_ends(tmp_path):
+    v = video(tmp_path, {"script": 10})
+    stage.mark(v, "research", now=0)
+    assert "(stage budget 10m00s)" in stage.mark(v, "script", now=60)[1]
+    lines = stage.mark(v, "scenes", now=60 + 12 * 60)
+    assert lines[0] == "script: 12m00s (stage budget 10m00s, over by 2m00s)"
+    assert lines[1].startswith("now: scenes · ")

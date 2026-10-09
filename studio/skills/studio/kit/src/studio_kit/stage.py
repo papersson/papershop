@@ -5,8 +5,9 @@ timing (six script review rounds, three competing narratives), so every stage is
 starts: `studio stage VIDEO script`, `studio stage VIDEO scenes`, ... Each mark is appended to
 research/timing.jsonl, and the command prints how long the previous stage took and the total
 against video.json's "budget" (minutes: "first_cut" from the first mark to the first cut,
-"round" for a revision round). Over budget, it says so: finish the stage with what is open
-logged, rather than looping. `studio stage VIDEO --report` prints the table.
+"round" for a revision round, "structural_round" for a structural one, and any stage's name for
+that stage alone). Over budget, it says so: finish the stage with what is open logged, rather than
+looping. `studio stage VIDEO --report` prints the table. `status` is the same reading as data.
 """
 import json
 import time
@@ -18,6 +19,9 @@ from . import settings
 DEFAULT_BUDGET = {"first_cut": 20, "round": 5}    # minutes, for the default "intro" level
 LEVEL_BUDGET = {"intro": DEFAULT_BUDGET, "deep-dive": {"first_cut": 60, "round": 10}}
 ROUND_STAGES = {"round", "revision"}              # a mark named like this starts a revision round
+AGGREGATES = {"first_cut", "round", "structural_round"}   # budget keys that are not a stage's own
+SCOPES = {"first_cut": "the first cut", "round": "this revision round",
+          "structural_round": "this structural revision round"}
 
 
 def log_path(video):
@@ -50,29 +54,50 @@ def durations(marks, now=None):
     return out
 
 
+def status(video, now=None):
+    """Where the build stands against its budgets, as data, for `mark` to print and for anything that
+    acts on an overrun. Seconds throughout:
+    {stage, kind, spent, budget, over, scope: {name, spent, limit, ratio, over}}: the latest mark and
+    the time since it, against video.json's budget for that stage if it names one, and the scope the
+    stage counts towards (first_cut, round or structural_round, from the latest round mark on).
+    """
+    now = now if now is not None else time.time()
+    marks, b = read(video), budget(video)
+    current = marks[-1] if marks else {}
+    spent = now - current["t"] if marks else 0
+    own = b.get(current.get("stage")) if current.get("stage") not in AGGREGATES else None
+    rounds = [m for m in marks if m["stage"] in ROUND_STAGES]
+    start = marks.index(rounds[-1]) if rounds else 0
+    scope_spent = sum(d for stage, d in durations(marks[start:], now) if stage not in ("waiting", "finished"))
+    scope = "structural_round" if rounds and rounds[-1].get("kind") == "structural" else "round" if rounds else "first_cut"
+    limit = (b.get("structural_round", b["round"] * 4) if scope == "structural_round" else b[scope]) * 60
+    return {"stage": current.get("stage"), "kind": current.get("kind"), "spent": spent,
+            "budget": own * 60 if own is not None else None, "over": own is not None and spent > own * 60,
+            "scope": {"name": scope, "spent": scope_spent, "limit": limit, "ratio": scope_spent / limit if limit else None,
+                      "over": scope_spent > limit}}
+
+
 def mark(video, name, now=None, kind="local", summary=None):
     """Append a mark and return the lines to print."""
     now = now if now is not None else time.time()
-    marks = read(video)
     lines = []
-    if marks:
-        prev = marks[-1]
-        lines.append(f"{prev['stage']}: {fmt(now - prev['t'])}")
-    marks.append({"stage": name, "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"), "kind": kind})
+    if read(video):
+        ended = status(video, now)
+        line = f"{ended['stage']}: {fmt(ended['spent'])}"
+        if ended["budget"] is not None:
+            line += f" (stage budget {fmt(ended['budget'])}" + (f", over by {fmt(ended['spent'] - ended['budget'])})" if ended["over"] else ")")
+        lines.append(line)
+    entry = {"stage": name, "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"), "kind": kind}
     f = log_path(video)
     f.parent.mkdir(parents=True, exist_ok=True)
     with f.open("a") as out:
-        out.write(json.dumps(marks[-1]) + "\n")
-    b = budget(video)
-    rounds = [m for m in marks if m["stage"] in ROUND_STAGES]
-    start = marks.index(rounds[-1]) if rounds else 0
-    spent = sum(d for stage, d in durations(marks[start:], now) if stage not in ("waiting", "finished"))
-    structural = bool(rounds and rounds[-1].get("kind") == "structural")
-    limit = (b.get("structural_round", b["round"] * 4) if structural else b["round"] if rounds else b["first_cut"]) * 60
-    what = "this structural revision round" if structural else "this revision round" if rounds else "the first cut"
-    lines.append(f"now: {name} · {fmt(spent)} into {what} (budget {fmt(limit)})")
-    if spent > limit:
-        lines.append(f"OVER BUDGET by {fmt(spent - limit)}: finish this stage with what is open logged, "
+        out.write(json.dumps(entry) + "\n")
+    s = status(video, now)
+    sc = s["scope"]
+    own = f" (stage budget {fmt(s['budget'])})" if s["budget"] is not None else ""
+    lines.append(f"now: {name}{own} · {fmt(sc['spent'])} into {SCOPES[sc['name']]} (budget {fmt(sc['limit'])})")
+    if sc["over"]:
+        lines.append(f"OVER BUDGET by {fmt(sc['spent'] - sc['limit'])}: finish this stage with what is open logged, "
                      "treat the budget as advisory, re-estimate changed scope, and report stage time")
     if summary:
         from .script import append_review
