@@ -62,7 +62,8 @@ MIN_SHOW = 1.2          # seconds a caption stays up at least
 TAIL = 0.4              # seconds a caption outlasts its last word
 WORD_SLACK = 0.2        # seconds a word may sit outside its sentence's narration timing
 # Never end a caption line on one of these: the phrase it opens belongs on the next line.
-NO_BREAK_AFTER = {"the", "a", "an", "of", "to"}
+NO_BREAK_AFTER = {"the", "a", "an", "of", "to", "and", "or", "in", "on", "for", "with"}
+PAUSES = (",", ";", ":", "—")    # a word ending in one is where a long sentence splits best
 
 DEFAULT_LAYOUT = {
     "width": 1920, "height": 1080, "fps": 30,
@@ -176,19 +177,29 @@ def half_up(x):
 # --- captions -------------------------------------------------------------------------------------
 
 def wrap(text, width=LINE_CHARS):
-    """Greedy lines of at most `width` characters that never end on an article or preposition."""
-    lines, cur = [], []
-    for word in text.split():
-        if cur and len(" ".join(cur + [word])) > width:
-            carry = []
-            while len(cur) > 1 and cur[-1].lower() in NO_BREAK_AFTER:
-                carry.insert(0, cur.pop())
-            lines.append(" ".join(cur))
-            cur = carry
-        cur.append(word)
-    if cur:
-        lines.append(" ".join(cur))
-    return lines
+    """As few lines of at most `width` characters as hold the text, as even in length as they can
+    be (a greedy fill left a word or two alone on the last line). A line ends on a word in
+    NO_BREAK_AFTER, or holds a lone word, only when no other break fits; a word longer than the
+    width gets a line of its own."""
+    words = text.split()
+    n = len(words)
+    span = lambda i, j: sum(map(len, words[i:j])) + j - i - 1
+    best = {0: ((0, 0), [])}      # words placed -> ((faults, sum of squared lengths), breaks), per line count
+    for _ in range(n):
+        nxt = {}
+        for i, ((faults, squares), breaks) in best.items():
+            for j in range(i + 1, n + 1):
+                k = span(i, j)
+                if k > width and j > i + 1:
+                    break
+                cost = (faults + (j < n and words[j - 1].lower() in NO_BREAK_AFTER) + (j == i + 1 and n > 1), squares + k * k)
+                if j not in nxt or cost < nxt[j][0]:
+                    nxt[j] = (cost, breaks + [j])
+        if n in nxt:
+            cuts = [0] + nxt[n][1]
+            return [" ".join(words[a:b]) for a, b in zip(cuts, cuts[1:])]
+        best = nxt
+    return []
 
 
 def caption_widths(video=None):
@@ -211,15 +222,24 @@ def caption_lines(chunk, fmt=None):
     return chunk["wrapped"][fmt]
 
 
-def split_phrases(text, width=LINE_CHARS * MAX_LINES):
-    """Pieces of at most `width` characters, split after punctuation nearest the middle when a
-    piece is too long, else at the word boundary nearest the middle."""
-    if len(text) <= width:
-        return [text]
-    mid = len(text) / 2
-    cuts = [m.end() for m in re.finditer(r"[,;:—]\s", text)] or [m.start() for m in re.finditer(r" ", text)]
-    at = min(cuts, key=lambda i: abs(i - mid))
-    return split_phrases(text[:at].strip(), width) + split_phrases(text[at:].strip(), width)
+def split_phrases(text, widths=None):
+    """A sentence in pieces that each wrap to at most MAX_LINES lines at every width (by default the
+    formats' caption_widths): the chunks are shared by every format, so the narrowest decides. A
+    long piece splits after a pause near its middle, else at the word boundary nearest it, and not
+    after a word in NO_BREAK_AFTER nor leaving a lone word when another cut will do. Pieces are
+    whole words in order, so they map onto the sentence's word timings."""
+    widths = list(widths or caption_widths().values())
+    words = text.split()
+    if len(words) < 2 or all(len(wrap(text, w)) <= MAX_LINES for w in widths):
+        return [text.strip()]
+    half = len(" ".join(words)) / 2
+
+    def cost(k):            # a cut after words[k - 1]
+        at, last = len(" ".join(words[:k])), words[k - 1]
+        bad = last.lower() in NO_BREAK_AFTER or min(k, len(words) - k) < 2
+        return bad, abs(at - half) - (half / 2 if last.endswith(PAUSES) else 0)
+    k = min(range(1, len(words)), key=cost)
+    return split_phrases(" ".join(words[:k]), widths) + split_phrases(" ".join(words[k:]), widths)
 
 
 def chunk_captions(narration, fps=30, widths=None):
@@ -228,7 +248,7 @@ def chunk_captions(narration, fps=30, widths=None):
     widths = widths or caption_widths()
     chunks = []
     for s in narration:
-        pieces = split_phrases(s["caption"])
+        pieces = split_phrases(s["caption"], widths.values())
         words = s.get("words") or []
         spans = _piece_spans(pieces, s, words)
         for piece, (a, b) in zip(pieces, spans):

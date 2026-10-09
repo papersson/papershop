@@ -20,12 +20,61 @@ def test_wrap_keeps_lines_short_and_never_ends_on_an_article():
     assert " ".join(lines) == text
 
 
+LONG = ("If a payment was charged and the reply was lost on its way back to the client, "
+        "a retry without a key charges the customer a second time for the same order.")
+
+
 def test_long_sentence_splits_at_punctuation_near_the_middle():
-    text = ("If a payment was charged and the reply was lost on its way back to the client, "
-            "a retry without a key charges the customer a second time for the same order.")
-    pieces = tl.split_phrases(text)
+    pieces = tl.split_phrases(LONG, [42])
     assert len(pieces) == 2 and pieces[0].endswith("client,")
     assert all(len(p) <= tl.LINE_CHARS * tl.MAX_LINES for p in pieces)
+
+
+def test_wrapped_lines_are_balanced_not_greedy():
+    """A greedy fill left "for a while." alone under a full line."""
+    text = "Then the network goes quiet and nobody knows for a while."
+    assert tl.wrap(text, 42) == ["Then the network goes quiet", "and nobody knows for a while."]
+    assert tl.wrap("Did it go?", 26) == ["Did it go?"]
+
+
+def test_a_line_never_ends_on_a_short_word_or_stands_alone_when_it_can_be_helped():
+    assert tl.wrap("Send one key with every attempt to the server", 26) == ["Send one key with every", "attempt to the server"]
+    assert tl.wrap("Then a retry", 8) == ["Then", "a retry"]          # one word alone, or "a" at a line's end
+    assert tl.wrap("Charge it", 4) == ["Charge", "it"]                # unavoidable
+
+
+def test_a_word_longer_than_the_line_gets_a_line_of_its_own():
+    word = "idempotency-key-with-a-long-name"
+    assert tl.wrap(word, 26) == [word] and tl.split_phrases(word, [26]) == [word]
+    assert tl.wrap(f"Send the {word} again", 26) == ["Send the", word, "again"]
+
+
+@pytest.mark.parametrize("fmt,width", [("16:9", 42), ("9:16", 26), ("1:1", 34)])
+@pytest.mark.parametrize("text", [LONG, "Did it go?", "A retry can charge twice.",
+                                  "After a few seconds with no reply the client gives up and marks the payment as a timeout",
+                                  "So the client waits, and waits, and then it sends the very same request again with a fresh connection."])
+def test_every_chunk_fits_two_balanced_lines_in_every_format(fmt, text, width):
+    chunks = tl.chunk_captions([sentence(text, 0.0, 8.0)])
+    assert " ".join(" ".join(c["lines"]) for c in chunks) == text
+    for c in chunks:
+        lines = tl.caption_lines(c, fmt)
+        assert 1 <= len(lines) <= tl.MAX_LINES and all(len(l) <= width for l in lines)
+        assert all(l.split()[-1].lower() not in tl.NO_BREAK_AFTER for l in lines)       # the chunk's last line too
+        if len(lines) == 2:
+            assert len(lines[0].split()) > 1 and len(lines[1].split()) > 1
+            assert abs(len(lines[0]) - len(lines[1])) <= width // 2
+
+
+def test_phrases_map_onto_word_timings_in_order():
+    words = [{"w": w, "start": i * 0.3, "end": i * 0.3 + 0.25} for i, w in enumerate(LONG.split())]
+    s = {**sentence(LONG, 0.0, len(words) * 0.3), "words": words}
+    chunks = tl.chunk_captions([s])
+    assert len(chunks) > 2
+    at = 0
+    for c in chunks:
+        assert c["start"] == round(words[at]["start"], 3)
+        at += len(" ".join(c["lines"]).split())
+    assert at == len(words)
 
 
 def test_captions_hold_at_least_min_show_and_leave_a_two_frame_gap():
@@ -130,7 +179,7 @@ def test_the_engines_shared_phrase_start_and_frame_rounding_agree_with_the_kits(
 
 
 def test_captions_are_wrapped_for_every_format_and_lines_stay_the_16_9_ones():
-    text = "After a few seconds with no reply the client gives up and marks it as a timeout"
+    text = "After a few seconds the client gives up on it"
     (c,) = tl.chunk_captions([sentence(text, 0.0, 4.0)])
     assert c["lines"] == tl.wrap(text, 42)
     assert set(c["wrapped"]) == {"9:16", "1:1"}
