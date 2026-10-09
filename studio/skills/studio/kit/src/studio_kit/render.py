@@ -13,6 +13,7 @@ videos/<name>/cuts/cutN/
   stills/        one frame per sentence, near its end
   cut.json       what was rendered, how long each step took, and the changelog against cut N-1
 """
+import functools
 import hashlib
 import json
 import re
@@ -63,13 +64,28 @@ def has_scene(video, clip_id, engine=None):
     return registered and any((video / "scenes" / f"{clip_id}{ext}").exists() for ext in (".tsx", ".ts", ".jsx", ".js"))
 
 
-def _hash_listing(h, p):
+ASSET_BYTES_UNDER = 20_000_000   # bytes: assets up to this size are hashed by content, larger ones listed
+
+
+@functools.lru_cache(maxsize=None)
+def _digest(path, size, mtime_ns, ctime_ns):
+    """A file's content hash, read once per process for each state of the file (every clip's key hashes the assets)."""
+    return hashlib.sha1(Path(path).read_bytes()).hexdigest()
+
+
+def _hash_assets(h, p):
+    """Assets by content, so a file replaced at the same size and time (cp -p, rsync -a, unzip) re-renders;
+    footage and anything else over ASSET_BYTES_UNDER by name, size and time, since reading it on every
+    key would cost more than the render it saves."""
     p = Path(p)
     if p.is_dir():
         for f in sorted(p.rglob("*")):
             if f.is_file():
                 st = f.stat()
-                h.update(f"{f.relative_to(p)}:{st.st_size}:{int(st.st_mtime)}".encode())
+                if st.st_size <= ASSET_BYTES_UNDER:
+                    h.update(f"{f.relative_to(p)}:{_digest(str(f), st.st_size, st.st_mtime_ns, st.st_ctime_ns)}".encode())
+                else:
+                    h.update(f"{f.relative_to(p)}:{st.st_size}:{int(st.st_mtime)}".encode())
 
 
 SCENE_CODE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
@@ -150,7 +166,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     if quality == "boards" or not has_scene(video, clip_id, engine):
         _hash_tree(h, video / "boards")  # the chapter renders its board
     _hash_tree(h, video / "data")       # scenes import their numbers from data/
-    _hash_listing(h, video / "assets")  # assets: names, sizes and times (footage is too big to read)
+    _hash_assets(h, video / "assets")
     c = tl.clip(timeline, clip_id)
     first, count = tl.frames(timeline, clip_id)
     t0 = first / timeline["fps"]
