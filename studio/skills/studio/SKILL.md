@@ -110,7 +110,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `wait VIDEO [--timeout S]` · `status VIDEO [TEXT] [--busy]` | Block until a new desk note arrives (run in the background to be woken by each note); the builder's status line on the desk |
 | `glossary [--term T]` | The motion glossary: the words a note can use for motion and the helper behind each (`references/desk.md`) |
 | `still VIDEO CLIP T --out PNG` · `boxes VIDEO CLIP T` | Inspect a frame or named-element bounds |
-| `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR` | Incremental render checks, contact sheets and label crops |
+| `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR [--strip CLIP T]… [--windows FILE]` | Incremental render checks, contact sheets and label crops; strips of consecutive frames around each `--strip` time (repeatable) or each `{clip, t, frames?, fps?}` of a JSON windows file |
 | `audio VIDEO [--lufs -14]` · `export VIDEO --formats 16:9,9:16,1:1` | Finish the whole mix to its loudness and true-peak ceiling (publish and export do it too); multiple formats |
 | `publish VIDEO` | Local final master, compressed web copy, poster and page; upload separately |
 | `clean VIDEO [--dry-run] [--videos]` | Stale caches/previews; MP4 deletion is explicit and never overrides protection |

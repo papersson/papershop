@@ -135,3 +135,40 @@ def test_every_moment_carries_its_absolute_time_and_kind():
     assert kinds == {"sentence-end", "spread", "check-sample", "strip"}
     s3 = moments.sentence_ends(t, {"s3"})[0]
     assert s3["time"] == round(12.7 + s3["t"], 3) and s3["sentence"] == "s3_01"
+
+
+def test_sheets_take_several_strips_and_a_windows_file_in_one_engine_call(tmp_path, monkeypatch):
+    import json
+    import shutil
+    import subprocess
+    from studio_kit import cli, sheets
+    (tmp_path / "video.json").write_text("{}")
+    (tmp_path / "timeline.json").write_text(json.dumps(fixture()))
+    frame = tmp_path / "frame.png"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=64x36:d=1", "-frames:v", "1", str(frame)], check=True)
+
+    class Engine:
+        calls = []
+
+        def __init__(self, video):
+            pass
+
+        def stills(self, reqs):
+            Engine.calls.append(reqs)
+            for r in reqs:
+                shutil.copyfile(frame, r["out"])
+
+    (tmp_path / "windows.json").write_text(json.dumps([{"clip": "s3", "t": 1.0, "frames": 4, "fps": 10}]))
+    monkeypatch.setattr(sheets, "Engine", Engine)
+    monkeypatch.setattr(sheets.tl, "build", lambda video: None)
+    args = cli.build_parser().parse_args(["sheets", str(tmp_path), str(tmp_path / "out"), "--strip", "s1", "3.0",
+                                          "--strip", "s2", "0.1", "--windows", str(tmp_path / "windows.json")])
+    assert args.strip == [["s1", "3.0"], ["s2", "0.1"]]
+    sheets.main(args)
+    (reqs,) = Engine.calls
+    t = fixture()
+    expected = [moments.sequence(t, "s1", 3.0), moments.sequence(t, "s2", 0.1), moments.sequence(t, "s3", 1.0, 4, 10)]
+    assert [(r["clip"], r["t"]) for r in reqs] == [(r["clip"], r["t"]) for r in moments.requests(expected)]
+    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == sorted(f"{m['id']}.png" for m in expected)
+    with pytest.raises(SystemExit, match="strip window"):
+        sheets.windows([["s1", "soon"]])

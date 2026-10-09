@@ -2,7 +2,8 @@
 
   chapters/sN.png   one contact sheet per chapter: a frame near the end of every sentence
   phone.png         a sample of the whole video at 360 px wide, how it reads on a phone
-  strip_CLIP_T.png  with --strip CLIP T: 12 consecutive frames around T, to catch pops and overlaps
+  strip_CLIP_T.png  with --strip CLIP T (repeatable): 12 consecutive frames around T, to catch pops
+                    and overlaps; --windows FILE gives a JSON list of {clip, t, frames?, fps?}
   crops/            full-resolution crops of every small label (under --below px tall), with
                     crops/index.json giving each one's sentences, text and rendered size at 1080p;
                     a label that looks the same in several sentences of a chapter is cropped once,
@@ -23,6 +24,7 @@ from .engine import Engine
 
 PHONE_WIDTH = 360
 PHONE_FRAMES = 15
+STRIP_FRAMES = 12
 
 
 def tile(files, out, cols, width=None):
@@ -72,19 +74,33 @@ def phone_sheet(video, out, engine=None):
     return out / "phone.png"
 
 
-def strip(video, out, clip, t0, engine=None, frames=12, width=320):
+def strips(video, out, windows, engine=None, width=320):
+    """One strip per window {clip, t, frames?, fps?}: consecutive frames around t (moments.sequence),
+    every window's frames rendered in one engine call."""
     engine, t = engine or Engine(video), tl.load(video)
-    m = moments.sequence(t, clip, t0, frames)
+    seqs = [moments.sequence(t, w["clip"], w["t"], w.get("frames", STRIP_FRAMES), w.get("fps")) for w in windows]
     out = Path(out)
     (out / "_tmp").mkdir(parents=True, exist_ok=True)
-    reqs = [{**r, "out": str(out / "_tmp" / f"{i:02d}.png"), "scale": width / tl.layout(video)["width"]}
-            for i, r in enumerate(moments.requests([m]))]
-    engine.stills(reqs)
-    path = tile([r["out"] for r in reqs], out / f"{m['id']}.png", len(reqs))
-    for f in (out / "_tmp").iterdir():
-        f.unlink()
-    (out / "_tmp").rmdir()
-    return path
+    scale = width / tl.layout(video)["width"]
+    reqs = [[{**r, "out": str(out / "_tmp" / f"{i:02d}_{k:03d}.png"), "scale": scale} for k, r in enumerate(moments.requests([m]))]
+            for i, m in enumerate(seqs)]
+    engine.stills([r for rs in reqs for r in rs])
+    paths = [tile([r["out"] for r in rs], out / f"{m['id']}.png", len(rs)) for m, rs in zip(seqs, reqs)]
+    shutil.rmtree(out / "_tmp")
+    return paths
+
+
+def windows(strip=(), file=None):
+    """The strips asked for: --strip CLIP T pairs, then a --windows file's entries."""
+    asked = [{"clip": c, "t": t} for c, t in strip or ()] + (json.loads(Path(file).read_text()) if file else [])
+    out = []
+    for w in asked:
+        try:
+            out.append({"clip": str(w["clip"]), "t": float(w["t"]),
+                        **{k: f(w[k]) for k, f in (("frames", int), ("fps", float)) if k in w}})
+        except (TypeError, ValueError, KeyError):
+            raise SystemExit(f"strip window {w}: needs a clip and a time t, and frames and fps as numbers")
+    return out
 
 
 def _crop_all(src, boxes, outdir, names):
@@ -172,8 +188,9 @@ def main(args):
     tl.build(video)                 # as a cut does, so the sheets see the current sources
     out.mkdir(parents=True, exist_ok=True)
     engine = Engine(video)
-    if args.strip:
-        print(strip(video, out, args.strip[0], float(args.strip[1]), engine))
+    wanted = windows(args.strip, args.windows)
+    if wanted:
+        print("\n".join(map(str, strips(video, out, wanted, engine))))
         return 0
     if not cuts.latest(video, cuts.SCENE_STILLS):
         raise SystemExit("no cut of the scenes yet: run `studio cut VIDEO` first")

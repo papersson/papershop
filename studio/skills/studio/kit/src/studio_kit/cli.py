@@ -235,7 +235,8 @@ COMMANDS = {
     ], "check:main"),
     "sheets": ("contact sheets, a phone-width sheet, strips and full-resolution label crops", [
         W("video"), A("outdir"), A("--cut", type=int),
-        A("--strip", nargs=2, metavar=("CLIP", "T"), help="12 consecutive frames around T"),
+        A("--strip", nargs=2, action="append", metavar=("CLIP", "T"), help="12 consecutive frames around T (repeatable)"),
+        A("--windows", metavar="FILE", help="JSON list of strips {clip, t, frames?, fps?}"),
         A("--below", type=float, default=40, help="crop labels under this many px tall"),
     ], "sheets:main"),
     "desk": ("the desk: play the latest cut, take notes on sentences, show progress and replies",
