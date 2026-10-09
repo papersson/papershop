@@ -179,7 +179,8 @@ def test_the_engine_kits_read_cues_only_through_cue():
     for f in [*engines.glob("*/src/**/*"), *engines.glob("shared/**/*")]:
         if f.suffix not in render.SCENE_CODE:
             continue
-        code = render._CODE.sub(lambda m: m.group(1) or re.sub(r"[^\n]", " ", m.group(0)), f.read_text())
+        code = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), f.read_text(), flags=re.S)
+        code = re.sub(r"(^|\s)//.*", r"\1", code, flags=re.M)        # the kits' own comments, not a parser
         lines = code.splitlines()
         for i, line in enumerate(lines):
             if re.search(r"\.cues\b|\[['\"]cues['\"]\]|\bcue\s*\(", line):
@@ -211,3 +212,36 @@ def test_editing_the_engines_shared_modules_changes_every_chapter(tmp_path, monk
     (engines / "shared" / "motion.js").write_text("// motion, edited\n")
     after = keys(tmp_path / "v", t)
     assert all(after[c] != before[c] for c in before)
+
+
+def test_jsx_text_that_looks_like_a_comment_hides_no_cue(tmp_path):
+    """`src/*.tsx` in JSX text or a URL once started a "comment" that blanked the cue calls after it."""
+    t = make_video(tmp_path)
+    for code in ("const p = ramp(t, cue('boom'));\nconst el = <Code>rm -rf build/*</Code>;\n/** a */\n",
+                 "const el = <><Code>glob: src/*</Code><Dot o={ramp(t, cue('boom'))}/></>;\n/** helper */\n",
+                 "const el = <p>see https://x.dev <b style={{opacity: ramp(t, cue('boom'))}}/></p>;\n"):
+        (tmp_path / "scenes" / "s1.tsx").write_text("const { t, cue } = useClip();\n" + code)
+        assert cue_keys(tmp_path, t, {"boom": 3.5})["s1"] != cue_keys(tmp_path, t, {"boom": 3.6})["s1"], code
+    (tmp_path / "scenes" / "s1.tsx").write_text("const {t, cue} = useClip();\nconst el = <p>see https://x.dev {names.map(n => cue(n))}</p>;\n")
+    assert render.scene_cues(tmp_path, "s1", {"s1", "s2"}) is None
+
+
+def test_a_helper_imported_from_another_clips_file_is_read(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "scenes" / "index.ts").write_text("import {S1} from './s1';\nimport {S2} from './s2';\nexport default {s1: S1, s2: S2};\n")
+    (tmp_path / "scenes" / "s2.tsx").write_text("export const S2 = () => { const {t, cue} = useClip(); return ramp(t, cue('own')); };\n")
+    assert render.scene_cues(tmp_path, "s1", {"s1", "s2"}) == set()            # the clip list imports both
+    for helper in ("s2.tsx", "s2/parts.tsx"):
+        (tmp_path / "scenes" / helper).parent.mkdir(exist_ok=True)
+        (tmp_path / "scenes" / helper).write_text("export const Boom = () => { const {t, cue} = useClip(); return ramp(t, cue('boom')); };\n")
+        (tmp_path / "scenes" / "s1.tsx").write_text(f"import {{Boom}} from './{Path(helper).with_suffix('')}';\n")
+        before = cue_keys(tmp_path, t, {"boom": 3.5})["s1"]
+        assert cue_keys(tmp_path, t, {"boom": 3.6})["s1"] != before, helper     # outside s1's frames
+        (tmp_path / "scenes" / helper).write_text((tmp_path / "scenes" / helper).read_text().replace("ramp", "spring"))
+        assert cue_keys(tmp_path, t, {"boom": 3.5})["s1"] != before, helper     # the helper's code is in the key
+
+
+def test_a_computed_name_reads_other_clips_reveal_cues(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "scenes" / "s1.tsx").write_text("const {cue} = useClip(); cue(`reveal:s2_${n}`);\n")
+    assert cue_keys(tmp_path, t, {"reveal:s2_01": 3.5})["s1"] != cue_keys(tmp_path, t, {"reveal:s2_01": 3.6})["s1"]

@@ -73,32 +73,57 @@ def _hash_listing(h, p):
 
 
 SCENE_CODE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
-# Strings are kept and comments blanked, so a cue named in a comment counts for nothing and a `//`
-# inside a string is not taken for one.
-_CODE = re.compile(r"(\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|//[^\n]*|/\*.*?\*/", re.S)
+# The engines' lists of every clip (Remotion's scenes/index.ts, Motion Canvas's scenes/project.ts)
+# import each clip's file without drawing it into the others.
+REGISTRIES = {"index", "project"}
+# Comments are read as code: a cue named in one costs an extra render at worst, where telling
+# comments from JSX text, regexes and URLs would need a parser to get right.
 _LITERAL_CUE = re.compile(r"""\bcue\s*\(\s*(?:"([^"\\]*)"|'([^'\\]*)'|`([^`\\$]*)`)\s*[,)]""")
+_IMPORT = re.compile(r"""(?:\bfrom|\bimport|\brequire)\s*\(?\s*['"](\.\.?/[^'"?]+)""")
 
 
 def _cue_names(text):
     """The cue names a scene file waits on, or None when it may read a cue by a name it computes:
     `cue(x)`, `cue` passed on or renamed, or the timeline's `cues` read directly."""
-    code = _CODE.sub(lambda m: m.group(1) or " ", text)
-    names = {next(g for g in m.groups() if g is not None) for m in _LITERAL_CUE.finditer(code)}
-    rest = _LITERAL_CUE.sub(" ", code)
+    names = {next(g for g in m.groups() if g is not None) for m in _LITERAL_CUE.finditer(text)}
+    rest = _LITERAL_CUE.sub(" ", text)
     rest = re.sub(r"\{[^{}]*\}\s*=", lambda m: re.sub(r"\bcue\s*(?=[,}])", " ", m.group(0)), rest)  # const { cue } = ...
     return None if re.search(r"\bcues?\b", rest) else names
 
 
+def _imports(f, text, root):
+    """The scenes/ files `f` imports by a relative path."""
+    for spec in _IMPORT.findall(text):
+        base = (f.parent / spec).resolve()
+        for c in (base, *(base.with_name(base.name + e) for e in SCENE_CODE), *(base / f"index{e}" for e in SCENE_CODE)):
+            if c.is_file() and c.is_relative_to(root):
+                yield c
+                break
+
+
+def scene_files(video, clip_id, clip_ids):
+    """The scene code a clip runs: its own file (or folder), the shared modules (every scenes/ file
+    not named after another clip), and whatever they import, another clip's file included."""
+    root = (Path(video) / "scenes").resolve()
+    owner = lambda f: Path(f.relative_to(root).parts[0]).stem
+    files = sorted(root.rglob("*")) if root.is_dir() else []
+    todo = [f for f in files if f.is_file() and f.suffix in SCENE_CODE and (owner(f) == clip_id or owner(f) not in clip_ids)]
+    seen = []
+    while todo:
+        f = todo.pop(0)
+        if f in seen:
+            continue
+        seen.append(f)
+        if not (f.parent == root and f.stem in REGISTRIES):
+            todo += _imports(f, f.read_text(errors="replace"), root)
+    return seen
+
+
 def scene_cues(video, clip_id, clip_ids):
-    """The cue names a clip's scene code reads: its own scene file and the shared scene modules
-    (every scenes/ file not named after another clip), or None for all cues when any of them
+    """The cue names a clip's scene code reads (scene_files), or None for all cues when any of it
     computes a cue name. The engine kits read cues only through their cue() helper."""
     names = set()
-    root = Path(video) / "scenes"
-    for f in sorted(root.rglob("*")) if root.is_dir() else []:
-        top = f.relative_to(root).parts[0]
-        if f.suffix not in SCENE_CODE or (Path(top).stem != clip_id and Path(top).stem in clip_ids):
-            continue
+    for f in scene_files(video, clip_id, clip_ids):
         found = _cue_names(f.read_text(errors="replace"))
         if found is None:
             return None
@@ -118,6 +143,10 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     for f in scenes:
         if f.stem == clip_id or f.stem not in clip_ids:
             _hash_tree(h, f)
+    root = (video / "scenes").resolve()
+    for f in scene_files(video, clip_id, clip_ids):     # a helper imported from another clip's file
+        if Path(f.relative_to(root).parts[0]).stem in clip_ids - {clip_id}:
+            _hash_tree(h, f, root)
     if quality == "boards" or not has_scene(video, clip_id, engine):
         _hash_tree(h, video / "boards")  # the chapter renders its board
     _hash_tree(h, video / "data")       # scenes import their numbers from data/
@@ -129,11 +158,13 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     named = scene_cues(video, clip_id, clip_ids)
 
     def reads(k, v):
+        if named is None:
+            return True
         if k.startswith("reveal:"):
-            return k.startswith(f"reveal:{clip_id}_") or (named is not None and k in named)
+            return k.startswith(f"reveal:{clip_id}_") or k in named
         # A named cue counts wherever it lies (an animation started before the clip may still run); one
         # inside the clip's frames counts anyway, in case a scene reaches it in a way the scan missed.
-        return named is None or k in named or t0 <= v <= t0 + count / timeline["fps"]
+        return k in named or t0 <= v <= t0 + count / timeline["fps"]
     part = {
         "clip": {**c, "start": rel(c["start"]), "end": rel(c["end"])}, "frames": count, "fps": timeline["fps"],
         "narration": [{**s, "start": rel(s["start"]), "end": rel(s["end"]),
