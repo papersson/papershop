@@ -4,7 +4,9 @@
   scope      what its revision hashes (review_state.fingerprint): "script" or "frames"
   verdict    how a reviewer's text becomes a status: "passed" when its last verdict line passes
   rounds     the cap on rounds (from video.json, or none) and what starts the count again
-  freshness  what importing a result for an older revision does: "refuse"
+  freshness  what a result for an older revision does: "refuse" it, or "record-stale": import it
+             marked stale, with what changed since, so the receipt shows the work but `require`
+             still asks for a review of the current revision
 
 A script review runs reviewers against the current revision, so it has nothing to import; a frame
 review is packaged for the main session and its result imported later, which is where freshness
@@ -55,7 +57,7 @@ KINDS = {
                    "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap)),
     "frames": Kind("frames", ("frames",), "frames",
                    verdict(lambda line: line.startswith("FRAMES:"), "FRAMES: PASS"),
-                   "run studio review-frames and return its findings", aliases={"frame": "frames"}),
+                   "run studio review-frames and return its findings", freshness="record-stale", aliases={"frame": "frames"}),
 }
 
 ROLES = tuple(r for k in KINDS.values() for r in k.roles)

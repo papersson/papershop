@@ -1,8 +1,9 @@
 """Review receipts identify the exact material judged, without exposing earlier findings.
 
 research/reviews/<role>.json: {role, kind, revision, status, detail, created}, with the round of a
-script review and whether a frame review's result was for an older revision (stale). What each kind
-hashes, how its verdict reads and when its results are refused are its policies in reviews.py.
+script review, and for a frame review the cut it judged and whether that cut was older than the
+sources when the result came in (stale, with what had changed). What each kind hashes, how its
+verdict reads and what an older revision's result does are its policies in reviews.py.
 """
 import hashlib
 import json
@@ -15,7 +16,13 @@ from .reviews import KINDS, kind_of
 from .workspace import atomic_json, now
 
 
-def fingerprint(video, frames=False):
+def review_keys(video, t):
+    """Each clip's review key (render.clip_key): what a frame of that clip shows."""
+    from . import render
+    return {c["id"]: render.clip_key(video, t, c["id"], "review") for c in t["tracks"]["scene"]}
+
+
+def fingerprint(video, frames=False, keys=None):
     """The revision a review judged, so its receipt goes stale exactly when that material changes.
 
     A script review reads the learner, the charter and SCRIPT.md's teaching sections. A frame review
@@ -23,7 +30,7 @@ def fingerprint(video, frames=False):
     clip's review key stands (its scene code, narration, captions, the cues it reads, layout, data
     and assets). timeline.json and narration.json are not hashed: they also change for what no
     frame shows (the timeline's sources, its audio and effects; the voice), and every part of them a
-    frame shows is in some clip's key.
+    frame shows is in some clip's key. `keys`: review_keys already worked out for the timeline.
     """
     video = Path(video)
     from .script import sections
@@ -37,11 +44,11 @@ def fingerprint(video, frames=False):
             if p.is_file():
                 h.update(str(p.relative_to(video)).encode())
                 h.update(p.read_bytes())
-        if (video / "timeline.json").exists():
-            from . import render, timeline
-            t = timeline.load(video)
-            for scene in t["tracks"]["scene"]:
-                h.update(render.clip_key(video, t, scene["id"], "review").encode())
+        if keys is None and (video / "timeline.json").exists():
+            from . import timeline
+            keys = review_keys(video, timeline.load(video))
+        for key in (keys or {}).values():
+            h.update(key.encode())
         return h.hexdigest()
     from .review import learner_path, learner_brief, charter
     if learner_path(video).exists():
@@ -58,10 +65,10 @@ def revision(video, kind):
     return fingerprint(video, frames=kind.scope == "frames")
 
 
-def record(video, role, revision, status, detail="", round=None, stale=None):
-    """Write a receipt; `round` and `stale` only where the kind has them."""
+def record(video, role, revision, status, detail="", **extra):
+    """Write a receipt; `extra` (round, cut, stale, changed) only where the kind has them."""
     rec = {"role": role, "kind": kind_of(role).name, "revision": revision, "status": status, "detail": detail, "created": now()}
-    rec |= {k: v for k, v in (("round", round), ("stale", stale)) if v is not None}
+    rec |= {k: v for k, v in extra.items() if v is not None}
     atomic_json(Path(video) / "research" / "reviews" / f"{role}.json", rec)
 
 
@@ -87,12 +94,30 @@ def required_roles(cfg):
     return tuple(roles)
 
 
+def changed_since(video, cut):
+    """What a frame shows that changed since cut N, in a few words: the clips whose review keys
+    differ from those the cut recorded, or just the fact for a cut that recorded none."""
+    p = Path(video) / "cuts" / f"cut{cut}" / "cut.json"
+    then = json.loads(p.read_text()).get("review_keys") if p.exists() else None
+    if not then or not (Path(video) / "timeline.json").exists():
+        return "the sources"
+    from . import timeline
+    current = review_keys(video, timeline.load(video))
+    clips = [c for c in {**then, **current} if then.get(c) != current.get(c)]
+    return ", ".join(clips) if clips else "SCRIPT.md's Script or Evidence"
+
+
 def require(video, role):
     kind = kind_of(role)
-    rec = read(video, role)
-    if rec.get("revision") != revision(video, kind) or rec.get("status") not in ("passed", "waived"):
-        raise SystemExit(f"current {role} review missing, stale or unresolved; {kind.remedy.format(role=role)}"
-                         "; an authorized waiver can be recorded with studio review-status")
+    rec, current = read(video, role), revision(video, kind)
+    if rec.get("revision") == current and rec.get("status") in ("passed", "waived"):
+        return
+    if kind.freshness == "record-stale" and rec.get("cut") is not None and rec.get("revision") != current:
+        raise SystemExit(f"the {role} review judged cut {rec['cut']}, and {changed_since(video, rec['cut'])} changed since: "
+                         f"make a fresh cut and {kind.remedy.format(role=role)}, or record an authorized waiver with "
+                         "studio review-status")
+    raise SystemExit(f"current {role} review missing, stale or unresolved; {kind.remedy.format(role=role)}"
+                     "; an authorized waiver can be recorded with studio review-status")
 
 
 def main_status(args):
@@ -104,7 +129,9 @@ def main_status(args):
 
 
 def main_frames(args):
-    from . import render
+    """Prepare a cut's frame-review bundle, or import its result. The bundle carries the cut's own
+    revision, so an older cut can be reviewed; under the frames kind's freshness policy its result
+    is then recorded as stale, and the receipt stays short of the current revision `require` asks for."""
     video = Path(args.video).resolve()
     from . import cuts
     n = args.cut or cuts.latest(video, cuts.RENDERED)
@@ -113,35 +140,44 @@ def main_frames(args):
         raise SystemExit("make a cut before preparing its frame review")
     rec = json.loads((cut / "cut.json").read_text())
     kind = KINDS["frames"]
-    current = revision(video, kind)
-    stale = rec.get("source_revision") != current
-    if stale and (not args.result or kind.freshness == "refuse"):
-        raise SystemExit("cut does not match current sources (or predates review fingerprints); make a fresh cut")
-    bundle = video / "research" / "frame_review" / f"cut{n}-{current[:12]}"
+    judged, current = rec.get("source_revision"), revision(video, kind)
+    if not judged:
+        raise SystemExit(f"cut {n} predates review fingerprints; make a fresh cut")
+    stale = judged != current
+    if stale and kind.freshness == "refuse":
+        raise SystemExit(f"cut {n} does not match current sources; make a fresh cut")
+    changed = changed_since(video, n) if stale else None
+    bundle = video / "research" / "frame_review" / f"cut{n}-{judged[:12]}"
     manifest = bundle / "manifest.json"
     if args.result:
         if not manifest.exists():
             raise SystemExit("prepare the review bundle before importing a result")
+        judged = json.loads(manifest.read_text())["revision"]
         text = Path(args.result).read_text()
-        if not any(line.strip() == f"REVISION: {current}" for line in text.splitlines()):
+        if not any(line.strip() == f"REVISION: {judged}" for line in text.splitlines()):
             raise SystemExit("frame review must include the exact REVISION from its manifest")
         status, _ = kind.verdict(text)
         (bundle / "result.md").write_text(text)
-        record(video, "frames", current, status, str(bundle / "result.md"), stale=stale)
-        print(f"frames: {status}; {bundle / 'result.md'}")
-        return 0 if status == "passed" else 1
+        record(video, "frames", judged, status, str(bundle / "result.md"), cut=n, stale=stale, changed=changed)
+        print(f"frames: {status}" + (f", recorded as stale: {changed} changed since cut {n}" if stale else "") +
+              f"; {bundle / 'result.md'}")
+        return 0 if status == "passed" and not stale else 1
     bundle.mkdir(parents=True, exist_ok=True)
-    for src, target in ((cut / "stills", "stills"), (video / "out/sheets", "sheets"), (video / "data", "data")):
-        if src.exists():
+    # the sheets are made from the current sources, so an older cut's bundle goes without them
+    for src, target in ((cut / "stills", "stills"), (None if stale else video / "out/sheets", "sheets"), (video / "data", "data")):
+        if src and src.exists():
             shutil.copytree(src, bundle / target, dirs_exist_ok=True)
-    shutil.copyfile(video / "SCRIPT.md", bundle / "SCRIPT.md")
+    shutil.copyfile(cut / "SCRIPT.md" if (cut / "SCRIPT.md").exists() else video / "SCRIPT.md", bundle / "SCRIPT.md")
     # Strip conclusions and build history from the reviewer copy.
     from .script import sections
     parts = sections((bundle / "SCRIPT.md").read_text())
     (bundle / "SCRIPT.md").write_text(parts.get("Script", "") + "\n" + parts.get("Evidence", ""))
     (bundle / "prompt.md").write_text((ROOT / "prompts/frame_review.md").read_text() +
-                                     f"\nInclude this exact line in your result: REVISION: {current}\n")
-    atomic_json(manifest, {"cut": n, "revision": current, "script": "SCRIPT.md", "stills": "stills/",
+                                     f"\nInclude this exact line in your result: REVISION: {judged}\n")
+    atomic_json(manifest, {"cut": n, "revision": judged, "script": "SCRIPT.md", "stills": "stills/",
                           "crops": "sheets/", "data": "data/", "prompt": "prompt.md"})
+    if stale:
+        print(f"cut {n} is older than the sources ({changed} changed since); its review will be recorded as stale, "
+              "and publish needs a review of a fresh cut")
     print(f"ready for frame review: {manifest}\nMain session: give this bundle to a fresh image-capable reviewer; "
           "import the response with --result FILE. This command does not run a reviewer.")

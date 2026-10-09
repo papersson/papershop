@@ -345,9 +345,10 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     atomic_json(d / "timeline.json", timeline)
     if script_path.exists():
         shutil.copyfile(script_path, d / "SCRIPT.md")
-    from .review_state import fingerprint
+    from .review_state import fingerprint, review_keys
+    keys = review_keys(video, timeline)
     record = {
-        "source_revision": fingerprint(video, frames=True),
+        "source_revision": fingerprint(video, frames=True, keys=keys), "review_keys": keys,
         "media": media, "final": quality == "final" and not stills_only,
         "review_log_hash": review_hash,
         "cut": n, "kind": "boards" if boards else "stills" if stills_only else "final" if quality == "final" else "cut",

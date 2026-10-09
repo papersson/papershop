@@ -373,6 +373,9 @@ def test_a_cut_builds_the_timeline_first(tmp_path):
     rec = render.make_cut(tmp_path, stills_only=True, engine=StillEngine())
     assert tl.load(tmp_path)["cues"] == {"logo": 2.0}
     assert read(tmp_path / "cuts" / f"cut{rec['cut']}" / "timeline.json")["cues"] == {"logo": 2.0}
+    from studio_kit import review_state      # what a stale frame review reports as changed is read from these
+    assert rec["review_keys"] == review_state.review_keys(tmp_path, tl.load(tmp_path))
+    assert rec["source_revision"] == review_state.fingerprint(tmp_path, frames=True)
 
 
 def test_the_build_wraps_captions_at_each_formats_width_in_layout_json(tmp_path):

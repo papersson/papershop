@@ -22,7 +22,7 @@ def test_each_kind_reads_its_own_verdict_line():
 def test_the_script_cap_comes_from_video_json_and_frames_have_none():
     cap = reviews.KINDS["script"].rounds.cap
     assert (cap({}), cap({"economy": True}), cap({"thorough": True}), cap({"max_rounds": 9})) == (3, 2, 6, 9)
-    assert reviews.KINDS["frames"].rounds.cap is None and reviews.KINDS["frames"].freshness == "refuse"
+    assert reviews.KINDS["frames"].rounds.cap is None and reviews.KINDS["frames"].freshness == "record-stale"
 
 
 def test_review_status_takes_its_roles_from_the_registry_and_frame_as_an_alias(tmp_path, capsys):
@@ -79,3 +79,64 @@ def test_a_crlf_script_hashes_its_line_endings_as_before(tmp_path):
     h.update(b"SCRIPT.md")
     h.update("\n".join(parts.get(k, "") for k in ("Argument", "Chain", "Script", "Evidence")).encode())
     assert review_state.fingerprint(tmp_path) == h.hexdigest()
+
+
+def frame_cut(video, n=1):
+    """A cut record as make_cut writes one, for the sources as they are now."""
+    t = tl.load(video)
+    d = video / "cuts" / f"cut{n}"
+    (d / "stills").mkdir(parents=True)
+    (d / "stills" / "s1_01.jpg").write_bytes(b"fixture")
+    keys = review_state.review_keys(video, t)
+    (d / "cut.json").write_text(json.dumps({"cut": n, "source_revision": review_state.fingerprint(video, frames=True, keys=keys),
+                                            "review_keys": keys}))
+    return keys
+
+
+def test_an_older_cuts_frame_review_is_recorded_stale_and_publish_says_what_changed(tmp_path, capsys):
+    from studio_kit import publish
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"teaching_contract": True, "frame_review": True}))
+    (tmp_path / "SCRIPT.md").write_text("## Script\n### 1. A\n> One.\n## Evidence\nActual run.\n")
+    frame_cut(tmp_path)
+    judged = review_state.fingerprint(tmp_path, frames=True)
+    assert review_state.fingerprint(tmp_path, frames=True, keys=review_state.review_keys(tmp_path, tl.load(tmp_path))) == judged
+    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited after the cut\n")
+    current = review_state.fingerprint(tmp_path, frames=True)
+    assert current != judged
+
+    args = SimpleNamespace(video=tmp_path, cut=1, result=None)
+    review_state.main_frames(args)                        # an older cut may still be packaged
+    assert "s2 changed since" in capsys.readouterr().out
+    manifest = json.loads(next((tmp_path / "research" / "frame_review").glob("cut1-*/manifest.json")).read_text())
+    assert manifest["revision"] == judged
+    args.result = tmp_path / "response.md"
+    args.result.write_text(f"FRAMES: PASS\nREVISION: {current}\n")
+    with pytest.raises(SystemExit, match="exact REVISION"):      # the bundle's revision, not the current one
+        review_state.main_frames(args)
+    args.result.write_text(f"FRAMES: PASS\nREVISION: {judged}\n")
+    assert review_state.main_frames(args) == 1
+    rec = review_state.read(tmp_path, "frames")
+    assert (rec["status"], rec["revision"], rec["cut"], rec["stale"], rec["changed"]) == ("passed", judged, 1, True, "s2")
+
+    review_state.record(tmp_path, "student", review_state.revision(tmp_path, reviews.KINDS["script"]), "waived", "user said so")
+    with pytest.raises(SystemExit, match=r"judged cut 1, and s2 changed since: make a fresh cut .* waiver"):
+        publish.gate(tmp_path)
+    frame_cut(tmp_path, 2)
+    review_state.main_frames(SimpleNamespace(video=tmp_path, cut=2, result=None))
+    args.cut, args.result = 2, tmp_path / "fresh.md"
+    args.result.write_text(f"FRAMES: PASS\nREVISION: {current}\n")
+    assert review_state.main_frames(args) == 0 and review_state.read(tmp_path, "frames")["stale"] is False
+    review_state.require(tmp_path, "frames")
+    args.result.write_text(f"FRAMES: FIX\nREVISION: {current}\n")
+    review_state.main_frames(args)
+    with pytest.raises(SystemExit, match="missing, stale or unresolved"):     # current, with findings: nothing changed
+        review_state.require(tmp_path, "frames")
+
+
+def test_a_cut_without_a_revision_cannot_be_frame_reviewed(tmp_path):
+    make_video(tmp_path)
+    (tmp_path / "cuts" / "cut1").mkdir(parents=True)
+    (tmp_path / "cuts" / "cut1" / "cut.json").write_text("{}")
+    with pytest.raises(SystemExit, match="predates review fingerprints"):
+        review_state.main_frames(SimpleNamespace(video=tmp_path, cut=1, result=None))
