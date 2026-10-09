@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 from . import settings
-from .review import studio_home
+from .env import studio_home
 from .workspace import atomic_json, locked
 
 
@@ -39,6 +39,7 @@ def main_lexicon(args):
     p = home / "lexicon.json"
     if not args.spoken and not args.phonemes:
         raise SystemExit("provide --spoken or --phonemes (Kokoro IPA)")
+    home.mkdir(parents=True, exist_ok=True)
     with locked(home):
         cfg = json.loads(p.read_text()) if p.exists() else {}
         if args.spoken:

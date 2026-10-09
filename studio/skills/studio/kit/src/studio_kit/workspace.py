@@ -28,7 +28,11 @@ def atomic_json(path, value):
 
 
 def runtime(video):
-    p = Path(video).resolve() / ".cache" / "studio"
+    video = Path(video).resolve()
+    # Only inside a folder that exists: a lock taken on a mistyped path must not create a video there.
+    if not video.is_dir():
+        raise SystemExit(f"no folder at {video}; `studio new` makes a video")
+    p = video / ".cache" / "studio"
     p.mkdir(parents=True, exist_ok=True)
     return p
 

@@ -82,6 +82,8 @@ out of the narration; subject-specific code/product names remain legitimate.
 ## Commands
 
 All commands run through `bin/studio` in its pinned environment. `--help` lists full arguments.
+VIDEO is a path to a folder holding `video.json`, relative to the current directory; anything else
+is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the full path.
 
 | Command | Purpose |
 |---|---|

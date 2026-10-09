@@ -23,7 +23,7 @@ from pathlib import Path
 
 from . import proc
 from . import settings
-from .env import ROOT
+from .env import ROOT, studio_home
 from .script import sections
 
 PROMPTS = ROOT / "prompts" / "reviewers"
@@ -46,10 +46,6 @@ def learner_path(video):
     if os.environ.get("LEARNER_MD"):
         return Path(os.environ["LEARNER_MD"])
     return studio_home() / "learner.md"
-
-
-def studio_home():
-    return Path(os.environ.get("STUDIO_HOME", "~/studio")).expanduser()
 
 
 def learner_brief(video):

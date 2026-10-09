@@ -11,8 +11,7 @@ from pathlib import Path
 
 from . import proc
 from . import settings
-from .env import ROOT
-from .review import studio_home
+from .env import ROOT, studio_home
 from . import timeline as tl
 from .timeline import DEFAULT_LAYOUT
 
