@@ -5,11 +5,31 @@ import timeline from '@timeline';
 import layout from '@layout';
 
 export type LayoutJson = {width: number; height: number; fps: number; band: {height: number; style: string; font?: number; chars?: number}};
+export type NarrationEntry = {id: string; start: number; end: number; caption?: string; text?: string; words: {w: string; start: number; end: number}[]};
+
+const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
+
+/**
+ * When a sentence reaches a phrase, in timeline seconds: its words matched in the spoken words, or,
+ * where a spoken rule rewrote them, its place in the caption. Same rule as timeline.phrase_start.
+ */
+export function phraseStart(s: NarrationEntry, phrase: string): number {
+	const want = phrase.split(/\s+/).map(norm).filter(Boolean);
+	const got = (s.words ?? []).map((w) => norm(w.w));
+	for (let i = 0; want.length && i + want.length <= got.length; i++) {
+		if (want.every((w, j) => got[i + j] === w)) return s.words[i].start;
+	}
+	const cap = s.caption ?? s.text ?? '';
+	const k = cap.indexOf(phrase);
+	if (k < 0) throw new Error(`sentence ${s.id} has no phrase "${phrase}"`);
+	return s.start + (k / Math.max(1, cap.length)) * (s.end - s.start);
+}
+
 export type TimelineJson = {
 	fps: number; duration: number; cues: Record<string, number>;
 	tracks: {
 		scene: {id: string; start: number; end: number}[];
-		narration: {id: string; start: number; end: number; words: {w: string; start: number; end: number}[]}[];
+		narration: NarrationEntry[];
 		captions: {start: number; end: number; lines: string[]}[];
 	};
 };

@@ -5,7 +5,7 @@ import {makeScene2D, Rect, Txt, type Node} from '@motion-canvas/2d';
 import {all, useScene, useThread, waitFor, Vector2, type ThreadGenerator} from '@motion-canvas/core';
 import timeline from '@timeline';
 import layout from '@layout';
-import {BAND, BG, INK, MONO, SANS, band, px, pt, unit, type TimelineJson} from './base';
+import {BAND, BG, INK, MONO, SANS, band, phraseStart, px, pt, unit, type TimelineJson} from './base';
 
 export * from './base';
 export * from './map';
@@ -20,6 +20,7 @@ export type Ctx = {
 	at: (id: string, off?: number) => number;
 	end: (id: string, off?: number) => number;
 	word: (id: string, i: number, off?: number) => number;
+	phrase: (id: string, text: string, off?: number) => number;
 	cue: (name: string, off?: number) => number;
 	dur: number;
 	/** Wait until clip time t (does nothing if it has passed). */
@@ -88,6 +89,7 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 				if (!w) throw new Error(`sentence ${id} has no word ${i}; run studio align`);
 				return w.start - me.start + off;
 			},
+			phrase: (id, text, off = 0) => phraseStart(sentence(id), text) - me.start + off,
 			cue: (name, off = 0) => {
 				if (!(name in T.cues)) throw new Error(`no cue ${name} in timeline.json`);
 				return T.cues[name] - me.start + off;

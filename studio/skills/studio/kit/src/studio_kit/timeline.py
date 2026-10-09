@@ -32,6 +32,27 @@ DEFAULT_LAYOUT = {
 }
 
 
+def _norm(w):
+    return re.sub(r"[^\w]", "", w.lower())
+
+
+def phrase_start(entry, phrase):
+    """When a narration entry reaches `phrase`, in timeline seconds. The phrase's words are matched
+    against the spoken words (`words`); when a spoken rule rewrote them (an acronym read as letters),
+    the phrase's place in the written caption gives the time, proportionally. The Remotion kit's
+    `phrase()` follows the same rule. Raises KeyError when the caption doesn't contain the phrase."""
+    want = [w for w in map(_norm, phrase.split()) if w]
+    got = [_norm(w["w"]) for w in entry.get("words", [])]
+    for i in range(len(got) - len(want) + 1):
+        if want and got[i:i + len(want)] == want:
+            return entry["words"][i]["start"]
+    k = entry.get("caption", entry.get("text", "")).find(phrase)
+    if k < 0:
+        raise KeyError(f"{entry.get('id')}: no phrase {phrase!r}")
+    cap = entry.get("caption", entry.get("text", ""))
+    return entry["start"] + (k / max(1, len(cap))) * (entry["end"] - entry["start"])
+
+
 def timing(video, timeline=None):
     """Where the timeline's times came from: "estimate" or "narrated". Timelines written before this
     was recorded count as narrated when their narration audio exists."""

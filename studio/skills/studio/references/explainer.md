@@ -156,7 +156,9 @@ settled/authorized. Existing house style can supply a direction rather than requ
 One scene per chapter, built in order and cut as each is done: unbuilt chapters show their boards,
 so every cut plays the whole video. With `checkpoints: many`, show the first finished chapter before
 building the rest. Every frame is a pure function of `useClip().t` (no timers, accumulated
-state or unseeded randomness). `at`, `end` and `word` cue sentences; `cue('reveal:s1_03')` lands
+state or unseeded randomness). `at`, `end` and `word` cue sentences; `phrase('03', 'and the whole
+state')` cues the spoken words themselves, so a label lands as the voice says it and survives edits
+elsewhere in the sentence; `cue('reveal:s1_03')` lands
 a reveal after an inline hold. `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
 Stage coordinates are centered, y up, eight units high, above the reserved caption band.
 

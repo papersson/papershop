@@ -1,7 +1,7 @@
 import {createContext, useContext} from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
 import timeline from '@timeline';
-import type {Timeline} from './types';
+import type {Sentence, Timeline} from './types';
 
 const T = timeline as Timeline;
 
@@ -36,6 +36,11 @@ export function useClip() {
 			if (!w) throw new Error(`sentence ${id} has no word ${i}; run studio align`);
 			return w.start - start + off;
 		},
+		/**
+		 * When a sentence reaches a phrase, in clip seconds: its words matched in the spoken words, or,
+		 * where a spoken rule rewrote them, its place in the caption. Same rule as timeline.phrase_start.
+		 */
+		phrase: (id: string, text: string, off = 0) => phraseStart(sentence(id), text) - start + off,
 		/** The i-th beat of the track (1-based), in clip seconds; needs `studio beats`. */
 		beat: (i: number, off = 0) => {
 			const b = T.beats?.beats[i - 1];
@@ -56,6 +61,22 @@ export function useClip() {
 			return T.cues[name] - start + off;
 		},
 	};
+}
+
+const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
+
+
+/** See useClip().phrase; exported for scenes that hold a narration entry directly. */
+export function phraseStart(s: Sentence, phrase: string): number {
+	const want = phrase.split(/\s+/).map(norm).filter(Boolean);
+	const got = (s.words ?? []).map((w) => norm(w.w));
+	for (let i = 0; want.length && i + want.length <= got.length; i++) {
+		if (want.every((w, j) => got[i + j] === w)) return s.words[i].start;
+	}
+	const cap = s.caption ?? s.text ?? '';
+	const k = cap.indexOf(phrase);
+	if (k < 0) throw new Error(`sentence ${s.id} has no phrase "${phrase}"`);
+	return s.start + (k / Math.max(1, cap.length)) * (s.end - s.start);
 }
 
 /** Manim's default "smooth" easing: a sigmoid rescaled to run exactly 0 → 1. */

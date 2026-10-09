@@ -23,7 +23,8 @@ One engine per video.
 `studioScene('s1', function* (c) { ... })` from `@studio-mc`, and holds its last frame until its
 clip's end so the clips tile the video. The context `c` gives:
 
-- `c.at('03')`, `c.end('03', 0.5)`, `c.word('03', 2)`, `c.cue(name)`: times in clip seconds;
+- `c.at('03')`, `c.end('03', 0.5)`, `c.word('03', 2)`, `c.phrase('03', 'the whole state')`, `c.cue(name)`:
+  times in clip seconds;
   `yield* c.until(t)` waits for one;
 - `c.text(string, [x, y], {size, color, font, weight, opacity, name})` and
   `c.box([x, y], w, h, {fill, stroke, radius, opacity, name})`: nodes placed in stage units (the

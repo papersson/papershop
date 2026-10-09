@@ -1,3 +1,4 @@
+import pytest
 from studio_kit import timeline as tl
 
 
@@ -69,3 +70,20 @@ def test_frames_round_halves_up_like_the_engine():
                                          {"id": "b", "start": 14.55, "end": 23.557}]}}
     assert tl.half_up(436.5) == 437 and tl.half_up(2.5) == 3 and tl.half_up(2.4) == 2
     assert tl.frames(t, "a") == (0, 437) and tl.frames(t, "b") == (437, 270)
+
+
+def test_phrase_start_finds_spoken_words_and_falls_back_to_the_caption():
+    from studio_kit.timeline import phrase_start
+    entry = {"id": "s1_02", "start": 10.0, "end": 14.0,
+             "caption": "The MTTR is longer than the MTBF.",
+             "text": "The M T T R is longer than the M T B F.",
+             "words": [{"w": w, "start": 10.0 + 0.3 * i, "end": 10.2 + 0.3 * i}
+                       for i, w in enumerate("The M T T R is longer than the M T B F.".split())]}
+    # matched in the spoken words, punctuation and case ignored
+    assert phrase_start(entry, "is longer") == pytest.approx(10.0 + 0.3 * 5)
+    assert phrase_start(entry, "Longer than") == pytest.approx(10.0 + 0.3 * 6)
+    # a spoken rule rewrote "MTBF": its place in the caption, proportionally
+    k = entry["caption"].find("MTBF")
+    assert phrase_start(entry, "MTBF") == pytest.approx(10.0 + k / len(entry["caption"]) * 4.0)
+    with pytest.raises(KeyError):
+        phrase_start(entry, "quorum")
