@@ -9,6 +9,7 @@ import importlib.util
 from pathlib import Path
 from importlib.metadata import version, PackageNotFoundError
 import shutil
+import signal
 import sys
 import tempfile
 import urllib.request
@@ -90,14 +91,20 @@ def check_launch(timeout=60):
             "narration": [], "captions": [], "audio": []}}))
         engine = Engine(video, "live")
         cmd = engine._command("still", "--clip", "probe", "--t", "0.5", "--out", str(video / "probe.png"))
+        try:     # its own session, so a hung launch is killed with the browser it started
+            run = proc.popen(cmd, stdout=proc.PIPE, stderr=proc.PIPE, text=True, start_new_session=True)
+        except OSError as e:
+            return FAIL, "browser launch", f"the live engine's still did not start: {e}", LAUNCH_HINT
         try:
-            run = proc.run(cmd, capture_output=True, text=True, timeout=timeout)
-        except (OSError, proc.TimeoutExpired) as e:
-            return FAIL, "browser launch", f"the live engine's still did not finish: {e}", LAUNCH_HINT
+            out, err = run.communicate(timeout=timeout)
+        except proc.TimeoutExpired:
+            os.killpg(run.pid, signal.SIGKILL)
+            run.communicate()
+            return FAIL, "browser launch", f"the live engine's still did not finish in {timeout} s", LAUNCH_HINT
         if run.returncode or not (video / "probe.png").is_file():
-            cause = (run.stderr.strip() or run.stdout.strip()).splitlines()[-1:] or ["no output"]
+            cause = (err.strip() or out.strip()).splitlines()[-1:] or ["no output"]
             return FAIL, "browser launch", f"the live engine could not render a still: {cause[0][:300]}", \
-                launch_hint(run.stderr) or "`studio still VIDEO CLIP T --out PNG` on a live video prints the engine's full error"
+                launch_hint(err) or "`studio still VIDEO CLIP T --out PNG` on a live video prints the engine's full error"
     return OK, "browser launch", "the live engine rendered a still", ""
 
 

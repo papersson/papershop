@@ -85,19 +85,31 @@ live_installed = pytest.mark.skipif(
 ])
 def test_a_failed_launch_names_the_cause_and_a_fix(monkeypatch, stderr, hint):
     calls = []
-    def run(cmd, **kw):
-        calls.append(cmd)
-        return SimpleNamespace(returncode=1, stderr=stderr, stdout="")
-    monkeypatch.setattr(doctor.proc, "run", run)
+    class Failed:
+        def __init__(self, cmd, **kw):
+            calls.append(cmd)
+            self.returncode, self.pid = 1, 0
+        def communicate(self, timeout=None):
+            return "", stderr
+    monkeypatch.setattr(doctor.proc, "popen", Failed)
     level, _, detail, fix = doctor.check_launch()
     assert level == doctor.FAIL and stderr.splitlines()[-1] in detail and hint in fix
     assert calls[0][1].endswith("engines/live/cli.mjs") and calls[0][2] == "still"    # the engine's own command
 
 
 @live_installed
-def test_a_hung_launch_fails_with_the_sandbox_hint(monkeypatch):
-    def run(cmd, **kw):
-        raise doctor.proc.TimeoutExpired(cmd, kw["timeout"])
-    monkeypatch.setattr(doctor.proc, "run", run)
-    level, _, detail, fix = doctor.check_launch(timeout=1)
-    assert level == doctor.FAIL and "did not finish" in detail and "sandbox" in fix
+def test_a_hung_launch_is_killed_with_what_it_started(monkeypatch, tmp_path):
+    import os
+    import sys
+    import time
+    from studio_kit import engine
+    pidfile = tmp_path / "child.pid"
+    hang = (f"import subprocess, sys, time; c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+            f"open({str(pidfile)!r}, 'w').write(str(c.pid)); time.sleep(60)")
+    monkeypatch.setattr(engine.Engine, "_command", lambda self, *a: [sys.executable, "-c", hang])
+    level, _, detail, fix = doctor.check_launch(timeout=2)
+    assert level == doctor.FAIL and "did not finish in 2 s" in detail and "sandbox" in fix
+    with pytest.raises(ProcessLookupError):      # the browser's stand-in went with the engine
+        for _ in range(50):
+            os.kill(int(pidfile.read_text()), 0)
+            time.sleep(0.1)
