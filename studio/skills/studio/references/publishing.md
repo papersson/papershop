@@ -27,8 +27,9 @@ note to the sentence/chapter of its cut. An empty note still means “here.”
    dependency changes; shared helpers may affect more than one chapter. Required independent
    frame review uses the new bundle and includes affected transitions/neighbors. A frame receipt
    goes stale when what its reviewer saw changes (a chapter's frames, the Script or Evidence
-   section, data/), not after a sound-only edit (effects, music, the mix); `review-frames` refuses
-   to package or import a result for a cut older than the current sources.
+   section, data/), not after a sound-only edit (effects, music, the mix); a new beat grid stales
+   the chapters whose scenes read it. `review-frames` refuses to package or import a result for a
+   cut older than the current sources.
 6. Report the cut, actual width×height/fps, quality and final-quality status, runtime change,
    note dispositions, late requests and measured stage times. Do not guess per-request minutes.
    Mark waiting/finished boundaries and checkpoint at authorized stages.

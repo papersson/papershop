@@ -6,7 +6,7 @@ to the clip's first frame) and the layout. So an edit to one chapter's scene re-
 chapter only, a narration edit re-renders the chapter it is in (later chapters move by whole frames,
 see narration.CHAPTER_GRID, and keep their keys), and an edit to a shared file re-renders them all.
 Its cues are the ones its scene code names (see scene_cues), so moving a cue re-renders the
-chapters that wait on it.
+chapters that wait on it, and the beat grid counts only for chapters whose code reads it.
 
 videos/<name>/cuts/cutN/
   video.mp4      the composite with narration (draft: 540p)
@@ -147,6 +147,16 @@ def scene_cues(video, clip_id, clip_ids):
     return names
 
 
+# useClip's beat, downbeat, hits and bpm (Remotion), or the timeline's beats read directly (any engine).
+_BEATS = re.compile(r"\b(?:beats?|downbeats?|hits|bpm)\b")
+
+
+def scene_reads_beats(video, clip_id, clip_ids):
+    """Whether a clip's scene code (scene_files) may read the beat grid. As with cues, a mention in a
+    comment counts: it costs a render at worst. The engine kits read beats only through useClip."""
+    return any(_BEATS.search(f.read_text(errors="replace")) for f in scene_files(video, clip_id, clip_ids))
+
+
 def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     engine = engine or _engine_of(video)
     video = Path(video)
@@ -191,7 +201,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
                      for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
         "cues": {k: rel(v) for k, v in timeline.get("cues", {}).items() if reads(k, v)},
         "footage": timeline["tracks"].get("footage", []),
-        "beats": timeline.get("beats", {}),
+        "beats": timeline.get("beats", {}) if scene_reads_beats(video, clip_id, clip_ids) else {},
         "layout": tl.layout(video, fmt),
     }
     h.update(json.dumps(part, sort_keys=True).encode())

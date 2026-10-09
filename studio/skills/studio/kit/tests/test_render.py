@@ -262,3 +262,13 @@ def test_an_asset_replaced_at_the_same_size_and_time_changes_every_key(tmp_path)
     after = keys(tmp_path, t)
     assert all(after[c] != before[c] for c in before)
     assert review_state.fingerprint(tmp_path, frames=True) != revision
+
+
+def test_a_new_beat_grid_re_renders_only_the_chapters_that_read_it(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "scenes" / "s2.tsx").write_text("const {beat} = useClip(); const x = ramp(t, beat(4));\n")
+    before = keys(tmp_path, t)
+    t2 = copy.deepcopy(t)
+    t2["beats"] = {"bpm": 120, "beats": [0.5, 1.0, 1.5, 2.0], "downbeats": [0.5], "hits": []}
+    after = keys(tmp_path, t2)
+    assert after["s1"] == before["s1"] and after["s2"] != before["s2"]
