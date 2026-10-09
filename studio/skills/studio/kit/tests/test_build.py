@@ -450,3 +450,42 @@ def test_a_hand_edit_to_the_timeline_is_reported_when_build_replaces_it(tmp_path
     assert "mine" not in tl.load(v)["cues"]
     tl.build(v)
     assert "by hand" not in capsys.readouterr().out
+
+
+def test_the_builders_captions_stay_as_written_and_the_kit_chunks_the_rest(tmp_path, monkeypatch):
+    """Every build chunked the captions from the narration, so a hand-made caption was lost at the
+    next narrate or align."""
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    kit = tl.load(v)["tracks"]["captions"]
+    locked = {**kit[1], "lines": ["Kept exactly", "as the builder wrote it"]}
+    custom = {"start": kit[3]["start"], "end": kit[3]["end"], "text": "A caption of the builder's own, wrapped per format"}
+    (v / "captions.json").write_text(json.dumps([custom, locked]))
+    narrated(v)
+    heard = [{"w": w, "start": s["start"] + 0.1 * i, "end": s["start"] + 0.1 * i + 0.08}
+             for s in tl.load(v)["tracks"]["narration"] for i, w in enumerate(s["caption"].split())]
+    monkeypatch.setattr(align, "recognise", lambda audio, model: heard)
+    align.main(SimpleNamespace(video=v, model="tiny"))
+    t = tl.load(v)
+    assert "captions.json" in t["sources"] and "audio/words.json" in t["sources"]
+    caps = t["tracks"]["captions"]
+    assert locked in caps                                   # verbatim, its wrapped lines included
+    mine = next(c for c in caps if c.get("text") == custom["text"])
+    assert (mine["start"], mine["end"]) == (custom["start"], custom["end"])
+    assert mine["lines"] == tl.wrap(custom["text"], 42) and mine["wrapped"]["9:16"] == tl.wrap(custom["text"], 26)
+    others = [c for c in caps if c is not mine and c != locked]
+    assert others and all(c["end"] <= mine["start"] or c["start"] >= mine["end"] for c in others)
+    assert [c["start"] for c in caps] == sorted(c["start"] for c in caps)
+
+
+def test_a_blank_chunk_hides_the_kits_captions_and_bad_chunks_stop_the_build(tmp_path):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    t = tl.load(v)
+    (v / "captions.json").write_text(json.dumps([{"start": 0, "end": t["duration"], "lines": []}]))
+    assert [c["lines"] for c in tl.build(v)["tracks"]["captions"]] == [[]]
+    for bad in ([{"start": 2, "end": 1, "text": "x"}], [{"start": 0, "end": 1}], [{"start": 0, "end": 1, "lines": "x"}],
+                [{"start": 0, "end": 2, "text": "a"}, {"start": 1, "end": 3, "text": "b"}]):
+        (v / "captions.json").write_text(json.dumps(bad))
+        with pytest.raises(SystemExit, match="captions.json"):
+            tl.build(v)

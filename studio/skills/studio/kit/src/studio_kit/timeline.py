@@ -20,6 +20,12 @@ and the rest layer on:
   cues.json            the builder       named cues {name: seconds} scenes can wait on (reveal: cues
                                          come from the timings); anchors on sentences and words may
                                          join the numbers later
+  captions.json        the builder       caption chunks kept as written: [{start, end, text}] wrapped
+                                         per format like the kit's, or [{start, end, lines, wrapped?}]
+                                         whose lines are kept (other formats wrapped from them). The kit
+                                         chunks only the narration they don't overlap, so the file is a
+                                         whole caption track or a few locked chunks (copied from
+                                         timeline.json); {start, end, lines: []} blanks a span
   audio/tracks.json    the builder       extra audio [{file, start, gain?, in?, out?, role?}] (music)
   audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio, which
                                          each mix renders against this timeline (audio.sources)
@@ -31,9 +37,10 @@ timeline.json
   fps, duration, timing, voice, sources (the files it was built from)
   tracks.scene      [{id, engine, title, start, end}]           one generated clip per chapter
   tracks.narration  [{id, clip, text, caption, paragraph, start, end, words: [{w, start, end}]}]
-  tracks.captions   [{start, end, lines, wrapped}]                chunked from the narration: lines are
-                                                                  the 16:9 lines, wrapped {format: lines}
-                                                                  every other format's (caption_lines)
+  tracks.captions   [{start, end, lines, wrapped}]                chunked from the narration, and
+                                                                  captions.json's: lines are the 16:9
+                                                                  lines, wrapped {format: lines} every
+                                                                  other format's (caption_lines)
   tracks.audio      [{file, start, role, gain?, in?, out?, fade?}]  role: narration | sfx | music | footage
   tracks.footage    [{id, file, in, out, start, end}]             footage videos only
   cues              {name: seconds}                               extra times scenes can wait on
@@ -242,24 +249,47 @@ def split_phrases(text, widths=None):
     return split_phrases(" ".join(words[:k]), widths) + split_phrases(" ".join(words[k:]), widths)
 
 
-def chunk_captions(narration, fps=30, widths=None):
+def chunk_captions(narration, fps=30, widths=None, kept=()):
     """One caption per sentence, or per phrase for long sentences, timed from word timings when
-    present and from character counts otherwise, and wrapped at `widths` (caption_widths)."""
+    present and from character counts otherwise, and wrapped at `widths` (caption_widths). The
+    chunks `kept` (captions.json) stay as written and replace every phrase whose words they overlap."""
     widths = widths or caption_widths()
+    own = sorted((_kept(c, widths) for c in kept), key=lambda c: c["start"])
+    for a, b in zip(own, own[1:]):
+        if b["start"] < a["end"]:
+            raise SystemExit(f"captions.json: the chunks at {a['start']} s and {b['start']} s overlap")
     chunks = []
     for s in narration:
         pieces = split_phrases(s["caption"], widths.values())
         words = s.get("words") or []
         spans = _piece_spans(pieces, s, words)
         for piece, (a, b) in zip(pieces, spans):
+            if any(a < k["end"] and k["start"] < b for k in own):
+                continue
             chunks.append({"start": round(a, 3), "end": round(b + TAIL, 3), "lines": wrap(piece, widths["16:9"]),
                            "wrapped": {f: wrap(piece, w) for f, w in widths.items() if f != "16:9"}})
-    gap = 2 / fps
+    gap, kit = 2 / fps, {id(c) for c in chunks}
+    chunks = sorted(chunks + own, key=lambda c: c["start"])
     for cur, nxt in zip(chunks, chunks[1:]):
-        cur["end"] = round(min(max(cur["end"], cur["start"] + MIN_SHOW), nxt["start"] - gap), 3)
-    if chunks:
+        if id(cur) in kit:
+            cur["end"] = round(min(max(cur["end"], cur["start"] + MIN_SHOW), nxt["start"] - gap), 3)
+    if chunks and id(chunks[-1]) in kit:
         chunks[-1]["end"] = round(max(chunks[-1]["end"], chunks[-1]["start"] + MIN_SHOW), 3)
     return chunks
+
+
+def _kept(c, widths):
+    """A captions.json chunk as the timeline holds one: the lines it gives kept, the rest wrapped."""
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
+    raw, c = c, c if isinstance(c, dict) else {}
+    lines, text = c.get("lines"), c.get("text")
+    if lines is not None:
+        text = " ".join(lines) if isinstance(lines, list) and all(isinstance(x, str) for x in lines) else None
+    if not isinstance(text, str) or not (num(c.get("start")) and num(c.get("end")) and c["end"] > c["start"]):
+        raise SystemExit(f"captions.json: {raw} needs a start before its end, and text or lines")
+    given = c.get("wrapped") or {}
+    return {**c, "lines": lines if lines is not None else wrap(text, widths["16:9"]),
+            "wrapped": {f: given[f] if f in given else wrap(text, w) for f, w in widths.items() if f != "16:9"}}
 
 
 def _piece_spans(pieces, sentence, words):
@@ -468,7 +498,10 @@ def build(video, quiet=False):
                 say(f"warn: audio/sfx.json: no time for {', '.join(map(repr, missing))} in this timeline; "
                     "the next cut stops on it until `studio sfx VIDEO CUES` replaces the effects")
         # chunked last, from the final narration (its words included), at this video's line widths
-        t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video))
+        kept = _read(video / "captions.json")
+        if kept is not None:
+            used.append("captions.json")
+        t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video), kept or ())
         t["sources"] = used
         if edited is not None:      # printed even when quiet: the next build would find nothing to say
             parts = [k for k in sorted(set(edited) | set(t)) if k != "tracks" and edited.get(k) != t.get(k)]

@@ -1,8 +1,9 @@
 """`studio align VIDEO`: word timings for the narration, then captions re-chunked from them.
 
 The recognised words go to audio/words.json with a stamp of the narration they were heard in; the
-timeline attaches them while that narration is current. Uses faster-whisper (the `align` extra);
-the model downloads from Hugging Face on first use.
+timeline attaches them while that narration is current; the builder's own chunks (captions.json)
+stay as written. Uses faster-whisper (the `align` extra); the model downloads from Hugging Face on
+first use.
 """
 from pathlib import Path
 
