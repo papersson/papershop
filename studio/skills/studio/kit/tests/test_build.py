@@ -37,16 +37,47 @@ def test_a_narration_keeps_what_other_commands_and_the_builder_added(tmp_path):
     narration.narrate(v, estimate=True)
     t = tl.load(v)
     assert t["cues"]["hit"] == 1.25 and t["beats"]["bpm"] and t["timing"] == "estimate"
-    assert [(a["file"], a["role"]) for a in t["tracks"]["audio"]] == [
-        ("audio/narration.mp3", "narration"), ("assets/bed.wav", "music"), ("audio/sfx.wav", "sfx")]
+    assert [(a["file"], a["role"]) for a in t["tracks"]["audio"]] == [("assets/bed.wav", "music"), ("audio/sfx.wav", "sfx")]
     assert t["tracks"]["narration"][-1]["caption"] == "Send one key with every attempt."
     assert t["tracks"]["scene"][0]["engine"] == "live"
     assert t["sources"] == ["audio/timings.json", "cues.json", "audio/tracks.json", "audio/sfx.json", "audio/beats.json"]
 
 
+def test_an_estimate_lists_no_narration_audio(tmp_path):
+    """A narration.mp3 left by an earlier narration would be mixed against the estimate's times."""
+    v = explainer(tmp_path)
+    (v / "audio").mkdir()
+    (v / "audio" / "narration.mp3").write_bytes(b"an earlier narration")
+    narration.narrate(v, estimate=True)
+    t = tl.load(v)
+    assert t["timing"] == "estimate" and tl.narration_audio(t) is None and t["tracks"]["audio"] == []
+    with pytest.raises(SystemExit, match="estimate"):
+        align.main(SimpleNamespace(video=v, model="tiny"))
+
+
+def test_a_quiet_build_prints_nothing(tmp_path, capsys):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "audio" / "words.json").write_text(json.dumps({"narration": "an older one", "words": []}))
+    capsys.readouterr()
+    tl.build(v, quiet=True)
+    assert capsys.readouterr().out == ""
+    tl.build(v)
+    assert "ignored" in capsys.readouterr().out
+
+
+def narrated(v):
+    """An estimate passed off as a narration, with audio to align, so no voice need synthesise."""
+    timings = read(v / "audio" / "timings.json")
+    (v / "audio" / "timings.json").write_text(json.dumps({**timings, "timing": "narrated"}))
+    (v / "audio" / "narration.mp3").write_bytes(b"mp3")
+    return tl.build(v)
+
+
 def test_aligned_words_are_ignored_once_the_narration_changes(tmp_path, monkeypatch, capsys):
     v = explainer(tmp_path)
     narration.narrate(v, estimate=True)
+    narrated(v)
     first = tl.load(v)["tracks"]["narration"][0]
     heard = [{"w": w, "start": first["start"] + 0.3 * i, "end": first["start"] + 0.3 * i + 0.25}
              for i, w in enumerate(first["caption"].split())]

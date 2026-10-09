@@ -25,7 +25,10 @@ def recognise(audio, model=MODEL):
 
 def main(args):
     video = Path(args.video)
-    narration = tl.narration_audio(tl.load(video))
+    t = tl.load(video)
+    if tl.timing(video, t) == "estimate":
+        raise SystemExit("the narration is an estimate, with no audio to align: run `studio narrate VIDEO` first")
+    narration = tl.narration_audio(t)
     if not narration:
         raise SystemExit("this video has no narration to align (a footage edit's words come from `studio ingest`)")
     heard = recognise(video / narration["file"], args.model)

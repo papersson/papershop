@@ -5,7 +5,9 @@ writes it and calls build; nothing carries over from an earlier timeline.json ex
 one-time `migrate`. Exactly one source gives the base (scenes, narration, duration), in this order:
 
   footage/edit.json    studio edit       the edit list: footage track, each segment's sound, its words
-  audio/timings.json   studio narrate    laid-out sentence timings; "timing": "estimate" | "narrated"
+  audio/timings.json   studio narrate    laid-out sentence timings; "timing": "estimate" | "narrated".
+                                         An estimate lists no narration audio: an audio/narration.mp3
+                                         left by an earlier narration would play against other times
   video.json clips     the builder       a piece with no narration in chapters: [{id, title?, seconds}]
                                          back to back
   video.json duration  studio new        a piece with no narration: one clip of that length
@@ -328,6 +330,8 @@ def _base(video, cfg):
     if timings is not None:
         t = from_timings(timings, cfg["engine"])
         t["timing"] = timings.get("timing", "narrated")      # only real narrations kept timings before
+        if t["timing"] == "estimate":
+            t["tracks"]["audio"] = []
         return t, "audio/timings.json"
     if cfg.get("clips") or cfg.get("duration"):
         clips = cfg.get("clips") or [{"id": "s1", "title": cfg.get("title", "s1"), "seconds": float(cfg["duration"])}]
@@ -345,10 +349,11 @@ def _base(video, cfg):
                      "the footage, or give video.json a duration or clips")
 
 
-def build(video):
+def build(video, quiet=False):
     """Write timeline.json from its sources (the contract above) and return it. Prints what it
-    migrated and what it ignored."""
+    migrated and what it ignored, unless quiet (a command that builds again prints it then)."""
     video = Path(video)
+    say = (lambda msg: None) if quiet else print
     a = video / "audio"
     with locked(video, "timeline"):
         if (video / "timeline.json").exists():
@@ -361,9 +366,9 @@ def build(video):
                 matched, total = attach_words(t, words["words"])
                 t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"])
                 used.append("audio/words.json")
-                print(f"timeline: aligned {matched} of {total} script words ({total - matched} interpolated)")
+                say(f"timeline: aligned {matched} of {total} script words ({total - matched} interpolated)")
             else:
-                print("timeline: audio/words.json was aligned against an earlier narration; ignored "
+                say("timeline: audio/words.json was aligned against an earlier narration; ignored "
                       "(`studio align` again for word timings)")
         cues = _read(video / "cues.json")
         if cues is not None:

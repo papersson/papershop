@@ -186,6 +186,7 @@ def test_estimated_timelines_say_so(tmp_path):
     t = tl.load(tmp_path)
     assert t["timing"] == "estimate" and tl.timing(tmp_path) == "estimate"
     del t["timing"]                                   # an older timeline: no record, no audio
+    t["tracks"]["audio"] = [{"file": "audio/narration.mp3", "start": 0.0}]
     assert tl.timing(tmp_path, t) == "estimate"
     (tmp_path / "audio" / "narration.mp3").write_bytes(b"mp3")
     assert tl.timing(tmp_path, t) == "narrated"
