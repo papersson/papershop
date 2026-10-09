@@ -76,8 +76,20 @@ Log each result in SCRIPT.md's Review log with a current sentence ID and short q
    values and identifiers. Every asserted value/behavior has evidence.
 7. The outline follows ideas and needs. Source line ranges, document headings or pipeline stages
    alone are a warning of a tour; restructure when their causal purpose is missing.
+8. The primitive the video manipulates (key and value, record, request) is on screen and named
+   before first use, at every level.
+9. Two structures holding the same data (a log and an SSTable, a replica and a shard) are related
+   explicitly: what each is for and what happens to each over time.
+10. An analogy or "lines up with" shows its mapping part by part, side by side.
+11. "The same X", "it" and "this" have one referent given the picture; each component says where it
+    runs and on how many machines.
+12. In a sequence of stages, each is marked kept, replaced or absorbed, and a recap says what
+    survives into the end state.
+13. Canonical field terms throughout, related to neighbouring terms the viewer will meet elsewhere.
+    At most one new structure per chapter, with its intermediate states shown.
 
-Recheck affected criteria after edits: sentence IDs are positional. `studio check --only script`
+Recheck affected criteria after edits: sentence IDs are positional. Items 8–13 come from a
+learner's notes on a finished video that the earlier criteria passed. `studio check --only script`
 provides cheap diagnostics, not a judgment of pedagogy. An agent student is also a diagnostic,
 not a measurement of real learning. Where practical, ask an actual target viewer for a prediction,
 transfer and later reconstruction rather than merely “was that clear?”

@@ -5,6 +5,15 @@ You are this particular viewer:
  You have not studied this topic. Stay in role: if the script does not explain something, you do not know it. Below is the script of a short narrated video, with a note of what is on screen at each moment. Go through it once, in order, as if watching. (1) List every point where you would be confused or lose the thread, quoting the line: a term used before it is explained, a step that does not follow, a number with no meaning attached, a sentence hard to follow when heard. (2) List the questions you would ask afterwards. (3) Without looking back, write what you learned in about 150 words. (4) Answer: what is the one main idea; which numbers do you remember and what do they mean; what question did the video start with, and what was its answer? (5) Rate how much the opening made you want the answer (1-5) and how often you felt lost (never / once / a few times / often).
 
 
+Also check, quoting the line each time (each item is a finding you would have, not extra detail to ask for):
+the thing the whole video manipulates (a key and its value, a record, a request) is shown and named before it is
+used; when two structures hold the same data, the script says how they relate and what happens to each over time;
+every "X is like Y" or "X lines up with Y" maps the parts one to one; "the same", "it" and "this" have exactly one
+thing they can refer to, given the picture; each part says where it runs and on how many machines; in a series of
+stages or designs, each is said to be kept, replaced or absorbed, and the end says which survive; the terms are the
+ones the field uses, and a nearby term the viewer will meet elsewhere is related to them; no chapter introduces more
+than one new structure without showing the states in between.
+
 Identify the three or four ideas that matter and the lines that signaled their importance.
 At each prediction pause, state what you expect from the model established so far. Attempt the
 supplied transfer questions using only the script, and explain why. Flag a chapter that feels like
