@@ -8,7 +8,7 @@
 import {Line, Node, Rect, Txt} from '@motion-canvas/2d';
 import {Vector2} from '@motion-canvas/core';
 import type {Ctx} from './kit';
-import {AMBER, CORAL, DIM, ICE, INK, MONO, MUTED, PANEL, TRAY_EDGE, TRAY_FILL, band, layout, mix, pt, px, stageH, unit} from './base';
+import {AMBER, CORAL, ICE, INK, MONO, MUTED, PANEL, TRAY_EDGE, TRAY_FILL, band, layout, mix, pt, px, stageH, unit} from './base';
 
 export type MapNode = {id: string; name: string; at: [number, number]; w?: number; h?: number};
 export type MapEdge = {from: string; to: string};
@@ -66,7 +66,7 @@ export class MapView {
 		c.view.add(this.cam);
 		const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
 		for (const e of edges) {
-			const line = new Line({points: [[0, 0], [0, 0]], stroke: DIM, lineWidth: 2, endArrow: true, arrowSize: 0.18 * unit, end: 0, opacity: 0});
+			const line = new Line({points: [[0, 0], [0, 0]], stroke: MUTED, lineWidth: 2, endArrow: true, arrowSize: 0.18 * unit, end: 0, opacity: 0});
 			this.cam.add(line);
 			this.lines.push({key: `${e.from}>${e.to}`, from: e.from, to: e.to, line});
 		}
@@ -114,7 +114,7 @@ export class MapView {
 			const to: [number, number] = horizontal ? [b.at[0] - sx * (bw / 2 + 0.05), b.at[1]] : [b.at[0], b.at[1] - sy * (bh / 2 + 0.05)];
 			const on = (s.litEdges ?? {})[l.key] ?? 0;
 			l.line.points([this.at(from), this.at(to)]);
-			l.line.stroke(mix(DIM, ICE, on)); l.line.lineWidth(2 + on); l.line.end(v); l.line.opacity(v > 0 ? 1 : 0);
+			l.line.stroke(mix(MUTED, ICE, on)); l.line.lineWidth(2 + on); l.line.end(v); l.line.opacity(v > 0 ? 1 : 0);
 		}
 	}
 }

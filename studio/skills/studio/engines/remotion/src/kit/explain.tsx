@@ -1,11 +1,24 @@
 import React from 'react';
-import {Rect, Svg, Txt, toPx, useStage, type XY} from './stage';
+import {Rect, Svg, Txt, pt, toPx, useStage, type Stage, type XY} from './stage';
 import {Box, Link, Panel} from './blocks';
 import {AMBER, CORAL, ICE, INK, MUTED, TRAY_EDGE, mix} from './theme';
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
 const outputLines = (text: string) => text === '' ? [] : text.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
 type Area = {at: XY; w: number; opacity?: number; size?: number; name?: string};
+
+const MIN_TEXT_PX = 18;       // the legible check's floor: a text box at least 18 px tall at 1080p
+const MONO_ADVANCE = 0.6;     // IBM Plex Mono's advance, in ems
+/**
+ * A mono text size in points: `size`, shrunk so `chars` characters fit `width` stage units, and never
+ * under 18 px on this stage (a long line shrinks to fit before it clips, down to the floor).
+ */
+export function legibleSize(s: Stage, size: number, chars = 0, width = Infinity): number {
+	const px = pt(s, 1);
+	const fit = chars > 0 ? (width * s.unit) / (chars * MONO_ADVANCE * px) : Infinity;
+	return Math.max(MIN_TEXT_PX / px, Math.min(size, fit));
+}
+const columns = (line: string) => line.replace(/\t/g, '        ').length;
 /** An unmodified file from studio steps results.json. Line ranges are 1-based, inclusive. */
 export type SourceFile = {text: string; sha256: string};
 
@@ -13,10 +26,12 @@ export const CodePanel: React.FC<Area & {
   source: SourceFile; range?: [number, number]; current?: number; plumbing?: number[];
   markers?: Record<number, string>; tokens?: {line: number; text: string; progress: number}[];
 }> = ({at, w, source, range, current, plumbing = [], markers = {}, tokens = [], opacity = 1, size = 20, name = 'code'}) => {
+  const s = useStage();
   const lines = source.text.replace(/\r\n/g, '\n').split('\n');
   if (lines.at(-1) === '') lines.pop();
   const first = range?.[0] ?? 1, last = range?.[1] ?? lines.length;
-  const shown = lines.slice(first - 1, last), lh = Math.max(18, size) * 0.031;
+  const shown = lines.slice(first - 1, last);
+  const sz = legibleSize(s, size, Math.max(0, ...shown.map(columns)), w - 1.2), lh = sz * 0.031;   // code starts 1 unit in
   return <>
     <Panel at={at} w={w} h={shown.length * lh + 0.6} opacity={opacity}/>
     {shown.map((line, i) => {
@@ -33,9 +48,9 @@ export const CodePanel: React.FC<Area & {
       }
       parts.push(line.slice(offset));
       return <React.Fragment key={n}>
-        <Txt at={[at[0] - w / 2 + 0.2, y]} anchor="left" size={Math.max(18, size)} color={current === n ? ICE : MUTED}
+        <Txt at={[at[0] - w / 2 + 0.2, y]} anchor="left" size={sz} color={current === n ? ICE : MUTED}
           opacity={opacity} name={`${name} line number ${n}`}>{markers[n] ?? String(n)}</Txt>
-        <Txt at={[at[0] - w / 2 + 1, y]} anchor="left" size={Math.max(18, size)} color={color}
+        <Txt at={[at[0] - w / 2 + 1, y]} anchor="left" size={sz} color={color}
           opacity={opacity} name={`${name} line ${n}`}>{parts}</Txt>
       </React.Fragment>;
     })}
@@ -49,10 +64,10 @@ export const Terminal: React.FC<Area & {runs: CapturedRun[]; progress?: number; 
     ...outputLines(r.stdout).map(text => ({text, color: INK})),
     ...outputLines(r.stderr).map(text => ({text, color: r.exit ? CORAL : MUTED}))]);
   const shown = lines.slice(0, Math.floor(lines.length * clamp(progress))).slice(-maxLines);
-  const lh = Math.max(18, size) * 0.031;
+  const s = useStage(), sz = legibleSize(s, size, Math.max(0, ...shown.map(l => columns(l.text))), w - 0.6), lh = sz * 0.031;
   return <><Panel at={at} w={w} h={Math.max(1, shown.length) * lh + 0.6} opacity={opacity}/>
     {shown.map((line, i) => <Txt key={i} at={[at[0] - w / 2 + 0.3, at[1] + (shown.length - 1) * lh / 2 - i * lh]}
-      size={Math.max(18, size)} anchor="left" color={line.color} opacity={opacity} name={`${name} row ${i}`}>{line.text}</Txt>)}
+      size={sz} anchor="left" color={line.color} opacity={opacity} name={`${name} row ${i}`}>{line.text}</Txt>)}
   </>;
 };
 

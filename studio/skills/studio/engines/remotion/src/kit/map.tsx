@@ -1,10 +1,11 @@
 import React from 'react';
 import {Arrow, Rect, Svg, Txt, useStage, type XY} from './stage';
-import {AMBER, CORAL, DIM, ICE, INK, MUTED, PANEL, TRAY_EDGE, TRAY_FILL, mix} from './theme';
+import {AMBER, CORAL, ICE, INK, MUTED, PANEL, TRAY_EDGE, TRAY_FILL, mix} from './theme';
 
 /**
  * The map is the system overview: component names only, plus state (which box or arrow is lit, where
- * the token is). The test for a map: any text on it that is not a component name is a bug.
+ * the token is). The test for a map: any text on it that is not a component name is a bug. An idle
+ * arrow is MUTED, at least 3:1 against the stage and panels, so a phone still shows the connection.
  * A close-up is one component or one record, full screen, opened from its box.
  */
 
@@ -84,7 +85,7 @@ export const MapView: React.FC<{
 					const on = litEdges[`${e.from}>${e.to}`] ?? 0;
 					return (
 						<Arrow key={`${e.from}>${e.to}`} from={from} to={to}
-							color={mix(DIM, ICE, on)} width={2 + on} progress={v} />
+							color={mix(MUTED, ICE, on)} width={2 + on} progress={v} />
 					);
 				})}
 			</Svg>
