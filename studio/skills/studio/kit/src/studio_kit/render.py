@@ -15,10 +15,10 @@ import hashlib
 import json
 import re
 import shutil
-import subprocess
 import time
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import audio
 from . import timeline as tl
@@ -133,10 +133,6 @@ def plan(video, timeline, quality, fmt=None):
     return rows
 
 
-def _ffmpeg(*args):
-    subprocess.run(["ffmpeg", "-v", "error", "-y", *map(str, args)], check=True)
-
-
 def mixed_sound(video, timeline):
     """The mixed soundtrack, cached under .cache/sound/ by its inputs (the audio track entries, each
     file's size and time, and the duration), so a cut that changed only pictures doesn't re-mix it."""
@@ -164,10 +160,10 @@ def composite(video, timeline, clip_files, out):
     lst = out.with_suffix(".txt")
     lst.write_text("".join(f"file '{f.resolve()}'\n" for f in clip_files))
     silent = out.with_name("silent.mp4")
-    _ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", silent)
+    proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", silent)
     sound = mixed_sound(video, timeline)
-    _ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
-            "-movflags", "+faststart", out)
+    proc.ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
+                "-movflags", "+faststart", out)
     for f in (lst, silent):
         f.unlink()
 

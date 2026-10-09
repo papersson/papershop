@@ -3,12 +3,12 @@ import hashlib
 import json
 import os
 import signal
-import subprocess
 import tempfile
 import time
 import uuid
 from pathlib import Path
 
+from . import proc
 from .workspace import atomic_json
 
 
@@ -28,11 +28,11 @@ def execute(argv, cwd, timeout):
     if not isinstance(argv, list) or not argv or not all(isinstance(x, str) for x in argv):
         raise SystemExit("commands must be nonempty argv arrays (no implicit shell)")
     t = time.monotonic()
-    p = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    p = proc.popen(argv, cwd=cwd, stdout=proc.PIPE, stderr=proc.PIPE, start_new_session=True)
     expired = False
     try:
         out, err = p.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except proc.TimeoutExpired:
         expired = True
         os.killpg(p.pid, signal.SIGKILL)
         out, err = p.communicate()
@@ -54,7 +54,7 @@ def run(video, manifest):
         inside(video / "data" / "steps", name)
         p = (manifest.parent / path).resolve()
         b = p.read_bytes()
-        git = subprocess.run(["git", "-C", str(p.parent), "rev-parse", "HEAD"], capture_output=True, text=True)
+        git = proc.run([proc.tool("git"), "-C", str(p.parent), "rev-parse", "HEAD"], capture_output=True, text=True)
         source[name] = {"path": str(p), "sha256": digest(b), "text": b.decode("utf-8"),
                         "commit": git.stdout.strip() if git.returncode == 0 else None}
     # Content-addressed results avoid overwriting evidence from an earlier run.

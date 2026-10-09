@@ -10,10 +10,10 @@
 import hashlib
 import json
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 
+from . import proc
 from . import assets
 from . import timeline as tl
 from .engine import Engine
@@ -56,8 +56,7 @@ def dead_beats(video, step=1.0, limit=DEAD_LIMIT, engine=None):
 
 
 def _raw(png):
-    return subprocess.run(["ffmpeg", "-v", "error", "-i", str(png), "-vf", "scale=192:-1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-                          capture_output=True, check=True).stdout
+    return proc.ffmpeg("-i", png, "-vf", "scale=192:-1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-", capture_output=True).stdout
 
 
 def loop_seam(video, engine=None):

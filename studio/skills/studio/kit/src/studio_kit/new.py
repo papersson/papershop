@@ -7,9 +7,9 @@ STUDIO_HOME also holds learner.md, the learner model every video's student revie
 import json
 import re
 import shutil
-import subprocess
 from pathlib import Path
 
+from . import proc
 from . import settings
 from .env import ROOT
 from .review import studio_home
@@ -26,9 +26,9 @@ def source_record(path):
     p = Path(path).expanduser().resolve()
     rec = {"path": str(p)}
     try:
-        rec["commit"] = subprocess.run(["git", "-C", str(p), "rev-parse", "HEAD"], capture_output=True, text=True,
-                                       check=True).stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
+        rec["commit"] = proc.run(["git", "-C", str(p), "rev-parse", "HEAD"], capture_output=True, text=True,
+                                 check=True).stdout.strip()
+    except (proc.CalledProcessError, FileNotFoundError):
         pass
     return rec
 

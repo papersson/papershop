@@ -16,9 +16,9 @@ gain} is trimmed, delayed to its start and summed.
 """
 import json
 import re
-import subprocess
 from pathlib import Path
 
+from . import proc
 from . import timeline as tl
 
 RATE = 48_000
@@ -27,8 +27,8 @@ MAX_PASSES = 4
 
 def measure(path):
     """(integrated LUFS, true peak dBTP) of an audio file, from ffmpeg's ebur128."""
-    run = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af", "ebur128=peak=true",
-                          "-f", "null", "-"], capture_output=True, text=True)
+    run = proc.run([proc.tool("ffmpeg"), "-hide_banner", "-nostats", "-i", str(path), "-af", "ebur128=peak=true",
+                    "-f", "null", "-"], capture_output=True, text=True)
     text = run.stderr.split("Summary:")[-1]
     lufs = re.search(r"I:\s+(-?[\d.]+) LUFS", text)
     peak = re.search(r"Peak:\s+(-?[\d.]+) dBFS", text)
@@ -62,10 +62,10 @@ def finish(video, lufs=-16.0, peak=-1.5):
     ceiling = peak
     for _ in range(MAX_PASSES):
         limit = 10 ** (ceiling / 20)
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-af",
-                        f"aresample={RATE}:resampler=soxr:precision=28,volume={gain:.3f}dB,"
-                        f"alimiter=limit={limit:.4f}:attack=5:release=50:level=disabled",
-                        "-c:a", "pcm_s24le", str(out)], check=True)
+        proc.ffmpeg("-i", src, "-af",
+                    f"aresample={RATE}:resampler=soxr:precision=28,volume={gain:.3f}dB,"
+                    f"alimiter=limit={limit:.4f}:attack=5:release=50:level=disabled",
+                    "-c:a", "pcm_s24le", out)
         got, tp = measure(out)
         settled = abs(got - lufs) <= 0.3 and tp <= peak + 0.05
         if settled:
@@ -102,10 +102,9 @@ def mix(video, timeline, out):
     dur = timeline["duration"]
     entries = [e for e in timeline["tracks"]["audio"] if pick(video, e["file"]).exists()]
     if not entries:      # a silent video (a motion piece before its music, estimated timings): silence, not a failure
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"anullsrc=r={RATE}:cl=stereo", "-t", f"{dur:.3f}",
-                        "-c:a", "aac", "-b:a", "96k", str(out)], check=True)
+        proc.ffmpeg("-f", "lavfi", "-i", f"anullsrc=r={RATE}:cl=stereo", "-t", f"{dur:.3f}", "-c:a", "aac", "-b:a", "96k", out)
         return
-    cmd = ["ffmpeg", "-v", "error", "-y"]
+    cmd = []
     filters = []
     for i, e in enumerate(entries):
         cmd += ["-i", str(pick(video, e["file"]))]
@@ -126,7 +125,7 @@ def mix(video, timeline, out):
     join = "".join(f"[a{i}]" for i in range(len(entries)))
     filters.append(f"{join}amix=inputs={len(entries)}:normalize=0:duration=longest,apad=whole_dur={dur:.3f},atrim=end={dur:.3f}[m]")
     cmd += ["-filter_complex", ";".join(filters), "-map", "[m]", "-c:a", "aac", "-b:a", "160k", str(out)]
-    subprocess.run(cmd, check=True)
+    proc.ffmpeg(*cmd)
 
 
 def main(args):

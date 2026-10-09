@@ -12,7 +12,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import render, settings
+from . import proc, render, settings
 from . import timeline as tl
 
 SCALE = 0.5               # animatic stills: 960×540 from a 1080p layout
@@ -45,9 +45,8 @@ def segments(timeline, stills):
 def stage_digest(still, stage_fraction):
     """A hash of the still above the caption band: captions change every sentence, so hashing the
     whole frame would never find the same picture twice."""
-    import subprocess
-    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(still), "-vf", f"crop=iw:trunc(ih*{stage_fraction:.4f}/2)*2:0:0",
-                        "-f", "md5", "-"], capture_output=True, text=True, check=True)
+    r = proc.ffmpeg("-i", still, "-vf", f"crop=iw:trunc(ih*{stage_fraction:.4f}/2)*2:0:0", "-f", "md5", "-",
+                    capture_output=True, text=True)
     return r.stdout.strip()
 
 
@@ -118,11 +117,11 @@ def make(video, boards=False):
     lst.write_text("".join(f"file '{(d / f).resolve()}'\nduration {sec:.3f}\n" for f, sec in segs)
                    + f"file '{(d / segs[-1][0]).resolve()}'\n")
     silent = d / "silent.mp4"
-    render._ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-vf", f"fps={timeline['fps']},format=yuv420p",
-                   "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", silent)
+    proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-vf", f"fps={timeline['fps']},format=yuv420p",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", silent)
     sound = render.mixed_sound(video, timeline)
-    render._ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
-                   "-movflags", "+faststart", d / "video.mp4")
+    proc.ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
+                "-movflags", "+faststart", d / "video.mp4")
     for f in (lst, silent):
         f.unlink()
     report = pacing(video, timeline, d, stills, segs, boards)

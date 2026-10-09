@@ -13,10 +13,10 @@ screen must be able to say where the screen came from.
 import hashlib
 import json
 import shutil
-import subprocess
 import time
 from pathlib import Path
 
+from . import proc
 from .env import resolve_browser
 
 KINDS = ("capture", "generated", "supplied")
@@ -64,7 +64,7 @@ def capture(video, url, name=None, size=(1440, 900), wait_ms=4000):
     shell = Path(browser).name.startswith("chrome-headless-shell")
     cmd = [browser, "--headless" if shell else "--headless=new", "--disable-gpu", "--hide-scrollbars",
            f"--window-size={size[0]},{size[1]}", f"--virtual-time-budget={wait_ms}", f"--screenshot={out}", url]
-    run = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    run = proc.run(cmd, capture_output=True, text=True, timeout=120)
     if not out.exists():
         raise SystemExit(f"capture failed: {run.stderr.strip()[-400:]}")
     return record(video, out.name, "capture", url, params={"size": list(size), "wait_ms": wait_ms, "browser": source})

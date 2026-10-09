@@ -14,9 +14,9 @@ when the labels measured 26 px. The crops and their sizes are what the frame rev
 import json
 import math
 import shutil
-import subprocess
 from pathlib import Path
 
+from . import proc
 from . import cuts, render
 from . import timeline as tl
 from .engine import Engine
@@ -31,7 +31,7 @@ def tile(files, out, cols, width=None):
     if not files:
         return None
     rows = math.ceil(len(files) / cols)
-    cmd = ["ffmpeg", "-v", "error", "-y"]
+    cmd = []
     for f in files:
         cmd += ["-i", f]
     scale = f"scale={width}:-1," if width else ""
@@ -39,7 +39,7 @@ def tile(files, out, cols, width=None):
     join = "".join(f"[v{i}]" for i in range(len(files)))
     cmd += ["-filter_complex", f"{chain}{join}concat=n={len(files)}:v=1:a=0,tile={cols}x{rows}:padding=4:color=white[o]",
             "-map", "[o]", "-frames:v", "1", str(out)]
-    subprocess.run(cmd, check=True)
+    proc.ffmpeg(*cmd)
     return out
 
 
@@ -97,10 +97,10 @@ def _crop_all(src, boxes, outdir, names):
         return
     split = f"[0:v]split={len(boxes)}" + "".join(f"[s{i}]" for i in range(len(boxes)))
     chains = [f"[s{i}]crop={w}:{h}:{x}:{y}[o{i}]" for i, (x, y, w, h) in enumerate(boxes)]
-    cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-filter_complex", ";".join([split, *chains])]
+    cmd = ["-i", str(src), "-filter_complex", ";".join([split, *chains])]
     for i, name in enumerate(names):
         cmd += ["-map", f"[o{i}]", str(outdir / name)]
-    subprocess.run(cmd, check=True)
+    proc.ffmpeg(*cmd)
 
 
 def crops(video, out, below=40, ids=None, engine=None):

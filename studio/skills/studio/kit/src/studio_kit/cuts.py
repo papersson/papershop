@@ -6,10 +6,10 @@ movie), "boards" (frames drawn from the boards, before scene code), "animatic" (
 held to the narration, with its audio), "cut" (the scenes rendered at draft quality) and "final".
 Only "cut" and "final" are the video itself; publish and frame review choose among those."""
 import json
-import subprocess
 import sys
 from pathlib import Path
 
+from . import proc
 from .workspace import atomic_json, locked, now
 
 
@@ -91,16 +91,13 @@ def main_open(args):
     p = (Path(args.video) / "cuts" / f"cut{n}" / "video.mp4").resolve()
     command = ["open" if sys.platform == "darwin" else "xdg-open", str(p)]
     try:
-        subprocess.run(command, check=True, timeout=30)
-    except (OSError, subprocess.SubprocessError) as e:
+        proc.run(command, check=True, timeout=30)
+    except (OSError, proc.SubprocessError) as e:
         raise SystemExit(f"cut {n} protected, but the player could not open {p}: {e}")
     print(f"opened cut {n}: {p} (protected; playback completion is not measured)")
 
 
 def media_info(path):
-    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-                        "stream=width,height,r_frame_rate", "-of", "json", str(path)],
-                       capture_output=True, text=True, check=True)
-    s = json.loads(r.stdout)["streams"][0]
+    s = proc.ffprobe(path, "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate")["streams"][0]
     a, b = s["r_frame_rate"].split("/")
     return {"width": s["width"], "height": s["height"], "fps": float(a) / float(b)}

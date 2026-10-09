@@ -4,10 +4,10 @@ Every engine is a CLI under engines/<name>/ that prints one JSON object per call
 the only place the kit calls it, so a second engine only needs a second `_command`.
 """
 import json
-import subprocess
 import tempfile
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
@@ -37,7 +37,7 @@ class Engine:
     def _command(self, op, *args):
         if self.name not in ENGINES:
             raise EngineError(f"no engine named {self.name}; known: {', '.join(ENGINES)}")
-        cmd = ["node", str(engine_dir(self.name) / "cli.mjs"), op, "--video", str(self.video), *args]
+        cmd = [proc.tool("node"), str(engine_dir(self.name) / "cli.mjs"), op, "--video", str(self.video), *args]
         if self.browser:
             cmd += ["--browser", self.browser]
         if self.fmt and self.fmt != "16:9":
@@ -45,7 +45,7 @@ class Engine:
         return cmd
 
     def _call(self, op, *args):
-        run = subprocess.run(self._command(op, *map(str, args)), capture_output=True, text=True)
+        run = proc.run(self._command(op, *map(str, args)), capture_output=True, text=True)
         if run.returncode != 0:
             cause = run.stderr.strip()[-3000:]
             browser_failure = any(s in cause.lower() for s in ("failed to launch", "browser process", "sandbox", "operation not permitted", "eacces"))

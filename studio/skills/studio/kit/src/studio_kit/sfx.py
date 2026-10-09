@@ -132,9 +132,9 @@ def lab(video):
             v = voice(r["kind"], **r["params"]).astype(np.float32)
             n = int((s["end"] + 1.2) * RATE)
             buf = np.zeros(n + RATE, dtype=np.float32)
-            import subprocess
-            pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(narr), "-t", f"{s['end'] + 0.3:.2f}", "-f", "f32le", "-ac", "1",
-                                  "-ar", str(RATE), "-"], capture_output=True, check=True).stdout
+            from . import proc
+            pcm = proc.ffmpeg("-i", narr, "-t", f"{s['end'] + 0.3:.2f}", "-f", "f32le", "-ac", "1", "-ar", RATE, "-",
+                              capture_output=True).stdout
             voice_pcm = np.frombuffer(pcm, dtype=np.float32)
             buf[:len(voice_pcm)] = voice_pcm[:len(buf)]
             i = int((s["end"] + 0.3) * RATE)

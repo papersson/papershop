@@ -38,11 +38,11 @@ import json
 import math
 import os
 import re
-import subprocess
 import urllib.error
 import urllib.request
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import script as sc
 from . import timeline as tl
@@ -403,8 +403,8 @@ def eleven_engine(S, chunks, yes=False):
     def synth(full, prev, nxt):
         _, f = eleven_request(S, full, prev, nxt)
         r = json.loads(f.read_text())
-        pcm = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-f", "f32le", "-ac", "1", "-ar", str(RATE), "pipe:1"],
-                             input=base64.b64decode(r["audio_base64"]), capture_output=True, check=True).stdout
+        pcm = proc.ffmpeg("-i", "pipe:0", "-f", "f32le", "-ac", "1", "-ar", RATE, "pipe:1",
+                          input=base64.b64decode(r["audio_base64"]), capture_output=True).stdout
         return np.frombuffer(pcm, dtype=np.float32).copy(), eleven_words(full, r["alignment"])
 
     return synth
@@ -553,8 +553,7 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
             track[i: i + len(clips[ln["id"]])] = clips[ln["id"]]
     track = track[: int(timings["total"] * RATE)]
     sf.write(S.audio / "narration.wav", track, RATE)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(S.audio / "narration.wav"),
-                    "-codec:a", "libmp3lame", "-b:a", "128k", str(S.audio / "narration.mp3")], check=True)
+    proc.ffmpeg("-i", S.audio / "narration.wav", "-codec:a", "libmp3lame", "-b:a", "128k", S.audio / "narration.mp3")
     timings["phonemes"] = spoken_text
     timings["peak"] = float(np.abs(track).max())
     (S.audio / "timings.json").write_text(json.dumps(timings, indent=1))

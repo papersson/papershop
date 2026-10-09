@@ -12,10 +12,10 @@ Both look only at the canvas, found through the engine's `boxes` (the element na
 so the caption band and the stage's background don't have to be in the palette.
 """
 import json
-import subprocess
 import tempfile
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import timeline as tl
 from .check import SLACK, sample_times
@@ -35,8 +35,7 @@ def hex_rgb(h):
 
 
 def _ffmpeg_raw(png, vf):
-    return subprocess.run(["ffmpeg", "-v", "error", "-i", str(png), "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-                          capture_output=True, check=True).stdout
+    return proc.ffmpeg("-i", png, "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-", capture_output=True).stdout
 
 
 def _differing_pixels(png, crop, k):

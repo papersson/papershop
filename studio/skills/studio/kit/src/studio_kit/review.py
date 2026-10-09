@@ -17,11 +17,11 @@ is not isolated from the project reviews with knowledge a newcomer would not hav
 import json
 import os
 import re
-import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from . import proc
 from . import settings
 from .env import ROOT
 from .script import sections
@@ -131,8 +131,8 @@ def narrative_inputs(video, narrative):
 
 def run_reviewer(text, runner=None):
     """One reviewer in an empty folder; retried once. Returns its output or raises."""
-    runner = runner or (lambda t, cwd: subprocess.run(["claude", "-p"], input=t, capture_output=True, text=True,
-                                                      timeout=1800, cwd=cwd))
+    runner = runner or (lambda t, cwd: proc.run(["claude", "-p"], input=t, capture_output=True, text=True,
+                                                timeout=1800, cwd=cwd))
     last = None
     for _ in range(2):
         with tempfile.TemporaryDirectory() as empty:

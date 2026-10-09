@@ -21,9 +21,9 @@ more than 3 LU from the median), sync (a recording's audio and video lengths dif
 import json
 import re
 import shutil
-import subprocess
 from pathlib import Path
 
+from . import proc
 from . import assets
 from . import timeline as tl
 
@@ -41,16 +41,14 @@ def folder(video):
 
 
 def probe(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,duration,width,height:format=duration",
-                          "-of", "json", str(path)], capture_output=True, text=True, check=True).stdout
-    return json.loads(out)
+    return proc.ffprobe(path, "-show_entries", "stream=codec_type,duration,width,height:format=duration")
 
 
 def shots(path, threshold=0.3):
     """Scene-change times in seconds."""
-    run = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-vf",
-                          f"select='gt(scene,{threshold})',metadata=print:file=-", "-an", "-f", "null", "-"],
-                         capture_output=True, text=True)
+    run = proc.run([proc.tool("ffmpeg"), "-hide_banner", "-nostats", "-i", str(path), "-vf",
+                    f"select='gt(scene,{threshold})',metadata=print:file=-", "-an", "-f", "null", "-"],
+                   capture_output=True, text=True)
     return [round(float(m.group(1)), 3) for m in re.finditer(r"pts_time:([\d.]+)", run.stdout + run.stderr)]
 
 
@@ -159,8 +157,7 @@ def _loudness(path, a, b):
     from . import audio
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(a), "-t", str(b - a), "-i", str(path), "-vn", "-ac", "1", f.name],
-                       check=True)
+        proc.ffmpeg("-ss", a, "-t", b - a, "-i", path, "-vn", "-ac", "1", f.name)
         return audio.measure(f.name)[0]
 
 
@@ -193,7 +190,7 @@ def checks(video):
         if f["out"] - f["in"] >= 1.0:
             try:
                 base = _loudness(video / "assets" / f["file"], f["in"], f["out"])
-            except (subprocess.CalledProcessError, RuntimeError):
+            except (proc.CalledProcessError, RuntimeError):
                 rows.append({"check": "levels", "clip": f["id"], "ok": False, "detail": "cannot measure this segment's audio"})
                 continue
             gain = next((e.get("gain", 0) for e in t["tracks"]["audio"] if e.get("start") == f["start"]), 0)
@@ -207,7 +204,7 @@ def checks(video):
     for name in sorted({f["file"] for f in t["tracks"].get("footage", [])}):
         try:
             info = probe(video / "assets" / name)
-        except subprocess.CalledProcessError:
+        except proc.CalledProcessError:
             rows.append({"check": "sync", "clip": name, "ok": False, "detail": "ffprobe cannot read the file"})
             continue
         by = {s["codec_type"]: float(s["duration"]) for s in info["streams"] if s.get("duration")}

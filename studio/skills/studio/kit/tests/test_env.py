@@ -45,7 +45,7 @@ def test_spacy_wheel_uses_configured_index_without_github_fallback(monkeypatch, 
     def run(cmd, **kwargs):
         calls.append((cmd, kwargs))
         return SimpleNamespace(stdout="3.8\n" if len(calls) == 1 else "", returncode=0)
-    monkeypatch.setattr(doctor.subprocess, "run", run)
+    monkeypatch.setattr(doctor.proc, "run", run)
     doctor.install_spacy_model()
     assert calls[1][0][-1] == "en-core-web-sm~=3.8.0"
     assert calls[1][1]["env"]["UV_INDEX_URL"] == expected

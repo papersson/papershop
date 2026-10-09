@@ -8,8 +8,9 @@ collects the most onset strength. Writes audio/beats.json and timeline.json's "b
 Scenes read them with `useClip().beat(i)` and `useClip().hits`. Numpy only; the `audio` extra.
 """
 import json
-import subprocess
 from pathlib import Path
+
+from . import proc
 
 RATE = 22_050
 N_FFT = 1024
@@ -19,8 +20,7 @@ BPM_RANGE = (70, 190)
 
 def load_mono(path):
     import numpy as np
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(RATE), "-"],
-                         capture_output=True, check=True).stdout
+    raw = proc.ffmpeg("-i", path, "-f", "f32le", "-ac", "1", "-ar", RATE, "-", capture_output=True).stdout
     return np.frombuffer(raw, dtype=np.float32)
 
 

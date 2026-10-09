@@ -9,10 +9,10 @@ import importlib.util
 from pathlib import Path
 from importlib.metadata import version, PackageNotFoundError
 import shutil
-import subprocess
 import sys
 import urllib.request
 
+from . import proc
 from .env import ROOT, engine_dir, resolve_browser
 
 OK, WARN, FAIL = "ok", "warn", "FAIL"
@@ -24,8 +24,8 @@ HOSTS = ["https://registry.npmjs.org/", "https://huggingface.co/", "https://cach
 
 def _version(cmd):
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
-    except (OSError, subprocess.TimeoutExpired):
+        out = proc.run(cmd, capture_output=True, text=True, timeout=20)
+    except (OSError, proc.TimeoutExpired):
         return None
     m = re.search(r"(\d+)\.(\d+)", out.stdout + out.stderr)
     return (int(m.group(1)), int(m.group(2))) if m else None
@@ -60,9 +60,9 @@ def check_browser():
         return WARN, "browser", "none installed; the engine downloads its headless shell on first use", \
             "install Chrome or set STUDIO_BROWSER (a proxy may block the download)"
     try:
-        run = subprocess.run([path, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"],
-                             capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired) as e:
+        run = proc.run([path, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"],
+                       capture_output=True, text=True, timeout=30)
+    except (OSError, proc.TimeoutExpired) as e:
         return FAIL, "browser", f"{path} ({source}) did not start: {e}", "set STUDIO_BROWSER to a working Chrome"
     if "<html" not in run.stdout:
         return FAIL, "browser", f"{path} ({source}) returned no page", "set STUDIO_BROWSER to a working Chrome"
@@ -84,17 +84,17 @@ def fetch(engines=("remotion",), extras=()):
     """Install what is downloaded rather than pinned in the flake: each engine's node packages, and
     any optional Python extras (e.g. `align`). Inexact, so extras installed earlier stay."""
     for name in engines:
-        subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=engine_dir(name), check=True)
+        proc.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=engine_dir(name), check=True)
         if name != "remotion":
             continue           # every engine uses the browser Remotion's renderer downloads
         # The headless shell; a blocked download is not fatal, the installed Chrome still works.
-        get = subprocess.run(["node", "-e", "import('@remotion/renderer').then(r => r.ensureBrowser())"],
-                             cwd=engine_dir(name))
+        get = proc.run(["node", "-e", "import('@remotion/renderer').then(r => r.ensureBrowser())"],
+                       cwd=engine_dir(name))
         if get.returncode != 0:
             print("warn: the headless shell did not download; falling back to an installed Chrome")
     if extras:
         cmd = ["uv", "sync", "--quiet", "--frozen", "--inexact", "--project", str(ROOT / "kit")]
-        subprocess.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)
+        proc.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)
         if "kokoro" in extras:
             install_spacy_model()
 
@@ -140,9 +140,9 @@ def require_extra(extra):
 
 def install_spacy_model():
     # spaCy and its language model share a major/minor compatibility family.
-    probe = subprocess.run([str(ROOT / "kit/.venv/bin/python"), "-c",
-                            "from importlib.metadata import version; print('.'.join(version('spacy').split('.')[:2]))"],
-                           capture_output=True, text=True, check=True)
+    probe = proc.run([str(ROOT / "kit/.venv/bin/python"), "-c",
+                      "from importlib.metadata import version; print('.'.join(version('spacy').split('.')[:2]))"],
+                     capture_output=True, text=True, check=True)
     family = probe.stdout.strip()
     if not re.fullmatch(r"\d+\.\d+", family):
         raise SystemExit("could not determine the installed spaCy model compatibility family")
@@ -151,7 +151,7 @@ def install_spacy_model():
         env["UV_INDEX_URL"] = env["PIP_INDEX_URL"]
     cmd = ["uv", "pip", "install", "--python", str(ROOT / "kit/.venv/bin/python"),
            f"en-core-web-sm~={family}.0"]
-    r = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    r = proc.run(cmd, env=env, capture_output=True, text=True)
     if r.returncode:
         raise SystemExit("spaCy model wheel unavailable through the configured index. Supply a compatible "
                          "en-core-web-sm wheel on UV_INDEX_URL/PIP_INDEX_URL, then rerun " + repair("kokoro") +

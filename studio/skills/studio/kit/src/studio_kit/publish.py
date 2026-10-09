@@ -14,9 +14,9 @@ where no database is available (a local file). Publishing the folder is the Arti
 import html
 import json
 import shutil
-import subprocess
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import audio, render
 from . import timeline as tl
@@ -40,10 +40,9 @@ def web_settings(duration, limit=WEB_LIMIT):
 
 
 def _encode_part(src, dst, height, video_kbps):
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-an", "-vf", f"scale=-2:{height}:flags=lanczos",
-                    "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", str(WEB_CRF),
-                    "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p",
-                    str(dst)], check=True)
+    proc.ffmpeg("-i", src, "-an", "-vf", f"scale=-2:{height}:flags=lanczos",
+                "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", WEB_CRF,
+                "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p", dst)
 
 
 def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cache=None):
@@ -71,18 +70,18 @@ def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cach
                     old.unlink()
             lst = dst.with_suffix(".txt")
             lst.write_text("".join(f"file '{f.resolve()}'\n" for f in files))
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(sound),
-                            "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", f"{audio_kbps}k",
-                            "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1", "-t", f"{duration:.3f}",
-                            "-movflags", "+faststart", str(dst)], check=True)
+            proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-i", sound,
+                        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", f"{audio_kbps}k",
+                        "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1", "-t", f"{duration:.3f}",
+                        "-movflags", "+faststart", dst)
             lst.unlink()
             print(f"web video: encoded {made} chapter(s), {len(parts) - made} unchanged (cached)")
         else:
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-vf", f"scale=-2:{height}:flags=lanczos",
-                            "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", str(WEB_CRF),
-                            "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p",
-                            "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1",
-                            "-movflags", "+faststart", str(dst)], check=True)
+            proc.ffmpeg("-i", src, "-vf", f"scale=-2:{height}:flags=lanczos",
+                        "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", WEB_CRF,
+                        "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p",
+                        "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1",
+                        "-movflags", "+faststart", dst)
         size = dst.stat().st_size
         if size <= limit:
             return {"height": height, "video_kbps": video_kbps, "audio_kbps": audio_kbps, "bytes": size, "passes": attempt + 1}
@@ -168,8 +167,8 @@ def build(video, skip_gate=False):
     print(f"web video: {web['height']}p, video ≤{web['video_kbps']} kbps, audio {web['audio_kbps']} kbps, "
           f"{web['bytes'] / 2**20:.1f} MiB (limit {WEB_LIMIT / 2**20:.0f} MiB); master: {master}")
     shutil.copyfile(out / "web.mp4", page / "video.mp4")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{poster_time(t, cfg.get('poster')):.2f}", "-i", str(src),
-                    "-frames:v", "1", "-vf", "scale=1280:-2", "-q:v", "4", str(page / "poster.jpg")], check=True)
+    proc.ffmpeg("-ss", f"{poster_time(t, cfg.get('poster')):.2f}", "-i", src,
+                "-frames:v", "1", "-vf", "scale=1280:-2", "-q:v", "4", page / "poster.jpg")
     (page / "index.html").write_text(page_html(t, cfg, rec["cut"]), encoding="utf-8")
     size = (page / "video.mp4").stat().st_size / 1e6
     print(f"cut {rec['cut']} (final) → {page}/index.html, video {size:.1f} MB")

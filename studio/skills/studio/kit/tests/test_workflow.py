@@ -164,7 +164,7 @@ def test_failed_opener_still_protects_cut(tmp_path, monkeypatch):
     (d / "video.mp4").write_bytes(b"movie")
     def fail(*args, **kwargs):
         raise OSError("no player")
-    monkeypatch.setattr(cuts.subprocess, "run", fail)
+    monkeypatch.setattr(cuts.proc, "run", fail)
     with pytest.raises(SystemExit, match="protected, but"):
         cuts.main_open(SimpleNamespace(video=tmp_path, cut=None))
     assert json.loads((d / "cut.json").read_text())["watched"]

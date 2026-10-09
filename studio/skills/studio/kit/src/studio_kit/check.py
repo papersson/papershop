@@ -20,13 +20,13 @@ checks every chapter, and `studio publish` always runs the full check as its gat
 """
 import hashlib
 import json
-import subprocess
 import tempfile
 import shutil
 import struct
 import uuid
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import timeline as tl
 from .engine import Engine
@@ -90,8 +90,7 @@ def determinism(video, samples=3, engine=None, clips=None):
     def pixels(path):
         data = Path(path).read_bytes()
         dimensions = struct.unpack(">II", data[16:24])
-        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgba", "-"],
-                             capture_output=True, check=True).stdout
+        raw = proc.ffmpeg("-i", path, "-f", "rawvideo", "-pix_fmt", "rgba", "-", capture_output=True).stdout
         return digest(struct.pack(">II", *dimensions) + raw), digest(data), raw
 
     digest = lambda data: hashlib.sha256(data).hexdigest()
@@ -186,8 +185,8 @@ def band_guard(video, samples=3, engine=None, boxes=None):
 def _band_pixels(png, lay):
     """Raw RGB bytes of the caption band region of an image, through ffmpeg."""
     h = lay["band"]["height"]
-    return subprocess.run(["ffmpeg", "-v", "error", "-i", str(png), "-vf", f"crop={lay['width']}:{h}:0:{lay['height'] - h}",
-                           "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
+    return proc.ffmpeg("-i", png, "-vf", f"crop={lay['width']}:{h}:0:{lay['height'] - h}",
+                       "-f", "rawvideo", "-pix_fmt", "rgb24", "-", capture_output=True).stdout
 
 
 def luminance(rgb):
