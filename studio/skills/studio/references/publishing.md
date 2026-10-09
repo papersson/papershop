@@ -2,10 +2,14 @@
 
 ## One revision procedure
 
-Local page notes and published/chat notes enter the same loop. Serve with `studio serve`, or
-open the MP4 with `studio open VIDEO [CUT]` to protect it. The page records playback handoffs too.
-Wait for a submitted batch (or explicit chat instructions), read `studio notes`, save the original
-annotations, and map each note to the sentence/chapter of that cut. An empty note still means “here.”
+Desk notes and published/chat notes enter the same loop. Open the desk with `studio desk VIDEO`, or
+open the MP4 with `studio open VIDEO [CUT]` to protect it. The desk records playback handoffs too.
+Either wait for a submitted batch (or explicit chat instructions) and read `studio notes`, or, when
+the user wants to follow along, run `studio wait VIDEO` in the background and take each note as it
+arrives: `studio notes VIDEO --start ID`, the change, a new cut, then `--resolve ID --reply "…"`
+with one line saying what changed (it shows under the note, on the cut that answers it). Keep
+`studio status VIDEO "…" --busy` current while working. Save the original annotations, and map each
+note to the sentence/chapter of its cut. An empty note still means “here.”
 
 1. Read the narrative Decisions, current review findings and pending research/requests.md.
 2. Start a round: `studio stage VIDEO round --kind local|structural --summary "…"`. The summary

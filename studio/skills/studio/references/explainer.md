@@ -172,7 +172,7 @@ Check a frame with `studio still`, then `studio cut` for changed clips only. Bef
 `studio check`, `studio sheets`, and one craft pass on changed chapters for readability, motion,
 composition, synchronization and banned defaults. Inspect full-resolution crops; a reduced
 contact sheet does not establish font size. Fix the significant findings; avoid endless polish.
-`studio open VIDEO [CUT]` opens and protects an MP4; `studio serve` provides annotation playback.
+`studio open VIDEO [CUT]` opens and protects an MP4; `studio desk` provides annotation playback.
 
 ## Stage 11: Independent frame review
 

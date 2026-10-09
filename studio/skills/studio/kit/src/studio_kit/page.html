@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review</title>
+<title>Desk</title>
 <style>
 :root {
   --bg: #0b0e12; --panel: #12171d; --line: #232b34; --ink: #e6ebf0; --muted: #8c97a4; --faint: #56606b;
@@ -17,6 +17,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
 button, textarea, select { font: inherit; color: inherit; }
 header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid var(--line); }
@@ -62,6 +63,13 @@ ol.notes li:first-child { border-top: 0; padding-top: 0; }
 .link.quiet { color: var(--faint); }
 .empty { color: var(--faint); font-size: 14px; }
 .sent { color: var(--accent); font-size: 13px; }
+.builder { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.builder .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.builder.busy .dot { background: var(--warn); animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+.tag.working { color: var(--warn); border-color: var(--warn); }
+.tag.done { color: var(--accent); border-color: var(--accent); }
+.reply { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
 section.below { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 24px; }
 section.below h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 8px; }
@@ -79,10 +87,11 @@ ul.changes { margin: 0; padding-left: 20px; }
 </head>
 <body>
 <header>
-  <h1 id="title">Review</h1>
+  <h1 id="title">Desk</h1>
   <select id="cutpick" aria-label="Cut"></select>
   <span class="meta" id="cutmeta"></span>
   <span class="spacer"></span>
+  <span class="builder" id="builder" hidden><span class="dot"></span><span id="buildertext"></span></span>
   <span class="sent" id="sentline"></span>
   <button class="btn primary" id="send" disabled>Send round</button>
 </header>
@@ -191,10 +200,18 @@ function load(n) {
       P.longest_unchanged.seconds.toFixed(0) + ' s at ' + Math.floor(P.longest_unchanged.at / 60) + ':' +
       String(Math.round(P.longest_unchanged.at % 60)).padStart(2, '0') : '');
     if (first) {
-      if (S.cut.video) { video.src = '/cut' + cutN + '/' + S.cut.video; video.hidden = false; }
+      if (S.cut.video) {
+        var at = video.currentTime || 0, wasPlaying = !video.paused;
+        video.src = '/cut' + cutN + '/' + S.cut.video; video.hidden = false;
+        if (at) video.addEventListener('loadedmetadata', function once() {
+          video.removeEventListener('loadedmetadata', once);
+          video.currentTime = Math.min(at, video.duration || at);
+          if (wasPlaying) video.play();
+        });
+      }
       else { video.removeAttribute('src'); video.hidden = true; }
     }
-    renderChapters(); renderNotes(); renderChangelog(); renderStills();
+    renderChapters(); renderNotes(); renderChangelog(); renderStills(); renderBuilder();
   });
 }
 
@@ -209,16 +226,26 @@ function renderNotes() {
   var plural = function (k) { return k + (k === 1 ? ' note' : ' notes'); };
   $('notes').innerHTML = S.notes.length ? S.notes.map(function (n, i) {
     return '<li><div class="row"><button class="link mono" data-seek="' + n.t + '">' + (i + 1) + '. ' + mmss(n.t) + '</button>' +
-      '<span class="tag">' + esc(n.kind) + '</span><span class="hint mono">' + esc(n.sentence_id) + '</span>' +
+      '<span class="tag">' + esc(n.kind) + '</span>' +
+      (n.status && n.status !== 'queued' ? '<span class="tag ' + n.status + '">' + n.status + '</span>' : '') +
+      (n.cut !== cutN ? '<span class="tag">cut ' + n.cut + '</span>' : '') +
+      '<span class="hint mono">' + esc(n.sentence_id) + '</span>' +
       '<span class="spacer" style="flex:1"></span><button class="link quiet" data-edit="' + n.id + '">edit</button>' +
       '<button class="link quiet" data-del="' + n.id + '">delete</button></div>' +
       '<div>' + (n.note ? esc(n.note) : '<span class="hint">(here)</span>') + '</div>' +
-      '<p class="quote">' + esc(n.sentence) + '</p></li>';
+      '<p class="quote">' + esc(n.sentence) + '</p>' +
+      (n.reply ? '<p class="reply">\u21b3 ' + esc(n.reply) + '</p>' : '') + '</li>';
   }).join('') : '<li class="empty">Pause anywhere and press A to leave a note.</li>';
   var fresh = S.notes.filter(function (n) { return !round || round.notes.indexOf(n.id) < 0; }).length;
   $('send').disabled = !S.notes.length || !fresh || cutN !== S.latest;
   $('sentline').textContent = round ? 'Round sent ' + round.created.slice(11, 16) + ' with ' + plural(round.notes.length) +
     (fresh ? '; ' + fresh + ' new since' : '') : '';
+}
+function renderBuilder() {
+  var st = S.status;
+  $('builder').hidden = !(st && st.text);
+  $('builder').classList.toggle('busy', !!(st && st.busy));
+  $('buildertext').textContent = st && st.text ? st.text : '';
 }
 function renderChangelog() {
   var c = S.cut, html = '';
@@ -328,10 +355,19 @@ video.addEventListener('timeupdate', function () {
   Array.prototype.forEach.call($('chapters').children, function (b) { b.classList.toggle('on', b.dataset.id === c.id); });
   Array.prototype.forEach.call(document.querySelectorAll('.strip figure'), function (f) { f.classList.toggle('now', f.dataset.id === s.id); });
 });
-// A new cut replaces the old one on the page without a reload.
-setInterval(function () {
-  api('/api/state').then(function (st) { if (st.latest !== S.latest && cutN === S.latest) { cutN = null; load(); } });
-}, 5000);
+// Live updates: notes and the builder's status redraw in place; a new cut replaces the one on
+// screen (at the same moment) when the latest was showing. Falls back to polling without events.
+function onCut() {
+  api('/api/state').then(function (st) { if (S && st.latest !== S.latest && cutN === S.latest) { cutN = null; load(); } });
+}
+if (window.EventSource) {
+  var events = new EventSource('/api/events');
+  events.addEventListener('notes', function () { if (S) load(cutN); });
+  events.addEventListener('status', function () { if (S) load(cutN); });
+  events.addEventListener('cut', onCut);
+} else {
+  setInterval(onCut, 5000);
+}
 load();
 </script>
 </body>

@@ -26,7 +26,7 @@ sentences, the kit builds the timeline, and captions come from the recording's o
    zooms), cued on the words: `at('03')` is sentence 3 of the edit, `word('03', 2)` its third word.
    The footage plays muted; its sound is mixed from the edit list. `fit="cover"` fills the frame,
    `"contain"` letterboxes.
-6. **Cut and review** as usual: `studio cut`, the review page, notes by timestamp against the sentence
+6. **Cut and review** as usual: `studio cut`, the desk, notes by timestamp against the sentence
    on screen.
 
 ## What `studio check` adds

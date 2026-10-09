@@ -80,6 +80,10 @@ def mark(video, name, now=None, kind="local", summary=None):
     requests = Path(video) / "research" / "requests.md"
     if requests.exists():
         lines += ["pending: " + line[6:] for line in requests.read_text().splitlines() if line.startswith("- [ ] ")]
+    from . import page
+    notes, _ = page.fold(page.read_log(video))
+    lines += [f"open note {n['id']} on {n['sentence_id'] or n['clip']}: {n['note'] or '(here)'}"
+              for n in notes if n["status"] != "done"]
     return lines
 
 

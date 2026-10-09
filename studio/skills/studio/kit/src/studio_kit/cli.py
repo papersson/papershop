@@ -193,8 +193,19 @@ COMMANDS = {
         A("--strip", nargs=2, metavar=("CLIP", "T"), help="12 consecutive frames around T"),
         A("--below", type=float, default=40, help="crop labels under this many px tall"),
     ], "sheets:main"),
-    "serve": ("serve the review page for the latest cut", [A("video"), A("--port", type=int, default=8765)], "page:main_serve"),
-    "notes": ("the notes on a cut, numbered", [A("video"), A("--cut", type=int)], "page:main_notes"),
+    "desk": ("the desk: play the latest cut, take notes on sentences, show progress and replies",
+             [A("video"), A("--port", type=int, default=8765)], "page:main_serve"),
+    "serve": ("alias of desk", [A("video"), A("--port", type=int, default=8765)], "page:main_serve"),
+    "notes": ("the notes on a cut, numbered; --start / --resolve mark one", [
+        A("video"), A("--cut", type=int), A("--start", metavar="ID", help="mark a note as being worked on"),
+        A("--resolve", metavar="ID", help="mark a note done"), A("--reply", help="one line shown under a resolved note"),
+    ], "page:main_notes"),
+    "wait": ("block until a new note arrives on the desk, then print it", [
+        A("video"), A("--timeout", type=float, help="give up after this many seconds (exit 2)"),
+    ], "page:main_wait"),
+    "status": ("set the builder's status line on the desk (no text clears it)", [
+        A("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
+    ], "page:main_status"),
     "publish": ("final cut, web encode, poster and the page in out/page/", [A("video")], "publish:main"),
     "import-tutor": ("make a video's timeline from a tutor lesson", [A("lesson"), A("video")], _import_tutor),
 }

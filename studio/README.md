@@ -2,7 +2,7 @@
 
 Narrated, animated videos made by an agent and improved in rounds. The narrative is settled with
 you first; scenes are code on one timeline, rendered by Remotion; you watch each cut on a local
-review page and leave notes against the exact sentence on screen, and only what a note touches is
+desk and leave notes against the exact sentence on screen, and only what a note touches is
 re-rendered. It replaces the tutor plugin.
 
 ```
