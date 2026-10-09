@@ -189,3 +189,41 @@ def test_estimated_timelines_say_so(tmp_path):
     assert tl.timing(tmp_path, t) == "estimate"
     (tmp_path / "audio" / "narration.mp3").write_bytes(b"mp3")
     assert tl.timing(tmp_path, t) == "narrated"
+
+
+def test_eleven_fetch_stops_before_spending_more_than_the_account_has(tmp_path, monkeypatch):
+    """A run that needs more characters than the account has left fails before any synthesis."""
+    from types import SimpleNamespace
+    from studio_kit import narration
+    calls = []
+
+    def fake_call(key, method, path, body=None):
+        calls.append(path)
+        if path == "/user/subscription":
+            return {"character_limit": 10000, "character_count": 9990}
+        raise AssertionError("no synthesis call may happen")
+
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "test-key")
+    monkeypatch.setattr(narration, "eleven_call", fake_call)
+    monkeypatch.setattr(narration, "eleven_request", lambda S, full, p, n: ({"text": full}, tmp_path / "missing.json"))
+    S = SimpleNamespace(eleven={"model": "eleven_multilingual_v2", "voice_id": "v", "voice": "Alice"}, audio=tmp_path)
+    chunks = [([("s1_01", "A sentence long enough to cost more than ten characters.", None)], None, None)]
+    with pytest.raises(SystemExit, match="nothing was spent"):
+        narration.eleven_fetch(S, chunks, yes=True)
+    assert calls == ["/user/subscription"]
+
+
+def test_eleven_call_reports_the_refusal_not_the_key(monkeypatch):
+    import io
+    import urllib.error
+    from studio_kit import narration
+    body = b'{"detail": {"status": "quota_exceeded", "message": "This request exceeds your API key quota"}}'
+
+    def refuse(req, timeout=0):
+        raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", {}, io.BytesIO(body))
+
+    monkeypatch.setattr(narration.urllib.request, "urlopen", refuse)
+    with pytest.raises(SystemExit) as e:
+        narration.eleven_call("secret-key", "POST", "/text-to-speech/v/with-timestamps?x=1", {"text": "hi"})
+    assert "exceeds your API key quota" in str(e.value) and "resumes" in str(e.value)
+    assert "secret-key" not in str(e.value)

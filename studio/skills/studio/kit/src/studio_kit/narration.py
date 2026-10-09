@@ -39,6 +39,7 @@ import math
 import os
 import re
 import subprocess
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -323,6 +324,35 @@ def eleven_request(S, full, prev, nxt):
     return body, S.audio / "elevenlabs_cache" / f"{key}.json"
 
 
+def eleven_call(key, method, path, body=None):
+    """One ElevenLabs API call; a refusal stops the run with ElevenLabs' own message (never the key)."""
+    req = urllib.request.Request("https://api.elevenlabs.io/v1" + path, method=method,
+                                 headers={"xi-api-key": key, "Content-Type": "application/json"},
+                                 data=json.dumps(body).encode() if body is not None else None)
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            detail = json.loads(e.read()).get("detail", {})
+            msg = detail.get("message") if isinstance(detail, dict) else str(detail)
+        except ValueError:
+            msg = e.reason
+        raise SystemExit(f"ElevenLabs refused {path.split('?')[0]} ({e.code}): {str(msg).rstrip('.')}. "
+                         "Responses already fetched are cached; the next run resumes from there.")
+
+
+def eleven_balance(key):
+    """Characters left on the account this month, or None when ElevenLabs doesn't say (a key
+    without the user_read permission can't ask). A per-key quota set in the dashboard isn't visible
+    here either, so a key can still be refused with credits left; eleven_call then says why."""
+    try:
+        sub = eleven_call(key, "GET", "/user/subscription")
+        return int(sub["character_limit"]) - int(sub["character_count"])
+    except (SystemExit, KeyError, TypeError, ValueError, OSError):
+        return None
+
+
 def eleven_fetch(S, chunks, yes=False):
     """Call ElevenLabs for every chunk not yet in the cache."""
     todo = []
@@ -339,13 +369,14 @@ def eleven_fetch(S, chunks, yes=False):
     key = os.environ.get("ELEVENLABS_API_KEY")
     if not key:
         raise SystemExit("ELEVENLABS_API_KEY is not set in this environment")
+    left = eleven_balance(key)
+    if left is not None:
+        print(f"ElevenLabs: {left} characters left on the account")
+        if left < n:
+            raise SystemExit(f"this needs {n} characters and the account has {left}; nothing was spent")
 
     def call(method, path, body=None):
-        req = urllib.request.Request("https://api.elevenlabs.io/v1" + path, method=method,
-                                     headers={"xi-api-key": key, "Content-Type": "application/json"},
-                                     data=json.dumps(body).encode() if body is not None else None)
-        with urllib.request.urlopen(req, timeout=300) as r:
-            return json.loads(r.read())
+        return eleven_call(key, method, path, body)
 
     vid = S.eleven["voice_id"]
     if not vid:
@@ -561,6 +592,11 @@ def main(args):
               f"({sum(len(f) for _, f in todo)} characters) with {S.voice_info()}")
         for chunk, _ in todo:
             print(f"  {chunk[0][0]}..{chunk[-1][0]}")
+        key = os.environ.get("ELEVENLABS_API_KEY") if S.engine == "elevenlabs" else None
+        left = eleven_balance(key) if key else None
+        if left is not None:
+            need = sum(len(f) for _, f in todo)
+            print(f"ElevenLabs account: {left} characters left" + ("" if left >= need else f", {need - left} short"))
         return 0
     narrate(args.video, args.config, args.estimate, args.fetch_only, args.yes)
     return 0
