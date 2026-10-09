@@ -5,6 +5,8 @@ files, the clip's own scene file (scenes/<clip>.tsx), its slice of the timeline 
 to the clip's first frame) and the layout. So an edit to one chapter's scene re-renders that
 chapter only, a narration edit re-renders the chapter it is in (later chapters move by whole frames,
 see narration.CHAPTER_GRID, and keep their keys), and an edit to a shared file re-renders them all.
+Its cues are the ones its scene code names (see scene_cues), so moving a cue re-renders the
+chapters that wait on it.
 
 videos/<name>/cuts/cutN/
   video.mp4      the composite with narration (draft: 540p)
@@ -70,6 +72,40 @@ def _hash_listing(h, p):
                 h.update(f"{f.relative_to(p)}:{st.st_size}:{int(st.st_mtime)}".encode())
 
 
+SCENE_CODE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+# Strings are kept and comments blanked, so a cue named in a comment counts for nothing and a `//`
+# inside a string is not taken for one.
+_CODE = re.compile(r"(\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|//[^\n]*|/\*.*?\*/", re.S)
+_LITERAL_CUE = re.compile(r"""\bcue\s*\(\s*(?:"([^"\\]*)"|'([^'\\]*)'|`([^`\\$]*)`)\s*[,)]""")
+
+
+def _cue_names(text):
+    """The cue names a scene file waits on, or None when it may read a cue by a name it computes:
+    `cue(x)`, `cue` passed on or renamed, or the timeline's `cues` read directly."""
+    code = _CODE.sub(lambda m: m.group(1) or " ", text)
+    names = {next(g for g in m.groups() if g is not None) for m in _LITERAL_CUE.finditer(code)}
+    rest = _LITERAL_CUE.sub(" ", code)
+    rest = re.sub(r"\{[^{}]*\}\s*=", lambda m: re.sub(r"\bcue\s*(?=[,}])", " ", m.group(0)), rest)  # const { cue } = ...
+    return None if re.search(r"\bcues?\b", rest) else names
+
+
+def scene_cues(video, clip_id, clip_ids):
+    """The cue names a clip's scene code reads: its own scene file and the shared scene modules
+    (every scenes/ file not named after another clip), or None for all cues when any of them
+    computes a cue name. The engine kits read cues only through their cue() helper."""
+    names = set()
+    root = Path(video) / "scenes"
+    for f in sorted(root.rglob("*")) if root.is_dir() else []:
+        top = f.relative_to(root).parts[0]
+        if f.suffix not in SCENE_CODE or (Path(top).stem != clip_id and Path(top).stem in clip_ids):
+            continue
+        found = _cue_names(f.read_text(errors="replace"))
+        if found is None:
+            return None
+        names |= found
+    return names
+
+
 def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     engine = engine or _engine_of(video)
     video = Path(video)
@@ -89,6 +125,14 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     first, count = tl.frames(timeline, clip_id)
     t0 = first / timeline["fps"]
     rel = lambda x: round(x - t0, 4)   # the clip's frames depend on times relative to its first frame only
+    named = scene_cues(video, clip_id, clip_ids)
+
+    def reads(k, v):
+        if k.startswith("reveal:"):
+            return k.startswith(f"reveal:{clip_id}_") or (named is not None and k in named)
+        # A named cue counts wherever it lies (an animation started before the clip may still run); one
+        # inside the clip's frames counts anyway, in case a scene reaches it in a way the scan missed.
+        return named is None or k in named or t0 <= v <= t0 + count / timeline["fps"]
     part = {
         "clip": {**c, "start": rel(c["start"]), "end": rel(c["end"])}, "frames": count, "fps": timeline["fps"],
         "narration": [{**s, "start": rel(s["start"]), "end": rel(s["end"]),
@@ -97,8 +141,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
                       for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
         "captions": [{**x, "start": rel(x["start"]), "end": rel(x["end"])}
                      for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
-        "cues": {k: rel(v) for k, v in timeline.get("cues", {}).items()
-                 if not k.startswith("reveal:") or k.startswith(f"reveal:{clip_id}_")},
+        "cues": {k: rel(v) for k, v in timeline.get("cues", {}).items() if reads(k, v)},
         "footage": timeline["tracks"].get("footage", []),
         "beats": timeline.get("beats", {}),
         "layout": tl.layout(video, fmt),

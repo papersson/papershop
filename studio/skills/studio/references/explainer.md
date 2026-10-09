@@ -161,7 +161,7 @@ desk shows it the moment it is saved; on Remotion, every frame is a pure functio
 state or unseeded randomness). `at`, `end` and `word` cue sentences; `phrase('03', 'and the whole
 state')` cues the spoken words themselves, so a label lands as the voice says it and survives edits
 elsewhere in the sentence; `cue('reveal:s1_03')` lands
-a reveal after an inline hold, and a cue of your own is named in `cues.json` (never timeline.json). `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
+a reveal after an inline hold, and a cue of your own is named in `cues.json` (never timeline.json). Call `cue('name')` with the name written out: a clip re-renders when a cue its scene names (or one inside its frames) moves, and a computed name (`cue(x)`, reading `cues` directly) makes it re-render on every cue edit. `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
 Stage coordinates are centered, y up, eight units high, above the reserved caption band.
 
 Use `@studio` primitives and the explainer components documented in `code.md`: CodePanel,

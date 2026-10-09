@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 from pathlib import Path
 
 from studio_kit import render
@@ -137,3 +138,49 @@ def test_stills_are_reused_unless_their_frame_changed(tmp_path):
     (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited\n")
     (tmp_path / "c").mkdir()
     assert render.cached_stills(tmp_path, t, eng, reqs(tmp_path / "c")) == (1, 1)
+
+
+def cue_keys(tmp_path, t, cues):
+    return keys(tmp_path, {**t, "cues": cues})
+
+
+def test_moving_a_cue_no_scene_names_keeps_the_other_clips(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "scenes" / "s1.tsx").write_text("const { at, cue } = useClip();\n// waits on cue('late') below\n"
+                                               "const x = spring(t - cue('chart_up', 0.2));\n")
+    before = cue_keys(tmp_path, t, {"chart_up": 1.0, "other": 3.0})
+    after = cue_keys(tmp_path, t, {"chart_up": 1.0, "other": 3.2})
+    assert after["s1"] == before["s1"] and after["s2"] != before["s2"]      # s2's window holds `other`
+    assert cue_keys(tmp_path, t, {"chart_up": 1.1, "other": 3.0})["s1"] != before["s1"]
+
+
+def test_a_named_cue_outside_the_clip_changes_its_key(tmp_path):
+    """An animation started before the clip is still running in it."""
+    t = make_video(tmp_path)
+    (tmp_path / "scenes" / "s2.js").write_text("export default c => c.P(c.cue(\"early\"), 3)\n")
+    before = cue_keys(tmp_path, t, {"early": 0.5})
+    after = cue_keys(tmp_path, t, {"early": 0.8})
+    assert after["s2"] != before["s2"] and after["s1"] != before["s1"]       # s1 holds it in its window
+    assert cue_keys(tmp_path, t, {"early": 0.5, "unused": 0.6})["s2"] == before["s2"]
+
+
+def test_a_computed_cue_name_reads_every_cue(tmp_path):
+    t = make_video(tmp_path)
+    for code in ("names.map(n => cue(n))", "cue(`step_${i}`)", "timeline.cues[name]", "const { cue: when } = useClip()"):
+        (tmp_path / "scenes" / "kit.tsx").write_text(code + "\n")       # a shared module: every clip
+        before = cue_keys(tmp_path, t, {"far": 3.5})
+        assert cue_keys(tmp_path, t, {"far": 3.6})["s1"] != before["s1"], code
+
+
+def test_the_engine_kits_read_cues_only_through_cue():
+    """scene_cues scans scene code only; a kit that read timeline cues itself, or called cue() with a
+    name a scene passed it, would go unseen."""
+    engines = Path(render.__file__).parents[3] / "engines"
+    for f in engines.glob("*/src/**/*"):
+        if f.suffix not in render.SCENE_CODE:
+            continue
+        code = render._CODE.sub(lambda m: m.group(1) or re.sub(r"[^\n]", " ", m.group(0)), f.read_text())
+        lines = code.splitlines()
+        for i, line in enumerate(lines):
+            if re.search(r"\.cues\b|\[['\"]cues['\"]\]|\bcue\s*\(", line):
+                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]), f"{f}:{i + 1}: {line.strip()}"
