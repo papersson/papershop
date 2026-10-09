@@ -11,6 +11,8 @@ import json
 import sys
 from pathlib import Path
 
+from . import reviews     # imports nothing: the review-status roles come from its registry
+
 LAYERS = ["all", "no-captions", "no-band", "background"]
 
 
@@ -188,7 +190,7 @@ COMMANDS = {
         V("video"), A("--cut", type=int), A("--result", help="review response including its REVISION and FRAMES verdict"),
     ], "review_state:main_frames"),
     "review-status": ("record an unavailable or explicitly waived review", [
-        V("video"), A("role", choices=["student", "expert", "editor", "frames"]),
+        V("video"), A("role", type=reviews.role, choices=reviews.ROLES, help="frame is an alias of frames"),
         A("status", choices=["unavailable", "waived"]), A("--reason"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [

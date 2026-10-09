@@ -97,7 +97,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `steps VIDEO STEPS.json` | Execute full-file program versions and record source/output evidence |
 | `review VIDEO ROUND [--only student|expert|editor] [--narrative FILE]` | Isolated, revision-bound script/narrative review |
 | `review-frames VIDEO [--cut N] [--result FILE]` | Package frames for the main session, or import a fresh reviewer result |
-| `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization |
+| `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization; ROLE is a script reviewer or `frames` (alias `frame`) |
 | `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
 | `timeline VIDEO` | Rebuild timeline.json from its sources, after editing `cues.json` or `audio/tracks.json` |

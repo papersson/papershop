@@ -12,7 +12,8 @@ video's vocabulary), so a finding that reopens it can be declined on sight.
 Guards, from earlier builds: a round must be named on SCRIPT.md's status line (rounds once started
 on half-applied revisions); rounds stop at video.json's max_rounds (one lock took 18 rounds); and a
 reviewer that fails to run is retried once, then the round stops loudly, because a fallback that
-is not isolated from the project reviews with knowledge a newcomer would not have.
+is not isolated from the project reviews with knowledge a newcomer would not have. The cap and the
+verdict line are the script kind's policies (reviews.py).
 """
 import json
 import os
@@ -24,13 +25,12 @@ from pathlib import Path
 from . import proc
 from . import settings
 from .env import ROOT, studio_home
+from .reviews import KINDS
 from .script import sections
 
 PROMPTS = ROOT / "prompts" / "reviewers"
-ROLES = ("expert", "student", "editor")
-# Rounds are the slowest loop in a build (one search video spent six rounds reaching the gate), so
-# the default is two rounds plus one more for an expert's blocking finding; "thorough" restores six.
-DEFAULT_MAX_ROUNDS = {"thorough": 6, "default": 3, "economy": 2}
+KIND = KINDS["script"]
+ROLES = KIND.roles
 
 
 def video_config(video):
@@ -143,10 +143,8 @@ def run_reviewer(text, runner=None):
 
 def main(args, runner=None):
     video = Path(args.video).resolve()
-    cfg = video_config(video)
-    pace = "thorough" if cfg.get("thorough") else "economy" if cfg.get("economy") else "default"
-    cap = cfg.get("max_rounds", DEFAULT_MAX_ROUNDS[pace])
-    if not args.narrative and args.round > cap:
+    cap = KIND.rounds.cap(video_config(video))
+    if not args.narrative and cap is not None and args.round > cap:
         raise SystemExit(f"round {args.round} is past max_rounds ({cap}): lock the script with every open finding "
                          "logged, or ask the learner to raise the cap")
     out_dir = video / "research" / "reviews"
@@ -158,7 +156,7 @@ def main(args, runner=None):
     if unknown:
         raise SystemExit("unknown reviewer roles: " + ", ".join(sorted(unknown)))
     from . import review_state
-    revision = review_state.fingerprint(video)
+    revision = review_state.revision(video, KIND)
     todo = [(k, v) for k, v in inputs.items() if k in args.only.split(",")]
     for name, text in todo:
         (out_dir / f"{tag}_{name}.input.md").write_text(text)
@@ -169,14 +167,13 @@ def main(args, runner=None):
             body = run_reviewer(text, runner)
         except Exception as e:
             if not narrative:
-                review_state.record(video, name, revision, "unavailable", str(e))
+                review_state.record(video, name, revision, "unavailable", str(e), round=args.round)
             raise
         (out_dir / f"{tag}_{name}.md").write_text(body)
-        verdict = [line for line in body.splitlines() if "VERDICT" in line]
+        status, verdict = KIND.verdict(body)
         if not narrative:
-            status = "passed" if verdict and verdict[-1].strip() == "VERDICT: PASS" else "findings"
-            review_state.record(video, name, revision, status, str(out_dir / f"{tag}_{name}.md"))
-        return name, verdict[-1].strip() if verdict else "(no verdict line)", len(body)
+            review_state.record(video, name, revision, status, str(out_dir / f"{tag}_{name}.md"), round=args.round)
+        return name, verdict or "(no verdict line)", len(body)
 
     with ThreadPoolExecutor(max_workers=3) as ex:
         for name, verdict, n in ex.map(one, todo):

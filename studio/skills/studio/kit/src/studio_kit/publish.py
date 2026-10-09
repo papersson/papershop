@@ -132,7 +132,7 @@ def gate(video):
         for role in required_roles(cfg):
             require(video, role)
         if cfg.get("level") == "deep-dive" or cfg.get("destination") in ("share", "social") or cfg.get("frame_review"):
-            require(video, "frames", frames=True)
+            require(video, "frames")
     rows = check.run(video, everything=True)
     bad = [r for r in rows if not r["ok"]]
     print(f"publish gate: full check, {len(rows)} results, {len(bad)} failed")

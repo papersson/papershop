@@ -25,7 +25,10 @@ note to the sentence/chapter of its cut. An empty note still means “here.”
 5. Answer picture notes with a still where useful, then `studio cut VIDEO --changelog FILE`.
    FILE is a JSON list of `{note, change}`. Run incremental checks/sheets/craft on the actual
    dependency changes; shared helpers may affect more than one chapter. Required independent
-   frame review uses the new bundle and includes affected transitions/neighbors.
+   frame review uses the new bundle and includes affected transitions/neighbors. A frame receipt
+   goes stale when what its reviewer saw changes (a chapter's frames, the Script or Evidence
+   section, data/), not after a sound-only edit (effects, music, the mix); `review-frames` refuses
+   to package or import a result for a cut older than the current sources.
 6. Report the cut, actual width×height/fps, quality and final-quality status, runtime change,
    note dispositions, late requests and measured stage times. Do not guess per-request minutes.
    Mark waiting/finished boundaries and checkpoint at authorized stages.

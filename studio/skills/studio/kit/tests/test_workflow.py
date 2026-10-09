@@ -154,7 +154,7 @@ def test_frame_bundle_requires_matching_cut_and_revision_tagged_response(tmp_pat
         review_state.main_frames(args)
     response.write_text(f"FRAMES: PASS\nREVISION: {revision}\n")
     review_state.main_frames(args)
-    review_state.require(tmp_path, "frames", frames=True)
+    review_state.require(tmp_path, "frames")
 
 
 def test_failed_opener_still_protects_cut(tmp_path, monkeypatch):

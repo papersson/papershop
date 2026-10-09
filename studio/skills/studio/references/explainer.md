@@ -186,7 +186,7 @@ The builder reports **ready for frame review**. The main session dispatches a fr
 reviewer using `prompts/frame_review.md`; the command itself does not start an agent. Include
 transition strips for mechanism-sensitive motion. Validate findings against full-resolution frames.
 Import the response with `studio review-frames VIDEO --result FILE`; it must include the bundle's
-REVISION and FRAMES verdict. A changed frame/source invalidates the receipt. Never label a builder's
+REVISION and FRAMES verdict. A change to what the reviewer saw invalidates the receipt (`publishing.md`). Never label a builder's
 own pass independent. Unavailable/authorized waived reviews use `studio review-status`.
 
 ## Stage 12: Finish and hand over

@@ -278,6 +278,12 @@ item: the loop is proven by the user's own notes.
   `moments.py` now chooses them all, as moments with a clip time, a video time and a kind, so
   stills at beat events or in a pause, or a frame sequence for a beat window, is one function that
   every consumer can use. The change was proved against the old samplers on a fixture timeline.
+- **A frame review goes stale on what its reviewer saw.** Its revision hashed timeline.json's
+  bytes, and since the timeline became a build product it also changes for sources, the audio track
+  and effects, so a sound edit staled a frame review. The revision now hashes the bundle's Script
+  and Evidence, data/ and each chapter's clip key, which already covers the narration, captions,
+  cues, scene code and layout a frame shows. Review kinds (script, frames) declare their roles,
+  revision scope, verdict line, round cap and freshness rule in one registry, `reviews.py`.
 
 | Still open | Done when |
 |---|---|

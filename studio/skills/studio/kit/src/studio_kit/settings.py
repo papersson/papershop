@@ -20,7 +20,7 @@ keys without a default are simply absent when unset (callers use .get).
   keep_cuts          playable cuts kept by clean                               default 10
   teaching_contract  true: script check and review receipts gate narration and publish
   review_roles       extra script reviewers beyond those drive and level require
-  max_rounds         cap on script review rounds (default by economy/thorough, review)
+  max_rounds         cap on script review rounds (default by economy/thorough, reviews)
   economy, thorough  effort settings (review)
   frame_review       true: an independent frame review is required before publish
   script_check       {"accept": [...], "products": {...}, "product_budget": n, "number_budget": n}
