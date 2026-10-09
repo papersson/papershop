@@ -20,12 +20,13 @@ and the rest layer on:
   cues.json            the builder       named cues {name: seconds} scenes can wait on (reveal: cues
                                          come from the timings); anchors on sentences and words may
                                          join the numbers later
-  captions.json        the builder       caption chunks kept as written: [{start, end, text}] wrapped
-                                         per format like the kit's, or [{start, end, lines, wrapped?}]
-                                         whose lines are kept (other formats wrapped from them). The kit
-                                         chunks only the narration they don't overlap, so the file is a
-                                         whole caption track or a few locked chunks (copied from
-                                         timeline.json); {start, end, lines: []} blanks a span
+  captions.json        the builder       caption chunks whose words are kept: [{text} or {lines,
+                                         wrapped?}] (other formats wrapped from them), each either
+                                         anchored, {anchor: {sentence, words?, text?}}, so it follows its
+                                         words when the narration moves (a chunk copied from timeline.json
+                                         is: that is how one is locked), or fixed at {start, end}, which
+                                         warns once the narration changes. The kit chunks only the words
+                                         and times they don't cover; {start, end, lines: []} blanks a span
   audio/tracks.json    the builder       extra audio [{file, start, gain?, in?, out?, role?}] (music)
   audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio, which
                                          each mix renders against this timeline (audio.sources)
@@ -37,10 +38,12 @@ timeline.json
   fps, duration, timing, voice, sources (the files it was built from)
   tracks.scene      [{id, engine, title, start, end}]           one generated clip per chapter
   tracks.narration  [{id, clip, text, caption, paragraph, start, end, words: [{w, start, end}]}]
-  tracks.captions   [{start, end, lines, wrapped}]                chunked from the narration, and
+  tracks.captions   [{start, end, lines, wrapped, anchor?}]       chunked from the narration, and
                                                                   captions.json's: lines are the 16:9
                                                                   lines, wrapped {format: lines} every
-                                                                  other format's (caption_lines)
+                                                                  other format's (caption_lines), anchor
+                                                                  {sentence, words: [i, j], text} the
+                                                                  words a chunk shows
   tracks.audio      [{file, start, role, gain?, in?, out?, fade?}]  role: narration | sfx | music | footage
   tracks.footage    [{id, file, in, out, start, end}]             footage videos only
   cues              {name: seconds}                               extra times scenes can wait on
@@ -249,27 +252,57 @@ def split_phrases(text, widths=None):
     return split_phrases(" ".join(words[:k]), widths) + split_phrases(" ".join(words[k:]), widths)
 
 
-def chunk_captions(narration, fps=30, widths=None, kept=()):
+def chunk_captions(narration, fps=30, widths=None, kept=(), warn=print):
     """One caption per sentence, or per phrase for long sentences, timed from word timings when
-    present and from character counts otherwise, and wrapped at `widths` (caption_widths). The
-    chunks `kept` (captions.json) stay as written and replace every phrase whose words they overlap."""
+    present and from character counts otherwise, and wrapped at `widths` (caption_widths). Each
+    chunk names the words it shows: "anchor": {sentence, words: [first, past the last], text}.
+
+    The builder's chunks `kept` (captions.json) keep their lines. One with an anchor (a chunk copied
+    from timeline.json has one) follows its words when the narration moves: it is timed as the kit
+    would time them, and the kit chunks the rest of the sentence around it. One without stays at
+    its times and replaces every phrase it overlaps. An anchor whose words are gone is dropped,
+    with a warning, and the kit captions those words again."""
     widths = widths or caption_widths()
-    own = sorted((_kept(c, widths) for c in kept), key=lambda c: c["start"])
-    for a, b in zip(own, own[1:]):
+    own = [_kept(c, widths, warn) for c in kept]
+    loose = sorted((c for c in own if "anchor" not in c), key=lambda c: c["start"])
+    for a, b in zip(loose, loose[1:]):
         if b["start"] < a["end"]:
             raise SystemExit(f"captions.json: the chunks at {a['start']} s and {b['start']} s overlap")
-    chunks = []
-    for s in narration:
-        pieces = split_phrases(s["caption"], widths.values())
-        words = s.get("words") or []
-        spans = _piece_spans(pieces, s, words)
-        for piece, (a, b) in zip(pieces, spans):
-            if any(a < k["end"] and k["start"] < b for k in own):
+    locks = {}
+    for c in own:
+        if "anchor" in c:
+            found = _find(c["anchor"], narration)
+            if found is None:
+                warn(f"warn: captions.json: the chunk anchored on {c['anchor'].get('text') or c['anchor']['sentence']!r} "
+                     "no longer matches the narration's words; dropped, and the kit captions them (anchor it again)")
                 continue
-            chunks.append({"start": round(a, 3), "end": round(b + TAIL, 3), "lines": wrap(piece, widths["16:9"]),
-                           "wrapped": {f: wrap(piece, w) for f, w in widths.items() if f != "16:9"}})
-    gap, kit = 2 / fps, {id(c) for c in chunks}
-    chunks = sorted(chunks + own, key=lambda c: c["start"])
+            locks.setdefault(found[0], []).append((found[1], found[2], c))
+    timed = []
+    for s in narration:
+        words = s["caption"].split()
+        times = _word_times(s, words)
+
+        def add(chunk, p, q):
+            a, b = times[p][0], times[q - 1][1]
+            if not any(a < k["end"] and k["start"] < b for k in loose):
+                timed.append({**chunk, "start": round(a, 3), "end": round(b + TAIL, 3),
+                              "anchor": {"sentence": s["id"], "words": [p, q], "text": " ".join(words[p:q])}})
+        at = 0
+        for i, j, c in sorted(locks.get(s["id"], []), key=lambda x: x[:2]) + [(len(words), len(words), None)]:
+            if i < at:
+                warn(f"warn: captions.json: two chunks anchor on the same words of {s['id']}; the later is dropped")
+                continue
+            p = at
+            for piece in split_phrases(" ".join(words[at:i]), widths.values()) if i > at else []:
+                q = p + len(piece.split())
+                add({"lines": wrap(piece, widths["16:9"]),
+                     "wrapped": {f: wrap(piece, w) for f, w in widths.items() if f != "16:9"}}, p, q)
+                p = q
+            if c is not None:
+                add(c, i, j)
+            at = j
+    gap, kit = 2 / fps, {id(c) for c in timed}
+    chunks = sorted(timed + loose, key=lambda c: c["start"])
     for cur, nxt in zip(chunks, chunks[1:]):
         if id(cur) in kit:
             cur["end"] = round(min(max(cur["end"], cur["start"] + MIN_SHOW), nxt["start"] - gap), 3)
@@ -278,37 +311,69 @@ def chunk_captions(narration, fps=30, widths=None, kept=()):
     return chunks
 
 
-def _kept(c, widths):
+def _kept(c, widths, warn=print):
     """A captions.json chunk as the timeline holds one: the lines it gives kept, the rest wrapped."""
-    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
     raw, c = c, c if isinstance(c, dict) else {}
-    lines, text = c.get("lines"), c.get("text")
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
+    strs = lambda x: isinstance(x, list) and all(isinstance(y, str) for y in x)
+    lines, text, anchor, given = c.get("lines"), c.get("text"), c.get("anchor"), c.get("wrapped", {})
     if lines is not None:
-        text = " ".join(lines) if isinstance(lines, list) and all(isinstance(x, str) for x in lines) else None
-    if not isinstance(text, str) or not (num(c.get("start")) and num(c.get("end")) and c["end"] > c["start"]):
-        raise SystemExit(f"captions.json: {raw} needs a start before its end, and text or lines")
-    given = c.get("wrapped") or {}
-    return {**c, "lines": lines if lines is not None else wrap(text, widths["16:9"]),
-            "wrapped": {f: given[f] if f in given else wrap(text, w) for f, w in widths.items() if f != "16:9"}}
+        text = " ".join(lines) if strs(lines) else None
+    others = [f for f in widths if f != "16:9"]
+    if not (isinstance(text, str) and (_anchored(anchor) if anchor is not None else
+                                       num(c.get("start")) and num(c.get("end")) and c["end"] > c["start"])
+            and isinstance(given, dict) and all(f in others and strs(v) for f, v in given.items())):
+        raise SystemExit(f"captions.json: {raw} needs text or lines, and an anchor {{sentence, words?: [first, past "
+                         f"the last], text?}} or a start before its end; wrapped, if given, maps {', '.join(others)} to lines")
+    out = {**c, "lines": lines if lines is not None else wrap(text, widths["16:9"]),
+           "wrapped": {f: given[f] if f in given else wrap(text, widths[f]) for f in others}}
+    over = [f for f in widths if len(caption_lines(out, f)) > MAX_LINES]
+    if over:
+        warn(f"warn: captions.json: {text[:40]!r} takes more than {MAX_LINES} lines in {', '.join(over)}; the band "
+             "holds two, so shorten it or give those lines")
+    return out
 
 
-def _piece_spans(pieces, sentence, words):
+def _anchored(a):
+    """Whether an anchor is well formed: a sentence id, and optionally a word span and its text."""
+    w = a.get("words") if isinstance(a, dict) else None
+    return isinstance(a, dict) and isinstance(a.get("sentence"), str) and isinstance(a.get("text", ""), str) and \
+        (w is None or isinstance(w, list) and len(w) == 2 and all(type(x) is int for x in w) and 0 <= w[0] < w[1])
+
+
+def _find(anchor, narration):
+    """(sentence id, first word, past the last) of an anchor's words in this narration, or None.
+    Its text is looked for in the sentence it names, then in every sentence in order: sentence ids
+    are positions, so a sentence inserted earlier renumbers the rest. Without text, its span is
+    taken as it stands."""
+    said = {s["id"]: s["caption"].split() for s in narration}
+    sid = anchor["sentence"]
+    i, j = anchor.get("words") or (0, len(said.get(sid, [])))
+    if "text" not in anchor:
+        return (sid, i, j) if sid in said and j <= len(said[sid]) else None
+    want = anchor["text"].split()
+    if said.get(sid, [])[i:j] == want:
+        return sid, i, j
+    for k in [sid] * (sid in said) + list(said):
+        ws = said[k]
+        at = next((x for x in range(len(ws) - len(want) + 1) if ws[x:x + len(want)] == want), None)
+        if want and at is not None:
+            return k, at, at + len(want)
+    return None
+
+
+def _word_times(sentence, words):
+    """(start, end) of each of a sentence's caption words: its word timings when they match the
+    caption, else the sentence's time shared out by character position."""
+    heard = sentence.get("words") or []
+    if len(heard) == len(words):
+        return [(w["start"], w["end"]) for w in heard]
     a, b = sentence["start"], sentence["end"]
-    if len(pieces) == 1:
-        return [(words[0]["start"], words[-1]["end"]) if words else (a, b)]
-    counts = [len(p.split()) for p in pieces]
-    if words and len(words) == sum(counts):
-        spans, i = [], 0
-        for n in counts:
-            spans.append((words[i]["start"], words[i + n - 1]["end"]))
-            i += n
-        return spans
-    total, t, spans = sum(len(p) for p in pieces), a, []
-    for p in pieces:
-        dt = (b - a) * len(p) / total
-        spans.append((t, t + dt))
-        t += dt
-    return spans
+    total, at, out = max(1, len(" ".join(words))), 0, []
+    for w in words:
+        out.append((a + (b - a) * at / total, a + (b - a) * (at + len(w)) / total))
+        at += len(w) + 1
+    return out
 
 
 # --- word timings ---------------------------------------------------------------------------------
@@ -430,6 +495,22 @@ def _base(video, cfg):
                      "the footage, or give video.json a duration or clips")
 
 
+def _warn_unanchored(video, kept):
+    """Chunks fixed in time (no anchor) stay put when the narration moves, so say so once the
+    narration has changed since captions.json last did. Printed even when quiet, at every build,
+    until the file is checked and saved again."""
+    if not isinstance(kept, list) or all(isinstance(c, dict) and "anchor" in c for c in kept):
+        return
+    p, f = Path(video) / ".cache" / "studio" / "captions.json", Path(video) / "captions.json"
+    version = f"{f.stat().st_mtime_ns}:{hashlib.sha256(f.read_bytes()).hexdigest()}"     # saved again counts too
+    seen, stamp = _read(p) or {}, narration_stamp(video)
+    if seen.get("version") != version:
+        atomic_json(p, {"version": version, "narration": stamp})
+    elif seen.get("narration") != stamp:
+        print("warn: captions.json has chunks fixed in time (no anchor) written before the latest narration; check "
+              "their times and save the file, or anchor them to their words (the contract at the top of timeline.py)")
+
+
 def _stamp(video):
     return Path(video) / ".cache" / "studio" / "timeline.sha256"
 
@@ -501,6 +582,7 @@ def build(video, quiet=False):
         kept = _read(video / "captions.json")
         if kept is not None:
             used.append("captions.json")
+            _warn_unanchored(video, kept)
         t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video), kept or ())
         t["sources"] = used
         if edited is not None:      # printed even when quiet: the next build would find nothing to say

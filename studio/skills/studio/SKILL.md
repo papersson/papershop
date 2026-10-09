@@ -138,8 +138,8 @@ extraction and helpers the build reruns), `data/` the evidence they produce.
 beats, `footage/edit.json` edit, video.json `duration` or `clips` for a piece without narration). Named cues
 go in `cues.json` (`{"name": seconds}`), extra audio such as a music bed in `audio/tracks.json`
 (`[{"file", "start", "gain"}]`), and captions the kit must not re-chunk in `captions.json`
-(`[{"start", "end", "text"}]` or `lines`; a whole track, or kit chunks copied from timeline.json to
-lock them); after editing any of them, `studio timeline VIDEO` (or the next cut) rebuilds it.
+(chunks of `text` or `lines`, fixed at `start`/`end` or anchored to their words; a kit chunk copied
+from timeline.json keeps its anchor, so a locked chunk follows its words when the narration moves); after editing any of them, `studio timeline VIDEO` (or the next cut) rebuilds it.
 `research/` holds reviews, snapshots, timing, pending requests and the handoff. `.studio/work/` is
 the builder's scratch: kept across a restart, ignored by Git and left behind by fork; a helper worth
 keeping moves to `sims/`.

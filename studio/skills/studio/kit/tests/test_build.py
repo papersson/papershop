@@ -1,5 +1,7 @@
 """timeline.json is built from the files each command owns, and from nothing else."""
 import json
+import os
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -455,7 +457,7 @@ def test_a_hand_edit_to_the_timeline_is_reported_when_build_replaces_it(tmp_path
     assert "by hand" not in capsys.readouterr().out
 
 
-def test_the_builders_captions_stay_as_written_and_the_kit_chunks_the_rest(tmp_path, monkeypatch):
+def test_the_builders_captions_stay_as_written_and_the_kit_chunks_the_rest(tmp_path, monkeypatch, capsys):
     """Every build chunked the captions from the narration, so a hand-made caption was lost at the
     next narrate or align."""
     v = explainer(tmp_path)
@@ -465,20 +467,63 @@ def test_the_builders_captions_stay_as_written_and_the_kit_chunks_the_rest(tmp_p
     custom = {"start": kit[3]["start"], "end": kit[3]["end"], "text": "A caption of the builder's own, wrapped per format"}
     (v / "captions.json").write_text(json.dumps([custom, locked]))
     narrated(v)
-    heard = [{"w": w, "start": s["start"] + 0.1 * i, "end": s["start"] + 0.1 * i + 0.08}
+    heard = [{"w": w, "start": s["start"] + 0.05 + 0.1 * i, "end": s["start"] + 0.05 + 0.1 * i + 0.08}
              for s in tl.load(v)["tracks"]["narration"] for i, w in enumerate(s["caption"].split())]
     monkeypatch.setattr(align, "recognise", lambda audio, model: heard)
     align.main(SimpleNamespace(video=v, model="tiny"))
     t = tl.load(v)
     assert "captions.json" in t["sources"] and "audio/words.json" in t["sources"]
     caps = t["tracks"]["captions"]
-    assert locked in caps                                   # verbatim, its wrapped lines included
-    mine = next(c for c in caps if c.get("text") == custom["text"])
-    assert (mine["start"], mine["end"]) == (custom["start"], custom["end"])
-    assert mine["lines"] == tl.wrap(custom["text"], 42) and mine["wrapped"]["9:16"] == tl.wrap(custom["text"], 26)
-    others = [c for c in caps if c is not mine and c != locked]
-    assert others and all(c["end"] <= mine["start"] or c["start"] >= mine["end"] for c in others)
-    assert [c["start"] for c in caps] == sorted(c["start"] for c in caps)
+    mine = next(c for c in caps if c["lines"] == locked["lines"])     # its lines, at its words' new times
+    assert mine["wrapped"] == locked["wrapped"] and mine["anchor"] == locked["anchor"]
+    said = next(s for s in t["tracks"]["narration"] if s["id"] == locked["anchor"]["sentence"])
+    assert mine["start"] == said["words"][0]["start"] != locked["start"]
+    fixed = next(c for c in caps if c.get("text") == custom["text"])
+    assert (fixed["start"], fixed["end"]) == (custom["start"], custom["end"])
+    assert fixed["lines"] == tl.wrap(custom["text"], 42) and fixed["wrapped"]["9:16"] == tl.wrap(custom["text"], 26)
+    assert all(a["end"] <= b["start"] for a, b in zip(caps, caps[1:]))
+    assert "fixed in time" not in capsys.readouterr().out
+
+    (v / "narration.json").write_text(json.dumps({"kokoro": {"speed": 0.6}}))
+    narration.narrate(v, estimate=True)
+    assert "fixed in time (no anchor) written before the latest narration" in capsys.readouterr().out
+    tl.build(v)
+    assert "fixed in time" in capsys.readouterr().out            # at every build, until the file is saved again
+    os.utime(v / "captions.json", ns=(time.time_ns(), time.time_ns() + 10**9))
+    tl.build(v)
+    assert "fixed in time" not in capsys.readouterr().out
+
+
+def test_a_locked_caption_follows_its_words_when_the_narration_moves(tmp_path, capsys):
+    """A chunk locked at 2.0-3.93 s kept those times after a slower re-narration, overlapped both its
+    own sentence and the one before, and so dropped both phrases without a word."""
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    before = tl.load(v)
+    locked = {**before["tracks"]["captions"][1], "lines": ["Then the network", "goes quiet."]}
+    (v / "captions.json").write_text(json.dumps([locked]))
+    (v / "narration.json").write_text(json.dumps({"kokoro": {"speed": 0.6}}))
+    narration.narrate(v, estimate=True)
+    t = tl.load(v)
+    caps, said = t["tracks"]["captions"], {s["id"]: s for s in t["tracks"]["narration"]}
+    mine = next(c for c in caps if c["lines"] == locked["lines"])
+    assert mine["start"] == round(said["s1_02"]["start"], 3) > locked["start"]
+    shown = [w for c in caps for w in c["anchor"]["text"].split()]
+    assert shown == [w for s in t["tracks"]["narration"] for w in s["caption"].split()]     # every word, once, in order
+    assert all(a["end"] <= b["start"] for a, b in zip(caps, caps[1:]))
+    assert "warn" not in capsys.readouterr().out
+
+    script = (v / "SCRIPT.md").read_text()
+    (v / "SCRIPT.md").write_text(script.replace("> A checkout page", "> Here is a shop. A checkout page"))
+    narration.narrate(v, estimate=True)                  # the sentences after the new one are renumbered
+    mine = next(c for c in tl.load(v)["tracks"]["captions"] if c["lines"] == locked["lines"])
+    assert mine["anchor"] == {"sentence": "s1_03", "words": [0, 5], "text": "Then the network goes quiet."}
+    (v / "SCRIPT.md").write_text(script.replace("Then the network goes quiet.", "Then nothing comes back."))
+    narration.narrate(v, estimate=True)
+    caps = tl.load(v)["tracks"]["captions"]
+    assert not any(c["lines"] == locked["lines"] for c in caps)
+    assert any(c["anchor"]["text"] == "Then nothing comes back." for c in caps)
+    assert "no longer matches the narration's words" in capsys.readouterr().out
 
 
 def test_a_blank_chunk_hides_the_kits_captions_and_bad_chunks_stop_the_build(tmp_path):
@@ -488,7 +533,20 @@ def test_a_blank_chunk_hides_the_kits_captions_and_bad_chunks_stop_the_build(tmp
     (v / "captions.json").write_text(json.dumps([{"start": 0, "end": t["duration"], "lines": []}]))
     assert [c["lines"] for c in tl.build(v)["tracks"]["captions"]] == [[]]
     for bad in ([{"start": 2, "end": 1, "text": "x"}], [{"start": 0, "end": 1}], [{"start": 0, "end": 1, "lines": "x"}],
-                [{"start": 0, "end": 2, "text": "a"}, {"start": 1, "end": 3, "text": "b"}]):
+                [{"start": 0, "end": 2, "text": "a"}, {"start": 1, "end": 3, "text": "b"}],
+                [{"anchor": {"sentence": 3}, "text": "x"}], [{"anchor": {"sentence": "s1_01", "words": [2, 1]}, "text": "x"}],
+                [{"start": 0, "end": 1, "text": "x", "wrapped": "x"}], [{"start": 0, "end": 1, "text": "x", "wrapped": {"4:5": ["x"]}}],
+                [{"start": 0, "end": 1, "text": "x", "wrapped": {"9:16": "x"}}]):
         (v / "captions.json").write_text(json.dumps(bad))
         with pytest.raises(SystemExit, match="captions.json"):
             tl.build(v)
+
+
+def test_a_builders_caption_too_long_for_a_format_is_reported(tmp_path, capsys):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    capsys.readouterr()
+    text = "A caption of the builder's own that fits a wide band, not a phone's"
+    (v / "captions.json").write_text(json.dumps([{"start": 0.0, "end": 1.0, "text": text}]))
+    tl.build(v)
+    assert "more than 2 lines in 9:16, 1:1" in capsys.readouterr().out
