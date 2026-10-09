@@ -56,14 +56,15 @@ Remotion-only; the evidence files can be used by either engine.
 |---|---|
 | `CodePanel` | `source: {text, sha256}`, optional 1-based `range`, `current`, `plumbing`, `markers`, `tokens: [{line,text,progress}]`; displays unmodified source lines |
 | `Terminal` | Captured `runs: [{argv,stdout,stderr,exit}]`, line-reveal `progress`, `maxLines` |
-| `RowTable` | `columns`, actual `rows`, cell `highlight: [rowIndex,key]`, row-reveal `progress` |
+| `RowTable` | `columns`, actual `rows`, cell `highlight: [rowIndex,key]`, row-reveal `progress`; its outline (2.5) is heavier than the cell lines (1.5) |
 | `JsonTree` | Actual JSON `value`, key-path `cursor`, row-reveal `progress` |
 | `ColumnStrips` | `columns: [{name,bytes,groups?}]`, `h`, drawer `open`; widths follow byte proportions |
 | `GeoMap` | `features: [{id,geometry}]`, `selected`, `halo`, `grid`, `h`; normalize WKT to GeoJSON in sims/ |
 | `VarCard` | `label`, `value`, `type`, `focus` |
 | `Thread` | `from`, `to`, `progress`, `opacity`; a relationship line, not moving data |
 
-Most panels take `at`, `w`, `opacity`, `size`, and `name`. GeoMap supports Point, MultiPoint,
+Most panels take `at`, `w`, `opacity`, `size`, and `name`. The look sheet's "code" page
+(`studio look-sheet`) shows CodePanel, Terminal and RowTable in the video's layout. GeoMap supports Point, MultiPoint,
 LineString, MultiLineString, Polygon and MultiPolygon coordinates in one already selected
 coordinate system; it is a fit-to-stage diagram, not a GIS projection engine. Record units and
 projection/simplification in Evidence. Do not use a moving road to mean a copied database row:

@@ -31,7 +31,13 @@ clutter: by minute eight one frame held a category list, a table, a record's fie
 - **The map** is the system overview: component names only, plus state (which box or arrow is lit,
   where the token is). The test: any text on the map that isn't a component name is a bug.
 - The map's layout is fixed, but the frame isn't: the camera frames the boxes that exist so far
-  and stays centred as boxes appear, so early chapters aren't top-heavy.
+  and stays centred as boxes appear, so early chapters aren't top-heavy. When the layout has a
+  header strip (a chapter label, a title), framing keeps it clear the way it keeps the band clear.
+- **The camera moves on keys.** A push-in, a pull back, a pan or a move to frame a group is one
+  declaration (`camAt` in live, `<Camera keys>` in Remotion; `engines.md`), so it renders at any
+  frame. The element the narration names stays in frame while it is named (`studio check` warns).
+  The default minimap highlight is ice; a close-up's `accent` changes it only where the video gives
+  the explained thing another colour.
 - **A close-up** is one component or one record, full screen, opened from its box: the box lights
   just before the zoom (anticipation). A corner minimap has no labels and fills only the source
   box. The header is the item's name only: no breadcrumb, no subtitle.
@@ -46,6 +52,21 @@ One meaning per colour for the whole video: amber for cost or a number to watch,
 thing being explained or the current selection, coral for failure, grey for idle. A colour used for
 two things was the most common frame-review finding; in one video two colours swapped roles
 between chapters.
+
+## Line weight
+
+Outer contours are heavier than inner detail: a box's outline is heavier than the dividers between
+its fields, a table's outline heavier than its cell lines, a close-up's panel heavier than its
+minimap. Equal weights flatten a diagram into a grid, and the eye can no longer find where one
+thing ends. The kit's components follow it (live boxes 3 over 1.5 dividers; Remotion close-up 2.5
+over a 1.5 minimap, a table 2.5 over 1.5 cells); a lit or selected element may be heavier still,
+since that weight is state, not structure. The look sheet shows it.
+
+## The look sheet
+
+The model sheet (`studio look-sheet`, `engines.md`) is drawn at the look stage, before scenes: every
+element in each of its states, in the video's theme and layout. Scenes draw what is on it; a new
+element or state goes on the sheet first. The motion review checks drawings are on sheet.
 
 ## Motion
 

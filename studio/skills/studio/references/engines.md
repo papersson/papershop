@@ -7,7 +7,8 @@ don't care which one draws. A video picks its engine in video.json (`"engine": "
 
 What the engines have in common is written once, in `engines/shared/`: the motion maths
 (`motion.js`: eases, springs, `track`, `pulse`, `keyed`, `follow`, `settle`, `wobble`, ...), the narration times (`timing.js`: `at`, `end`,
-`word`, `phrase`, `cue`, half-up frame rounding) and the pixel-art core (`pixels.ts`). Each kit
+`word`, `phrase`, `cue`, half-up frame rounding), the camera maths (`camera.js`: camera keys and
+`frameOn`, used by live and Remotion) and the pixel-art core (`pixels.ts`). Each kit
 re-exports them under its own names and defaults. Captions are wrapped by the kit for every
 format and stored in timeline.json; an engine never wraps them.
 
@@ -37,14 +38,30 @@ desk play the whole video. `templates/live/scenes/` has a worked example of each
 The context `c` (all times in clip seconds):
 
 - `c.S`: the stage. `rect`, `circle`, `text`, `line`, `path` (with `{p}` a draw-on), `strike`,
-  `callout`, `blur`, `el`, and `cam(x, y, zoom)` for a push-in or pan. Every call names its node by
-  a key; a node not drawn this frame is hidden, so a frame is whatever this call drew.
-- `c.t`, `c.dur`; `c.W`, `c.H` (the stage above the caption band, in pixels); `c.unit` (`H / 8`).
+  `callout`, `closeUp` (below), `blur`, `el`, and `cam(x, y, zoom)`, the raw camera (it centres the
+  whole frame, band included; use `c.camAt`). Every call names its node by a key; a node not drawn
+  this frame is hidden, so a frame is whatever this call drew.
+- `c.t`, `c.dur`; `c.W`, `c.H` (the stage above the caption band, in pixels); `c.unit` (`H / 8`);
+  `c.header` (the strip at the stage's top that framing keeps clear: layout.json `header.height`,
+  0 by default) and `c.view`, the stage below it as `[x, y, w, h]`.
+- `c.camAt(keys, ease)`: the camera as one declaration. `keys` are `[time, {x, y, z}, ease?]`; at
+  `c.t` the camera is resolved with `keyed` (`inOut` by default), its zoom moving in proportion so a
+  push-in keeps its apparent speed, and each key's point is centred in `c.view`. It points the stage
+  there and returns `{x, y, z}`. `c.frameOn([x0, y0, x1, y1], {margin, min, max})` is the key that
+  fits a region in the view: `c.camAt([[t0, {x: c.W / 2, y: c.H / 2, z: 1}], [t1, c.frameOn(box), 'heavy']])`
+  is a push-in onto `box`. A key of `{x: W / 2, y: H / 2, z: 1}` with no header is the stage as
+  drawn. `c.kit.camAt(t, keys)` and `c.kit.frameOn(region, [w, h])` are the pure versions.
+- `S.closeUp(key, c.view, {open, from, name, map, of, accent})`: a close-up, as Remotion's. `open`
+  runs 0 → 1; the box `from` (`[x, y, w, h]`) grows into the view, then the header (the name only)
+  and a corner minimap of `map` (the map's boxes, unlabelled, the one at index `of` filled in
+  `accent`, ice by default) fade in. It returns the open panel `{x, y, w, h}` and `inner`, the
+  opacity to draw the contents with; contents may sit outside the panel.
 - `c.at('03')`, `c.end('03')`, `c.word('03', 2)`, `c.phrase('03', 'the whole state')`, `c.cue(name)`.
 - `c.P(t0, d, ease)` progress of a movement; `c.kit`: `ease` (`out`, `in`, `inOut`, `back`, `smooth`,
   `heavy`, `float`, `snap`), `stagger`, `pulse`, `spring`, `track` (a value that springs to each new
   key), `keyed`, `follow`, `settle`, `wobble` (below), `countUp`, `rand` (never `Math.random`), `lerp`,
-  `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, ...).
+  `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, `C.edge`
+  and `C.tray` for a box's outline and fill, ...).
 - `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
 
 Text is named for the checks by its key (`legible`, `overlap`, `bounds`); give a shape `{box: 'name'}`
@@ -81,6 +98,48 @@ value never depends on what was computed before it.
 Use `cue(name)` from the beat sheet (`cues.json`) for the times these take, so a move, its sound and
 its still share a frame.
 
+## The camera (live and Remotion)
+
+A camera move is one declaration of keys, `[time, shot, ease?]`, resolved with `keyed`, so any frame
+of it renders alone; the zoom moves in proportion. Framing keeps a header strip clear at the top
+(layout.json `"header": {"height": px}`, per format under `formats` too), as the caption band is
+kept clear at the bottom: the camera centres a shot in the stage below the header, the map frames
+its boxes there and a close-up opens there. With no header (the default) nothing moves.
+
+- Live: `c.camAt(keys)` with `{x, y, z}` in pixels, `c.frameOn(region)`, `c.header`, `c.view` (above).
+- Remotion: `<Camera keys={[[t0, {cx, cy, zoom}], [t1, frameOn(useStage(), [x0, y0, x1, y1]), 'heavy']]}>`
+  in stage units (`smooth` by default, as `ramp`), or fixed `cx`, `cy`, `zoom` as before; `camAt(t,
+  keys)` is the pure version. `Camera`, `MapView`, `frameCamera` and `CloseUp` take `headerInset`
+  (stage units), which defaults to the layout's header. `MapView` and `CloseUp` take `accent`, the
+  colour a lit box, a lit arrow and the minimap's source box turn (ice by default). `CloseUp` draws
+  its children on the whole stage, so a part can sit outside the panel; `clip` cuts them to the panel
+  and `bleed` (stage units) grows that cut, so a part may cross the edge by that much and no more.
+- Motion Canvas has none of these.
+
+Stage camera moves and content changes; don't run them together (`style.md`). The glossary names
+them: "push-in", "pull back", "pan", "frame on". `studio check`'s `inframe` warns when an element
+the sentence names is cut by the frame, the header or the band at the sentence's end; `bounds` fails
+any named element the camera pushes past the frame's edge, so keep named elements in frame or leave
+them unnamed while a push-in crops them.
+
+## The look sheet (live and Remotion)
+
+`studio look-sheet VIDEO [--format F]` renders the model sheet through the video's engine, in its
+theme and layout, before scenes are built: the theme's colours with their roles, the type sizes, the
+caption band with a sample caption, and each element in each state (boxes idle, lit and failed;
+arrows idle, active and muted; the token's glyph states; a card with lit and failed lines; a ghost;
+a callout and a strike-through on live; the map, the close-up and the code components on Remotion).
+The video's own elements come after, from `scenes/look.js` (live: `export default function look(c)`,
+optionally `export const pages = [titles]`, `c.page` the page drawn) or `scenes/look.tsx` (Remotion: a
+default export mapping each page's title to a component). Copy `templates/live/scenes/example-look.js`
+or `templates/scenes/example-look.tsx`; export each element from it so the scenes import the same
+drawing. A page is drawn at t = 0 with no sentence times.
+
+Output: `out/look/look-<n>.png` and `out/look/look.json` (engine, format, the page titles and files,
+whether a look file was drawn, and a key over the engine's source, the layout and the look file), or
+`out/look/<format>/` for another format. `look.latest(video)` returns that record with `stale` set
+when any of those changed since; the motion review includes the pages.
+
 ## Motion Canvas scenes
 
 `scenes/project.ts` lists one scene per clip in `timeline.json`, in order; each scene is
@@ -113,6 +172,7 @@ Everything the Remotion kit has, in generator form. Scenes drive the components 
 | captured assets | `Shot` | `shot(c, file, at, h, {aspect, crop})` |
 | footage edits | `Footage` | `footage(c, {aspect, fit})` |
 | easing and springs | `ramp`, `spring`, `track`, `swapAlpha`, `loopT`, `rng`, `ease`, `keyed`, `follow`, `settle`, `wobble` | the same names (`keyed` defaults to `inOut`) |
+| camera keys, header inset, close-up `accent`/`clip`/`bleed`, the look sheet | `Camera keys`, `frameOn`, `headerInset`, `studio look-sheet` | none: these are live and Remotion only |
 
 Two things differ. Footage is transcoded once to a seekable WebM proxy (`.cache/mc-footage/`),
 because Chrome's headless builds don't decode H.264; it is cached by modification time and seeks
