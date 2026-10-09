@@ -57,6 +57,11 @@ Several notes that arrive together come back together from `studio wait`; handle
 order and resolve each. A note that asks a question ("is this the same log?") is answered in the
 video when the video should have answered it, and in the reply when it shouldn't.
 
+Under a cut's changes, the desk lists its known issues: the findings a motion review left on purpose
+when it stopped (`explainer.md`, Stage 11). A note on one of them is the user's call to fix it after
+all. If the user prefers to judge motion here rather than have a motion review, record their notes
+as the reason of a `studio review-status VIDEO motion waived` waiver.
+
 ## Background runs and the desk
 
 A background builder never waits on the user. If the user opens the desk on a background video and

@@ -12,7 +12,9 @@ claude plugin install studio@papershop
 Then ask for a video from anywhere ("make an explainer of how this repo's sync engine works",
 "teach me Raft as a video"). The skill distinguishes subject expertise from audience needs. Teaching explainers get a fresh
 student script pass; learner drive or deep-dive level also gets expert/editor script review.
-Deep-dive and shared videos get independent frame review. Code lessons build
+Every explainer gets a polish stage whose gate is a motion review on frame sequences, which stops
+after a round with no must-fix findings or two rounds; deep-dive and shared videos also get
+independent frame review. Code lessons build
 runnable programs around motivated ideas, with recorded outputs and optional reference sidebars.
 
 Before anything is animated, each beat gets a rough board (what is on screen, and where) and the

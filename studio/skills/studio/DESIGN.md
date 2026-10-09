@@ -282,7 +282,7 @@ item: the loop is proven by the user's own notes.
   bytes, and since the timeline became a build product it also changes for sources, the audio track
   and effects, so a sound edit staled a frame review. The revision now hashes the bundle's Script
   and Evidence, data/ and each chapter's clip key, which already covers the narration, captions,
-  cues, scene code and layout a frame shows. Review kinds (script, frames) declare their roles,
+  cues, scene code and layout a frame shows. Review kinds (script, frames, and later motion) declare their roles,
   revision scope, verdict line, round cap and freshness rule in one registry, `reviews.py`.
   Upgrading changes every frame revision once: existing frame receipts (waived and unavailable
   ones included) and every cut's `source_revision` stop matching, so a video that requires a frame
@@ -346,6 +346,24 @@ item: the loop is proven by the user's own notes.
   0.7 s a second of video, so that is opt-in), finds the significant moves, and warns at a hold
   under 0.5 s. Its thresholds were set so the kit's live and Remotion templates pass; it warns
   rather than fails until real builds calibrate it.
+- **Motion is reviewed on frame sequences.** In a long session, motion reviews on frame sequences
+  were the builders' main polish tool, and stills near a sentence's end could not see a contact or
+  a pop. `studio review-motion` packages a strip of consecutive frames (about 15 a second) around
+  every event of the cut's beat sheet, the contact fourth so anticipation and settle show, and over
+  every significant move no event covers, each with the narration and the effects cued in it. The
+  frames are cut from the cut's own renders, so the bundle carries that cut's revision, and a
+  result for an older cut is recorded as stale, as a frame review's is. Polish became a planned
+  stage of the explainer (Stage 11), after the blocking and before the frame review, with the
+  motion review as its gate; publish requires it for explainers, and in interactive mode the user's
+  desk notes can stand in through a waiver.
+- **A motion review stops by a rule.** The same session's review loop ran for hours with no natural
+  end: should-fix findings plateaued at 25 to 45 a review. A motion review now ends at a round with
+  no must-fix findings or after `motion_rounds` (default 2) rounds, whichever comes first, and the
+  rest is recorded on the cut as known issues that later cuts carry and the desk shows. Rounds count
+  per cut lineage (the cuts reviewed since the latest structural mark): per revision, every round
+  would be a first, and per script revision, a one-word fix would buy two more rounds. An ended
+  review stands until a structural revision, so frame-review fixes don't reopen it; a round with
+  must-fix findings at the cap is reported as open, never passed.
 
 | Still open | Done when |
 |---|---|

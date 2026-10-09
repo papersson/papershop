@@ -22,9 +22,10 @@ This table is the one list of the explainer's stages; SKILL.md and the build pro
 | 7 Boards | boards/boards.json, a boards cut | every sentence has a board or a screen note on screen | builder (user in interactive mode) |
 | 8 Animatic | an animatic cut and its pacing report | runtime, unchanged stretches and empty sentences read and addressed | builder (user in interactive mode) |
 | 9 The look | a stills-only cut | the user's pick, unless a house style already settles it | user |
-| 10 Scenes, cuts, craft | cuts, chapter by chapter | `studio check` passes; craft pass on changed chapters | builder; the user reviews cuts |
-| 11 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
-| 12 Finish | local master, page | `studio publish` gate passes | user |
+| 10 Scenes and cuts | cuts, chapter by chapter: the blocking (layout, moves timed on events) | `studio check` passes, pacing included; craft pass on changed chapters | builder; the user reviews cuts |
+| 11 Polish | secondary motion, anticipation, effects on events; a motion review receipt | the motion review stops by its rule: a round with no must-fix findings, or `motion_rounds` rounds (2) | fresh reviewer, the main session dispatching; in interactive mode the user's desk notes instead, if the user prefers |
+| 12 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
+| 13 Finish | local master, page | `studio publish` gate passes | user |
 
 `mode` in video.json sets how the user takes part. In `background` (the default) an agent builds
 unattended: the user approves the narrative, picks the look and reviews cuts; boards and the
@@ -216,7 +217,11 @@ Make real static scenes for the main picture and a close-up; `studio cut --still
 these without displacing playable cuts. Get the user's choice before animation unless already
 settled/authorized. Existing house style can supply a direction rather than requiring alternatives.
 
-## Stage 10: Scenes, cuts and craft
+## Stage 10: Scenes and cuts
+
+This stage is the blocking: what is where, and when each move happens. Polish (secondary motion,
+anticipation, effects) is the next stage, planned from the start rather than added at the end, so
+build the moves plainly here and leave room for it.
 
 One scene per chapter, built in order and cut as each is done: unbuilt chapters show their boards,
 so every cut plays the whole video. In interactive mode, show the first finished chapter on the desk
@@ -238,10 +243,46 @@ Check a frame with `studio still`, then `studio cut` for changed clips only. Bef
 `studio check`, `studio sheets`, and one craft pass on changed chapters for readability, motion,
 composition, synchronization and banned defaults. `studio check` warns at a hold under 0.5 s
 between significant moves (pacing); space the moves or merge them into one. Inspect full-resolution crops; a reduced
-contact sheet does not establish font size. Fix the significant findings; avoid endless polish.
+contact sheet does not establish font size. Fix the significant findings; polish is the next stage.
 `studio open VIDEO [CUT]` opens and protects an MP4; `studio desk` provides annotation playback.
 
-## Stage 11: Independent frame review
+## Stage 11: Polish
+
+Polish is a stage of every explainer, with its own gate. On the blocked chapters, add what makes
+motion read as physical (`style.md`, and for a comic `styles/comic.md`): secondary motion (`follow`
+for a label riding a moving token, `settle` for a heavy thing landing, `wobble` for a held picture
+that should feel alive), anticipation before a significant move (a small wind-up, or the camera
+easing before a zoom), and effects on the events of the beat sheet (`studio sfx` on the cue the
+move waits on, so picture and sound share a frame). Cut, and keep `studio check` passing.
+
+Then the motion review. `studio review-motion VIDEO [--cut N]` packages the cut (the latest rendered
+one by default) into `research/motion_review/cut<N>-<rev>/`: a strip of consecutive frames (about
+15 a second) around every event of the cut's beat sheet, the contact the fourth frame so its
+anticipation and settle show, and over every significant move no event covers; an index of the
+windows with what the narration says and the effects cued in each; the cut's Script section; and
+`prompt.md` from `prompts/motion_review.md` (with `styles/comic.md`'s motion questions when the tone
+is comic, and the last round's findings to check for regressions). Every frame comes from the cut
+itself. The builder reports **ready for motion review**; the main session gives the bundle to a fresh
+image-capable reviewer and imports the response with `studio review-motion VIDEO --cut N --result
+FILE`, which needs the bundle's REVISION and a `MOTION: PASS` or `MOTION: FIX` line and writes the
+findings to `findings.json`.
+
+The motion review stops by its rule: at a round with no must-fix findings, or after `motion_rounds`
+rounds (default 2) of this cut lineage, counted since the latest structural stage mark. The last
+round's should-fix and nit findings are recorded on the cut as known issues (later cuts carry them,
+and the desk shows them under the cut), so nobody raises them again. Fix must-fix findings, make a
+fresh cut and run the next round; do not chase should-fix findings round after round. A third round
+is refused. At the cap with must-fix findings open, the receipt stays open and the main session
+reports it to the user: they fix them and record their acceptance with `studio review-status VIDEO
+motion waived --reason …`, or, only if the user asks, raise `motion_rounds`. Once the review has
+ended, later small edits (frame-review fixes, desk notes) don't call for another round; a structural
+revision does.
+
+In interactive mode the user watches the cuts on the desk, and their notes can stand in for the
+motion review if they prefer. Record that as a waiver whose reason names the notes:
+`studio review-status VIDEO motion waived --reason "user's desk notes on cut 7 (n12–n19) stand in"`.
+
+## Stage 12: Independent frame review
 
 Required before delivering a deep-dive, a shared video, or when video.json `frame_review` is true.
 First run `studio sheets VIDEO VIDEO/out/sheets` for the current cut, adding `--strip CLIP T` for
@@ -258,7 +299,7 @@ REVISION and FRAMES verdict. A change to what the reviewer saw invalidates the r
 for a cut older than the sources is recorded as stale (`publishing.md`). Never label a builder's
 own pass independent. Unavailable/authorized waived reviews use `studio review-status`.
 
-## Stage 12: Finish and hand over
+## Stage 13: Finish and hand over
 
 Run `studio publish VIDEO` for the local final-quality master, including files-only delivery;
 external uploading remains a separate authorized action (`publishing.md`). Default landscape is

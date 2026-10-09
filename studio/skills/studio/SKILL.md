@@ -59,7 +59,8 @@ bundles. Release ownership at handoff, with `studio handoff` written first when 
 finished; `--recover` is for an abandoned build, never a way to displace a live one.
 
 The main session owns independent review dispatch. A background builder can report **ready for
-script review**, **ready for look choice**, or **ready for frame review** and receive results back.
+script review**, **ready for look choice**, **ready for motion review** or **ready for frame review**
+and receive results back.
 It need not spawn children. In interactive mode the main session is the builder: it builds in the
 foreground, says **chapter N ready on the desk**, and takes notes as `studio wait` delivers them.
 Do not substitute a self-review for an unavailable independent review.
@@ -71,6 +72,11 @@ hold at every stage:
 - Agree on the learning brief and chain before scripting, unless already authorized to proceed.
 - Frame review judges full-resolution crops and mechanism-sensitive transition frames, not just
   thumbnails; import the revision-tagged result.
+- Polish is a planned stage of every explainer, and its gate is the motion review: frame sequences
+  around every event and significant move, judged by a fresh reviewer. It stops at a round with no
+  must-fix findings or at `motion_rounds` (default 2), and leaves the should-fix findings on the cut
+  as known issues. Publish needs it settled (passed, known issues, or a user waiver; in interactive
+  mode the user's desk notes can be that waiver's reason).
 - Every asserted number or behavior has an Evidence row. Recorded code/data drive the scenes.
 - Review caps leave open findings; they do not make them pass. Record unavailable or explicitly
   user-waived checks with `studio review-status`, including the reason. A material edit invalidates
@@ -106,7 +112,8 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `steps VIDEO STEPS.json` | Execute full-file program versions and record source/output evidence |
 | `review VIDEO ROUND [--only student|expert|editor] [--narrative FILE]` | Isolated, revision-bound script/narrative review; `max_rounds` counts the rounds since the latest structural stage mark |
 | `review-frames VIDEO [--cut N] [--result FILE]` | Package a cut's frames for the main session, or import the reviewer's result (one for a cut older than the sources is recorded as stale, and publish refuses it) |
-| `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization; ROLE is a script reviewer or `frames` (alias `frame`) |
+| `review-motion VIDEO [--cut N] [--result FILE]` | Package a cut's motion windows (frame strips around every event and uncovered move, from the cut's own frames) for the main session, or import the result as findings; stops at a round with no must-fix findings or after `motion_rounds` (2), recording the rest on the cut as known issues |
+| `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization; ROLE is a script reviewer, `frames` (alias `frame`) or `motion` |
 | `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
 | `timeline VIDEO [--events]` | Rebuild timeline.json from its sources, after editing `cues.json`, `captions.json` or `audio/tracks.json`; `--events` lists the beat sheet: every cue's time, frame, clip and anchor |

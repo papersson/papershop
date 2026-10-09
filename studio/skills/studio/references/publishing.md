@@ -36,7 +36,8 @@ note to the sentence/chapter of its cut. An empty note still means “here.”
    the chapters whose scenes read it. `review-frames` packages any cut with that cut's own
    revision, and a result for a cut older than the current sources is recorded as stale, naming
    the chapters changed since; publish refuses a stale receipt and says what changed. Review a
-   fresh cut, or record an authorized waiver.
+   fresh cut, or record an authorized waiver. A motion review that has ended is not reopened by
+   these fixes (below).
 6. Report the cut, actual width×height/fps, quality and final-quality status, runtime change,
    note dispositions, late requests and measured stage times. Do not guess per-request minutes.
    Mark waiting/finished boundaries and checkpoint at authorized stages.
@@ -47,10 +48,34 @@ change sources during a render or launch a second writer. Preserve the record of
 A changed chapter without a new Review log entry produces a cut warning; a re-encode need not
 invent an editorial revision.
 
+## The motion review and its stop rule
+
+An explainer with a teaching contract (what `studio new` makes) publishes only with a settled motion
+receipt: `passed`, `known-issues` or `waived`. Other genres don't need one. `studio review-motion`
+packages a cut's motion windows and imports the reviewer's findings (`explainer.md`, Stage 11).
+
+The review stops at a round with no must-fix findings, or after video.json `motion_rounds` rounds
+(default 2), whichever comes first. Rounds count per cut lineage: the cuts motion-reviewed since the
+latest structural stage mark (or fork), since every round reviews a new cut. Should-fix findings
+plateaued at 25 to 45 a round in one long session, so the loop ran for hours with no natural end;
+now the last round's should-fix and nit findings go on the cut record as `known_issues`, later cuts
+carry them, and the desk shows them under the cut, so nobody raises them again. The receipt says how
+it ended: `passed` (nothing left), `known-issues` (no must-fix, smaller findings left), or
+`findings` with `stopped: "cap"` (must-fix findings still open at the cap). That last one is open,
+never passed: report it to the user, who either has them fixed and records acceptance with
+`studio review-status VIDEO motion waived --reason …`, or asks for more rounds by raising
+`motion_rounds`. A third round is refused with that choice spelled out.
+
+An ended review stands for its lineage: later edits (frame-review fixes, desk notes) are judged by
+the frame review and the user, not by another motion round. A structural revision starts a new count
+and asks for a new motion review. In interactive mode, when the user prefers to judge motion on the
+desk, record it as a waiver whose reason names their notes.
+
 ## Publishing
 
-`studio publish VIDEO` first runs the full `studio check` on every chapter as its gate (a failure
-stops it), then renders the final cut (1080p) unless the latest cut is one (only chapters
+`studio publish VIDEO` first requires the review receipts (script reviews, the frame review where
+required, the motion review for an explainer) and runs the full `studio check` on every chapter as
+its gate (a failure stops it), then renders the final cut (1080p) unless the latest cut is one (only chapters
 whose key changed since the last final render re-render) with its whole mix finished to -16 LUFS
 under a -1.5 dBTP ceiling (`studio audio`; a social export takes `--lufs -14`, below), links it as
 `out/master.mp4`, encodes

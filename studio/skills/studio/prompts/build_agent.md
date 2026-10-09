@@ -25,9 +25,12 @@ context small: give frame inspection to sub-agents that return findings as text 
 element, what is wrong), not images.
 
 Follow the stages in the table at the top of references/explainer.md. Where it names a decision
-for fresh reviewers or the user (script review, the look, frame review), stop and report ready for
-that decision: for frame review, run `studio sheets VIDEO VIDEO/out/sheets` and
-`studio review-frames VIDEO` and include the manifest. The main session arranges the reviewers and
+for fresh reviewers or the user (script review, the look, motion review, frame review), stop and
+report ready for that decision: for motion review, run `studio review-motion VIDEO` and include the
+manifest; for frame review, run `studio sheets VIDEO VIDEO/out/sheets` and
+`studio review-frames VIDEO` and include the manifest. The motion review stops by its rule (a round
+with no must-fix findings, or the cap); fix its must-fix findings, leave the rest as the known issues
+it records, and never ask for a round past the cap. The main session arranges the reviewers and
 the user's choice and returns them. Do not replace an independent review with your own pass or
 claim a reviewer ran when it did not; a cap never makes unresolved errors pass. Determinism is
 `studio check --only determinism`; there is no separate determinism command.
