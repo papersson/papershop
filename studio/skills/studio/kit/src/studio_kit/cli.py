@@ -201,6 +201,9 @@ COMMANDS = {
         A("video"), A("--cut", type=int), A("--start", metavar="ID", help="mark a note as being worked on"),
         A("--resolve", metavar="ID", help="mark a note done"), A("--reply", help="one line shown under a resolved note"),
     ], "page:main_notes"),
+    "glossary": ("the motion glossary: words a note can use for motion, and the helper behind each", [
+        A("--term", help="one term, or the terms a note's text mentions"),
+    ], "glossary:main"),
     "wait": ("block until a new note arrives on the desk, then print it", [
         A("video"), A("--timeout", type=float, help="give up after this many seconds (exit 2)"),
     ], "page:main_wait"),

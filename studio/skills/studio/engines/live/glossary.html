@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion glossary</title>
+<link rel="stylesheet" href="./node_modules/@fontsource/ibm-plex-sans/400.css">
+<link rel="stylesheet" href="./node_modules/@fontsource/ibm-plex-sans/600.css">
+<link rel="stylesheet" href="./node_modules/@fontsource/ibm-plex-mono/400.css">
+<link rel="stylesheet" href="./src/theme.css">
+<style>
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+header { padding: 20px 24px 4px; } h1 { margin: 0; font-size: 20px; } header p { color: var(--dim); margin: 4px 0 0; max-width: 760px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; padding: 16px 24px 40px; }
+.card { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.card svg { display: block; width: 100%; aspect-ratio: 16 / 9; background: var(--bg); }
+.body { padding: 10px 14px 14px; } h2 { margin: 0 0 4px; font-size: 16px; color: var(--hot); }
+.body p { margin: 0 0 6px; } .ask, .how { color: var(--dim); font-size: 13px; } code { font: 12px var(--mono); color: var(--ink); }
+</style></head>
+<body>
+<header><h1>Motion glossary</h1>
+<p>Words to use in a note. Each is one move the scenes can make, shown looping; the line under it says which helper makes it.</p></header>
+<div class="cards" id="cards"></div>
+<script type="module">
+import { Stage } from './src/stage.js'
+import { drawTerm, W, H } from './src/glossary.js'
+const terms = await (await fetch('./src/glossary.json', { cache: 'no-store' })).json()
+const only = new URLSearchParams(location.search).get('term')
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const cards = document.getElementById('cards')
+const demos = []
+for (const g of terms.filter(g => !only || g.term === only)) {
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><defs><marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs></svg>
+    <div class="body"><h2>${esc(g.term)}</h2><p>${esc(g.what)}</p><div class="ask">Ask: “${esc(g.ask)}”</div>
+    <div class="how">live: <code>${esc(g.live)}</code> · remotion: <code>${esc(g.remotion)}</code></div></div>`
+  cards.appendChild(card)
+  demos.push({ term: g.term, svg: card.querySelector('svg'), stage: new Stage(card.querySelector('svg'), { width: W, height: H }) })
+}
+const seen = new Set()
+const io = new IntersectionObserver(es => es.forEach(e => (e.isIntersecting ? seen.add(e.target) : seen.delete(e.target))))
+demos.forEach(d => io.observe(d.svg))
+;(function loop(now) {
+  for (const d of demos) if (seen.has(d.svg)) drawTerm(d.stage, d.term, now / 1000)
+  requestAnimationFrame(loop)
+})(performance.now())
+</script>
+</body></html>

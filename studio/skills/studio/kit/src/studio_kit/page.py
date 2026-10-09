@@ -178,6 +178,10 @@ def describe(notes):
         lines.append(f"{i}. [{int(m)}:{s:04.1f} {x['sentence_id'] or x['clip']} {x['kind']}] {x['note'] or '(here)'}"
                      f"  (id {x['id']}{state}, cut {x['cut']})")
         lines.append(f"   on screen: {x['sentence']}")
+        from . import glossary
+        named = [g["term"] for g in glossary.find(x["note"] or "")]
+        if named:
+            lines.append(f"   glossary: {', '.join(named)} (studio glossary --term TERM)")
         if x.get("reply"):
             lines.append(f"   reply: {x['reply']}")
     return lines

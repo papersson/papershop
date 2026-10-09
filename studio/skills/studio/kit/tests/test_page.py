@@ -129,3 +129,10 @@ def test_events_announce_a_new_note(tmp_path):
         assert b"event: notes\n" in lines
     finally:
         server.shutdown()
+
+
+def test_a_note_naming_a_glossary_word_points_the_builder_at_it():
+    note = {"id": "g1", "cut": 1, "t": 3.0, "clip": "s1", "sentence_id": "s1_02", "sentence": "Two.", "kind": "picture",
+            "note": "Stagger these and blur them together", "status": "queued"}
+    text = "\n".join(page.describe([note]))
+    assert "glossary: stagger, blur together" in text
