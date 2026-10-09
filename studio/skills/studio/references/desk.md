@@ -42,7 +42,9 @@ engine a cut is for the record and the publish gate, not for the user to see the
      (`studio glossary --term …`). The terms for weight and life map to the shared motion helpers:
      "keyframe" (`keyed`, a path with stops and an ease per leg), "heavy", "float" and "snap" (eases),
      "overshoot" (`ease.back`), "follow-through" (`follow`), "settle" (`settle`) and "wobble"
-     (`wobble`). A move the glossary lacks: make it, and add the term to
+     (`wobble`). The camera's terms are "push-in", "pull back", "pan" and "frame on": each is a
+     camera key list (`c.camAt` in live, `<Camera keys>` in Remotion), "frame on" a key from
+     `c.frameOn(region)` / `frameOn(stage, region)`. A move the glossary lacks: make it, and add the term to
      `engines/live/src/glossary.json` with a demo in `glossary.js`;
    - a note on timing at a contact ("the thud is early"): move the event in `cues.json`, which moves
      its picture, its effect and its still together (`studio timeline VIDEO --events` lists them).
@@ -60,7 +62,7 @@ video when the video should have answered it, and in the reply when it shouldn't
 Under a cut's changes, the desk lists its known issues: the findings a motion review left on purpose
 when it stopped (`explainer.md`, Stage 11). A note on one of them is the user's call to fix it after
 all. If the user prefers to judge motion here rather than have a motion review, record their notes
-as the reason of a `studio review-status VIDEO motion waived` waiver.
+by id as the reason of a `studio review-status VIDEO motion waived` waiver (interactive mode only).
 
 ## Background runs and the desk
 

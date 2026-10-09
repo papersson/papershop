@@ -3,5 +3,5 @@
   --bg: #0F1318; --band: #0A0D11; --bg2: #151B22; --bg3: #1C242E; --panel: #1C242E; --line: #2B333C;
   --ink: #E6EBF0; --dim: #8C97A4; --faint: #56606B; --hot: #F2A93B; --warm: #F5CF7A; --cold: #8FD3FF;
   --bad: #E4715F; --bad-bg: #3A2024; --good: #8FD19E; --good-bg: #1E3326; --log: #F2D27A; --key: #C3A6F2;
-  --water: #12243A; --sans: "IBM Plex Sans", sans-serif; --mono: "IBM Plex Mono", monospace;
+  --water: #12243A; --edge: #C9D3DD; --tray: #17202A; --sans: "IBM Plex Sans", sans-serif; --mono: "IBM Plex Mono", monospace;
 }

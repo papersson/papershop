@@ -22,7 +22,7 @@ def css_vars(path):
 
 
 @pytest.mark.parametrize("theme,map_file,pattern", [
-    (engine_dir("remotion") / "src/kit/theme.ts", engine_dir("remotion") / "src/kit/map.tsx", r"color=\{mix\((\w+), ICE, on\)\}"),
+    (engine_dir("remotion") / "src/kit/theme.ts", engine_dir("remotion") / "src/kit/map.tsx", r"color=\{mix\((\w+), accent, on\)\}"),
     (engine_dir("motion-canvas") / "src/base.ts", engine_dir("motion-canvas") / "src/map.ts", r"l\.line\.stroke\(mix\((\w+), ICE, on\)\)"),
 ])
 def test_an_idle_map_arrow_stands_out_from_the_stage_and_the_panels(theme, map_file, pattern):

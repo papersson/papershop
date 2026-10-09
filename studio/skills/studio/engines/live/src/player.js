@@ -11,6 +11,10 @@
 //   S                the stage (rect, circle, text, line, path, strike, callout, blur, el, cam)
 //   t, dur           time in the clip and the clip's length
 //   W, H, unit       the stage above the caption band, in pixels; unit = H / 8 (the other engines' unit)
+//   header, view     the strip at the stage's top that framing keeps clear (layout.json header.height,
+//                    0 by default), and the stage below it as [x, y, w, h]
+//   camAt(keys, e)   point the camera along keys [time, {x, y, z}, ease?] at t, each key's point centred
+//                    in the view; returns {x, y, z}. frameOn([x0, y0, x1, y1]) is a key that fits a region
 //   at(id, off)      start of a sentence ("03" means "<clip>_03"); end(id, off) its end
 //   word(id, i, off) the i-th spoken word; phrase(id, text, off) when the voice says that phrase
 //   cue(name, off)   a timeline cue; P(t0, d, ease) progress of a movement; kit: the helpers
@@ -60,6 +64,22 @@ export async function boot({ svg, video, layout: layoutUrl }) {
   const stage = new Stage(svg, { width: L.width, height: L.height })
   const bandTop = () => L.height - L.band.height
 
+  /** What scenes and look pages share: the stage, its size, the header and the camera helpers, at clip time t. */
+  function frameContext(t) {
+    const H = bandTop(), header = L.header?.height ?? 0
+    return {
+      S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: [0, header, L.width, H - header], layout: L,
+      // S.cam centres the whole frame; a key's point goes to the middle of the view instead.
+      camAt: (keys, e) => {
+        const k = kit.camAt(t, keys, e)
+        stage.cam(k.x, k.y + (L.height / 2 - (header + H) / 2) / k.z, k.z)
+        return k
+      },
+      frameOn: (region, o) => kit.frameOn(region, [L.width, H - header], o),
+      asset: file => `${base}assets/${file}`,
+    }
+  }
+
   function clipRange(id) {
     const c = T.tracks.scene.find(x => x.id === id)
     if (!c) throw new Error(`no clip ${id} in timeline.json`)
@@ -70,13 +90,11 @@ export async function boot({ svg, video, layout: layoutUrl }) {
   function context(clip, t) {
     const { c, first, frames } = clipRange(clip)
     const { at, end, word, phrase, cue, sentences } = clipTimes(T, clip, first / T.fps)
-    const H = bandTop()
     return {
-      S: stage, t, dur: frames / T.fps, W: L.width, H, unit: H / 8, kit,
-      clip, index: T.tracks.scene.indexOf(c), title: c.title, chapters: T.tracks.scene, timeline: T, layout: L,
+      ...frameContext(t), dur: frames / T.fps,
+      clip, index: T.tracks.scene.indexOf(c), title: c.title, chapters: T.tracks.scene, timeline: T,
       at, end, word, phrase, cue, sentences,
       P: (t0, d, e) => kit.prog(t, t0, d, e),
-      asset: file => `${base}assets/${file}`,
     }
   }
 

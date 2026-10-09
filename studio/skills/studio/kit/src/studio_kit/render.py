@@ -11,6 +11,7 @@ chapters that wait on it, and the beat grid counts only for chapters whose code 
 videos/<name>/cuts/cutN/
   video.mp4      the composite with narration (draft: 540p)
   stills/        one frame per sentence, near its end, and at each event and long pause (moments.stills)
+  timeline.json, layout.json, sfx.json, SCRIPT.md   the sources' snapshots (sfx.json with each effect's time)
   cut.json       what was rendered, how long each step took, and the changelog against cut N-1
 """
 import functools
@@ -355,6 +356,10 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     if prev and changed and prev.get("review_log_hash") == review_hash and prev.get("quality") == quality:
         log("warn: changed chapters have no new Review log entry; record merges, cuts and expected runtime change")
     atomic_json(d / "timeline.json", timeline)
+    atomic_json(d / "layout.json", tl.layout(video))       # what a motion review of this cut reads, as it was
+    if (video / "audio" / "sfx.json").exists():
+        from .sfx import _time
+        atomic_json(d / "sfx.json", [{**c, "time": _time(c["t"], timeline)} for c in json.loads((video / "audio" / "sfx.json").read_text())])
     if script_path.exists():
         shutil.copyfile(script_path, d / "SCRIPT.md")
     from .review_state import fingerprint, review_keys
@@ -364,7 +369,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "media": media, "final": quality == "final" and not stills_only,
         "review_log_hash": review_hash,
         "cut": n, "kind": "boards" if boards else "stills" if stills_only else "final" if quality == "final" else "cut",
-        "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": quality,
+        "created": time.strftime("%Y-%m-%d %H:%M:%S"), "t": round(time.time(), 3), "quality": quality,
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in timeline["tracks"]["scene"]],
         "clips": clips, "sound": sound, "changed": changed if prev else [],

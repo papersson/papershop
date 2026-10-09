@@ -30,7 +30,7 @@ report ready for that decision: for motion review, run `studio review-motion VID
 manifest; for frame review, run `studio sheets VIDEO VIDEO/out/sheets` and
 `studio review-frames VIDEO` and include the manifest. The motion review stops by its rule (a round
 with no must-fix findings, or the cap); fix its must-fix findings, leave the rest as the known issues
-it records, and never ask for a round past the cap. The main session arranges the reviewers and
+it records, and never ask for a round past the cap or a second result for one bundle. The main session arranges the reviewers and
 the user's choice and returns them. Do not replace an independent review with your own pass or
 claim a reviewer ran when it did not; a cap never makes unresolved errors pass. Determinism is
 `studio check --only determinism`; there is no separate determinism command.

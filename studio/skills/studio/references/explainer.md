@@ -257,30 +257,41 @@ move waits on, so picture and sound share a frame). Cut, and keep `studio check`
 
 Then the motion review. `studio review-motion VIDEO [--cut N]` packages the cut (the latest rendered
 one by default) into `research/motion_review/cut<N>-<rev>/`: a strip of consecutive frames (about
-15 a second) around every event of the cut's beat sheet, the contact the fourth frame so its
-anticipation and settle show, and over every significant move no event covers; an index of the
-windows with what the narration says and the effects cued in each; the cut's Script section; and
-`prompt.md` from `prompts/motion_review.md` (with `styles/comic.md`'s motion questions when the tone
-is comic, and the last round's findings to check for regressions). Every frame comes from the cut
-itself. The builder reports **ready for motion review**; the main session gives the bundle to a fresh
-image-capable reviewer and imports the response with `studio review-motion VIDEO --cut N --result
-FILE`, which needs the bundle's REVISION and a `MOTION: PASS` or `MOTION: FIX` line and writes the
-findings to `findings.json`.
+15 a second, each labelled with its frame number) around every event of the cut's beat sheet, the
+contact outlined and usually the fourth frame so its anticipation and settle show, and over every
+significant move no event covers. A window runs across a cut between chapters; at the video's ends
+it is shorter, and the index says where its contact is. The bundle also holds an index of the
+windows with what the narration says and the effects cued in each, the events that got no window
+(before the start or past the end) and why, the cut's Script section, and `prompt.md` from
+`prompts/motion_review.md` (with `styles/comic.md`'s motion questions when the tone is comic, and
+the last round's findings to check for regressions). Every frame, effect time and layout comes from
+the cut itself. The builder reports **ready for motion review**; the main session gives the bundle
+to a fresh image-capable reviewer and imports the response with `studio review-motion VIDEO --cut N
+--result FILE`. The response puts its findings in a fenced `findings` block and the regression
+check in a `regressions` block; the import needs the bundle's REVISION and a `MOTION: PASS` or
+`MOTION: FIX` line, refuses a FIX with no finding it can read, takes the status from the findings
+(the verdict is a cross-check), and writes them to `findings.json`. A bundle takes one result.
 
 The motion review stops by its rule: at a round with no must-fix findings, or after `motion_rounds`
-rounds (default 2) of this cut lineage, counted since the latest structural stage mark. The last
-round's should-fix and nit findings are recorded on the cut as known issues (later cuts carry them,
-and the desk shows them under the cut), so nobody raises them again. Fix must-fix findings, make a
+rounds (default 2) of this cut lineage. Each cut reviewed is a round, a re-cut of unchanged sources
+included, counted since the latest structural stage mark made over a picture that changed
+substantially (a new chapter, or half the chapters or more). The last round's should-fix and nit
+findings are recorded on the cut as known issues (later cuts carry them, and the desk shows them
+under the cut) until a later review ends, so nobody raises them again. Fix must-fix findings, make a
 fresh cut and run the next round; do not chase should-fix findings round after round. A third round
 is refused. At the cap with must-fix findings open, the receipt stays open and the main session
 reports it to the user: they fix them and record their acceptance with `studio review-status VIDEO
 motion waived --reason …`, or, only if the user asks, raise `motion_rounds`. Once the review has
-ended, later small edits (frame-review fixes, desk notes) don't call for another round; a structural
-revision does.
+ended, it stands while the picture stays mostly the same: later small edits (frame-review fixes,
+desk notes) don't call for another round. When a chapter is added or half the chapters or more
+change since the reviewed cut, it no longer stands; publish names the chapters, and the way on is a
+structural stage mark, which starts a new count, a fresh cut and a new motion review.
 
 In interactive mode the user watches the cuts on the desk, and their notes can stand in for the
-motion review if they prefer. Record that as a waiver whose reason names the notes:
-`studio review-status VIDEO motion waived --reason "user's desk notes on cut 7 (n12–n19) stand in"`.
+motion review if they prefer. Record that as a waiver whose reason names the notes by id:
+`studio review-status VIDEO motion waived --reason "the user's desk notes ab12cd34, 9f00e1aa stand in"`.
+The receipt records the mode, the note ids, the cut and how many known issues it accepts; a reason
+citing desk notes is refused in background mode, or without note ids.
 
 ## Stage 12: Independent frame review
 

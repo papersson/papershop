@@ -360,10 +360,24 @@ item: the loop is proven by the user's own notes.
   end: should-fix findings plateaued at 25 to 45 a review. A motion review now ends at a round with
   no must-fix findings or after `motion_rounds` (default 2) rounds, whichever comes first, and the
   rest is recorded on the cut as known issues that later cuts carry and the desk shows. Rounds count
-  per cut lineage (the cuts reviewed since the latest structural mark): per revision, every round
-  would be a first, and per script revision, a one-word fix would buy two more rounds. An ended
-  review stands until a structural revision, so frame-review fixes don't reopen it; a round with
-  must-fix findings at the cap is reported as open, never passed.
+  per cut lineage: each cut reviewed is a round (counting revisions let a re-cut of unchanged
+  sources roll the reviewer again), and the count starts again only at a structural mark over a
+  substantially changed picture (a new chapter, or half the chapters or more), as a script mark
+  needs a changed script; per script revision, a one-word fix would buy two more rounds. An ended
+  review stands while its lineage does, so frame-review fixes don't reopen it, and stops standing
+  when its cut predates such a mark or the picture changed that much since (the first version
+  compared the import time with the mark, so a result for the old picture could stand for the new).
+  A round with must-fix findings at the cap is reported as open, never passed.
+- **A reviewer's findings are read from a block, and the status from the findings.** An independent
+  review of the first version found that common formats made false findings: a counts line such as
+  `MUST FIX: 0 · SHOULD FIX: 1`, or last round's list echoed with "fixed", became a must-fix that
+  stopped publish, while a table or heading-grouped list read as nothing, so known issues were lost.
+  The prompt now asks for a fenced `findings` block and a separate `regressions` block; without
+  them the parser skips counts lines and the regression check and reads tables, headings,
+  checkboxes and unicode hyphens. The status follows the findings, a FIX with none readable is
+  refused, and a bundle takes one result. Each window's sheet labels its frames, outlines the
+  contact and runs across a cut between chapters, and the cut keeps its effect times and layout, so
+  an older cut is not judged against newer sound.
 
 | Still open | Done when |
 |---|---|

@@ -55,21 +55,29 @@ receipt: `passed`, `known-issues` or `waived`. Other genres don't need one. `stu
 packages a cut's motion windows and imports the reviewer's findings (`explainer.md`, Stage 11).
 
 The review stops at a round with no must-fix findings, or after video.json `motion_rounds` rounds
-(default 2), whichever comes first. Rounds count per cut lineage: the cuts motion-reviewed since the
-latest structural stage mark (or fork), since every round reviews a new cut. Should-fix findings
+(default 2), whichever comes first. Rounds count per cut lineage: each cut motion-reviewed is a
+round (a re-cut of unchanged sources too), since the latest structural stage mark (or fork) made over
+a picture that changed substantially: a new chapter, or half the chapters or more. A mark over a
+small change buys no rounds, as a mark over an unchanged script buys no script rounds. Should-fix findings
 plateaued at 25 to 45 a round in one long session, so the loop ran for hours with no natural end;
 now the last round's should-fix and nit findings go on the cut record as `known_issues`, later cuts
 carry them, and the desk shows them under the cut, so nobody raises them again. The receipt says how
-it ended: `passed` (nothing left), `known-issues` (no must-fix, smaller findings left), or
-`findings` with `stopped: "cap"` (must-fix findings still open at the cap). That last one is open,
+it ended, read from the findings with the verdict line as a cross-check: `passed` (nothing left),
+`known-issues` (no must-fix, smaller findings left), or `findings` with `stopped: "cap"` (must-fix
+findings still open at the cap). A bundle takes one result, so a reviewer is not re-rolled. That last one is open,
 never passed: report it to the user, who either has them fixed and records acceptance with
 `studio review-status VIDEO motion waived --reason …`, or asks for more rounds by raising
 `motion_rounds`. A third round is refused with that choice spelled out.
 
-An ended review stands for its lineage: later edits (frame-review fixes, desk notes) are judged by
-the frame review and the user, not by another motion round. A structural revision starts a new count
-and asks for a new motion review. In interactive mode, when the user prefers to judge motion on the
-desk, record it as a waiver whose reason names their notes.
+An ended review stands for its lineage: later small edits (frame-review fixes, desk notes) are
+judged by the frame review and the user, not by another motion round. It stops standing when the
+reviewed cut came before a structural mark that started a new count, or when a chapter is new or
+half the chapters or more changed since that cut; publish names them and asks for a structural mark,
+a fresh cut and a new review. A later review that ends replaces the known issues; a waiver records
+how many it accepts. In interactive mode, when the user prefers to judge motion on the desk, record
+a waiver whose reason names their notes by id (the receipt keeps the mode and the ids; such a reason
+is refused in background mode). A video made before this requirement is told so at publish, with
+the waiver to record if the user agrees.
 
 ## Publishing
 

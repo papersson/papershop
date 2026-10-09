@@ -139,6 +139,34 @@ export class Stage {
     this.text(key + ':txt', x + (o.dx ?? 0), y - 22, str, { ...o, op: Math.min(1, Math.max(0, c * 2 - 0.6)) })
   }
 
+  /**
+   * A close-up: one component or record, opened from its box. `open` runs 0 → 1: the box `from`
+   * ([x, y, w, h]) grows into `area` (c.view, the stage below the header) less `pad`, then the header
+   * (`name` only) and a corner minimap fade in. The minimap draws `map`, the map's boxes ([x, y, w, h]
+   * each) without labels, and fills only the one at index `of`, in `accent`. The panel's outline (3)
+   * is heavier than the minimap's (1.5). Returns the open panel {x, y, w, h} and `inner`, the opacity
+   * the scene draws the contents with; contents may sit outside the panel, nothing clips them.
+   */
+  closeUp(key, area, { open = 1, from, name = '', map = [], of = -1, accent = 'var(--cold)', pad = 36, layer } = {}) {
+    const [ax, ay, aw, ah] = area
+    const x = ax + pad, y = ay + pad, w = aw - 2 * pad, h = ah - 2 * pad
+    const inner = Math.min(1, Math.max(0, (open - 0.55) / 0.45))
+    if (open <= 0) return { x, y, w, h, inner: 0 }
+    const k = Math.min(1, open), [fx, fy, fw, fh] = from ?? [x, y, w, h]
+    this.rect(key, fx + (x - fx) * k, fy + (y - fy) * k, fw + (w - fw) * k, fh + (h - fh) * k,
+      { fill: 'var(--bg2)', stroke: 'var(--edge)', sw: 3, r: 18, op: Math.min(1, open * 3), box: 'close-up', layer })
+    this.text(key + ':name', x + w / 2, y + 44, name, { size: 34, weight: 600, anchor: 'middle', op: inner, box: `close-up ${name}`, layer })
+    if (map.length) {
+      const x0 = Math.min(...map.map(b => b[0])), x1 = Math.max(...map.map(b => b[0] + b[2]))
+      const y0 = Math.min(...map.map(b => b[1]))
+      const mw = Math.min(368, w * 0.2), s = mw / Math.max(1, x1 - x0), ox = x + w - 24 - mw, oy = y + 24
+      map.forEach(([mx, my, bw, bh], i) => this.rect(`${key}:mini${i}`, ox + (mx - x0) * s, oy + (my - y0) * s, bw * s, bh * s, {
+        stroke: i === of ? accent : 'var(--dim)', fill: i === of ? accent : 'none', sw: 1.5, r: 3, op: inner, box: 'minimap', layer,
+      }))
+    }
+    return { x, y, w, h, inner }
+  }
+
   /** A Gaussian blur of strength sd as a filter reference (blur together). */
   blur(id, sd) {
     let f = this.svg.querySelector(`#${id}`)
@@ -164,7 +192,8 @@ export class Stage {
       if (!name || Number(node.getAttribute('opacity') ?? 1) <= 0.001 || !node.textContent && node.tagName === 'text') continue
       const r = node.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) continue
-      out.push({ name, kind: node.getAttribute('data-kind') ?? '', x: (r.left - origin.left) * sx, y: (r.top - origin.top) * sy, w: r.width * sx, h: r.height * sy })
+      out.push({ name, kind: node.getAttribute('data-kind') ?? '', x: (r.left - origin.left) * sx, y: (r.top - origin.top) * sy, w: r.width * sx, h: r.height * sy,
+        opacity: Number(node.getAttribute('opacity') ?? 1) })
     }
     return out
   }

@@ -64,13 +64,17 @@ def verdict(prefix, passing):
 
 
 def loose_verdict(word):
-    """A parser for "WORD: PASS" or "WORD: FIX" that tolerates a reviewer's drift in format: markdown
-    around it (bold, a heading, a quote, backticks) and its letter case. The line is returned in the
-    canonical form, or None when there is no verdict line."""
-    pattern = re.compile(rf"^{word}\s*:\s*(PASS|FIX)\b", re.I)
+    """A parser for "WORD: PASS" or "WORD: FIX" on a line of its own that tolerates a reviewer's drift
+    in format: markdown around it (bold, a heading, a quote, backticks), a dash for the colon, a
+    "Verdict:" before it, a full stop after it and its letter case; a sentence that only starts with
+    it ("MOTION: PASS would be my call…") is not a verdict. The last one counts. The line is
+    returned in the canonical form, or None when there is no verdict line."""
+    pattern = re.compile(rf"^(?:verdict\s*:\s*)?{word}\s*[:\-]\s*(PASS|FIX)\s*[.!]?$", re.I)
+    dashes = dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2015\u2212"), "-")
 
     def parse(text):
-        found = [m.group(1).upper() for m in (pattern.match(re.sub(r"[*_`#>]", "", line).strip()) for line in text.splitlines()) if m]
+        lines = (re.sub(r"[*_`#>]", "", line.translate(dashes)).strip() for line in text.splitlines())
+        found = [m.group(1).upper() for m in map(pattern.match, lines) if m]
         line = f"{word}: {found[-1]}" if found else None
         return ("passed" if found and found[-1] == "PASS" else "findings"), line
     return parse

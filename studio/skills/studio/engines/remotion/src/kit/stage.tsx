@@ -5,8 +5,10 @@ import {INK, MONO, SANS} from './theme';
  * The stage is the frame above the caption band. Scenes place things in stage units: the origin is
  * the stage's centre, y points up, and the stage is 8 units tall (Manim's convention, so scenes
  * port across). Text sizes are in the same points Manim scenes used; `pt` converts to pixels.
+ * `header` is the strip at the stage's top, in pixels, that framing keeps clear (layout.json
+ * `header.height`, 0 by default): the camera, the map's framing and a close-up fit below it.
  */
-export type Stage = {width: number; height: number; unit: number};
+export type Stage = {width: number; height: number; unit: number; header?: number};
 export const StageContext = createContext<Stage>({width: 1920, height: 920, unit: 115});
 export const useStage = () => useContext(StageContext);
 

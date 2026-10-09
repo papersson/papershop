@@ -75,8 +75,10 @@ hold at every stage:
 - Polish is a planned stage of every explainer, and its gate is the motion review: frame sequences
   around every event and significant move, judged by a fresh reviewer. It stops at a round with no
   must-fix findings or at `motion_rounds` (default 2), and leaves the should-fix findings on the cut
-  as known issues. Publish needs it settled (passed, known issues, or a user waiver; in interactive
-  mode the user's desk notes can be that waiver's reason).
+  as known issues. Each cut reviewed is a round; only a structural mark over a substantially changed
+  picture starts a new count. Publish needs it settled (passed, known issues, or a user waiver; in
+  interactive mode the user's desk notes, named by id, can be that waiver's reason), and it stops
+  standing when a chapter is added or half of them change.
 - Every asserted number or behavior has an Evidence row. Recorded code/data drive the scenes.
 - Review caps leave open findings; they do not make them pass. Record unavailable or explicitly
   user-waived checks with `studio review-status`, including the reason. A material edit invalidates

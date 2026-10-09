@@ -38,15 +38,22 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 		});
 	}, [fontsHandle]);
 	const stageH = l.height - l.band.height;
-	const stage = {width: l.width, height: stageH, unit: stageH / 8};
+	const stage = {width: l.width, height: stageH, unit: stageH / 8, header: l.header?.height ?? 0};
 	const root = useRef<HTMLDivElement>(null);
 	const frame = useCurrentFrame();
 	useLayoutEffect(() => {
 		if (!reportBoxes || !ready || !root.current) return;
 		const origin = root.current.getBoundingClientRect();
+		// opacity: the element's own times its ancestors', so a check can tell a faded-out element from a shown one.
+		const shown = (el: HTMLElement) => {
+			let o = 1;
+			for (let n: HTMLElement | null = el; n && n !== root.current; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
+			return o;
+		};
 		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box],[data-caption]')].map((el) => {
 			const r = el.getBoundingClientRect();
-			return {name: el.dataset.box ?? 'caption', kind: el.dataset.kind ?? '', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height};
+			return {name: el.dataset.box ?? 'caption', kind: el.dataset.kind ?? '', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height,
+				opacity: shown(el)};
 		});
 		console.log('STUDIO_BOXES ' + JSON.stringify({band: {y: stageH, h: l.band.height}, boxes}));
 	}, [reportBoxes, ready, frame, stageH, l.band.height]);

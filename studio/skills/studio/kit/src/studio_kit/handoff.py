@@ -140,8 +140,8 @@ def assemble(video, notes=None, now=None, notes_at=None):
                          "or, if the user asks, raise video.json motion_rounds")
         elif not any(k.name == r["kind"] for k, _, _ in waiting):    # a newer bundle is already out
             sheets = f"`studio sheets {v} {v}/out/sheets`, " if r["kind"] == "frames" else ""
-            fix = f"Fix the must-fix findings in {one_line(relative(video, r['detail']))}, then make" \
-                if r["status"] == "findings" and not why.startswith("stale") else "Make"
+            fix = f"{'Fix the must-fix findings' if r['kind'] == 'motion' else 'Address the findings'} in " \
+                f"{one_line(relative(video, r['detail']))}, then make" if r["status"] == "findings" and not why.startswith("stale") else "Make"
             steps.append(f"{fix} a fresh cut, {sheets}`studio review-{r['kind']} {v}`, and report ready for "
                          f"the {r['kind']} review")
     steps += [f"Incorporate request {r.split()[0]}, then `studio request {v} --resolve {r.split()[0]}`" for r in pending]

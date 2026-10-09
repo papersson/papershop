@@ -9,11 +9,12 @@ research/reviews/rounds.jsonl logs the revision each round reviewed, which the r
 """
 import hashlib
 import json
+import re
 import shutil
 import time
 from pathlib import Path
 
-from . import reviews
+from . import reviews, settings
 from .env import ROOT
 from .reviews import KINDS, kind_of
 from .workspace import atomic_json, now
@@ -121,53 +122,102 @@ def _logged(video, kind):
     return out
 
 
-def rounds(video, kind, revision=None):
-    """The revisions of a kind's material reviewed since the latest stage mark that starts its count
-    again (kind.rounds.resets_on), and that mark (None: there is none, so every round counts).
-    A mark starts the count only when the material it was made over (its "revisions", or for an
-    older mark the first revision reviewed after it, or `revision`, about to be) is not the last
-    revision reviewed before it, so a mark alone buys no rounds. Reviewers run again on a revision
-    already reviewed (a retry, an added role) are the same round."""
+def cut_keys(video, cut=None):
+    """The review keys cut N recorded, or (None) the current sources' ({} when there are none)."""
+    if cut is not None:
+        p = Path(video) / "cuts" / f"cut{cut}" / "cut.json"
+        return (json.loads(p.read_text()).get("review_keys") or {}) if p.exists() else {}
+    if not (Path(video) / "timeline.json").exists():
+        return {}
+    from . import timeline
+    return review_keys(video, timeline.load(video))
+
+
+def substantial(then, now):
+    """How the picture changed from review keys `then` to `now`, when it changed enough to be a new
+    lineage for a motion review (a clip that is new, or half the clips or more changed), else None."""
+    new = [c for c in now if c not in then]
+    changed = [c for c in now if c in then and then[c] != now[c]]
+    if not now or not (new or 2 * len(changed) >= len(now)):
+        return None
+    return "; ".join(x for x in (f"{', '.join(new)} new" if new else "",
+                                 f"{', '.join(changed)} changed ({len(changed)} of {len(now)} clips)" if changed else "") if x)
+
+
+def cut_time(video, n):
+    """When cut N was made, in epoch seconds: its record's "t", else its local "created" (to the
+    second, for a cut made before records had "t"), else its file's time."""
+    p = Path(video) / "cuts" / f"cut{n}" / "cut.json"
+    try:
+        rec = json.loads(p.read_text())
+        return float(rec["t"]) if "t" in rec else time.mktime(time.strptime(rec["created"], "%Y-%m-%d %H:%M:%S"))
+    except (OSError, ValueError, KeyError, TypeError):
+        return p.stat().st_mtime if p.exists() else 0.0
+
+
+def rounds(video, kind, revision=None, cut=None):
+    """The units of a kind's material reviewed since the latest stage mark that starts its count
+    again (kind.rounds.resets_on), and that mark (None: there is none, so every round counts). A
+    unit is a revision (a script review: reviewers run again on a revision already reviewed are the
+    same round), or what a round logged as its unit (a motion review: the cut's bundle, so a re-cut
+    of an unchanged revision is a round of its own).
+    A mark starts the count only when the material changed across it, so a mark alone buys no
+    rounds. For a revision kind, the material it was made over (its "revisions", or for an older
+    mark the first revision reviewed after it, or `revision`, about to be) is not the last revision
+    reviewed before it. For a lineage kind, the picture changed substantially (substantial()) from
+    the last cut reviewed before the mark to the first reviewed after it (or `cut`, about to be, or
+    the current sources)."""
     from . import stage
     log, since = _logged(video, kind), None
     for m in stage.read(video):
-        if m.get("kind") in kind.rounds.resets_on:
-            before = [e["revision"] for e in log if e["t"] < m["t"]]
-            over = m.get("revisions", {}).get(kind.name) or next((e["revision"] for e in log if e["t"] >= m["t"]), revision)
-            if not before or over != before[-1]:
+        if m.get("kind") not in kind.rounds.resets_on:
+            continue
+        prior = [e for e in log if e["t"] < m["t"]]
+        after = next((e for e in log if e["t"] >= m["t"]), None)
+        if not prior:
+            since = m
+        elif kind.stands == "lineage":
+            if substantial(cut_keys(video, prior[-1].get("cut")), cut_keys(video, after.get("cut") if after else cut)):
                 since = m
+        elif (m.get("revisions", {}).get(kind.name) or (after["revision"] if after else revision)) != prior[-1]["revision"]:
+            since = m
     seen = []
     for e in log:
-        if (since is None or e["t"] >= since["t"]) and e["revision"] not in seen:
-            seen.append(e["revision"])
+        unit = e.get("unit") or e["revision"]
+        if (since is None or e["t"] >= since["t"]) and unit not in seen:
+            seen.append(unit)
     return seen, since
 
 
-def next_round(video, kind, revision):
-    """The round a review of `revision` is in its count: the one that reviewed it already, or the next."""
-    seen, _ = rounds(video, kind, revision)
-    return seen.index(revision) + 1 if revision in seen else len(seen) + 1
+def next_round(video, kind, revision, unit=None, cut=None):
+    """The round a review of `unit` (default: `revision`) is in its count: the one that reviewed it
+    already, or the next."""
+    unit = unit or revision
+    seen, _ = rounds(video, kind, revision, cut)
+    return seen.index(unit) + 1 if unit in seen else len(seen) + 1
 
 
-def check_cap(video, kind, number, revision, cfg):
+def check_cap(video, kind, number, revision, cfg, unit=None, cut=None):
     """Refuse a new round of `kind` past its cap (counted as rounds() counts, so a typed round number
     neither spends nor saves one), with the kind's own reason and way forward."""
     cap = kind.rounds.cap(cfg) if kind.rounds.cap else None
-    seen, since = rounds(video, kind, revision)
-    if cap is not None and revision not in seen and len(seen) >= cap:
+    seen, since = rounds(video, kind, revision, cut)
+    if cap is not None and (unit or revision) not in seen and len(seen) >= cap:
         where = f"its {since['stage']} mark ({since['at']})" if since else "the first round"
         raise SystemExit(kind.rounds.past_cap.format(number=number, cap=cap, count=len(seen), where=where))
 
 
-def start_round(video, kind, number, revision, cfg):
-    """Log a round of `kind` on `revision`, unless it is a new round past the kind's cap."""
-    check_cap(video, kind, number, revision, cfg)
+def start_round(video, kind, number, revision, cfg, unit=None, cut=None):
+    """Log a round of `kind` on `revision` (as `unit`, of cut `cut`, where the kind counts those),
+    unless it is a new round past the kind's cap."""
+    check_cap(video, kind, number, revision, cfg, unit, cut)
     log = rounds_log(video)
     log.parent.mkdir(parents=True, exist_ok=True)
     text = log.read_text() if log.exists() else ""
     torn = bool(text) and not text.endswith("\n")      # a line cut short must not swallow this one
     with log.open("a") as f:
-        f.write("\n" * torn + json.dumps({"kind": kind.name, "round": number, "revision": revision, "t": time.time()}) + "\n")
+        f.write("\n" * torn + json.dumps({"kind": kind.name, "round": number, "revision": revision, "t": time.time(),
+                                           **({"unit": unit} if unit else {}), **({"cut": cut} if cut is not None else {})}) + "\n")
 
 
 def changed_since(video, cut):
@@ -183,17 +233,30 @@ def changed_since(video, cut):
     return ", ".join(clips) if clips else "SCRIPT.md's Script or Evidence"
 
 
-def stands(video, rec, kind, current):
-    """Whether a receipt stands for the current material: it judged the current revision, or (a kind
-    that stands for its lineage) no stage mark that restarts the kind's round count has come since it
-    was written. A motion review stops by its rule, so later small edits (frame-review fixes, desk
-    notes) don't ask for another round; the frame review and the user judge those."""
-    if rec.get("revision") == current:
-        return True
-    if kind.stands != "lineage" or not rec:
-        return False
+def lineage_gone(video, rec, kind, current):
+    """Why a lineage receipt no longer stands, or None while it does: a stage mark that restarted the
+    kind's count came after the cut it judged was made, or the picture changed substantially since
+    that cut (a new clip, or half the clips or more). A motion review stops by its rule, so later
+    small edits (frame-review fixes, desk notes) don't ask for another round; the frame review and
+    the user judge those."""
     _, since = rounds(video, kind, current)
-    return since is None or rec.get("t", 0) >= since["t"]
+    made = rec.get("cut_t", rec.get("t", 0))
+    if since is not None and made < since["t"]:
+        return f"cut {rec.get('cut', '?')} came before the {since['stage']} mark ({since['at']}) that started a new count"
+    if rec.get("cut") is None:
+        return None
+    change = substantial(cut_keys(video, rec["cut"]), cut_keys(video))
+    return f"since cut {rec['cut']}, {change}" if change else None
+
+
+def stands(video, rec, kind, current):
+    """Whether a receipt stands for the current material: it judged the current revision, or, for a
+    kind that stands for its lineage, the lineage it judged goes on (lineage_gone)."""
+    if not rec:
+        return False
+    if kind.stands != "lineage":
+        return rec.get("revision") == current
+    return lineage_gone(video, rec, kind, current) is None
 
 
 def require(video, role):
@@ -201,9 +264,16 @@ def require(video, role):
     rec, current = read(video, role), revision(video, kind)
     if rec.get("status") in kind.settled and stands(video, rec, kind, current):
         return
-    if kind.stands == "lineage" and rec and not stands(video, rec, kind, current):
-        raise SystemExit(f"the {role} review judged cut {rec.get('cut', '?')}, before a structural revision that started a "
-                         f"new count: {kind.remedy.format(role=role)}, or record an authorized waiver with studio review-status")
+    if kind.name == "motion" and not rec and settings.load(video).get("teaching_contract"):
+        raise SystemExit("publish now needs a motion review for an explainer (new in this kit: Stage 11, Polish, in "
+                         "references/explainer.md): run studio review-motion VIDEO and have the main session's reviewer "
+                         "judge it; for a video made before this requirement, with the user's agreement, record "
+                         "studio review-status VIDEO motion waived --reason \"…\"")
+    gone = rec and kind.stands == "lineage" and lineage_gone(video, rec, kind, current)
+    if gone:
+        raise SystemExit(f"the {role} review no longer stands: {gone}. Mark a structural revision (studio stage VIDEO "
+                         "revision --kind structural --summary …), which starts a new count, make a fresh cut and "
+                         f"{kind.remedy.format(role=role)}; or record an authorized waiver with studio review-status")
     if kind.name == "motion" and rec.get("stopped") == "cap":
         raise SystemExit(f"the motion review of cut {rec.get('cut')} stopped at its cap with must-fix findings open "
                          f"({rec.get('detail') or 'no detail'}): fix them and record the user's acceptance with studio review-status "
@@ -220,8 +290,32 @@ def main_status(args):
     role = reviews.role(args.role)
     if args.status == "waived" and not args.reason:
         raise SystemExit("record the user's authorization in --reason for a waived review")
-    record(args.video, role, revision(args.video, kind_of(role)), args.status, args.reason or "")
-    print(f"{role}: {args.status}")
+    kind = kind_of(role)
+    extra = motion_waiver(args.video, args.reason or "") if kind.name == "motion" else {}
+    record(args.video, role, revision(args.video, kind), args.status, args.reason or "", **extra)
+    print(f"{role}: {args.status}" + (f" (cut {extra['cut']}, its {extra['accepted']} known issue(s) accepted)"
+                                       if extra.get("accepted") else ""))
+
+
+def motion_waiver(video, reason):
+    """What a motion waiver records beyond its reason: the mode, the latest rendered cut (whose
+    lineage it stands for), the desk notes it cites by id, and how many known issues it accepts.
+    Desk notes stand in for the review only in interactive mode, named by their ids."""
+    from . import cuts, page
+    mode = settings.load(video)["mode"]
+    ids = {e["id"] for e in page.read_log(video) if e.get("type") == "note"}
+    notes = sorted(i for i in ids if re.search(rf"\b{re.escape(i)}\b", reason))
+    if re.search(r"\bdesk\b|\bnotes?\b", reason, re.I):
+        if mode != "interactive":
+            raise SystemExit("desk notes stand in for the motion review only in interactive mode; in background mode "
+                             "run studio review-motion, or record the user's own reason for the waiver")
+        if not notes:
+            raise SystemExit("name the desk notes that stand in for the motion review by their ids in --reason "
+                             "(studio notes VIDEO lists them)")
+    n = cuts.latest(video, cuts.RENDERED)
+    issues = (cuts.records(video).get(n) or {}).get("known_issues") or []
+    return {"mode": mode, "notes": notes or None, "cut": n or None, "cut_t": cut_time(video, n) if n else None,
+            "accepted": len(issues) or None}
 
 
 def main_frames(args):

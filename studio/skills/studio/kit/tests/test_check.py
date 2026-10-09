@@ -116,3 +116,33 @@ def test_overlap_flags_text_on_text_but_not_text_on_a_shape():
     assert not rows[0]["ok"] and rows[0]["detail"] == "'label a' and 'label b' overlap"
     frames[0]["boxes"][1]["x"] = 600
     assert check.overlap(None, engine=object(), boxes=({}, frames))[0]["ok"]
+
+
+def test_inframe_warns_when_a_narrated_element_leaves_the_visible_stage(tmp_path):
+    import json
+    t = make_video(tmp_path)
+    t["tracks"]["narration"][0]["text"] = "The server answers the client."
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    (tmp_path / "boards").mkdir()
+    (tmp_path / "boards" / "notes.json").write_text(json.dumps({"s1_01": "the cache lights"}))
+    lay = {**LAYOUT, "header": {"height": 100}}
+    frame = lambda items: (lay, [{"clip": "s1", "t": 1.35, "boxes": items}])
+    box = lambda name, x, y, w=200, h=60, **kw: {"name": name, "x": x, "y": y, "w": w, "h": h, **kw}
+    ok = check.in_frame(tmp_path, boxes=frame([box("node server", 800, 400), box("node client", 100, 400),
+                                                box("node database", 2400, 400),          # not narrated: may leave
+                                                box("SERVER", 40, 30, h=40),              # wholly in the header strip
+                                                box("node cache", -900, 400, opacity=0)]))  # faded out
+    assert ok == [{"check": "inframe", "clip": "s1", "t": 1.35, "ok": True, "detail": ""}]
+    bad = check.in_frame(tmp_path, boxes=frame([box("node server", 1800, 400), box("client", 100, 80),
+                                                 box("node cache", 300, 880), box("node client", 3000, 400)]))
+    assert bad[0]["ok"] and bad[0]["severity"] == "warning"
+    assert "'node server' (right)" in bad[0]["detail"] and "'client' (header)" in bad[0]["detail"]
+    assert "'node cache' (band)" in bad[0]["detail"] and "'node client' (out of frame)" in bad[0]["detail"]
+    assert check.in_frame(tmp_path, boxes=(lay, [{"clip": "s2", "t": 0.5, "boxes": [box("node server", 3000, 0)]}])) == []
+
+
+def test_a_label_is_narrated_when_its_words_are_said_together():
+    words = check._said("The hash function turns a key into a bucket.")
+    assert check.narrated("box hash function", words) and check.narrated("bucket", words)
+    assert not check.narrated("node function hash", words) and not check.narrated("card", words)
+    assert not check.narrated("a", words) and not check.narrated("box the", words)

@@ -14,4 +14,6 @@ export type Timeline = {
 };
 // band.font and band.chars: caption size in px and the line width in characters the kit wraps captions to (narrow formats need bigger type and shorter lines).
 // format: set on a format's generated layout (absent for the video's own, 16:9).
-export type Layout = {width: number; height: number; fps: number; format?: string; band: {height: number; style: 'opaque' | 'frosted'; font?: number; chars?: number}};
+// header.height: a strip at the top of the stage, in px, that framing keeps clear (a chapter label, a title); it is part of the stage, unlike the band.
+export type Layout = {width: number; height: number; fps: number; format?: string; band: {height: number; style: 'opaque' | 'frosted'; font?: number; chars?: number};
+	header?: {height: number}};

@@ -8,6 +8,9 @@
                named element's box is checked against the band
   contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
   overlap      no two text elements cover each other (more than 30% of the smaller one's box) at a sample
+  inframe      the element being narrated stays in frame (in_frame): at each sentence's sample, a named
+               element whose label the sentence or its screen note says lies inside the visible stage,
+               below the layout's header and above the band. A warning: the match is by name
   pacing       after a significant move the stage holds at least 0.5 s before the next (motion.pacing): read
                from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
                samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
@@ -25,6 +28,7 @@ checks every chapter, and `studio publish` always runs the full check as its gat
 """
 import hashlib
 import json
+import re
 import tempfile
 import shutil
 import struct
@@ -43,7 +47,7 @@ SIDE_MARGIN = 80                         # px kept free either side of a caption
 SLACK = 1.0                              # px of tolerance on box edges
 
 
-PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing")
+PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing", "inframe")
 OVERLAP = 0.3                            # share of the smaller text box another text box may cover
 
 
@@ -155,6 +159,68 @@ def overlap(video, samples=3, engine=None, boxes=None):
     return rows
 
 
+# inframe: a box's label is its name without the kind the kit prefixes ("node server" is "server"); a
+# few names are kinds alone and never a label. An element named after its key (live text) rarely
+# matches a sentence, which is why the check is a warning.
+KINDS = ("board box ", "board text ", "box ", "node ", "layer ", "panel ", "close-up ", "term ", "variable ", "column ")
+NOT_LABELS = {"rect", "card", "token", "ghost", "minimap", "caption", "close-up", "background", "band", "title", "panel",
+              "code", "terminal", "table", "json", "look tag", "board tag", "board note", "board dot"}
+SMALL_WORDS = {"a", "an", "the", "of", "to", "in", "on", "is", "it", "and", "or", "at", "by", "for"}
+
+
+def _said(text):
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def narrated(name, words):
+    """Whether an element named `name` is what `words` (a sentence's, lowercased) talk about: its label's
+    words appear together, in order. Labels of small words only, or under three letters, never match."""
+    label = next((name[len(k):] for k in KINDS if name.startswith(k)), name)
+    want = _said(label)
+    if name in NOT_LABELS or not want or len("".join(want)) < 3 or set(want) <= SMALL_WORDS:
+        return False
+    return any(words[i:i + len(want)] == want for i in range(len(words) - len(want) + 1))
+
+
+def in_frame(video, samples=3, engine=None, boxes=None):
+    """At each sentence's check sample, every shown element the sentence (or its screen note in
+    boards/notes.json) names lies inside the visible stage: inside the frame (the camera's view, as
+    boxes are measured after it), below the layout's header and above the caption band. An element
+    wholly inside the header strip is header content and is left alone. A warning, not a failure."""
+    engine = engine or Engine(video)
+    t = tl.load(video)
+    lay, frames = boxes or _boxes(video, samples, engine)
+    W, band, header = lay["width"], lay["height"] - lay["band"]["height"], (lay.get("header") or {}).get("height", 0)
+    sentence = {(m["clip"], round(m["t"], 3)): m["sentence"] for m in moments.check_samples(t, samples) if m.get("sentence")}
+    entries = {s["id"]: s for s in t["tracks"]["narration"]}
+    notes_file = Path(video) / "boards" / "notes.json"
+    notes = json.loads(notes_file.read_text()) if notes_file.exists() else {}
+    rows = []
+    for f in frames:
+        sid = sentence.get((f["clip"], round(f["t"], 3)))
+        if sid is None:
+            continue
+        e = entries.get(sid, {})
+        words = _said(" ".join([e.get("text", ""), notes.get(sid, "")]))
+        bad = {}
+        for b in f["boxes"]:
+            if b.get("opacity", 1) < 0.05 or b["w"] <= 2 or b["h"] <= 2 or not narrated(b["name"], words):
+                continue
+            x0, y0, x1, y1 = b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]
+            if header and y1 <= header + SLACK:
+                continue
+            where = [side for side, out in (("left", x0 < -SLACK), ("right", x1 > W + SLACK),
+                                            ("top" if not header else "header", y0 < header - SLACK), ("band", y1 > band + SLACK)) if out]
+            if x1 <= 0 or x0 >= W or y1 <= header or y0 >= band:
+                where = ["out of frame"]
+            if where:
+                bad.setdefault(b["name"], f"{b['name']!r} ({' and '.join(where)})")
+        detail = (f"{sid} narrates " + "; ".join(bad.values()) + " outside the visible stage") if bad else ""
+        rows.append({"check": "inframe", "clip": f["clip"], "t": f["t"], "ok": True, "detail": detail,
+                     **({"severity": "warning"} if bad else {})})
+    return rows
+
+
 def band_guard(video, samples=3, engine=None, boxes=None):
     """Named scene elements must end above the band."""
     engine = engine or Engine(video)
@@ -230,6 +296,7 @@ def band_pixels_check(video, samples=3, engine=None, clips=None):
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
 MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), "
+        "inframe (the narrated element stays in frame), "
         "provenance (assets used are recorded), dead and loop (motion)")
 
 
@@ -286,9 +353,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     default = only is None
     extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
-    always = ("legible", "overlap", "pacing") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    always = ("legible", "overlap", "pacing", "inframe") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -314,8 +381,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         rows += length(video, engine, clips)
     if "determinism" in only:
         rows += determinism(video, samples, engine, clips)
-    if only & {"bounds", "band", "legible", "overlap"}:
+    if only & {"bounds", "band", "legible", "overlap", "inframe"}:
         boxes = _boxes(video, samples, engine, clips)
+        if "inframe" in only:
+            rows += in_frame(video, samples, engine, boxes)
         if "overlap" in only:
             rows += overlap(video, samples, engine, boxes)
         if "legible" in only:
