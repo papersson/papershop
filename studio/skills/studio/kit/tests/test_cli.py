@@ -100,3 +100,44 @@ def test_lexicon_makes_studio_home_on_a_fresh_machine(tmp_path, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "fresh-home"))
     preferences.main_lexicon(SimpleNamespace(word="JSON", spoken="J S O N", phonemes=None))
     assert (tmp_path / "fresh-home" / "lexicon.json").exists()
+
+
+def test_engine_reads_wait_their_turn_for_the_operation_lock(home, monkeypatch):
+    import threading
+    import time
+    v = home / "myvideo"
+    calls = []
+    monkeypatch.setattr(cli, "_engine_call", lambda args: calls.append((args.cmd, time.monotonic())) or 0)
+    monkeypatch.setitem(cli.COMMANDS, "still", (*cli.COMMANDS["still"][:2], cli._engine_call))
+    monkeypatch.setitem(cli.COMMANDS, "boxes", (*cli.COMMANDS["boxes"][:2], cli._engine_call))
+    held = threading.Event()
+    def hold():
+        with workspace.locked(v, "operation", blocking=False):
+            held.set()
+            time.sleep(0.6)
+    t = threading.Thread(target=hold)
+    t.start()
+    held.wait()
+    start = time.monotonic()
+    assert cli.main(["still", str(v), "s1", "1", "--out", "x.png"]) == 0      # queued, not refused
+    assert cli.main(["boxes", str(v), "s1", "1"]) == 0
+    t.join()
+    assert calls[0][1] - start > 0.4
+    with workspace.locked(v, "operation", blocking=False):
+        with pytest.raises(SystemExit, match="held it for 0.3 s"):
+            with workspace.operation(v, wait=0.3):
+                pass
+        with pytest.raises(SystemExit, match="operation is running for"):
+            cli.main(["stage", str(v), "draft"])                              # a change still refuses at once
+
+
+def test_boxes_waits_but_needs_no_owner(home, monkeypatch):
+    v = home / "myvideo"
+    workspace.main_lock(SimpleNamespace(video=v, action="acquire", owner="b", recover=False))
+    monkeypatch.delenv("STUDIO_OWNER", raising=False)
+    seen = []
+    monkeypatch.setitem(cli.COMMANDS, "boxes", (*cli.COMMANDS["boxes"][:2], lambda args: seen.append(args.cmd) or 0))
+    monkeypatch.setitem(cli.COMMANDS, "still", (*cli.COMMANDS["still"][:2], lambda args: seen.append(args.cmd) or 0))
+    assert cli.main(["boxes", str(v), "s1", "1"]) == 0 and seen == ["boxes"]
+    with pytest.raises(SystemExit, match="video owned by b"):
+        cli.main(["still", str(v), "s1", "1", "--out", "x.png"])

@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import tempfile
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,12 +40,20 @@ def runtime(video):
 
 
 @contextlib.contextmanager
-def locked(video, name="metadata", blocking=True):
+def locked(video, name="metadata", blocking=True, wait=None):
+    """An exclusive lock: waited for (blocking), refused at once when held, or with `wait`, waited for
+    up to that many seconds."""
     with (runtime(video) / f"{name}.lock").open("a+") as f:
-        try:
-            fcntl.flock(f, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
-        except BlockingIOError:
-            raise SystemExit(f"another studio {name} operation is running for {video}")
+        deadline = time.monotonic() + wait if wait is not None else None
+        while True:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | (0 if blocking and wait is None else fcntl.LOCK_NB))
+                break
+            except BlockingIOError:
+                if deadline is None or time.monotonic() > deadline:
+                    raise SystemExit(f"another studio {name} operation is running for {video}"
+                                     + (f" and held it for {wait:g} s; try again when it finishes" if wait else ""))
+                time.sleep(0.2)
         try:
             yield
         finally:
@@ -65,9 +74,12 @@ def check_owner(video):
 
 
 @contextlib.contextmanager
-def operation(video):
-    with locked(video, "operation", blocking=False):
-        check_owner(video)
+def operation(video, wait=None, owned=True):
+    """The operation lock, refused while another command holds it, or waited for up to `wait` seconds;
+    `owned`: the command changes the video, so only its owner may run it."""
+    with locked(video, "operation", blocking=False, wait=wait):
+        if owned:
+            check_owner(video)
         yield
 
 

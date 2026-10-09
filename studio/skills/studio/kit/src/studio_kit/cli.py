@@ -270,6 +270,12 @@ COMMANDS = {
 }
 
 
+# Engine reads that wait their turn for the operation lock (seconds) instead of failing at once, so
+# chapter fixers' stills queue behind each other. They can't go without it: Remotion bundles into
+# .cache/bundle and deletes other bundles there, and Motion Canvas transcodes into .cache/mc-footage.
+WAITS = {"still": 120, "boxes": 120, "duration": 120}
+
+
 def reads_only(args):
     """A changing command asked only to read, which takes no lock: a check between chapters must not
     fail because a cut is running."""
@@ -286,16 +292,28 @@ def build_parser():
     return p
 
 
+def script_args(argv):
+    """(the arguments to parse, a script's own arguments or None): everything after `run`'s SCRIPT
+    goes to the script verbatim, where argparse would drop a `--` that follows it."""
+    if argv[:1] != ["run"] or "-h" in argv[:3] or "--help" in argv[:3]:
+        return argv, None
+    positional = [i for i, a in enumerate(argv) if i and not a.startswith("-")]
+    return (argv[:positional[1] + 1], argv[positional[1] + 1:]) if len(positional) > 1 else (argv, None)
+
+
 def main(argv=None):
+    argv, verbatim = script_args(list(sys.argv[1:] if argv is None else argv))
     args = build_parser().parse_args(argv)
+    if verbatim is not None:
+        args.args = verbatim
     _, arguments, handler = COMMANDS[args.cmd]
     if isinstance(handler, str):
         module, func = handler.split(":")
         handler = getattr(importlib.import_module(f".{module}", __package__), func)
     changes = any(kw.get("type") is changed_video for _, kw in arguments)
-    if changes and not reads_only(args):
+    if (changes and not reads_only(args)) or args.cmd in WAITS:
         from .workspace import operation
-        with operation(args.video):
+        with operation(args.video, wait=WAITS.get(args.cmd), owned=changes):
             return handler(args) or 0
     return handler(args) or 0
 
