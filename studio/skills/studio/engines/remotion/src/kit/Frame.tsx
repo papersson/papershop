@@ -16,7 +16,7 @@ import {captionLines} from '../../../shared/timing.js';
 // all; no-captions (band, no caption text); no-band (the scene alone, no band); background (nothing but the background).
 export type Layers = 'all' | 'no-captions' | 'no-band' | 'background';
 
-const FONTS = ['400 20px "IBM Plex Sans"', '500 20px "IBM Plex Sans"', '600 20px "IBM Plex Sans"',
+export const FONTS = ['400 20px "IBM Plex Sans"', '500 20px "IBM Plex Sans"', '600 20px "IBM Plex Sans"',
 	'400 20px "IBM Plex Mono"', '500 20px "IBM Plex Mono"'];
 
 /**
@@ -74,11 +74,12 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 	);
 };
 
-const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean; font: number}> = ({
-	top, height, time, show, font,
+/** The caption band, showing the chunk spoken at `time`, or `given` lines (the look sheet's sample). */
+export const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean; font: number; given?: string[]}> = ({
+	top, height, time, show, font, given,
 }) => {
-	const chunk = show ? (timeline as Timeline).tracks.captions.find((c) => c.start <= time && time < c.end) : undefined;
-	const lines = chunk ? captionLines(chunk, layout as Layout) : [];
+	const chunk = show && !given ? (timeline as Timeline).tracks.captions.find((c) => c.start <= time && time < c.end) : undefined;
+	const lines = show && given ? given : chunk ? captionLines(chunk, layout as Layout) : [];
 	return (
 		<div style={{position: 'absolute', left: 0, top, width: '100%', height, background: BAND,
 			display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'}}>

@@ -9,6 +9,7 @@
 //   node cli.mjs boxes    --video DIR --clip ID --t SEC
 //   node cli.mjs boxesAt  --video DIR --requests JSON
 //   node cli.mjs duration --video DIR --clip ID
+//   node cli.mjs look     --video DIR --out DIR [--caption JSON]   the look sheet: look-<n>.png per page
 //
 // A scene that throws fails the call with the clip, the time and the error (the kit's EngineError).
 import { chromium } from 'playwright-core'
@@ -158,6 +159,24 @@ async function render(video, clip, out, quality, range) {
   return { clip, out, quality: quality ?? 'draft', frames: b - a + 1, seconds: (Date.now() - started) / 1000 }
 }
 
+async function look(video, outDir, caption) {
+  const lines = caption ? JSON.parse(caption) : []
+  const pages = await withPage(video, async page => {
+    const titles = await page.evaluate(() => window.studio.lookPages())
+    const done = []
+    mkdirSync(outDir, { recursive: true })
+    for (let i = 0; i < titles.length; i++) {
+      const r = await page.evaluate(([n, l, all]) => window.studio.look(n, l, all), [i, lines, titles])
+      if (r.error) throw new Error(`look sheet error in ${r.error}`)
+      const out = path.join(outDir, `look-${i + 1}.png`)
+      writeFileSync(out, await page.screenshot({ type: 'png' }))
+      done.push({ page: i + 1, title: titles[i], out })
+    }
+    return done
+  })
+  return { pages }
+}
+
 function duration(video, clip) {
   const t = timeline(video)
   const { frames } = clipRange(t, clip)
@@ -174,6 +193,7 @@ const ops = {
   },
   boxesAt: () => boxesAt(opt.video, JSON.parse(readFileSync(opt.requests, 'utf8'))),
   duration: async () => duration(opt.video, opt.clip),
+  look: () => look(opt.video, path.resolve(opt.out), opt.caption),
 }
 if (!ops[op]) {
   log(`unknown op ${op}; expected one of ${Object.keys(ops).join(', ')}`)

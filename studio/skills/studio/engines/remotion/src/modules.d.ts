@@ -19,3 +19,7 @@ declare module '@layout' {
 	const layout: unknown;
 	export default layout;
 }
+declare module '@look' {
+	const pages: Record<string, import('react').FC>;
+	export default pages;
+}

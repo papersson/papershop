@@ -9,6 +9,7 @@
 //   node cli.mjs duration --video DIR --clip ID
 //   node cli.mjs durations --video DIR --clips ID,ID,...      one browser
 //   node cli.mjs render ... [--concurrency N]                 default: every core
+//   node cli.mjs look     --video DIR --out DIR [--caption JSON]  the look sheet: look-<n>.png per page
 //
 // Layers: all (default), no-captions (the band stays, its text goes), no-band (the scene alone),
 // background (nothing but the background).
@@ -85,6 +86,12 @@ function hashTree(h, p, root = p) {
 	}
 }
 
+// The look sheet's own pages: scenes/look.tsx when the video has one.
+function lookFile(video) {
+	const own = ['tsx', 'ts', 'jsx'].map((ext) => path.join(video, 'scenes', `look.${ext}`)).find((f) => existsSync(f));
+	return own ?? path.join(ENGINE, 'src', 'empty-look.ts');
+}
+
 function boardFile(video, name) {
 	const f = path.join(video, 'boards', name);
 	return existsSync(f) ? f : path.join(ENGINE, 'src', 'empty.json');
@@ -122,6 +129,7 @@ async function getBundle(video) {
 					// Boards are optional: a video without them gets empty ones.
 					'@boards': boardFile(video, 'boards.json'),
 					'@board-notes': boardFile(video, 'notes.json'),
+					'@look': lookFile(video),
 				},
 				// Scene files live outside the engine, so resolve their imports from the engine's packages.
 				modules: [path.join(ENGINE, 'node_modules'), 'node_modules'],
@@ -233,6 +241,26 @@ async function boxes(video, clip, t) {
 	return {clip, t: Number(t), boxes: {band: frames[0].band, boxes: frames[0].boxes}};
 }
 
+async function look(video, outDir, caption) {
+	// The studio-look composition draws one page per frame; its titles are the kit's and scenes/look.tsx's.
+	const {serveUrl} = await getBundle(video);
+	const inputProps = {caption: caption ? JSON.parse(caption) : []};
+	const browser = await openBrowser('chrome', browserOptions());
+	try {
+		const comp = await composition(serveUrl, 'studio-look', inputProps, browser);
+		mkdirSync(outDir, {recursive: true});
+		const pages = await pool(Array.from({length: comp.durationInFrames}, (_, i) => i), STILL_TABS, async (i) => {
+			const out = path.join(outDir, `look-${i + 1}.png`);
+			await renderStill({composition: comp, serveUrl, output: out, frame: i, inputProps, imageFormat: 'png',
+				puppeteerInstance: browser, overwrite: true, logLevel: 'error', ...browserOptions()});
+			return {page: i + 1, title: comp.props.pages?.[i] ?? '', out};
+		});
+		return {pages};
+	} finally {
+		await browser.close({silent: true});
+	}
+}
+
 async function render(video, clip, out, quality, range) {
 	const q = QUALITY[quality ?? 'draft'];
 	if (!q) throw new Error(`unknown quality ${quality}`);
@@ -266,6 +294,7 @@ const ops = {
 	duration: () => duration(opt.video, opt.clip),
 	durations: () => durations(opt.video, String(opt.clips).split(',')),
 	bundle: () => getBundle(opt.video),
+	look: () => look(opt.video, path.resolve(opt.out), opt.caption),
 };
 
 if (!ops[op]) {

@@ -257,6 +257,9 @@ COMMANDS = {
         A("--windows", metavar="FILE", help="JSON list of strips {clip, t, frames?, fps?}"),
         A("--below", type=float, default=40, help="crop labels under this many px tall"),
     ], "sheets:main"),
+    "look-sheet": ("the model sheet: every element in each state, in the video's theme, layout and engine, into out/look/", [
+        W("video"), A("--format", help="this format's layout (9:16, 1:1); default 16:9"),
+    ], "look:main"),
     "desk": ("the desk: play the latest cut, take notes on sentences, show progress and replies",
              [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),
     "serve": ("alias of desk", [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),

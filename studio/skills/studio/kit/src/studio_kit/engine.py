@@ -14,6 +14,7 @@ from .env import engine_dir, resolve_browser
 
 ENGINES = ("remotion", "motion-canvas", "live")
 LAYERS = ("all", "no-captions", "no-band", "background")
+LOOK_ENGINES = ("live", "remotion")      # the engines that draw a look sheet
 
 
 class EngineError(RuntimeError):
@@ -96,6 +97,13 @@ class Engine:
     def boxes(self, clip, t):
         """Pixel boxes of every labelled element at clip time t, and the caption band's position."""
         return self._call("boxes", "--clip", clip, "--t", t)
+
+    def look(self, outdir, caption=()):
+        """The look sheet: one still per page (look-<n>.png in outdir), the band showing `caption`
+        (lines); {pages: [{page, title, out}]}. Live and Remotion only."""
+        if self.name not in LOOK_ENGINES:
+            raise EngineError(f"the look sheet is drawn by the {' and '.join(LOOK_ENGINES)} engines, not {self.name}")
+        return self._call("look", "--out", outdir, "--caption", json.dumps(list(caption)))
 
     def duration(self, clip):
         return self._call("duration", "--clip", clip)

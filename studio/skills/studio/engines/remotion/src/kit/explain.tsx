@@ -74,11 +74,13 @@ export const Terminal: React.FC<Area & {runs: CapturedRun[]; progress?: number; 
 export const RowTable: React.FC<Area & {columns: string[]; rows: Record<string, unknown>[]; highlight?: [number, string]; progress?: number}> =
 ({at, w, columns, rows, highlight, progress = 1, opacity = 1, size = 20, name = 'table'}) => {
   const shown = rows.slice(0, Math.ceil(rows.length * clamp(progress))), cw = w / Math.max(1, columns.length), lh = 0.65;
-  return <>{[Object.fromEntries(columns.map(c => [c, c])), ...shown].map((row, i) => columns.map((c, j) => {
+  // The table's outline (2.5) is heavier than the dividers between its cells (1.5); a selected cell is outlined in ice.
+  return <><Rect at={at} w={cw * columns.length} h={(shown.length + 1) * lh} stroke={TRAY_EDGE} strokeWidth={2.5} opacity={opacity} name={name}/>
+  {[Object.fromEntries(columns.map(c => [c, c])), ...shown].map((row, i) => columns.map((c, j) => {
     const pos: XY = [at[0] - w / 2 + (j + 0.5) * cw, at[1] + shown.length * lh / 2 - i * lh];
     const selected = highlight?.[0] === i - 1 && highlight[1] === c;
     return <React.Fragment key={`${i}-${c}`}>
-      <Rect at={pos} w={cw} h={lh} stroke={selected ? ICE : TRAY_EDGE} opacity={opacity}/>
+      <Rect at={pos} w={cw} h={lh} stroke={selected ? ICE : TRAY_EDGE} strokeWidth={selected ? 2.5 : 1.5} opacity={opacity}/>
       <Txt at={pos} size={Math.max(18, size)} color={selected ? ICE : i ? INK : MUTED} opacity={opacity}
         name={`${name} ${i ? `row ${i}` : 'header'} ${c}`}>{typeof row[c] === 'object' ? JSON.stringify(row[c]) : String(row[c] ?? '')}</Txt>
     </React.Fragment>;

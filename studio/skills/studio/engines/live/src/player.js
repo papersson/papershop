@@ -22,6 +22,7 @@
 
 import { Stage } from './stage.js'
 import * as kit from './kit.js'
+import { PAGES } from './look.js'
 import { captionLines, clipTimes, frameOf } from '../../shared/timing.js'
 
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
@@ -130,12 +131,12 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     }
   }
 
-  /** The caption band and the caption chunk spoken at absolute time `at` (Remotion's look). */
-  function band(at, withCaptions) {
+  /** The caption band and the caption chunk spoken at absolute time `at` (Remotion's look), or the `given` lines. */
+  function band(at, withCaptions, given) {
     const top = bandTop(), font = L.band.font ?? 38
     stage.rect('band', 0, top, L.width, L.band.height, { fill: 'var(--band)', r: 0, layer: 'ui' })
-    const chunk = withCaptions ? T.tracks.captions.find(x => x.start <= at && at < x.end) : null
-    const lines = chunk ? captionLines(chunk, L) : []
+    const chunk = withCaptions && !given ? T.tracks.captions.find(x => x.start <= at && at < x.end) : null
+    const lines = given ?? (chunk ? captionLines(chunk, L) : [])
     const lh = font * 1.3, y0 = top + L.band.height / 2 - (lines.length * lh) / 2 + lh / 2
     lines.forEach((line, i) => stage.el(`caption${i}`, 'text', {
       x: L.width / 2, y: y0 + i * lh, text: line, fill: 'var(--ink)', 'font-size': font, 'font-weight': 400,
@@ -177,8 +178,39 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     return draw(c.id, f - frameOf(c.start, T.fps), layers)
   }
 
+  // The look sheet: the built-in pages (look.js), then the video's own from scenes/look.js, which exports
+  // `default function look(c)` and optionally `pages`, its pages' titles (c.page is the page's index).
+  let own = null
+  /** The look sheet's page titles; loads scenes/look.js afresh. */
+  async function lookPages() {
+    const file = `${base}scenes/look.js`
+    own = (await exists(file)) ? await import(`${file}?v=${version}.${Date.now()}`) : null
+    if (own && typeof own.default !== 'function') throw new Error('scenes/look.js must export default function look(c)')
+    return [...PAGES.map(p => p.title), ...(own ? own.pages ?? ["the video's own elements"] : [])]
+  }
+
+  /** Draw look-sheet page n (0-based) with the band showing `caption` (lines); {error} when it throws. */
+  function look(n, caption = [], titles = []) {
+    stage.begin()
+    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'bg' })
+    const c = { ...frameContext(0), dur: 0, C: kit.C, page: n - PAGES.length }
+    let error = null
+    try {
+      if (n < PAGES.length) PAGES[n].draw(c)
+      else own.default(c)
+    } catch (e) {
+      error = `look page ${n + 1}: ${e && e.stack ? e.stack : e}`
+    }
+    band(0, true, caption)
+    // The page's name, in the band's corner: on the stage it would sit where a scene's header goes.
+    stage.text('look:tag', L.width - 24, L.height - 26, `LOOK ${n + 1}/${titles.length || n + 1}  ${titles[n] ?? ''}`.trim(),
+      { size: 18, fill: 'var(--faint)', anchor: 'end', weight: 600, box: 'look tag', layer: 'ui' })
+    stage.end()
+    return error ? { error } : { page: n + 1 }
+  }
+
   return {
-    draw, drawAt,
+    draw, drawAt, lookPages, look,
     boxes: () => ({ band: { y: bandTop(), h: L.band.height }, boxes: stage.boxes() }),
     info: () => ({ fps: T.fps, width: L.width, height: L.height, duration: T.duration,
       clips: T.tracks.scene.map(c => ({ id: c.id, ...clipRange(c.id), c: undefined, hasScene: !!scenes[c.id] })) }),
