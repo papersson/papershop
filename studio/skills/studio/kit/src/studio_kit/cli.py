@@ -149,7 +149,7 @@ COMMANDS = {
     "init": ("pin the kit a video is made with, so a plugin update can't change how it renders", [
         W("video"), A("--update", action="store_true", help="replace the pinned copy's sources with the plugin's current ones"),
     ], "pin:main"),
-    "audio": ("the audio finish: 48 kHz, one fixed gain to the target loudness, a true-peak limiter", [
+    "audio": ("finish the whole mix: 48 kHz, one fixed gain to the target loudness, a true-peak limiter", [
         W("video"),
         A("--lufs", type=float, default=-16.0, help="target integrated loudness (default -16; -14 for social)"),
         A("--peak", type=float, default=-1.5, help="true-peak ceiling in dBTP"),
@@ -215,7 +215,7 @@ COMMANDS = {
     "export": ("the whole video in several formats (16:9, 9:16, 1:1) from one timeline, into out/export/", [
         W("video"), A("--formats", default="16:9,9:16,1:1"),
         A("--quality", default="final", choices=["draft", "final"]),
-        A("--lufs", type=float, help="finish the audio to this loudness first (-14 for social)"),
+        A("--lufs", type=float, default=-16.0, help="finish the mix to this loudness (default -16; -14 for social)"),
     ], "render:main_export"),
     "clean": ("remove stale caches and unprotected draft previews; keep cut videos by default and print what it freed", [
         W("video"), A("--dry-run", action="store_true", help="only print what would be removed"),

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from studio_kit import align, beats, narration, new, sfx
+from studio_kit import align, audio, beats, narration, new, sfx
 from studio_kit import timeline as tl
 from test_beats import click_track
 from test_narration import SCRIPT
@@ -41,6 +41,36 @@ def test_a_narration_keeps_what_other_commands_and_the_builder_added(tmp_path):
     assert t["tracks"]["narration"][-1]["caption"] == "Send one key with every attempt."
     assert t["tracks"]["scene"][0]["engine"] == "live"
     assert t["sources"] == ["audio/timings.json", "cues.json", "audio/tracks.json", "audio/sfx.json", "audio/beats.json"]
+
+
+def test_a_re_narration_moves_an_effect_placed_on_its_cue(tmp_path):
+    np = pytest.importorskip("numpy")
+    sf = pytest.importorskip("soundfile")
+    v = explainer(tmp_path)
+    (v / "narration.json").write_text(json.dumps({"holds": {"s1_03": 1.0}}))
+    narration.narrate(v, estimate=True)
+    cue = "reveal:s1_03"
+    (tmp_path / "fx.json").write_text(json.dumps([{"t": cue, "type": "click"}]))
+    sfx.main(SimpleNamespace(video=v, cues=tmp_path / "fx.json"))
+    onset = lambda: np.argmax(np.abs(sf.read(v / "audio" / "sfx.wav")[0]) > 0.01) / sfx.RATE
+    before = tl.load(v)["cues"][cue]
+    assert abs(onset() - before) < 0.01
+
+    (v / "SCRIPT.md").write_text(SCRIPT.replace("Then the network goes quiet.", "Then, for a long while, the network goes quiet."))
+    narration.narrate(v, estimate=True)
+    t = tl.load(v)
+    assert t["cues"][cue] > before + 0.3
+    audio.sources(v, t)                               # every mix renders the effects against its timeline
+    assert abs(onset() - t["cues"][cue]) < 0.01
+
+
+def test_sfx_stops_on_a_cue_with_no_time(tmp_path):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (tmp_path / "fx.json").write_text(json.dumps([{"t": "nowhere", "type": "click"}]))
+    with pytest.raises(SystemExit, match="no time for cue"):
+        sfx.main(SimpleNamespace(video=v, cues=tmp_path / "fx.json"))
+    assert not (v / "audio" / "sfx.json").exists()
 
 
 def test_an_estimate_lists_no_narration_audio(tmp_path):

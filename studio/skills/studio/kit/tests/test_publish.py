@@ -58,3 +58,20 @@ def test_web_encode_from_parts_reencodes_only_changed_parts(tmp_path, capsys):
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
                                 str(tmp_path / "web.mp4")], capture_output=True, text=True).stdout)
     assert abs(dur - 4.0) < 0.1
+
+
+def test_a_final_cut_is_redone_when_its_sound_is_stale(tmp_path, monkeypatch):
+    """The finish runs before the final cut, so a final cut mixed before it has the unfinished sound."""
+    from studio_kit import audio, cuts, render
+    from studio_kit import timeline as tl
+    t = {"tracks": {"scene": [{"id": "s1"}]}}
+    monkeypatch.setattr(tl, "load", lambda v: t)
+    monkeypatch.setattr(cuts, "latest", lambda v, kinds: 3)
+    monkeypatch.setattr(render, "plan", lambda v, t, q: [("s1", "k1", None)])
+    monkeypatch.setattr(render, "read_cut", lambda v, n: {"cut": 3, "quality": "final", "video": "video.mp4",
+                                                         "clips": [{"id": "s1", "key": "k1"}], "sound": "raw.m4a"})
+    monkeypatch.setattr(render, "make_cut", lambda v, q: {"cut": 4})
+    monkeypatch.setattr(audio, "soundtrack", lambda v, t: tmp_path / "raw.m4a")
+    assert publish.final_cut(tmp_path)["cut"] == 3
+    monkeypatch.setattr(audio, "soundtrack", lambda v, t: tmp_path / "finished.m4a")
+    assert publish.final_cut(tmp_path)["cut"] == 4

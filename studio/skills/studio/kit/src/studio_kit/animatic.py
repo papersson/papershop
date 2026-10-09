@@ -12,7 +12,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import proc, render, settings
+from . import audio, proc, render, settings
 from . import timeline as tl
 
 SCALE = 0.5               # animatic stills: 960×540 from a 1080p layout
@@ -119,7 +119,7 @@ def make(video, boards=False):
     silent = d / "silent.mp4"
     proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-vf", f"fps={timeline['fps']},format=yuv420p",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", silent)
-    sound = render.mixed_sound(video, timeline)
+    sound = audio.soundtrack(video, timeline)
     proc.ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
                 "-movflags", "+faststart", d / "video.mp4")
     for f in (lst, silent):

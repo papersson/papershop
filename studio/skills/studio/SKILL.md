@@ -110,12 +110,12 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `glossary [--term T]` | The motion glossary: the words a note can use for motion and the helper behind each (`references/desk.md`) |
 | `still VIDEO CLIP T --out PNG` · `boxes VIDEO CLIP T` | Inspect a frame or named-element bounds |
 | `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR` | Incremental render checks, contact sheets and label crops |
-| `audio VIDEO` · `export VIDEO --formats 16:9,9:16,1:1` | Audio finish and multiple formats |
+| `audio VIDEO [--lufs -14]` · `export VIDEO --formats 16:9,9:16,1:1` | Finish the whole mix to its loudness and true-peak ceiling (publish and export do it too); multiple formats |
 | `publish VIDEO` | Local final master, compressed web copy, poster and page; upload separately |
 | `clean VIDEO [--dry-run] [--videos]` | Stale caches/previews; MP4 deletion is explicit and never overrides protection |
 | `commit VIDEO MESSAGE` | Scoped source checkpoint; video.json `git.sign` is true, false or null/inherit |
 | `capture URL VIDEO` · `asset add|list VIDEO` | Assets with provenance |
-| `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing and optional effects |
+| `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing, and optional effects on cue or beat names (each mix places them on the current timeline) |
 | `ingest FILE VIDEO` · `edit VIDEO EDL` | Transcript-based footage editing |
 | `init VIDEO [--update]` · `import-tutor LESSON VIDEO` | Pin/update a kit or migrate a retired tutor timeline |
 

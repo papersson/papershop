@@ -109,9 +109,10 @@ the Freudian id: a lone capital letter is read as the article, a lowercase abbre
 The pronunciation lint lists these before any audio exists, and every finding gets a fix or a
 decision (explainer.md, Stage 6).
 
-The finish is `studio audio` (run by `publish`): 48 kHz via soxr, one fixed gain to -16 LUFS
-measured over the whole file, and a limiter that touches only the peaks over the -1.5 dBTP ceiling
-(fixed gain alone pushed the raw voice to about +6.5 dBTP on a few samples). It is not room tone and
+The finish is `studio audio` (run by `publish` and `export`), on the whole mix (narration, effects,
+music): 48 kHz via soxr, one fixed gain to -16 LUFS measured over the whole mix, and a limiter that
+touches only the peaks over the -1.5 dBTP ceiling (fixed gain alone pushed the raw voice to about
++6.5 dBTP on a few samples; an effect over the voice goes further). It is not room tone and
 not one-pass `loudnorm`: that filter is dynamic, so it raised the room tone and breaths in every
 pause, and the learner heard "a constant background noise" (an A/B of delivered, raw and clean
 audio settled it at once). Social destinations use -14 LUFS. Sound effects are off by default,

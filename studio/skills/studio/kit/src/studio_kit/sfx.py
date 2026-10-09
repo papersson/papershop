@@ -1,15 +1,18 @@
 """`studio sfx VIDEO CUES.json`: synthesised effects placed on the timeline, and `studio sound-lab`.
 
 CUES.json is a list of {"t": seconds, "type": "click", "gain": 0}; `t` may also be a cue or beat
-name ("beat_3", "downbeat_1") from the timeline. The voices are small numpy synths (a click, a pop,
-a thump and a whoosh), so effects are code like everything else and land on the measured beat. The
-cues are kept as audio/sfx.json and the render is audio/sfx.wav, which the timeline mixes at -8 dB
+name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline. The voices are small numpy
+synths (a click, a pop, a thump and a whoosh), so effects are code like everything else and land on
+the measured beat. `studio sfx` checks the cues and keeps them as audio/sfx.json; every mix renders
+them against the timeline it mixes (`rendered`, into audio/sfx.wav, again only when a resolved time
+or a voice changed), so a re-narration moves an effect with its cue. The timeline mixes it at -8 dB
 under the narration.
 
 Sound effects are off by default and belong in pauses. The sound lab renders candidates for each
 type, each played alone and in context (after a sentence of the narration, in its pause), on one
 page with a radio group per type and a "Copy choices" export, so the choice is made by listening.
 """
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -19,6 +22,8 @@ from .workspace import atomic_json
 
 RATE = 48_000
 SEED = 42
+KINDS = ("click", "pop", "thump", "whoosh")
+NEEDS = "sfx needs numpy and soundfile: run `studio doctor --fetch --extra audio`"
 
 
 def _noise(n):
@@ -84,17 +89,47 @@ def write_wav(path, buf):
     sf.write(path, buf, RATE, subtype="PCM_24")
 
 
+def check(cues, timeline):
+    """Stop on an effect with no time in this timeline, an unknown type or a gain that isn't a number."""
+    for c in cues:
+        resolve_time(c["t"], timeline)
+        if c.get("type") not in KINDS:
+            raise SystemExit(f"unknown effect {c.get('type')!r}: {', '.join(KINDS)}")
+        if not isinstance(c.get("gain", 0), (int, float)):
+            raise SystemExit(f"effect at {c['t']!r}: gain must be dB")
+
+
+def rendered(video, timeline):
+    """audio/sfx.wav for this timeline: audio/sfx.json's cues resolved against it and rendered,
+    again only when a resolved time, a voice or this synth changed (the key is kept beside the
+    mix cache)."""
+    video = Path(video)
+    cues = json.loads((video / "audio" / "sfx.json").read_text())
+    placed = [{**c, "t": resolve_time(c["t"], timeline)} for c in cues]
+    key = hashlib.sha1(json.dumps(placed, sort_keys=True).encode() + Path(__file__).read_bytes()).hexdigest()[:16]
+    out, kept = video / "audio" / "sfx.wav", video / ".cache" / "sound" / "sfx.key"
+    if out.exists() and kept.exists() and kept.read_text() == key:
+        return out
+    try:
+        write_wav(out, render(placed, timeline))
+    except ImportError:
+        raise SystemExit(NEEDS)
+    kept.parent.mkdir(parents=True, exist_ok=True)
+    kept.write_text(key)
+    return out
+
+
 def main(args):
     video = Path(args.video)
     cues = json.loads(Path(args.cues).read_text())
     try:
-        buf = render(cues, tl.build(video))       # cue and beat names resolve against the current sources
-        write_wav(video / "audio" / "sfx.wav", buf)
+        import numpy, soundfile  # noqa: F401  (every mix renders the effects)
     except ImportError:
-        raise SystemExit("sfx needs numpy and soundfile: run `studio doctor --fetch --extra audio`")
+        raise SystemExit(NEEDS)
+    check(cues, tl.build(video, quiet=True))      # cue and beat names resolve against the current sources
     atomic_json(video / "audio" / "sfx.json", cues)
-    tl.build(video)
-    print(f"{len(cues)} effects → audio/sfx.wav")
+    rendered(video, tl.build(video))
+    print(f"{len(cues)} effects → audio/sfx.json (each mix places them on the current timeline)")
     return 0
 
 

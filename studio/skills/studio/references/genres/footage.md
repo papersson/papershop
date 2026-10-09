@@ -41,5 +41,5 @@ sentences, the kit builds the timeline, and captions come from the recording's o
 ## Limits
 
 Cuts only: no cross-dissolves, no multi-camera, no colour grading, no speed ramps. The `Footage`
-component is where those would go. The finished loudness of the mix is not normalised: `studio audio`
-finishes a narration track, not a mixed edit.
+component is where those would go. `studio audio` (and publish) finish the whole mix, the edit's
+own sound included, to the target loudness under the true-peak ceiling.

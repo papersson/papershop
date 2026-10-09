@@ -40,7 +40,9 @@ invent an editorial revision.
 
 `studio publish VIDEO` first runs the full `studio check` on every chapter as its gate (a failure
 stops it), then renders the final cut (1080p) unless the latest cut is one (only chapters
-whose key changed since the last final render re-render), links it as `out/master.mp4`, encodes
+whose key changed since the last final render re-render) with its whole mix finished to -16 LUFS
+under a -1.5 dBTP ceiling (`studio audio`; a social export takes `--lufs -14`, below), links it as
+`out/master.mp4`, encodes
 `out/web.mp4` to fit the Artifact tool's upload limit for one binary file (15 MiB: 1080p up to
 about 16 minutes, 720p up to about 28, 540p beyond; it prints the settings it chose; each chapter is
 encoded once and cached, so a re-publish encodes only the chapters that changed), grabs the

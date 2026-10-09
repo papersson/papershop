@@ -255,6 +255,11 @@ item: the loop is proven by the user's own notes.
   bed. Each command now owns one source file (narrate the timings, align the words, sfx its cues, the
   builder `cues.json` and `audio/tracks.json`) and `timeline.build` composes the file from them; words
   aligned against an earlier narration are ignored rather than misplaced.
+- **The finish is on the master.** It ran on the narration file alone, so an effect or a music hit
+  over the voice could take the published sound past the -1.5 dBTP ceiling, and the effects, rendered
+  once, stayed at their old times after a re-narration. The mix is now staged (sources, a chain per
+  role, the bus, the master): effects render at mix time against the current timeline, and the fixed
+  gain and the limiter run on the whole mix, so what is published is what was measured.
 - **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
   synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
 - **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare

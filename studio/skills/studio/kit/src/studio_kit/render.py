@@ -176,39 +176,19 @@ def plan(video, timeline, quality, fmt=None):
     return rows
 
 
-def mixed_sound(video, timeline):
-    """The mixed soundtrack, cached under .cache/sound/ by its inputs (the audio track entries, each
-    file's size and time, and the duration), so a cut that changed only pictures doesn't re-mix it."""
-    video = Path(video)
-    h = hashlib.sha1(json.dumps([timeline["tracks"]["audio"], timeline["duration"]], sort_keys=True).encode())
-    for e in timeline["tracks"]["audio"]:
-        f = audio.pick(video, e["file"])
-        if f.exists():
-            st = f.stat()
-            h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
-    cache = video / ".cache" / "sound"
-    cache.mkdir(parents=True, exist_ok=True)
-    f = cache / f"{h.hexdigest()[:16]}.m4a"
-    if f.exists():
-        log("soundtrack: unchanged, cached")
-    else:
-        for old in cache.glob("*.m4a"):
-            old.unlink()
-        audio.mix(video, timeline, f)
-    return f
-
-
 def composite(video, timeline, clip_files, out):
-    """Concatenate the clips' videos (identical encodes, so no re-encode) and mux the mixed soundtrack."""
+    """Concatenate the clips' videos (identical encodes, so no re-encode) and mux the soundtrack;
+    returns the soundtrack's file."""
     lst = out.with_suffix(".txt")
     lst.write_text("".join(f"file '{f.resolve()}'\n" for f in clip_files))
     silent = out.with_name("silent.mp4")
     proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", silent)
-    sound = mixed_sound(video, timeline)
+    sound = audio.soundtrack(video, timeline)
     proc.ffmpeg("-i", silent, "-i", sound, "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{timeline['duration']:.3f}",
                 "-movflags", "+faststart", out)
     for f in (lst, silent):
         f.unlink()
+    return sound
 
 
 NO_NARRATION_STEP = 1.5          # seconds between stills of a clip that has no narration
@@ -297,11 +277,11 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     timings["stills"] = round(time.monotonic() - t0, 1)
     log(f"stills: {made} rendered, {reused} unchanged (reused)")
 
-    clips = []
+    clips, sound = [], None
     if not stills_only:
         files, clips = render_clips(video, timeline, engine, quality)
         t1 = time.monotonic()
-        composite(video, timeline, files, d / "video.mp4")
+        sound = composite(video, timeline, files, d / "video.mp4").name
         timings["composite"] = round(time.monotonic() - t1, 1)
     else:
         clips = [{"id": cid, "key": key, "rendered": False, "seconds": 0} for cid, key, _ in rows]
@@ -330,7 +310,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": quality,
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in timeline["tracks"]["scene"]],
-        "clips": clips, "changed": changed if prev else [],
+        "clips": clips, "sound": sound, "changed": changed if prev else [],
         "stills": [{k: r[k] for k in ("id", "clip", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"}
                    | ({"note": notes[r["id"]]} if r["id"] in notes else {}) for r in reqs],
         "changelog": changelog or [],
@@ -386,13 +366,13 @@ def clip_files_fresh(video, timeline, quality, fmt=None):
     return all(f is not None for _, _, f in plan(video, timeline, quality, fmt))
 
 
-def export_formats(video, formats, quality="final", lufs=None, name=None):
-    """The whole video in each format, final quality by default, into out/export/. Every format comes
-    from the same timeline and scenes; each has its own stage and caption band."""
+def export_formats(video, formats, quality="final", lufs=-16.0, name=None):
+    """The whole video in each format, final quality by default, into out/export/, its sound finished
+    to `lufs`. Every format comes from the same timeline and scenes; each has its own stage and
+    caption band."""
     video = Path(video).resolve()
     timeline = tl.build(video)
-    if lufs is not None:
-        audio.finish(video, lufs)
+    audio.finish(video, lufs, timeline=timeline)
     out = video / "out" / "export"
     out.mkdir(parents=True, exist_ok=True)
     cfg = settings.raw(video)

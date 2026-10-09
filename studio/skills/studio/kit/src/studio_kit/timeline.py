@@ -20,7 +20,8 @@ and the rest layer on:
                                          come from the timings); anchors on sentences and words may
                                          join the numbers later
   audio/tracks.json    the builder       extra audio [{file, start, gain?, in?, out?, role?}] (music)
-  audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio
+  audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio, which
+                                         each mix renders against this timeline (audio.sources)
   audio/beats.json     studio beats      the beat grid, as "beats"
 
 timeline.json
@@ -483,6 +484,7 @@ def from_tutor(lesson, video):
         atomic_json(video / "video.json", {"title": video.resolve().name.replace("-", " ").capitalize(), "version": "v1",
                                            "genre": "explainer", "engine": "remotion"})
     shutil.copyfile(lesson / "audio" / "narration.mp3", video / "audio" / "narration.mp3")
+    (video / "audio" / "narration.wav").unlink(missing_ok=True)     # the mix would prefer an older wav
     t = json.loads((lesson / "audio" / "timings.json").read_text())
     atomic_json(video / "audio" / "timings.json", {**t, "timing": t.get("timing", "narrated")})
     return build(video)
