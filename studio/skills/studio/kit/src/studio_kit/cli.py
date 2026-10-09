@@ -235,8 +235,8 @@ COMMANDS = {
         A("--below", type=float, default=40, help="crop labels under this many px tall"),
     ], "sheets:main"),
     "desk": ("the desk: play the latest cut, take notes on sentences, show progress and replies",
-             [V("video"), A("--port", type=int, default=8765)], "page:main_serve"),
-    "serve": ("alias of desk", [V("video"), A("--port", type=int, default=8765)], "page:main_serve"),
+             [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),
+    "serve": ("alias of desk", [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),
     "notes": ("the notes on a cut, numbered; --start / --resolve mark one", [
         V("video"), A("--cut", type=int), A("--start", metavar="ID", help="mark a note as being worked on"),
         A("--resolve", metavar="ID", help="mark a note done"), A("--reply", help="one line shown under a resolved note"),

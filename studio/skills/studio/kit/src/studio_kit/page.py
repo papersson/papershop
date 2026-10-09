@@ -328,9 +328,27 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
 
-def serve(video, port=8765, host="127.0.0.1"):
+PORT = 8765
+PORT_TRIES = 20
+
+
+def bind(video, port=None, host="127.0.0.1"):
+    """The desk's server: on `port` when one is given (a busy one stops, with what to do), else on
+    the first free port from PORT, else any free port, so a second desk or another program on 8765
+    doesn't stop the user from opening this one."""
     handler = type("VideoHandler", (Handler,), {"video": Path(video).resolve()})
-    server = ThreadingHTTPServer((host, port), handler)
+    for p in [port] if port else [*range(PORT, PORT + PORT_TRIES), 0]:
+        try:
+            return ThreadingHTTPServer((host, p), handler)
+        except OSError as e:
+            if port:
+                raise SystemExit(f"desk: port {port} on {host} is not available ({e.strerror}); "
+                                 "pass another --port, or none to take a free one")
+    raise SystemExit(f"desk: no free port on {host}")
+
+
+def serve(video, port=None, host="127.0.0.1"):
+    server = bind(video, port, host)
     print(f"desk: http://{host}:{server.server_port}/  (notes → {notes_file(video)}; "
           f"studio wait {video} wakes on each)", flush=True)
     try:

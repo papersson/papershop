@@ -136,3 +136,21 @@ def test_a_note_naming_a_glossary_word_points_the_builder_at_it():
             "note": "Stagger these and blur them together", "status": "queued"}
     text = "\n".join(page.describe([note]))
     assert "glossary: stagger, blur together" in text
+
+
+def test_a_busy_port_moves_the_desk_unless_the_port_was_asked_for(tmp_path, monkeypatch):
+    import socket
+    import pytest
+    busy = socket.socket()
+    busy.bind(("127.0.0.1", 0))
+    busy.listen()
+    taken = busy.getsockname()[1]
+    try:
+        monkeypatch.setattr(page, "PORT", taken)
+        server = page.bind(tmp_path)
+        assert server.server_port != taken
+        server.server_close()
+        with pytest.raises(SystemExit, match=f"port {taken} on 127.0.0.1 is not available"):
+            page.bind(tmp_path, taken)
+    finally:
+        busy.close()
