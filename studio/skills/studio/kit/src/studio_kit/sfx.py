@@ -1,12 +1,13 @@
 """`studio sfx VIDEO CUES.json`: synthesised effects placed on the timeline, and `studio sound-lab`.
 
 CUES.json is a list of {"t": seconds, "type": "click", "gain": 0}; `t` may also be a cue or beat
-name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline. The voices are small numpy
-synths (a click, a pop, a thump and a whoosh), so effects are code like everything else and land on
-the measured beat. `studio sfx` checks the cues and keeps them as audio/sfx.json; every mix renders
-them against the timeline it mixes (`rendered`, into audio/sfx.wav, again only when a resolved time
-or a voice changed), so a re-narration moves an effect with its cue. The timeline mixes it at -8 dB
-under the narration.
+name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline, or an anchor as cues.json
+takes one (timeline.event_time). Naming the cue a scene waits on gives picture and sound one time on
+the frame grid. The voices are small numpy synths (a click, a pop, a thump and a whoosh), so effects
+are code like everything else and land on the measured beat. `studio sfx` checks the cues and keeps
+them as audio/sfx.json; every mix renders them against the timeline it mixes (`rendered`, into
+audio/sfx.wav, again only when a resolved time or a voice changed), so a re-narration moves an
+effect with its cue. The timeline mixes it at -8 dB under the narration.
 
 Sound effects are off by default and belong in pauses. The sound lab renders candidates for each
 type, each played alone and in context (after a sentence of the narration, in its pause), on one
@@ -62,6 +63,11 @@ def voice(kind, **p):
 def _time(t, timeline):
     if isinstance(t, (int, float)):
         return float(t)
+    if isinstance(t, dict):         # an anchor, as cues.json takes one: the same time a scene's cue gets
+        try:
+            return tl.event_time(timeline, t)
+        except ValueError:
+            return None
     if t in timeline.get("cues", {}):
         return timeline["cues"][t]
     b = timeline.get("beats", {})

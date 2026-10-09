@@ -17,9 +17,19 @@ and the rest layer on:
 
   audio/words.json     studio align      recognised words, stamped with the narration they were heard
                                          in; attached only while that narration is current
-  cues.json            the builder       named cues {name: seconds} scenes can wait on (reveal: cues
-                                         come from the timings); anchors on sentences and words may
-                                         join the numbers later
+  cues.json            the builder       the beat sheet: named events scenes and effects are timed from
+                                         (reveal: cues come from the timings' holds). A value is seconds,
+                                         or an anchor on the narration that follows its words:
+                                           {"sentence": "s2_03", "at": "start" | "end" | "word" | "phrase",
+                                            "word": i, "phrase": "text", "offset": seconds}
+                                         at "start"/"end": the sentence's ends; "phrase": when the voice
+                                         reaches the phrase (phrase_start); "word": the start of caption
+                                         word i, counted from the phrase's first word when one is given.
+                                         `at` defaults to "phrase" with a phrase, "word" with a word, else
+                                         "start". A phrase also finds the sentence after a renumbering: the
+                                         named sentence when it still says the phrase, else the one sentence
+                                         that does. An anchor whose words are gone, or whose phrase several
+                                         sentences say, stops the build naming the cue (event_time)
   captions.json        the builder       caption chunks whose words are kept: [{text} or {lines,
                                          wrapped?}] (other formats wrapped from them), each either
                                          anchored, {anchor: {sentence, words?, text?}}, so it follows its
@@ -46,11 +56,15 @@ timeline.json
                                                                   words a chunk shows
   tracks.audio      [{file, start, role, gain?, in?, out?, fade?}]  role: narration | sfx | music | footage
   tracks.footage    [{id, file, in, out, start, end}]             footage videos only
-  cues              {name: seconds}                               extra times scenes can wait on
+  cues              {name: seconds}                               every cue resolved and on the frame grid
   beats             {bpm, beats, downbeats, hits}
 
 Captions are wrapped here only, for every format a video can be exported in: an engine shows the
 lines stored for its layout's format, and fails on a format the timeline has none for.
+
+Every cue, a plain number included, is moved onto the frame it falls on (frame_time, half up as
+the engines' frameOf), so a move and an effect timed from one cue start on the same frame. Engines
+read the numbers through cue(); Python reads an anchor's time through event_time.
 
 Frame boundaries are rounded once, from absolute times, so clips rendered separately concatenate
 to exactly the narration's length (rounding each clip's duration instead drifts a frame per clip).
@@ -182,6 +196,159 @@ def half_up(x):
     """Round halves up, as the engine's Math.round does: Python's round() sends 436.5 to 436, which
     put a chapter boundary one frame off from the engine's."""
     return math.floor(x + 0.5)
+
+
+# --- events: cues.json's named times ---------------------------------------------------------------
+
+AT = ("start", "end", "word", "phrase")
+ANCHOR_KEYS = {"sentence", "at", "word", "phrase", "offset"}
+
+
+def frame_time(t, fps):
+    """A time moved onto the frame it falls on (half up, as the engines' frameOf)."""
+    return round(half_up(t * fps) / fps, 6)
+
+
+def _num(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def anchor_problem(spec):
+    """Why a cues.json value is neither seconds nor a well-formed anchor, or None."""
+    if _num(spec):
+        return None
+    if not isinstance(spec, dict) or set(spec) - ANCHOR_KEYS:
+        return "must be seconds or an anchor {sentence, at, word?, phrase?, offset?}"
+    at = _at(spec)
+    if not isinstance(spec.get("sentence", ""), str) or not isinstance(spec.get("phrase", ""), str) or \
+            not (spec.get("sentence") or spec.get("phrase", "").strip()):
+        return "needs a sentence id or a phrase"
+    if at not in AT:
+        return f"at must be one of {', '.join(AT)}"
+    if at == "word" and not (type(spec.get("word")) is int and spec["word"] >= 0):
+        return "at word needs a word index (0 is the first)"
+    if at == "phrase" and not spec.get("phrase", "").strip():
+        return "at phrase needs a phrase"
+    if not _num(spec.get("offset", 0)):
+        return "offset must be seconds"
+    return None
+
+
+def _at(spec):
+    return spec.get("at") or ("word" if "word" in spec else "phrase" if spec.get("phrase") else "start")
+
+
+def _phrase_word(s, phrase):
+    """The caption word a phrase starts on in sentence s, or None: its words matched, else (a spoken
+    rule rewrote them, a part of a word) its place in the caption."""
+    cap = s.get("caption", s.get("text", ""))
+    want, got = [w for w in map(_norm, phrase.split()) if w], [_norm(w) for w in cap.split()]
+    for i in range(len(got) - len(want) + 1):
+        if want and got[i:i + len(want)] == want:
+            return i
+    k = cap.find(phrase)
+    if k < 0:
+        return None
+    return len(cap[:k].split()) - (1 if k and not cap[k - 1].isspace() else 0)
+
+
+def _event_sentence(narration, spec):
+    """(sentence, first word of the phrase) an anchor names in this narration; ValueError if none."""
+    sid, phrase = spec.get("sentence"), spec.get("phrase")
+    by_id = {s["id"]: s for s in narration}
+    if not phrase:
+        if sid not in by_id:
+            raise ValueError(f"no sentence {sid} in the narration (an anchor with a phrase follows a renumbering)")
+        return by_id[sid], 0
+    if sid in by_id and _phrase_word(by_id[sid], phrase) is not None:
+        return by_id[sid], _phrase_word(by_id[sid], phrase)
+    found = [(s, _phrase_word(s, phrase)) for s in narration if _phrase_word(s, phrase) is not None]
+    if len(found) == 1:
+        return found[0]
+    if not found:
+        raise ValueError(f"no sentence says {phrase!r} any more" + (f" ({sid} doesn't)" if sid else ""))
+    raise ValueError(f"{phrase!r} is said in {', '.join(s['id'] for s, _ in found)}: name the sentence it belongs to")
+
+
+def resolve_event(timeline, spec):
+    """(seconds on the frame grid, sentence id or None) of a cues.json value: see event_time."""
+    problem = anchor_problem(spec)
+    if problem:
+        raise ValueError(problem)
+    if _num(spec):
+        return frame_time(float(spec), timeline["fps"]), None
+    s, first = _event_sentence(timeline["tracks"]["narration"], spec)
+    at = _at(spec)
+    if at in ("start", "end"):
+        t = s[at]
+    elif at == "phrase":
+        t = phrase_start(s, spec["phrase"])
+    else:
+        times, k = _word_times(s, s["caption"].split()), first + spec["word"]
+        if k >= len(times):
+            raise ValueError(f"{s['id']} has {len(times)} words, no word {k}")
+        t = times[k][0]
+    return frame_time(t + spec.get("offset", 0), timeline["fps"]), s["id"]
+
+
+def event_time(timeline, spec):
+    """A cues.json value in timeline seconds, on the frame grid (frame_time): a number as given, an
+    anchor where its words are in this timeline's narration (the contract above). The one rule for
+    the build and for Python callers. Raises ValueError saying why an anchor has no time."""
+    return resolve_event(timeline, spec)[0]
+
+
+def _resolve_cues(cues, t):
+    """cues.json resolved against the timeline being built; stops naming the first cue with no time."""
+    if not isinstance(cues, dict):
+        raise SystemExit("cues.json must be an object {name: seconds or anchor}")
+    out = {}
+    for k, v in cues.items():
+        problem = anchor_problem(v)
+        if problem:
+            raise SystemExit(f"cues.json: {k} {problem} (the contract at the top of timeline.py)")
+        try:
+            out[k] = event_time(t, v)
+        except ValueError as e:
+            raise SystemExit(f"cues.json: the cue {k!r} has no time: {e}; anchor it again or remove it")
+    return out
+
+
+def describe_anchor(spec, resolved=None):
+    """An anchor in words, for listings: "s2_03 word 4 of 'hits the floor' +0.10 s"."""
+    if _num(spec):
+        return "seconds"
+    at = _at(spec)
+    out = spec.get("sentence") or "the sentence"
+    out += {"start": " start", "end": " end", "phrase": "", "word": f" word {spec.get('word')}"}[at]
+    if spec.get("phrase"):
+        out += (" of " if at == "word" else " at ") + repr(spec["phrase"])
+    if spec.get("offset"):
+        out += f" {spec['offset']:+.2f} s"
+    if resolved and resolved != spec.get("sentence"):
+        out += f" (now {resolved})"
+    return out
+
+
+def events(video, t=None):
+    """Every cue with its resolved time: [{name, time, frame, clip, t, anchor}], in time order.
+    cues.json's carry their anchor; reveal: cues are the timings' holds."""
+    t = t or load(video)
+    raw = _read(Path(video) / "cues.json") or {}
+    rows = []
+    for name, at in t.get("cues", {}).items():
+        spec = raw.get(name) if not name.startswith("reveal:") else None
+        sid = None
+        if isinstance(spec, dict):
+            try:
+                sid = resolve_event(t, spec)[1]
+            except ValueError:
+                pass
+        c = next((c for c in t["tracks"]["scene"] if c["start"] <= at < c["end"]), None)
+        rows.append({"name": name, "time": at, "frame": half_up(at * t["fps"]), "clip": c["id"] if c else None,
+                     "t": round(at - c["start"], 3) if c else None,
+                     "anchor": "hold end" if name.startswith("reveal:") else describe_anchor(spec, sid) if spec is not None else "seconds"})
+    return sorted(rows, key=lambda r: (r["time"], r["name"]))
 
 
 # --- captions -------------------------------------------------------------------------------------
@@ -550,11 +717,9 @@ def build(video, quiet=False):
                       "(`studio align` again for word timings)")
         cues = _read(video / "cues.json")
         if cues is not None:
-            bad = [k for k, v in cues.items() if not isinstance(v, (int, float)) or isinstance(v, bool)]
-            if bad:
-                raise SystemExit(f"cues.json: {', '.join(bad)} must be seconds")
-            t["cues"] = {**cues, **t["cues"]}
+            t["cues"] = {**_resolve_cues(cues, t), **t["cues"]}
             used.append("cues.json")
+        t["cues"] = {k: frame_time(v, t["fps"]) for k, v in t.get("cues", {}).items()}
         sfx = (a / "sfx.json").exists()
         extra = _read(a / "tracks.json")
         if extra is not None:
@@ -692,4 +857,10 @@ def main(args):
     t = build(args.video)
     print(f"{len(t['tracks']['scene'])} clips, {len(t['tracks']['narration'])} sentences, {t['duration']:.1f} s "
           f"from {', '.join(t['sources'])}")
+    if getattr(args, "events", False):
+        rows = events(args.video, t)
+        print(f"{len(rows)} events (cues.json and holds), on the {t['fps']} fps grid:" if rows else "no events: cues.json is the beat sheet")
+        for r in rows:
+            where = f"{r['clip']} {r['t']:7.3f} s" if r["clip"] else "after the end"
+            print(f"  {r['time']:8.3f} s  frame {r['frame']:<6} {where:16} {r['name']:24} {r['anchor']}")
     return 0

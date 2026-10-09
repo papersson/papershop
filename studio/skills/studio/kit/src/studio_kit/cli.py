@@ -142,7 +142,9 @@ COMMANDS = {
         A("--all", action="store_true", help="transcribe every sentence again, ignoring the cache"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [W("video"), A("--model", default="small.en")], "align:main"),
-    "timeline": ("build timeline.json from its sources (after editing cues.json or audio/tracks.json)", [W("video")], "timeline:main"),
+    "timeline": ("build timeline.json from its sources (after editing cues.json or audio/tracks.json)", [
+        W("video"), A("--events", action="store_true", help="also list the beat sheet: every cue's time, frame, clip and anchor"),
+    ], "timeline:main"),
     "capture": ("a screenshot of a page into assets/, recorded with its source", [
         A("url"), W("video"), A("--name"), A("--size", default="1440x900"),
         A("--wait", type=int, default=4000, help="virtual milliseconds to let the page settle"),

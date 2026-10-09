@@ -193,3 +193,36 @@ def test_line_widths_come_from_the_layout_each_format_renders(tmp_path):
     (tmp_path / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "band": {"height": 160, "style": "opaque", "chars": 50},
                                                       "formats": {"4:5": {"width": 1080, "height": 1350, "band": {"height": 260, "chars": 30}}}}))
     assert tl.caption_widths(tmp_path) == {"16:9": 50, "9:16": 26, "1:1": 34, "4:5": 30}
+
+
+def test_event_time_reads_aligned_words_and_parts_of_words():
+    words = [{"w": w, "start": round(2.0 + 0.4 * i, 3), "end": round(2.3 + 0.4 * i, 3)} for i, w in enumerate("The crown drops to the floor.".split())]
+    t = {"fps": 30, "tracks": {"narration": [
+        {"id": "s1_01", "start": 2.0, "end": 4.4, "caption": "The crown drops to the floor.", "words": words},
+        {"id": "s1_02", "start": 5.0, "end": 7.0, "caption": "A co-op's café, at 3.5 nodes.", "words": []}]}}
+    on_grid = lambda x: round(tl.half_up(x * 30) / 30, 6)
+    assert tl.event_time(t, {"sentence": "s1_01", "word": 2}) == on_grid(2.8)
+    assert tl.event_time(t, {"phrase": "the floor", "word": 1, "offset": -0.05}) == on_grid(4.0 - 0.05)
+    assert tl.event_time(t, {"phrase": "drops"}) == on_grid(2.8) == tl.event_time(t, {"sentence": "s1_01", "at": "phrase", "phrase": "drops"})
+    assert tl.event_time(t, {"sentence": "s1_01", "at": "end", "offset": 0.017}) == on_grid(4.417) == round(133 / 30, 6)
+    cap = t["tracks"]["narration"][1]["caption"]                 # no word timings: the caption's share of the time
+    assert tl.event_time(t, {"phrase": "caf", "word": 1}) == on_grid(5.0 + 2.0 * cap.index("at") / len(cap))
+    assert tl.event_time(t, 1.25) == round(38 / 30, 6)
+    with pytest.raises(ValueError, match="no sentence says 'crowns'"):
+        tl.event_time(t, {"sentence": "s1_01", "phrase": "crowns"})
+
+
+def test_the_timeline_command_lists_the_events(tmp_path, capsys):
+    from types import SimpleNamespace
+    narration = [{"id": "s1_01", "clip": "s1", "text": "Go.", "caption": "Go.", "paragraph": 0, "start": 0.5, "end": 1.5}]
+    (tmp_path / "video.json").write_text(json.dumps({"title": "T", "engine": "live"}))
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "timings.json").write_text(json.dumps({"total": 3.0, "timing": "estimate", "segments": [
+        {"id": "s1", "title": "One", "start": 0.0, "end": 3.0,
+         "lines": [{**narration[0], "pause": {"seconds": 1.0, "start": 1.5, "end": 2.5}}]}]}))
+    (tmp_path / "cues.json").write_text(json.dumps({"go": {"sentence": "s1_01", "offset": 0.04}, "late": 2.71}))
+    tl.main(SimpleNamespace(video=tmp_path, events=True))
+    out = capsys.readouterr().out.splitlines()
+    assert "3 events" in out[1]
+    assert out[2].split() == ["0.533", "s", "frame", "16", "s1", "0.533", "s", "go", "s1_01", "start", "+0.04", "s"]
+    assert out[3].split()[-3:] == ["reveal:s1_01", "hold", "end"] and out[4].split()[:4] == ["2.700", "s", "frame", "81"]

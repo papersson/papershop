@@ -38,7 +38,7 @@ def test_a_narration_keeps_what_other_commands_and_the_builder_added(tmp_path):
     (v / "SCRIPT.md").write_text(SCRIPT.replace("Send a key", "Send one key"))
     narration.narrate(v, estimate=True)
     t = tl.load(v)
-    assert t["cues"]["hit"] == 1.25 and t["beats"]["bpm"] and t["timing"] == "estimate"
+    assert t["cues"]["hit"] == round(38 / 30, 6) and t["beats"]["bpm"] and t["timing"] == "estimate"   # frame 37.5 rounds up
     assert [(a["file"], a["role"]) for a in t["tracks"]["audio"]] == [("assets/bed.wav", "music"), ("audio/sfx.wav", "sfx")]
     assert t["tracks"]["narration"][-1]["caption"] == "Send one key with every attempt."
     assert t["tracks"]["scene"][0]["engine"] == "live"
@@ -550,3 +550,69 @@ def test_a_builders_caption_too_long_for_a_format_is_reported(tmp_path, capsys):
     (v / "captions.json").write_text(json.dumps([{"start": 0.0, "end": 1.0, "text": text}]))
     tl.build(v)
     assert "more than 2 lines in 9:16, 1:1" in capsys.readouterr().out
+
+
+def test_anchored_cues_resolve_on_the_frame_grid_and_follow_their_words(tmp_path):
+    """The beat sheet: cues.json anchors resolve to the time their words are said, on the frame grid,
+    and a phrase finds its sentence again after the sentences are renumbered."""
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "cues.json").write_text(json.dumps({
+        "quiet": {"sentence": "s1_02", "phrase": "goes quiet"}, "open": {"sentence": "s1_01", "offset": 0.1},
+        "close": {"sentence": "s1_02", "at": "end"}, "net": {"phrase": "the network", "word": 1}, "n": 1.25}))
+    t = tl.build(v)
+    said = {s["id"]: s for s in t["tracks"]["narration"]}
+    grid = lambda x: round(tl.half_up(x * 30) / 30, 6)
+    assert t["cues"]["quiet"] == grid(tl.phrase_start(said["s1_02"], "goes quiet"))
+    assert t["cues"]["open"] == grid(said["s1_01"]["start"] + 0.1) and t["cues"]["close"] == grid(said["s1_02"]["end"])
+    assert t["cues"]["net"] == grid(tl.phrase_start(said["s1_02"], "network"))
+    assert all(abs(x * 30 - round(x * 30)) < 1e-4 for x in t["cues"].values())          # every cue on a frame
+    assert tl.event_time(t, {"sentence": "s1_02", "phrase": "goes quiet"}) == t["cues"]["quiet"]
+    assert sfx._time("quiet", t) == sfx._time({"phrase": "goes quiet"}, t) == t["cues"]["quiet"]   # one time for picture and sound
+
+    script = (v / "SCRIPT.md").read_text()
+    (v / "SCRIPT.md").write_text(script.replace("> A checkout page", "> Here is a shop. A checkout page"))
+    narration.narrate(v, estimate=True)                  # s1_02 is now "A checkout page ...", s1_03 the quiet one
+    t = tl.load(v)
+    said = {s["id"]: s for s in t["tracks"]["narration"]}
+    assert t["cues"]["quiet"] == grid(tl.phrase_start(said["s1_03"], "goes quiet"))
+    assert t["cues"]["close"] == grid(said["s1_02"]["end"])                              # an id alone keeps its id
+    rows = {r["name"]: r for r in tl.events(v)}
+    assert rows["quiet"]["anchor"] == "s1_02 at 'goes quiet' (now s1_03)" and rows["n"]["anchor"] == "seconds"
+    assert [r["time"] for r in tl.events(v)] == sorted(t["cues"].values())
+
+    (v / "SCRIPT.md").write_text(script.replace("Then the network goes quiet.", "Then nothing comes back."))
+    with pytest.raises(SystemExit, match="cue 'quiet' has no time: no sentence says 'goes quiet' any more"):
+        narration.narrate(v, estimate=True)
+
+
+@pytest.mark.parametrize("spec,error", [
+    ({"sentence": "s1_01", "at": "word"}, "needs a word index"), ({"at": "start"}, "needs a sentence id or a phrase"),
+    ({"sentence": "s1_01", "at": "middle"}, "at must be one of"), ({"sentence": "s1_01", "offset": "1"}, "offset must be seconds"),
+    ({"sentence": "s1_01", "when": 1}, "must be seconds or an anchor"), ({"sentence": "s9_01"}, "no sentence s9_01"),
+    ({"phrase": "the"}, "'the' is said in s1_01, s1_02"), ({"sentence": "s1_01", "word": 40}, "s1_01 has 8 words, no word 40"),
+])
+def test_a_bad_or_lost_anchor_stops_the_build_naming_the_cue(tmp_path, spec, error):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "cues.json").write_text(json.dumps({"hit": spec}))
+    with pytest.raises(SystemExit, match=f"cues.json: (the cue 'hit'|hit) .*{error}"):
+        tl.build(v)
+
+
+def test_an_anchored_cue_counts_only_for_the_clips_that_read_it(tmp_path):
+    from studio_kit import render
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "scenes").mkdir()
+    (v / "scenes" / "s2.js").write_text("export default c => c.P(c.cue('quiet'), 0.4)\n")
+    keys = lambda t: {c["id"]: render.clip_key(v, t, c["id"], "draft") for c in t["tracks"]["scene"]}
+    (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "goes quiet"}}))
+    before = keys(tl.build(v))
+    (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "goes quiet", "offset": 0.2}}))
+    after = keys(tl.build(v))
+    assert after["s2"] != before["s2"]           # s2 waits on it from the chapter before
+    assert after["s1"] != before["s1"]           # and it lies inside s1's frames
+    (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "goes quiet", "offset": 0.2},
+                                             "unread": {"sentence": "s2_01", "at": "end", "offset": 10}}))
+    assert keys(tl.build(v)) == after            # past the end, read by no scene
