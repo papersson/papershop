@@ -6,7 +6,7 @@ don't care which one draws. A video picks its engine in video.json (`"engine": "
 `"remotion"` or `"motion-canvas"`; `studio new --engine …`). One engine per video.
 
 What the engines have in common is written once, in `engines/shared/`: the motion maths
-(`motion.js`: eases, springs, `track`, `pulse`, ...), the narration times (`timing.js`: `at`, `end`,
+(`motion.js`: eases, springs, `track`, `pulse`, `keyed`, `follow`, `settle`, `wobble`, ...), the narration times (`timing.js`: `at`, `end`,
 `word`, `phrase`, `cue`, half-up frame rounding) and the pixel-art core (`pixels.ts`). Each kit
 re-exports them under its own names and defaults. Captions are wrapped by the kit for every
 format and stored in timeline.json; an engine never wraps them.
@@ -19,7 +19,8 @@ format and stored in timeline.json; an engine never wraps them.
   the desk, and for any explainer that doesn't need the Remotion code components.
 - **Remotion** (code explainers, motion, launch, footage). Scenes are React components, and every
   frame is a pure function of time. It has the whole component kit: `Txt`, `Rect`, `Arrow`, the map
-  and close-up components, `CodePanel`, `Terminal`, `PixelCanvas`, `Shot` (captured assets),
+  and close-up components, `CodePanel`, `Terminal` (a long line shrinks to fit the panel, down to
+  18 px, before it clips), `PixelCanvas`, `Shot` (captured assets),
   `Footage`, closed-form springs. Licence: free for individuals and very small companies, a company
   licence above that; check the current terms before using it for a company.
 - **Motion Canvas** (work). Scenes are generators (`yield*` animations), written against Motion
@@ -40,10 +41,10 @@ The context `c` (all times in clip seconds):
   a key; a node not drawn this frame is hidden, so a frame is whatever this call drew.
 - `c.t`, `c.dur`; `c.W`, `c.H` (the stage above the caption band, in pixels); `c.unit` (`H / 8`).
 - `c.at('03')`, `c.end('03')`, `c.word('03', 2)`, `c.phrase('03', 'the whole state')`, `c.cue(name)`.
-- `c.P(t0, d, ease)` progress of a movement; `c.kit`: `ease` (`out`, `in`, `inOut`, `back`, `smooth`),
-  `stagger`, `pulse`, `spring`, `track` (a value that springs to each new key), `countUp`, `rand`
-  (never `Math.random`), `lerp`, `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`,
-  `C.bad`, `C.ink`, `C.dim`, ...).
+- `c.P(t0, d, ease)` progress of a movement; `c.kit`: `ease` (`out`, `in`, `inOut`, `back`, `smooth`,
+  `heavy`, `float`, `snap`), `stagger`, `pulse`, `spring`, `track` (a value that springs to each new
+  key), `keyed`, `follow`, `settle`, `wobble` (below), `countUp`, `rand` (never `Math.random`), `lerp`,
+  `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, ...).
 - `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
 
 Text is named for the checks by its key (`legible`, `overlap`, `bounds`); give a shape `{box: 'name'}`
@@ -54,6 +55,31 @@ that throws fails the still or render with the clip, the time and the source lin
 
 The motion glossary (`studio glossary`, `engines/live/glossary.html`) names these helpers: a note
 that says "stagger", "overshoot" or "blur them together" maps to one of them.
+
+## Motion helpers
+
+In `engines/shared/motion.js`, so the live kit (`c.kit`), Remotion (`@studio`) and Motion Canvas
+(`@studio-mc`) have the same ones. Each is a pure function of time: any frame renders alone, and a
+value never depends on what was computed before it.
+
+- `keyed(t, [[time, value, ease?], ...], e)`: keyframes. A value is a number or an array (a point,
+  `[r, g, b]`); the ease on a key shapes the move into it, as a function or a name (`'heavy'`). The
+  default ease is the kit's own: `inOut` in live and Motion Canvas, `smooth` in Remotion (as `ramp`).
+- Eases, beside `out`, `in`, `inOut`, `smooth` and `back` (10% overshoot): `heavy` (slow to start,
+  middle at 63% of the time, a firm stop: big things, conclusions), `float` (half a cosine, the
+  gentlest: drift, ambient moves), `snap` (an exponential out: fast, then a stop that reads as hard;
+  things clicking into place). In Remotion, `ramp(t, start, dur, ease.heavy)`.
+- `follow(t, fn, lag = 0.1, k = 120, d = 14)`: secondary motion. `fn(s)` is the source's value at
+  any time `s` (write the source as a function, as `s => keyed(s, keys)`); the result trails it by
+  `lag` through a slightly bouncy spring, so a tag hanging off a box starts late, swings past and
+  catches up.
+- `settle(t, t0, amp = 1, freq = 3, decay = 5)`: a decaying oscillation after a stop at `t0`, added to
+  a value that has just landed (`y + settle(t, land, 12)`); 0 before `t0`, and it starts at 0.
+- `wobble(t, amp = 1, freq = 1, seed = 0)`: smooth seeded noise in `-amp..amp`, for hand-held drift
+  and idle life; a different seed per element.
+
+Use `cue(name)` from the beat sheet (`cues.json`) for the times these take, so a move, its sound and
+its still share a frame.
 
 ## Motion Canvas scenes
 
@@ -86,7 +112,7 @@ Everything the Remotion kit has, in generator form. Scenes drive the components 
 | pixel art | `PixelCanvas` | `pixelCanvas(c, w, h, palette, draw)` (the drawing helper and bitmap font are one shared file) |
 | captured assets | `Shot` | `shot(c, file, at, h, {aspect, crop})` |
 | footage edits | `Footage` | `footage(c, {aspect, fit})` |
-| easing and springs | `ramp`, `spring`, `track`, `swapAlpha`, `loopT`, `rng` | the same names |
+| easing and springs | `ramp`, `spring`, `track`, `swapAlpha`, `loopT`, `rng`, `ease`, `keyed`, `follow`, `settle`, `wobble` | the same names (`keyed` defaults to `inOut`) |
 
 Two things differ. Footage is transcoded once to a seekable WebM proxy (`.cache/mc-footage/`),
 because Chrome's headless builds don't decode H.264; it is cached by modification time and seeks

@@ -53,6 +53,20 @@ between chapters.
   target several times sums one spring per change.
 - Every animation finishes by the word it illustrates. Camera moves and content changes are staged,
   not simultaneous.
+- **Hold after a move.** After a significant move, hold at least 0.5 s before the next one starts:
+  the eye needs that long to land on the result before something else pulls it away. Moves that
+  overlap or follow each other within a beat read as one move (a stagger), and a hold may carry
+  ambient motion (a ticking counter, a drifting dot). `studio check` measures it on the rendered
+  stage and warns at each shorter hold.
+- **Time picture and sound from one event.** Name each contact (a landing, a strike, a count
+  changing) in `cues.json`, anchored to the word it belongs to, and have the scene's `cue(name)` and
+  the effect both use it: in one build every sound landed within a frame of its picture this way.
+  Each event gets its own still, two frames after the contact, where its result should show.
+- **Secondary motion when something has weight or hangs on something.** A tag on a box, a cable,
+  a label on a moving token follows through (`follow`); a heavy thing landing settles (`settle`);
+  a held picture that should feel alive drifts (`wobble`, a few pixels). Leave it off type, data and
+  anything the viewer must read while it moves, and off the map at rest: secondary motion is for
+  the protagonist and the moment of contact, not decoration.
 
 ## Text on screen
 
@@ -63,7 +77,9 @@ between chapters.
   text repeating the narration" applies to the stage, not the band. Chunks: at most two lines of
   about 42 characters, broken at phrase boundaries, held at least 1.2 s; the kit does this.
 - **Legible at phone width:** labels at least 18 px at 1080p (earlier builds used 26 px), contrast
-  at least 4.5:1. Frame reviews flagged 14 px grey-on-black as unreadable.
+  at least 4.5:1, and lines that carry meaning (a map's arrows, idle or not) at least 3:1. Frame
+  reviews flagged 14 px grey-on-black as unreadable. A long code line shrinks to fit its panel,
+  down to 18 px; past that, break the line or widen the panel.
 - **Nothing floats inside a plot area.** Status text over a time axis reads as an event at that time.
 - **Real quotes are short**, and only when the narration discusses them.
 

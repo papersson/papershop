@@ -108,7 +108,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization; ROLE is a script reviewer or `frames` (alias `frame`) |
 | `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
-| `timeline VIDEO` | Rebuild timeline.json from its sources, after editing `cues.json`, `captions.json` or `audio/tracks.json` |
+| `timeline VIDEO [--events]` | Rebuild timeline.json from its sources, after editing `cues.json`, `captions.json` or `audio/tracks.json`; `--events` lists the beat sheet: every cue's time, frame, clip and anchor |
 | `lexicon add WORD --spoken TEXT [--phonemes IPA]` | Promote a pronunciation for future videos |
 | `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; reports actual output dimensions. Chapters without a scene show their boards |
 | `boards VIDEO` | A stills cut of every chapter's board (`boards/boards.json`, notes from the screen notes); reports sentences with nothing on screen |
@@ -117,13 +117,13 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `wait VIDEO [--timeout S]` · `status VIDEO [TEXT] [--busy]` | Block until a new desk note arrives (run in the background to be woken by each note); the builder's status line on the desk |
 | `glossary [--term T]` | The motion glossary: the words a note can use for motion and the helper behind each (`references/desk.md`) |
 | `still VIDEO CLIP T --out PNG` · `boxes VIDEO CLIP T` | Inspect a frame or named-element bounds |
-| `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR [--strip CLIP T]… [--windows FILE]` | Incremental render checks, contact sheets and label crops; strips of consecutive frames around each `--strip` time (repeatable) or each `{clip, t, frames?, fps?}` of a JSON windows file |
+| `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR [--strip CLIP T]… [--windows FILE]` | Incremental render checks (pacing, a 0.5 s hold after each move, warns from the cut's clips; `--only pacing` samples stills where no clip is rendered), contact sheets and label crops; strips of consecutive frames around each `--strip` time (repeatable) or each `{clip, t, frames?, fps?}` of a JSON windows file |
 | `audio VIDEO [--lufs -14]` · `export VIDEO --formats 16:9,9:16,1:1` | Finish the whole mix to its loudness and true-peak ceiling (publish and export do it too); multiple formats |
 | `publish VIDEO` | Local final master, compressed web copy, poster and page; upload separately |
 | `clean VIDEO [--dry-run] [--videos]` | Stale caches/previews; MP4 deletion is explicit and never overrides protection |
 | `commit VIDEO MESSAGE` | Scoped source checkpoint; video.json `git.sign` is true, false or null/inherit |
 | `capture URL VIDEO` · `asset add|list VIDEO` | Assets with provenance |
-| `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing, and optional effects on cue or beat names (each mix places them on the current timeline) |
+| `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing, and optional effects on cue or beat names or anchors (each mix places them on the current timeline) |
 | `ingest FILE VIDEO` · `edit VIDEO EDL` | Transcript-based footage editing |
 | `init VIDEO [--update]` · `import-tutor LESSON VIDEO` | Pin/update a kit or migrate a retired tutor timeline |
 
@@ -135,8 +135,12 @@ written by the builder; notes.json is generated). `sims/` holds the video's scri
 extraction and helpers the build reruns), `data/` the evidence they produce.
 `timeline.json` is built, never edited: each command writes the source it owns and rebuilds it
 (`audio/timings.json` narrate, `audio/words.json` align, `audio/sfx.json` sfx, `audio/beats.json`
-beats, `footage/edit.json` edit, video.json `duration` or `clips` for a piece without narration). Named cues
-go in `cues.json` (`{"name": seconds}`), extra audio such as a music bed in `audio/tracks.json`
+beats, `footage/edit.json` edit, video.json `duration` or `clips` for a piece without narration).
+`cues.json` is the beat sheet: named events, each seconds or an anchor on the narration
+(`{"sentence", "at": "start"|"end"|"word"|"phrase", "word", "phrase", "offset"}`, the contract at the
+top of `timeline.py`) that follows its words when the narration moves. Time picture and sound from
+the same event: a scene's `cue(name)` and an sfx entry naming it land on one frame, and every cut
+has a still two frames after each event. Extra audio such as a music bed goes in `audio/tracks.json`
 (`[{"file", "start", "gain"}]`), and captions the kit must not re-chunk in `captions.json`
 (chunks of `text` or `lines`, fixed at `start`/`end` or anchored to their words; a kit chunk copied
 from timeline.json keeps its anchor, so a locked chunk follows its words when the narration moves); after editing any of them, `studio timeline VIDEO` (or the next cut) rebuilds it.

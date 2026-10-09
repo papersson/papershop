@@ -39,10 +39,16 @@ engine a cut is for the record and the publish gate, not for the user to see the
    - picture: edit `scenes/<clip>.js` (live) or the clip's scene; cue labels on what the voice says
      with `c.phrase(id, text)` so they land on the words;
    - a glossary word in the note ("stagger", "blur them together") names the move: use its helper
-     (`studio glossary --term …`). A move the glossary lacks: make it, and add the term to
-     `engines/live/src/glossary.json` with a demo in `glossary.js`.
-4. Check before answering: `studio check VIDEO` (determinism, bounds, band, legible, overlap and, on
-   the live engine, any scene error, for the changed chapter) and look at a still of the changed
+     (`studio glossary --term …`). The terms for weight and life map to the shared motion helpers:
+     "keyframe" (`keyed`, a path with stops and an ease per leg), "heavy", "float" and "snap" (eases),
+     "overshoot" (`ease.back`), "follow-through" (`follow`), "settle" (`settle`) and "wobble"
+     (`wobble`). A move the glossary lacks: make it, and add the term to
+     `engines/live/src/glossary.json` with a demo in `glossary.js`;
+   - a note on timing at a contact ("the thud is early"): move the event in `cues.json`, which moves
+     its picture, its effect and its still together (`studio timeline VIDEO --events` lists them).
+4. Check before answering: `studio check VIDEO` (determinism, bounds, band, legible, overlap, pacing
+   once a cut has rendered the chapter and, on the live engine, any scene error, for the changed
+   chapter) and look at a still of the changed
    moment (`studio still VIDEO CLIP T --out …`). Never resolve a note whose change fails a check.
 5. `studio notes VIDEO --resolve ID --reply "one line saying what changed"`. The reply shows under
    the note, on the cut or live view that answers it.

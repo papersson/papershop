@@ -332,6 +332,20 @@ item: the loop is proven by the user's own notes.
 - **doctor starts the browser the way a cut does.** It launched Chrome with `--dump-dom`, which a
   sandbox can allow while refusing the engine's own launch. It now renders a one-frame still
   through the live engine in a throwaway video.
+- **cues.json is a beat sheet.** One builder session wrote its own: named events anchored to a
+  sentence's start or end or to a word, with picture and sound both timed from them. That put all
+  93 sound contacts within a frame of their visual contact, the largest single quality gain of the
+  session, and it hand-added 74 stills, because the kit's fell only near sentence ends. A cue may now
+  be an anchor (`sentence`, `at`, `word`, `phrase`, `offset`) that a phrase finds again after a
+  renumbering and that stops the build, naming the cue, when its words are gone. Every cue lands on
+  the frame grid by the engines' half-up rule, so a scene's `cue()` and an effect on it start on the
+  same frame, and every cut has a still two frames after each event and one in each long pause.
+- **A hold after every move, measured on the pixels.** Moves that follow each other with no rest
+  read as one blur, and nothing checked for it. `pacing` samples each chapter's stage at 10 frames a
+  second from the cut's own rendered clips (0.2 s a chapter; rendering stills instead costs about
+  0.7 s a second of video, so that is opt-in), finds the significant moves, and warns at a hold
+  under 0.5 s. Its thresholds were set so the kit's live and Remotion templates pass; it warns
+  rather than fails until real builds calibrate it.
 
 | Still open | Done when |
 |---|---|
