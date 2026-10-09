@@ -423,6 +423,12 @@ def build(video, quiet=False):
         if beats is not None:
             t["beats"] = beats
             used.append("audio/beats.json")
+        if sfx:
+            from .sfx import unresolved
+            missing = unresolved(_read(a / "sfx.json"), t)
+            if missing:      # a warning, not a stop: `studio sfx` builds before it replaces the effects
+                say(f"warn: audio/sfx.json: no time for {', '.join(map(repr, missing))} in this timeline; "
+                    "the next cut stops on it until `studio sfx VIDEO CUES` replaces the effects")
         # chunked last, from the final narration (its words included), at this video's line widths
         t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video))
         t["sources"] = used

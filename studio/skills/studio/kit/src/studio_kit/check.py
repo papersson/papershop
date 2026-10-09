@@ -356,6 +356,8 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
 
 
 def main(args):
+    if (Path(args.video) / "timeline.json").exists():      # a script check runs before there is one
+        tl.build(args.video)                               # as a cut does, so the checks see the sources
     rows = run(args.video, args.samples, args.only.split(",") if args.only else None, fmt=args.format,
                everything=getattr(args, "all", False))
     for r in rows:

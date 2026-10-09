@@ -59,7 +59,7 @@ def voice(kind, **p):
     raise SystemExit(f"unknown effect {kind!r}: click, pop, thump or whoosh")
 
 
-def resolve_time(t, timeline):
+def _time(t, timeline):
     if isinstance(t, (int, float)):
         return float(t)
     if t in timeline.get("cues", {}):
@@ -70,10 +70,24 @@ def resolve_time(t, timeline):
             i = int(t[len(prefix):]) - 1
             if 0 <= i < len(b.get(key, [])):
                 return b[key][i]
-    raise SystemExit(f"no time for cue {t!r}")
+    return None
+
+
+def resolve_time(t, timeline):
+    at = _time(t, timeline)
+    if at is None:
+        raise SystemExit(f"no time for cue {t!r}")
+    return at
+
+
+def unresolved(cues, timeline):
+    """The effect times in `cues` this timeline has no time for (a cue a re-narration dropped)."""
+    return [c["t"] for c in cues if _time(c["t"], timeline) is None]
 
 
 def render(cues, timeline):
+    """The effects on one float track, unclipped: the timeline's -8 dB comes later, in the mix, so an
+    effect over full scale here is not over it there, and the master's limiter takes what still is."""
     import numpy as np
     placed = [(resolve_time(c["t"], timeline), voice(c["type"], **c.get("params", {})), 10 ** (c.get("gain", 0) / 20)) for c in cues]
     end = max(t * RATE + len(v) for t, v, _ in placed) if placed else RATE
@@ -81,12 +95,12 @@ def render(cues, timeline):
     for t, v, g in placed:
         i = int(t * RATE)
         buf[i:i + len(v)] += (v * g).astype(np.float32)
-    return np.clip(buf, -1, 1)
+    return buf
 
 
-def write_wav(path, buf):
+def write_wav(path, buf, subtype="PCM_24"):
     import soundfile as sf
-    sf.write(path, buf, RATE, subtype="PCM_24")
+    sf.write(path, buf, RATE, subtype=subtype)
 
 
 def check(cues, timeline):
@@ -105,15 +119,23 @@ def rendered(video, timeline):
     mix cache)."""
     video = Path(video)
     cues = json.loads((video / "audio" / "sfx.json").read_text())
+    if unresolved(cues, timeline):
+        raise SystemExit(f"audio/sfx.json: no time for {', '.join(map(repr, unresolved(cues, timeline)))} in the "
+                         "timeline (a re-narration drops a reveal: cue whose hold is gone); `studio sfx VIDEO CUES` "
+                         "with times that exist")
     placed = [{**c, "t": resolve_time(c["t"], timeline)} for c in cues]
     key = hashlib.sha1(json.dumps(placed, sort_keys=True).encode() + Path(__file__).read_bytes()).hexdigest()[:16]
     out, kept = video / "audio" / "sfx.wav", video / ".cache" / "sound" / "sfx.key"
     if out.exists() and kept.exists() and kept.read_text() == key:
         return out
     try:
-        write_wav(out, render(placed, timeline))
+        write_wav(out, render(placed, timeline), "FLOAT")
     except ImportError:
-        raise SystemExit(NEEDS)
+        if not out.exists():
+            raise SystemExit(NEEDS)
+        # a video from before effects were placed at mix time: its render, at the times it was made
+        print(f"warn: audio/sfx.wav kept as rendered, effects not re-placed ({NEEDS})")
+        return out
     kept.parent.mkdir(parents=True, exist_ok=True)
     kept.write_text(key)
     return out

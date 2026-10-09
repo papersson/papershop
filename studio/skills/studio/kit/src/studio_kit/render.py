@@ -288,6 +288,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     from . import boards as bd
     bd.write_notes(video)
     timeline = tl.build(video)      # so an edit to cues.json or audio/tracks.json is in the cut
+    if not stills_only:
+        audio.sources(video, timeline)   # an effect with no time stops the cut before any clip renders
     engine = engine or Engine(video)
     from . import cuts
     prev_n = cuts.latest(video, ("boards",) if boards else cuts.SCENE_STILLS)

@@ -114,7 +114,9 @@ def state(video, cut=None):
         "narration": [{k: s[k] for k in ("id", "clip", "start", "end", "caption")} for s in t["tracks"]["narration"]],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in t["tracks"]["scene"]],
         "notes": notes, "rounds": rounds, "status": read_status(video),
-        "live": {"audio": (tl.narration_audio(t) or next(iter(t["tracks"].get("audio", [])), {})).get("file"),
+        # The desk's clock: the narration, else a silent clock (another track would play from its
+        # own first sample, its start and in ignored, and an estimate's effects are not rendered yet).
+        "live": {"audio": (tl.narration_audio(t) or {}).get("file"),
                  "duration": t.get("duration", 0)} if live else None,
     }
 

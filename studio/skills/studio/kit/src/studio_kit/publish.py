@@ -45,8 +45,9 @@ def _encode_part(src, dst, height, video_kbps):
                 "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p", dst)
 
 
-def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cache=None):
-    """The page's video: as sharp as fits in `limit` bytes. Returns the settings used.
+def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cache=None, ceiling=None):
+    """The page's video: as sharp as fits in `limit` bytes, its sound (from `sound`, else from src)
+    re-encoded under the true-peak `ceiling`. Returns the settings used.
 
     With `parts` (the final clips, in order, each a silent video) and `sound` (the mixed soundtrack),
     each clip is encoded on its own and cached under `cache` by its file name (which carries its
@@ -54,6 +55,8 @@ def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cach
     revision round encodes only the chapters that changed."""
     height, video_kbps, audio_kbps = web_settings(duration, limit)
     dst = Path(dst)
+    sound_web = dst.with_name(dst.stem + "-sound.m4a")
+    audio.encode(sound or src, sound_web, ceiling, "-b:a", f"{audio_kbps}k", "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1")
     for attempt in range(4):
         if parts:
             cache.mkdir(parents=True, exist_ok=True)
@@ -70,22 +73,21 @@ def web_encode(src, dst, duration, limit=WEB_LIMIT, parts=None, sound=None, cach
                     old.unlink()
             lst = dst.with_suffix(".txt")
             lst.write_text("".join(f"file '{f.resolve()}'\n" for f in files))
-            proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-i", sound,
-                        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", f"{audio_kbps}k",
-                        "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1", "-t", f"{duration:.3f}",
-                        "-movflags", "+faststart", dst)
+            proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-i", sound_web,
+                        "-map", "0:v", "-map", "1:a", "-c", "copy", "-t", f"{duration:.3f}", "-movflags", "+faststart", dst)
             lst.unlink()
             print(f"web video: encoded {made} chapter(s), {len(parts) - made} unchanged (cached)")
         else:
-            proc.ffmpeg("-i", src, "-vf", f"scale=-2:{height}:flags=lanczos",
+            proc.ffmpeg("-i", src, "-i", sound_web, "-map", "0:v", "-map", "1:a", "-vf", f"scale=-2:{height}:flags=lanczos",
                         "-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", WEB_CRF,
                         "-maxrate", f"{video_kbps}k", "-bufsize", f"{2 * video_kbps}k", "-pix_fmt", "yuv420p",
-                        "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-ar", "24000" if audio_kbps < 48 else "48000", "-ac", "1",
-                        "-movflags", "+faststart", dst)
+                        "-c:a", "copy", "-movflags", "+faststart", dst)
         size = dst.stat().st_size
         if size <= limit:
+            sound_web.unlink()
             return {"height": height, "video_kbps": video_kbps, "audio_kbps": audio_kbps, "bytes": size, "passes": attempt + 1}
         video_kbps = int(video_kbps * limit / size * 0.9)
+    sound_web.unlink()
     raise SystemExit(f"could not fit the web video under {limit / 2**20:.0f} MiB; the master is {src}")
 
 
@@ -100,6 +102,8 @@ def ascii_script(js):
 
 
 def poster_time(timeline, poster):
+    if not poster and not timeline["tracks"]["narration"]:      # a motion piece: a second in, as narrated videos
+        return min(1.0, timeline["duration"] / 2)
     by_id = {s["id"]: s for s in timeline["tracks"]["narration"]}
     sid, off = poster or (timeline["tracks"]["narration"][0]["id"], 1.0)
     s = by_id[sid]
@@ -146,6 +150,7 @@ def build(video, skip_gate=False):
     cfg = settings.load(video)
     t = tl.load(video)
     finish = audio.finish(video, timeline=t)
+    ceiling = finish["ceiling_dbtp"] if finish else None
     if finish:
         print(f"audio: {finish['lufs']:.1f} LUFS, true peak {finish['true_peak_dbtp']:.1f} dBTP (the whole mix)")
     rec = final_cut(video)
@@ -166,9 +171,9 @@ def build(video, skip_gate=False):
     parts = [f for _, _, f in render.plan(video, t, "final")]
     if all(parts) and render.clip_files_fresh(video, t, "final"):
         web = web_encode(src, out / "web.mp4", t["duration"], parts=parts, sound=audio.soundtrack(video, t),
-                         cache=video / ".cache" / "web")
+                         cache=video / ".cache" / "web", ceiling=ceiling)
     else:
-        web = web_encode(src, out / "web.mp4", t["duration"])
+        web = web_encode(src, out / "web.mp4", t["duration"], ceiling=ceiling)
     print(f"web video: {web['height']}p, video ≤{web['video_kbps']} kbps, audio {web['audio_kbps']} kbps, "
           f"{web['bytes'] / 2**20:.1f} MiB (limit {WEB_LIMIT / 2**20:.0f} MiB); master: {master}")
     shutil.copyfile(out / "web.mp4", page / "video.mp4")

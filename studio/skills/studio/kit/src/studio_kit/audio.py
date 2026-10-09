@@ -30,7 +30,10 @@ from . import timeline as tl
 from .workspace import atomic_json
 
 RATE = 48_000
-MAX_PASSES = 4
+# A sparse mix (a quiet bed under one loud hit) took six passes: its integrated loudness is set by
+# which blocks pass ebur128's relative gate, so it jumps as the limiter flattens the hit.
+MAX_PASSES = 8
+OFF_TARGET = 0.5         # LU from the target past which a finish is reported as failed
 SILENCE = -70.0          # LUFS: ebur128's absolute gate; a mix this quiet has nothing to finish
 
 
@@ -181,7 +184,30 @@ def finish(video, lufs=-16.0, peak=-1.5, timeline=None):
               "source": "mix", "inputs": stamp_in, "stamp": stamp}
     bus.unlink()
     atomic_json(video / "audio" / "final.json", result)
+    if missed(result):
+        print(f"warn: the finish landed at {result['lufs']:.1f} LUFS, not {lufs}: the mix is too sparse "
+              "or too peaky to reach it under the ceiling")
     return result
+
+
+def missed(r):
+    """Whether a finish missed its loudness target or its true-peak ceiling."""
+    return abs(r["lufs"] - r["target_lufs"]) > OFF_TARGET or r["true_peak_dbtp"] > r["ceiling_dbtp"] + 0.1
+
+
+def encode(src, out, ceiling, *args):
+    """src's sound as AAC with `args` (bitrate, rate, channels), under the true-peak `ceiling` (None:
+    unchecked). A lossy encode overshoots the peak it was given, by 0.1 dB at 160 kbps and up to
+    1.5 dB at the web copy's 28 to 64 kbps mono (measured), so the encode is measured and, when over,
+    made again that much quieter."""
+    trim = 0.0
+    for _ in range(MAX_PASSES):
+        proc.ffmpeg("-i", src, "-vn", *(["-af", f"volume={-trim:.2f}dB"] if trim else []), "-c:a", "aac", *args, out)
+        over = measure(out)[1] - ceiling if ceiling is not None else 0
+        if over <= 0:
+            return
+        trim += over + 0.05
+    raise RuntimeError(f"could not encode {out} under {ceiling} dBTP")
 
 
 def soundtrack(video, timeline):
@@ -202,13 +228,7 @@ def soundtrack(video, timeline):
     for old in cache.glob("*.m4a"):
         old.unlink()
     if finished:
-        proc.ffmpeg("-i", video / "audio" / "final.wav", "-c:a", "aac", "-b:a", "160k", f)
-        # AAC overshoots the finished true peak by a tenth of a dB or so; take it back off the encode,
-        # so the master's sound stays under the ceiling.
-        over = measure(f)[1] - done["ceiling_dbtp"]
-        if over > 0:
-            proc.ffmpeg("-i", video / "audio" / "final.wav", "-af", f"volume={-(over + 0.05):.2f}dB",
-                        "-c:a", "aac", "-b:a", "160k", f)
+        encode(video / "audio" / "final.wav", f, done["ceiling_dbtp"], "-b:a", "160k")
     else:
         mix(video, timeline, f, files)
     return f
@@ -221,4 +241,4 @@ def main(args):
     print(f"audio/final.wav (the whole mix): {r['lufs']:.1f} LUFS (target {r['target_lufs']}), true peak "
           f"{r['true_peak_dbtp']:.1f} dBTP (ceiling {r['ceiling_dbtp']}); fixed gain {r['gain_db']:+.1f} dB from "
           f"{r['input_lufs']:.1f} LUFS, input peak {r['input_true_peak_dbtp']:.1f} dBTP")
-    return 0 if r["true_peak_dbtp"] <= r["ceiling_dbtp"] + 0.1 else 1
+    return 1 if missed(r) else 0

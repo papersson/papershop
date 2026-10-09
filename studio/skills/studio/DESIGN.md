@@ -259,7 +259,9 @@ item: the loop is proven by the user's own notes.
   over the voice could take the published sound past the -1.5 dBTP ceiling, and the effects, rendered
   once, stayed at their old times after a re-narration. The mix is now staged (sources, a chain per
   role, the bus, the master): effects render at mix time against the current timeline, and the fixed
-  gain and the limiter run on the whole mix, so what is published is what was measured.
+  gain and the limiter run on the whole mix. AAC then overshoots the finished peak (0.1 dB at 160
+  kbps, up to 1.5 dB for the web copy's low-bitrate mono), so every encode is measured and made
+  quieter until it is under the ceiling too.
 - **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
   synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
 - **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare

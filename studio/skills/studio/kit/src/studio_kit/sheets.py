@@ -177,6 +177,7 @@ def crops(video, out, below=40, ids=None, engine=None):
 
 def main(args):
     video, out = Path(args.video), Path(args.outdir)
+    tl.build(video)                 # as a cut does, so the sheets see the current sources
     out.mkdir(parents=True, exist_ok=True)
     engine = Engine(video)
     if args.strip:

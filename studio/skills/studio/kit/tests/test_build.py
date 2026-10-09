@@ -64,6 +64,43 @@ def test_a_re_narration_moves_an_effect_placed_on_its_cue(tmp_path):
     assert abs(onset() - t["cues"][cue]) < 0.01
 
 
+def test_an_effect_whose_cue_a_re_narration_dropped_stops_the_cut_before_any_render(tmp_path, capsys):
+    pytest.importorskip("numpy")
+    from studio_kit import render
+    v = explainer(tmp_path)
+    (v / "narration.json").write_text(json.dumps({"holds": {"s1_03": 1.0}}))
+    narration.narrate(v, estimate=True)
+    (tmp_path / "fx.json").write_text(json.dumps([{"t": "reveal:s1_03", "type": "click"}]))
+    sfx.main(SimpleNamespace(video=v, cues=tmp_path / "fx.json"))
+    (v / "narration.json").write_text("{}")                     # the hold, and its reveal cue, are gone
+    narration.narrate(v, estimate=True)
+    assert "warn: audio/sfx.json: no time for 'reveal:s1_03'" in capsys.readouterr().out
+
+    class Engine:
+        def stills(self, reqs):
+            raise AssertionError("rendered before the effects were checked")
+        render = stills
+    with pytest.raises(SystemExit, match="audio/sfx.json: no time for 'reveal:s1_03'"):
+        render.make_cut(v, engine=Engine())
+
+
+def test_an_old_effects_render_plays_when_numpy_is_missing(tmp_path, monkeypatch, capsys):
+    """A video from before effects were placed at mix time has audio/sfx.wav and no render key."""
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "audio" / "sfx.json").write_text(json.dumps([{"t": 1.0, "type": "click"}]))
+    (v / "audio" / "sfx.wav").write_bytes(b"an earlier render")
+
+    def no_numpy(*a):
+        raise ImportError("numpy")
+    monkeypatch.setattr(sfx, "render", no_numpy)
+    assert sfx.rendered(v, tl.build(v)) == v / "audio" / "sfx.wav"
+    assert "effects not re-placed" in capsys.readouterr().out and not (v / ".cache" / "sound" / "sfx.key").exists()
+    (v / "audio" / "sfx.wav").unlink()
+    with pytest.raises(SystemExit, match="doctor"):
+        sfx.rendered(v, tl.build(v))
+
+
 def test_sfx_stops_on_a_cue_with_no_time(tmp_path):
     v = explainer(tmp_path)
     narration.narrate(v, estimate=True)
@@ -345,3 +382,30 @@ def test_the_build_wraps_captions_at_each_formats_width_in_layout_json(tmp_path)
     for c in tl.load(v)["tracks"]["captions"]:
         text = " ".join(c["lines"])
         assert c["lines"] == tl.wrap(text, 42) and c["wrapped"]["9:16"] == tl.wrap(text, 20)
+
+
+def test_the_desk_clocks_an_estimate_silently(tmp_path):
+    """An estimate has no narration entry; the first audio entry (music, or effects not yet placed)
+    played from its own first sample as the clock."""
+    from studio_kit import page
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "audio" / "tracks.json").write_text(json.dumps([{"file": "assets/bed.wav", "start": 2.0, "in": 5.0}]))
+    tl.build(v)
+    assert page.state(v)["live"] == {"audio": None, "duration": tl.load(v)["duration"]}
+    narrated(v)
+    assert page.state(v)["live"]["audio"] == "audio/narration.mp3"
+
+
+def test_check_rebuilds_an_old_timeline_first(tmp_path):
+    """A timeline built before captions were wrapped per format stopped `check --format` with the
+    rebuild message."""
+    from studio_kit import check
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    old = tl.load(v)
+    for c in old["tracks"]["captions"]:
+        c.pop("wrapped", None)
+    (v / "timeline.json").write_text(json.dumps(old))
+    check.main(SimpleNamespace(video=v, samples=1, only="script", format="9:16", all=False))
+    assert all("9:16" in c["wrapped"] for c in tl.load(v)["tracks"]["captions"])

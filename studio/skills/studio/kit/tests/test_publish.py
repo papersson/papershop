@@ -22,6 +22,13 @@ def test_poster_offsets_count_from_start_or_back_from_end(tmp_path):
     assert publish.poster_time(t, ["s2_01", -0.2]) == 3.3
 
 
+def test_a_piece_without_narration_gets_a_poster(tmp_path):
+    t = make_video(tmp_path)
+    t["tracks"]["narration"] = []
+    assert publish.poster_time(t, None) == 1.0
+    assert publish.poster_time({**t, "duration": 1.2}, None) == 0.6
+
+
 def test_web_settings_fit_the_artifact_limit_at_every_length():
     for seconds in (60, 591, 900, 1493, 3600):
         height, video_kbps, audio_kbps = publish.web_settings(seconds)
