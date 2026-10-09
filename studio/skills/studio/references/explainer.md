@@ -16,20 +16,21 @@ This table is the one list of the explainer's stages; SKILL.md and the build pro
 | 4 Script | narration with screen notes | pedagogy self-check, `studio check --only script` | builder |
 | 5 Script review | review receipts | current student pass (plus expert and editor for learner drive or deep-dive) | fresh reviewers; the main session dispatches |
 | 6 Narration | audio, timeline with word times | voice-check scores under 0.8 inspected | builder |
-| 7 Boards | boards/boards.json, a boards cut | every sentence has a board or a screen note on screen | builder (user with `checkpoints: many`) |
-| 8 Animatic | an animatic cut and its pacing report | runtime, unchanged stretches and empty sentences read and addressed | builder (user with `checkpoints: many`) |
+| 7 Boards | boards/boards.json, a boards cut | every sentence has a board or a screen note on screen | builder (user in interactive mode) |
+| 8 Animatic | an animatic cut and its pacing report | runtime, unchanged stretches and empty sentences read and addressed | builder (user in interactive mode) |
 | 9 The look | a stills-only cut | the user's pick, unless a house style already settles it | user |
 | 10 Scenes, cuts, craft | cuts, chapter by chapter | `studio check` passes; craft pass on changed chapters | builder; the user reviews cuts |
 | 11 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
 | 12 Finish | local master, page | `studio publish` gate passes | user |
 
-`checkpoints` in video.json sets how often the user sees work in progress. With `few` (the
-default) the user approves the narrative, picks the look and reviews cuts; boards and the animatic
-are the builder's own checks. With `many` the builder also stops at stages 7 and 8, shows the first
-chapter finished at final look before building the rest, and shares a cut as each chapter is done
-(chapters not yet built show their boards).
+`mode` in video.json sets how the user takes part. In `background` (the default) an agent builds
+unattended: the user approves the narrative, picks the look and reviews cuts; boards and the
+animatic are the builder's own checks, and nothing waits on the user. In `interactive` the user
+follows on the desk: the main session builds in the foreground, chapter by chapter, opens the desk
+before stage 7, says when each chapter is ready there, and takes each note as it arrives
+(`desk.md`). Older videos that say `checkpoints: many` load as interactive.
 
-## Ownership and checkpoints
+## Ownership
 
 One builder owns the folder: `studio lock VIDEO acquire --owner NAME`, then use the printed
 `STUDIO_OWNER` for its commands. Keep ownership across stages and direct file edits. The main
@@ -154,8 +155,9 @@ settled/authorized. Existing house style can supply a direction rather than requ
 ## Stage 10: Scenes, cuts and craft
 
 One scene per chapter, built in order and cut as each is done: unbuilt chapters show their boards,
-so every cut plays the whole video. With `checkpoints: many`, show the first finished chapter before
-building the rest. Every frame is a pure function of `useClip().t` (no timers, accumulated
+so every cut plays the whole video. In interactive mode, show the first finished chapter on the desk
+before building the rest. On the live engine (`engines.md`), a chapter is `scenes/<clip>.js` and the
+desk shows it the moment it is saved; on Remotion, every frame is a pure function of `useClip().t` (no timers, accumulated
 state or unseeded randomness). `at`, `end` and `word` cue sentences; `phrase('03', 'and the whole
 state')` cues the spoken words themselves, so a label lands as the voice says it and survives edits
 elsewhere in the sentence; `cue('reveal:s1_03')` lands

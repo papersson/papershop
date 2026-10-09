@@ -148,7 +148,6 @@ passed.
 
 | What | Done when |
 |---|---|
-| **Notes from real use**: the loop is proven with scripted notes and by the user's use of the review page | a video goes through several rounds of the user's own notes |
 | **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |
 | **Boards in Motion Canvas**: a Remotion chapter without a scene renders its board; Motion Canvas still requires every scene | the Motion Canvas project falls back to a board scene |
 
@@ -218,3 +217,53 @@ timing (sound, colour, other people's schedules); here re-rendering after a late
 costs seconds, so a lock would only make late fixes harder. Cut records now carry a kind (stills,
 boards, animatic, cut, final) so the new kinds never reach publish or frame review, and
 `settings.py` lists every video.json key in one place.
+
+## The desk, the live engine and two modes (0.8.0)
+
+Evidence: one 11-minute explainer (TigerBeetle's seven stages of survivability) built in a single
+session on a prototype desk, through 16 notes from the user. That closes the "notes from real use"
+item: the loop is proven by the user's own notes.
+
+- **What the user wanted was to be in the middle.** Before, a background builder worked for hours
+  and the user saw the end; checkpoints asked process questions (review caps, waivers) on a page
+  they didn't open. On the prototype, each note was answered in 5 to 15 minutes, in place, and the
+  user stayed in the loop for the whole build. But the user also said plainly that sometimes they
+  just want a video made without them. So there are two modes: `background` (the default; nothing
+  waits on the user) and `interactive` (the desk, chapter by chapter, note by note). `checkpoints`
+  is superseded; old videos with `many` load as interactive.
+- **The desk replaces the review page, it doesn't add one.** Notes keep their log; they gain a
+  status and a reply shown under the note on the cut that answers it; open notes carry to later
+  cuts. `studio wait` is the mechanism that makes it interactive: a builder that runs it in the
+  background is woken by each note. None of the desk's commands take the operation lock.
+- **Most notes were about teaching, not motion.** About 12 of the 16: explain this better, the jump
+  is too big, use canonical terms, what is a key, how runs relate to the log, which stages survive.
+  The reviews that passed the script had missed most of them, so the student reviewer and the
+  pedagogy self-check gained eight checks drawn from those notes.
+- **The live engine exists for the loop.** A scene that is plain JS drawn from t needs no build:
+  the desk draws the current scenes and redraws the moment a file changes, and the same code renders
+  the cut (measured: a 27 s two-chapter draft cut in 28 s; the prototype's 11-minute 1080p video in
+  under 6 minutes with six workers). It is the default for explainers; Remotion keeps the code
+  components, so code explainers stay there.
+- **Determinism is enforced, not hoped for.** The prototype carried a clock reading across frames;
+  the engine now gives every node exactly this frame's attributes and stacking order, so a frame
+  drawn after any other equals the frame drawn alone (tested, and `studio check` renders samples twice).
+- **Cues on what the voice says.** Positional sentence cues broke whenever a note split a sentence
+  (several did). `phrase(id, text)` cues the spoken words (word timings, or the caption position where
+  a spoken rule rewrote them), in all three engines.
+- **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
+  synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
+- **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare
+  401. The balance is now checked before a run when the key may read it, and a refusal prints
+  ElevenLabs' own reason and that the cache resumes.
+- **Words for motion.** The motion glossary (20 terms, each one helper in the live kit, with the
+  Remotion equivalent) grew from the user's own words ("blur them together"); a note that uses a
+  term says so to the builder.
+- **Checks after every change.** A text-on-text `overlap` check joins the incremental per-chapter
+  set, and a live scene that throws fails with its clip, time and source line, so a collision or a
+  crash is caught before the user sees it.
+
+| Still open | Done when |
+|---|---|
+| **Live parity for code explainers**: CodePanel, Terminal and the other code components are Remotion-only | a code explainer is built on the live engine |
+| **Desk on other machines**: the desk binds to 127.0.0.1 | a phone or second machine can follow a build safely |
+

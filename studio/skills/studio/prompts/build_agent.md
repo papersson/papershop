@@ -11,8 +11,7 @@ scope/time changes. Do not spawn additional writers in this folder. Mark stages,
 waiting and finished. Checkpoint only at authorized stages through studio commit; do not push.
 
 Follow the stages in the table at the top of references/explainer.md. Where it names a decision
-for fresh reviewers or the user (script review, the look, frame review; with `checkpoints: many`
-in video.json also boards, the animatic and each finished chapter), stop and report ready for
+for fresh reviewers or the user (script review, the look, frame review), stop and report ready for
 that decision: for frame review, run `studio sheets VIDEO VIDEO/out/sheets` and
 `studio review-frames VIDEO` and include the manifest. The main session arranges the reviewers and
 the user's choice and returns them. Do not replace an independent review with your own pass or

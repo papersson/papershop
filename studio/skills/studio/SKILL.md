@@ -25,7 +25,8 @@ Infer these choices or ask only what affects the result; record them in video.js
 | Genre | `explainer`, `motion`, `launch`, `pixel`, `footage`; code construction is an explainer format |
 | Level | `intro` (default): scaffold a few key ideas; `deep-dive`: more mechanisms, assumptions and evidence |
 | Destination | `private-page` (default), `share`, `social`, `files` |
-| Checkpoints | `few` (default): the user approves the narrative, picks the look and reviews cuts; `many`: also boards, the animatic, the first finished chapter and each chapter as it is done. Offer `many` when the user wants to follow or steer the work |
+| Mode | `background` (default): an agent builds the video unattended; the user approves the narrative, picks the look and reviews cuts. `interactive`: the user follows on the desk and the builder works in the foreground, chapter by chapter, taking each note as it arrives (`references/desk.md`). Use interactive only when the user asks to follow, steer or be involved; never make a background run wait on them |
+| Engine | `live` (default for explainers): plain JS scenes drawn from t, played and hot-reloaded on the desk, rendered by the same code. `remotion`: code explainers (CodePanel, Terminal and the other code components), motion, launch and footage. `motion-canvas`: generator scenes (`references/engines.md`) |
 
 Depth, runtime and production effort are separate. Read `references/levels.md` for depth and
 `references/pedagogy.md` for explainers. Every teaching explainer gets a student script pass,
@@ -41,6 +42,7 @@ setting waives a known correctness failure.
 | Build explainer | `references/explainer.md`; code also reads `references/code.md`; visual language is in `references/style.md` |
 | Build other genre | `references/genres/motion.md`, `launch.md`, `pixel.md` or `footage.md` |
 | Review/revise | `references/publishing.md`; merge/trim obsolete material as part of each change |
+| Interactive | `references/desk.md`: the desk, `studio wait` in the background, note → scoped change → checks → reply |
 | Publish | Local final master through `studio publish`; external upload per `references/publishing.md` and existing authorization |
 | Revoice | Edit narration.json, narrate, voice-check, inspect affected stills and create a new cut |
 | Status/resume | Read narrative Decisions, SCRIPT.md, review receipts, pending requests, cuts and `studio stage --report` |
@@ -54,9 +56,10 @@ Do not launch multiple writers against the same folder. Reviewers use immutable 
 Release ownership at handoff; `--recover` is for an abandoned build, never a way to displace a live one.
 
 The main session owns independent review dispatch. A background builder can report **ready for
-script review**, **ready for look choice**, or **ready for frame review** and receive results back
-(with `checkpoints: many`, also **ready for boards**, **ready for the animatic** and **chapter ready**).
-It need not spawn children. Do not substitute a self-review for an unavailable independent review.
+script review**, **ready for look choice**, or **ready for frame review** and receive results back.
+It need not spawn children. In interactive mode the main session is the builder: it builds in the
+foreground, says **chapter N ready on the desk**, and takes notes as `studio wait` delivers them.
+Do not substitute a self-review for an unavailable independent review.
 
 The stages and what must hold before each next one are listed once: the table at the top of
 `references/explainer.md` for explainers, and each genre file for the other genres. These rules
@@ -83,7 +86,7 @@ All commands run through `bin/studio` in its pinned environment. `--help` lists 
 | Command | Purpose |
 |---|---|
 | `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--net]` | Environment, package/model and network diagnostics |
-| `new NAME [--source REPO] [--drive …] [--level …] [--checkpoints few\|many] [--genre …] [--engine …]` | New folder, source repository and snapshotted defaults |
+| `new NAME [--source REPO] [--drive …] [--level …] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
 | `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue |
@@ -101,6 +104,7 @@ All commands run through `bin/studio` in its pinned environment. `--help` lists 
 | `animatic VIDEO [--boards]` | Pictures held to the real narration with its audio, and a pacing report (runtime, chapter lengths, unchanged stretches, empty sentences) |
 | `open VIDEO [CUT]` · `desk VIDEO` · `notes VIDEO [--start ID \| --resolve ID --reply TEXT]` | Protected system playback; the desk (latest cut, sentence notes, live status and replies; `serve` is an alias); numbered notes and their marks |
 | `wait VIDEO [--timeout S]` · `status VIDEO [TEXT] [--busy]` | Block until a new desk note arrives (run in the background to be woken by each note); the builder's status line on the desk |
+| `glossary [--term T]` | The motion glossary: the words a note can use for motion and the helper behind each (`references/desk.md`) |
 | `still VIDEO CLIP T --out PNG` · `boxes VIDEO CLIP T` | Inspect a frame or named-element bounds |
 | `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR` | Incremental render checks, contact sheets and label crops |
 | `audio VIDEO` · `export VIDEO --formats 16:9,9:16,1:1` | Audio finish and multiple formats |

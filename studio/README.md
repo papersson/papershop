@@ -1,8 +1,8 @@
 # studio
 
 Narrated, animated videos made by an agent and improved in rounds. The narrative is settled with
-you first; scenes are code on one timeline, rendered by Remotion; you watch each cut on a local
-desk and leave notes against the exact sentence on screen, and only what a note touches is
+you first; scenes are code on one timeline, drawn by the live engine (or Remotion or Motion Canvas);
+you watch each cut on a local desk and leave notes against the exact sentence on screen, and only what a note touches is
 re-rendered. It replaces the tutor plugin.
 
 ```
@@ -18,10 +18,16 @@ runnable programs around motivated ideas, with recorded outputs and optional ref
 Before anything is animated, each beat gets a rough board (what is on screen, and where) and the
 boards play as an animatic against the real narration, with a pacing report, so a chapter that runs
 long or a stage that sits empty is fixed while it is cheap. Chapters not yet built show their boards
-in every cut. Ask for `--checkpoints many` (or say you want to follow along) to review the boards,
-the animatic, the first finished chapter and each chapter as it is done; by default you approve the
-narrative, pick the look and review cuts. Narration is Kokoro, local and free, from first draft to
-the published video.
+in every cut.
+
+Two modes. By default an agent builds the video in the background: you approve the narrative, pick
+the look and review cuts. Say you want to follow along (`--mode interactive`) and you work on the
+desk instead, a page beside the terminal: the video plays with its script, you leave a note on a
+sentence, the builder (woken by `studio wait`) makes the change, and the page redraws in place with
+a one-line reply under your note. Explainers use the live engine, whose scenes are plain JS drawn
+from time, so a change shows on the desk the moment it is saved; the motion glossary gives you
+words for motion ("stagger", "overshoot", "blur together"). Narration is Kokoro, local and free,
+from first draft to the published video; ElevenLabs on request, with its balance checked first.
 
 ## Environment
 

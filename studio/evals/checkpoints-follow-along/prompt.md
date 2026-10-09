@@ -1,5 +1,5 @@
 ---
-tags: [routing, explainer, checkpoints]
+tags: [routing, explainer, interactive, desk]
 runs: 2
 max_turns: 8
 timeout_seconds: 300

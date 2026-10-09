@@ -1,21 +1,52 @@
-# Engines: Remotion and Motion Canvas
+# Engines: live, Remotion and Motion Canvas
 
 Every engine implements the same four operations (still, render, boxes, duration) and reads the
-same `timeline.json` and `layout.json`, so cuts, checks, sheets, exports, the review page and
-publishing don't care which one draws. A video picks its engine in video.json
-(`"engine": "remotion"`, the default, or `"motion-canvas"`; `studio new --engine motion-canvas`).
-One engine per video.
+same `timeline.json` and `layout.json`, so cuts, checks, sheets, exports, the desk and publishing
+don't care which one draws. A video picks its engine in video.json (`"engine": "live"`,
+`"remotion"` or `"motion-canvas"`; `studio new --engine …`). One engine per video.
 
 ## Which to use
 
-- **Remotion** (default; personal work). Scenes are React components, and every frame is a pure
-  function of time. It has the whole component kit: `Txt`, `Rect`, `Arrow`, the map and close-up
-  components, `PixelCanvas`, `Shot` (captured assets), `Footage`, closed-form springs. Licence:
-  free for individuals and very small companies, a company licence above that; check the current
-  terms before using it for a company.
+- **Live** (default for explainers). A chapter is a plain JS module that draws one frame of SVG
+  from `t`; there is no build step, so the desk plays the current scenes and redraws them the
+  moment a file changes, and the same code renders the cut. Use it whenever the user may follow on
+  the desk, and for any explainer that doesn't need the Remotion code components.
+- **Remotion** (code explainers, motion, launch, footage). Scenes are React components, and every
+  frame is a pure function of time. It has the whole component kit: `Txt`, `Rect`, `Arrow`, the map
+  and close-up components, `CodePanel`, `Terminal`, `PixelCanvas`, `Shot` (captured assets),
+  `Footage`, closed-form springs. Licence: free for individuals and very small companies, a company
+  licence above that; check the current terms before using it for a company.
 - **Motion Canvas** (work). Scenes are generators (`yield*` animations), written against Motion
   Canvas's 2D nodes. Use it where Remotion's licence is a problem, or where a scene is naturally a
   sequence of tweens. The kit has the same components (below).
+
+## Live scenes
+
+`scenes/<clip>.js` exports `default function draw(c)`; an optional `scenes/overlay.js` exports
+`default function overlay(c)`, drawn over every chapter (a ladder of stages, a running clock, a title
+card as each chapter begins). A chapter without a scene file shows its board, so every cut and the
+desk play the whole video. `templates/live/scenes/` has a worked example of each.
+
+The context `c` (all times in clip seconds):
+
+- `c.S`: the stage. `rect`, `circle`, `text`, `line`, `path` (with `{p}` a draw-on), `strike`,
+  `callout`, `blur`, `el`, and `cam(x, y, zoom)` for a push-in or pan. Every call names its node by
+  a key; a node not drawn this frame is hidden, so a frame is whatever this call drew.
+- `c.t`, `c.dur`; `c.W`, `c.H` (the stage above the caption band, in pixels); `c.unit` (`H / 8`).
+- `c.at('03')`, `c.end('03')`, `c.word('03', 2)`, `c.phrase('03', 'the whole state')`, `c.cue(name)`.
+- `c.P(t0, d, ease)` progress of a movement; `c.kit`: `ease` (`out`, `in`, `inOut`, `back`, `smooth`),
+  `stagger`, `pulse`, `spring`, `countUp`, `rand` (never `Math.random`), `lerp`, `clamp`, and the
+  theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, ...).
+- `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
+
+Text is named for the checks by its key (`legible`, `overlap`, `bounds`); give a shape `{box: 'name'}`
+to have it checked too. Keep everything above `c.H`: the band checks fail a scene that enters the
+caption band. A frame must not depend on the frames before it; the engine resets every node's
+attributes and stacking each frame, and `studio check` renders samples twice to prove it. A scene
+that throws fails the still or render with the clip, the time and the source line.
+
+The motion glossary (`studio glossary`, `engines/live/glossary.html`) names these helpers: a note
+that says "stagger", "overshoot" or "blur them together" maps to one of them.
 
 ## Motion Canvas scenes
 
