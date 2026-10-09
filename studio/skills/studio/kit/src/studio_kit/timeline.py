@@ -439,9 +439,13 @@ def _timings_of(video, t):
 
 def from_tutor(lesson, video):
     """A video from an existing tutor lesson: its narration audio and sentence timings are copied in,
-    and the timeline is built from them, one scene clip per chapter."""
+    and the timeline is built from them, one scene clip per chapter. A folder without video.json gets
+    a minimal one, so the other commands accept it as a video."""
     lesson, video = Path(lesson), Path(video)
     (video / "audio").mkdir(parents=True, exist_ok=True)
+    if not (video / "video.json").exists():
+        atomic_json(video / "video.json", {"title": video.resolve().name.replace("-", " ").capitalize(), "version": "v1",
+                                           "genre": "explainer", "engine": "remotion"})
     shutil.copyfile(lesson / "audio" / "narration.mp3", video / "audio" / "narration.mp3")
     shutil.copyfile(lesson / "audio" / "timings.json", video / "audio" / "timings.json")
     return build(video)

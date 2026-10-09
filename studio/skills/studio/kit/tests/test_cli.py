@@ -62,6 +62,24 @@ def test_import_tutor_may_name_a_new_folder():
     assert cli.build_parser().parse_args(["import-tutor", "lesson", "not-yet"]).video == "not-yet"
 
 
+def test_import_tutor_makes_a_video_the_other_commands_accept(tmp_path):
+    import json
+    lesson = tmp_path / "lesson"
+    (lesson / "audio").mkdir(parents=True)
+    (lesson / "audio" / "narration.mp3").write_bytes(b"mp3")
+    line = {"id": "s1_01", "text": "Hello.", "caption": "Hello.", "paragraph": 0, "start": 0.8, "end": 1.6}
+    (lesson / "audio" / "timings.json").write_text(json.dumps(
+        {"total": 3.0, "segments": [{"id": "s1", "title": "Hi", "start": 0.0, "end": 3.0, "lines": [line]}]}))
+    video = tmp_path / "hello-world"
+    assert cli.main(["import-tutor", str(lesson), str(video)]) == 0
+    cfg = json.loads((video / "video.json").read_text())
+    assert cfg["genre"] == "explainer" and cfg["engine"] == "remotion" and cfg["title"] == "Hello world"
+    assert (video / "audio" / "timings.json").read_text() == (lesson / "audio" / "timings.json").read_text()
+    assert cli.main(["timeline", str(video)]) == 0
+    t = json.loads((video / "timeline.json").read_text())
+    assert t["timing"] == "narrated" and t["tracks"]["narration"][0]["caption"] == "Hello."
+
+
 def test_doctor_runs_without_a_video(home, monkeypatch):
     seen = []
     monkeypatch.setattr(doctor, "main", lambda args: seen.append(args.video) or 0)

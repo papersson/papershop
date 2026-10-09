@@ -251,7 +251,7 @@ COMMANDS = {
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
     ], "page:main_status"),
     "publish": ("final cut, web encode, poster and the page in out/page/", [W("video")], "publish:main"),
-    "import-tutor": ("make a video's timeline from a tutor lesson", [A("lesson"), A("video")], _import_tutor),
+    "import-tutor": ("make a video from a tutor lesson: its narration, timings and timeline", [A("lesson"), A("video")], _import_tutor),
 }
 
 
