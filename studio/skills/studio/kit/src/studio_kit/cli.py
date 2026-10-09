@@ -192,6 +192,11 @@ COMMANDS = {
         W("video"), A("--notes", help="what only the builder knows, for the brief's builder notes"),
         A("--notes-file", metavar="FILE", help="the builder notes from a file"),
     ], "handoff:main"),
+    "run": ("run a builder's Python or node script with the kit, in the video's folder", [
+        V("video"), A("script", help="a .py, .mjs or .js file inside the video (sims/, .studio/work, scenes)"),
+        A("args", nargs=argparse.REMAINDER, help="passed to the script"),
+        A("--allow-outside", action="store_true", help="run a script outside the video's folder"),
+    ], "run:main"),
     "request": ("queue or resolve a mid-flight request", [
         V("video"), A("text", nargs="?"), A("--resolve", metavar="ID"),
     ], "workspace:main_request"),
