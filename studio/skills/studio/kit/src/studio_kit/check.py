@@ -7,6 +7,7 @@
                no-band) and the bare background are compared over the band's pixels, and every
                named element's box is checked against the band
   contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
+  overlap      no two text elements cover each other (more than 30% of the smaller one's box) at a sample
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
   filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
@@ -36,7 +37,8 @@ SIDE_MARGIN = 80                         # px kept free either side of a caption
 SLACK = 1.0                              # px of tolerance on box edges
 
 
-PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible")
+PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap")
+OVERLAP = 0.3                            # share of the smaller text box another text box may cover
 
 
 def sample_times(t, per_clip, clips=None):
@@ -147,6 +149,27 @@ def bounds(video, samples=3, engine=None, boxes=None):
     return rows
 
 
+def overlap(video, samples=3, engine=None, boxes=None):
+    """Two different text elements on top of each other: one label hides the other. Text inside a
+    shape is fine (only text boxes are compared); captions are left to the band checks."""
+    engine = engine or Engine(video)
+    _, frames = boxes or _boxes(video, samples, engine)
+    rows = []
+    for f in frames:
+        texts = [b for b in f["boxes"] if b.get("kind") == "text" and b["name"] != "caption" and b["w"] > 2 and b["h"] > 2]
+        bad = []
+        for i, a in enumerate(texts):
+            for b in texts[i + 1:]:
+                if a["name"] == b["name"]:
+                    continue
+                w = min(a["x"] + a["w"], b["x"] + b["w"]) - max(a["x"], b["x"])
+                h = min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"])
+                if w > 0 and h > 0 and w * h > OVERLAP * min(a["w"] * a["h"], b["w"] * b["h"]):
+                    bad.append(f"{a['name'][:24]!r} and {b['name'][:24]!r} overlap")
+        rows.append({"check": "overlap", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad[:4])})
+    return rows
+
+
 def band_guard(video, samples=3, engine=None, boxes=None):
     """Named scene elements must end above the band."""
     engine = engine or Engine(video)
@@ -221,7 +244,7 @@ def band_pixels_check(video, samples=3, engine=None, clips=None):
 
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
-MORE = "legible (text at least 18 px tall), provenance (assets used are recorded), dead and loop (motion)"
+MORE = "legible (text at least 18 px tall), overlap (no text on top of other text), provenance (assets used are recorded), dead and loop (motion)"
 
 
 def config(video):
@@ -272,9 +295,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     default = only is None
     extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
-    always = ("legible",) + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    always = ("legible", "overlap") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
+    known = set(CHECKS) | {"legible", "overlap", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -300,8 +323,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         rows += length(video, engine, clips)
     if "determinism" in only:
         rows += determinism(video, samples, engine, clips)
-    if only & {"bounds", "band", "legible"}:
+    if only & {"bounds", "band", "legible", "overlap"}:
         boxes = _boxes(video, samples, engine, clips)
+        if "overlap" in only:
+            rows += overlap(video, samples, engine, boxes)
         if "legible" in only:
             from . import motion
             rows += motion.legible(video, samples, engine, boxes)

@@ -102,3 +102,17 @@ def test_determinism_retries_but_preserves_a_flaky_failure_and_evidence(tmp_path
     assert "FLAKY" in rows[0]["detail"] and "differing pixels 1" in rows[0]["detail"]
     evidence = next((tmp_path / "research/determinism").iterdir())
     assert len(list(evidence.glob("*.png"))) == 4 and (evidence / "results.json").exists()
+
+
+def test_overlap_flags_text_on_text_but_not_text_on_a_shape():
+    from studio_kit import check
+    frames = [{"clip": "s1", "t": 1.0, "boxes": [
+        {"name": "label a", "kind": "text", "x": 100, "y": 100, "w": 200, "h": 40},
+        {"name": "label b", "kind": "text", "x": 150, "y": 110, "w": 200, "h": 40},
+        {"name": "card", "kind": "", "x": 90, "y": 90, "w": 400, "h": 200},
+        {"name": "caption", "kind": "text", "x": 100, "y": 100, "w": 200, "h": 40},
+        {"name": "far", "kind": "text", "x": 900, "y": 100, "w": 100, "h": 40}]}]
+    rows = check.overlap(None, engine=object(), boxes=({}, frames))
+    assert not rows[0]["ok"] and rows[0]["detail"] == "'label a' and 'label b' overlap"
+    frames[0]["boxes"][1]["x"] = 600
+    assert check.overlap(None, engine=object(), boxes=({}, frames))[0]["ok"]
