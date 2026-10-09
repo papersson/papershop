@@ -65,3 +65,39 @@ def test_blocked_model_host_is_diagnostic_not_success(monkeypatch):
     level, host, detail, fix = doctor.check_host(doctor.HOSTS[-1])
     assert level == doctor.WARN and "raw.githubusercontent.com" in host
     assert "403" in detail and "wheel" in fix
+
+
+def test_the_launch_check_skips_without_the_live_engine(monkeypatch, tmp_path):
+    monkeypatch.setattr(doctor, "engine_dir", lambda name: tmp_path / name)
+    level, name, detail, _ = doctor.check_launch()
+    assert (level, name) == (doctor.SKIP, "browser launch") and detail.startswith("skipped")
+
+
+live_installed = pytest.mark.skipif(
+    not (doctor.engine_dir("live") / "node_modules" / "playwright-core").is_dir() or not doctor.shutil.which("node"),
+    reason="the live engine or node is not installed")
+
+
+@live_installed
+@pytest.mark.parametrize("stderr,hint", [
+    ("browserType.launch: Target page, context or browser has been closed\nsandbox: Operation not permitted", "sandbox restrictions"),
+    ("SyntaxError: bad scene", "prints the engine's full error"),
+])
+def test_a_failed_launch_names_the_cause_and_a_fix(monkeypatch, stderr, hint):
+    calls = []
+    def run(cmd, **kw):
+        calls.append(cmd)
+        return SimpleNamespace(returncode=1, stderr=stderr, stdout="")
+    monkeypatch.setattr(doctor.proc, "run", run)
+    level, _, detail, fix = doctor.check_launch()
+    assert level == doctor.FAIL and stderr.splitlines()[-1] in detail and hint in fix
+    assert calls[0][1].endswith("engines/live/cli.mjs") and calls[0][2] == "still"    # the engine's own command
+
+
+@live_installed
+def test_a_hung_launch_fails_with_the_sandbox_hint(monkeypatch):
+    def run(cmd, **kw):
+        raise doctor.proc.TimeoutExpired(cmd, kw["timeout"])
+    monkeypatch.setattr(doctor.proc, "run", run)
+    level, _, detail, fix = doctor.check_launch(timeout=1)
+    assert level == doctor.FAIL and "did not finish" in detail and "sandbox" in fix

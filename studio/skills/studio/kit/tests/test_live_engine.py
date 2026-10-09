@@ -112,3 +112,9 @@ export default function draw(c) {
     (tmp_path / "timeline.json").write_text(json.dumps(t))
     with pytest.raises(EngineError, match="no 9:16 caption lines"):
         Engine(tmp_path, fmt="9:16").still("s1", 1.0, tmp_path / "x.png")
+
+
+@needs_engine
+def test_doctor_renders_a_still_the_way_the_engine_starts_its_browser():
+    from studio_kit import doctor
+    assert doctor.check_launch()[:2] == (doctor.OK, "browser launch")

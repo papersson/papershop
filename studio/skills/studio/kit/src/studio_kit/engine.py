@@ -20,6 +20,17 @@ class EngineError(RuntimeError):
     pass
 
 
+LAUNCH_HINT = ("Browser launch failed. Try this studio invocation directly instead of through a helper shell; "
+               "run studio doctor and set STUDIO_BROWSER to a working browser. Use the host's approved "
+               "execution path for sandbox restrictions; do not disable its sandbox.")
+
+
+def launch_hint(stderr):
+    """LAUNCH_HINT when an engine's error reads as the browser failing to start (often a sandbox), else ""."""
+    signs = ("failed to launch", "browser process", "sandbox", "operation not permitted", "eacces")
+    return LAUNCH_HINT if any(s in stderr.lower() for s in signs) else ""
+
+
 class Engine:
     def __init__(self, video, name=None, fmt=None):
         self.video = Path(video).resolve()
@@ -48,11 +59,8 @@ class Engine:
         run = proc.run(self._command(op, *map(str, args)), capture_output=True, text=True)
         if run.returncode != 0:
             cause = run.stderr.strip()[-3000:]
-            browser_failure = any(s in cause.lower() for s in ("failed to launch", "browser process", "sandbox", "operation not permitted", "eacces"))
-            hint = ("\nBrowser launch failed. Try this studio invocation directly instead of through a helper shell; "
-                    "run studio doctor and set STUDIO_BROWSER to a working browser. Use the host's approved "
-                    "execution path for sandbox restrictions; do not disable its sandbox.") if browser_failure else ""
-            raise EngineError(f"{self.name} {op} failed:\n{cause}{hint}")
+            hint = launch_hint(cause)
+            raise EngineError(f"{self.name} {op} failed:\n{cause}" + (f"\n{hint}" if hint else ""))
         return json.loads(run.stdout.strip().splitlines()[-1])
 
     def still(self, clip, t, out, layers="all", scale=1.0):

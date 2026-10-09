@@ -10,12 +10,13 @@ from pathlib import Path
 from importlib.metadata import version, PackageNotFoundError
 import shutil
 import sys
+import tempfile
 import urllib.request
 
 from . import proc
 from .env import ROOT, engine_dir, resolve_browser
 
-OK, WARN, FAIL = "ok", "warn", "FAIL"
+OK, WARN, FAIL, SKIP = "ok", "warn", "FAIL", "skip"
 
 NIX_FIX = "run through bin/studio (it loads `nix develop .#studio`), or install it"
 
@@ -67,6 +68,37 @@ def check_browser():
     if "<html" not in run.stdout:
         return FAIL, "browser", f"{path} ({source}) returned no page", "set STUDIO_BROWSER to a working Chrome"
     return OK, "browser", f"{path} ({source})", ""
+
+
+LAUNCH_SCENE = "export default function draw(c) { c.S.text('probe', c.W / 2, c.H / 2, 'studio doctor', { size: 48 }) }\n"
+
+
+def check_launch(timeout=60):
+    """A one-frame still through the live engine's own command, in a throwaway video: the browser
+    starting the way a cut starts it, which `--dump-dom` does not show (a sandbox can allow one and
+    refuse the other)."""
+    if not (engine_dir("live") / "node_modules" / ENGINE_MARKER["live"]).is_dir() or not shutil.which("node"):
+        return SKIP, "browser launch", "skipped: the live engine or node is not installed", ""
+    from .engine import LAUNCH_HINT, Engine, launch_hint
+    with tempfile.TemporaryDirectory(prefix="studio-doctor-") as tmp:
+        video = Path(tmp)
+        (video / "scenes").mkdir()
+        (video / "scenes" / "probe.js").write_text(LAUNCH_SCENE)
+        (video / "video.json").write_text(json.dumps({"engine": "live"}))
+        (video / "timeline.json").write_text(json.dumps({"version": 1, "fps": 30, "duration": 1.0, "cues": {}, "tracks": {
+            "scene": [{"id": "probe", "engine": "live", "title": "probe", "start": 0.0, "end": 1.0}],
+            "narration": [], "captions": [], "audio": []}}))
+        engine = Engine(video, "live")
+        cmd = engine._command("still", "--clip", "probe", "--t", "0.5", "--out", str(video / "probe.png"))
+        try:
+            run = proc.run(cmd, capture_output=True, text=True, timeout=timeout)
+        except (OSError, proc.TimeoutExpired) as e:
+            return FAIL, "browser launch", f"the live engine's still did not finish: {e}", LAUNCH_HINT
+        if run.returncode or not (video / "probe.png").is_file():
+            cause = (run.stderr.strip() or run.stdout.strip()).splitlines()[-1:] or ["no output"]
+            return FAIL, "browser launch", f"the live engine could not render a still: {cause[0][:300]}", \
+                launch_hint(run.stderr) or "`studio still VIDEO CLIP T --out PNG` on a live video prints the engine's full error"
+    return OK, "browser launch", "the live engine rendered a still", ""
 
 
 def check_host(url):
@@ -172,6 +204,7 @@ def checks(net=False):
         check_engine("motion-canvas"),
         check_engine("live"),
         check_browser(),
+        check_launch(),
     ]
     if net:
         rows += [check_host(u) for u in HOSTS]
