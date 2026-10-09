@@ -287,6 +287,21 @@ item: the loop is proven by the user's own notes.
   Upgrading changes every frame revision once: existing frame receipts (waived and unavailable
   ones included) and every cut's `source_revision` stop matching, so a video that requires a frame
   review needs a fresh cut and a new review or waiver.
+- **Captions wrap balanced, at every format's width.** The greedy wrap filled a line and left a word
+  or two alone below it, and a chunk sized for 16:9 wrapped to three lines in 9:16. `wrap` now takes
+  the fewest lines that hold the text and the most even of those, and ends a line on an article,
+  short preposition or conjunction, or leaves a word alone, only when nothing else fits. Every
+  format shares the chunks, so `split_phrases` sizes them to two lines at the narrowest width; 16:9
+  chunks are shorter for it, and every caption, so every clip key, changes once on upgrade.
+- **A stale frame review is recorded, not refused.** `review-frames` refused a cut older than the
+  sources, so a review that came back after a small edit was lost. The frames kind's freshness is
+  now "record-stale": a bundle carries its cut's revision, a result is checked against its
+  manifest, and the receipt records the cut, that it is stale and which chapters changed since
+  (cuts keep their review keys). Publish still needs the current revision, and says what changed.
+- **Review rounds count per revision of the script.** The cap compared the typed round number with
+  `max_rounds` across the whole video, so a structural rewrite began near the cap, and one build
+  raised it from 3 to 17. A round is now a script revision reviewed since the latest structural
+  stage mark (logged in research/reviews/rounds.jsonl); ROUND only names the files.
 
 | Still open | Done when |
 |---|---|

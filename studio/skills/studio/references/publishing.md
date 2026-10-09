@@ -20,16 +20,22 @@ note to the sentence/chapter of its cut. An empty note still means “here.”
    makes possible, even when that touches a neighboring chapter. Update the learning brief and
    narrative Decisions together when needed. Record each note's disposition.
 4. Recheck the teaching chain if the script changed; rerun the student review and any required
-   subject review after material changes. Keep sentence cues/per-ID pronunciation overrides in
-   sync. Narrate and voice-check only changed speech; a timing-only edit should reuse synthesis.
+   subject review after material changes. `max_rounds` caps the review rounds of one revision of
+   the script: rounds are counted from the reviews since the latest structural round mark, not
+   from the ROUND typed, and reviewers run again on an unchanged script are the same round. A
+   structural round mark (step 2) starts the count again; raising the cap is the learner's
+   decision. Keep sentence cues/per-ID pronunciation overrides in sync. Narrate and voice-check
+   only changed speech; a timing-only edit should reuse synthesis.
 5. Answer picture notes with a still where useful, then `studio cut VIDEO --changelog FILE`.
    FILE is a JSON list of `{note, change}`. Run incremental checks/sheets/craft on the actual
    dependency changes; shared helpers may affect more than one chapter. Required independent
    frame review uses the new bundle and includes affected transitions/neighbors. A frame receipt
    goes stale when what its reviewer saw changes (a chapter's frames, the Script or Evidence
    section, data/), not after a sound-only edit (effects, music, the mix); a new beat grid stales
-   the chapters whose scenes read it. `review-frames` refuses to package or import a result for a
-   cut older than the current sources.
+   the chapters whose scenes read it. `review-frames` packages any cut with that cut's own
+   revision, and a result for a cut older than the current sources is recorded as stale, naming
+   the chapters changed since; publish refuses a stale receipt and says what changed. Review a
+   fresh cut, or record an authorized waiver.
 6. Report the cut, actual width×height/fps, quality and final-quality status, runtime change,
    note dispositions, late requests and measured stage times. Do not guess per-request minutes.
    Mark waiting/finished boundaries and checkpoint at authorized stages.

@@ -102,8 +102,12 @@ argument/chain/script. None gets the Review log or prior verdicts. Respect the c
 only if the learning chain needs it. Review receipts are tied to the current teaching material.
 
 Fix blockers and apply relevant smaller fixes once. Default cap is three rounds (third for a
-blocking issue), economy two, thorough six. Repeatedly opposed advice is surfaced to the user,
-not endlessly rewritten. Caps leave findings open; they never turn a failed check into a pass.
+blocking issue), economy two, thorough six, per revision of the script: the kit counts the scripts
+reviewed since the latest structural stage mark, whatever ROUND says, and a re-run on an unchanged
+script is the same round. A structural revision
+(`studio stage VIDEO revision --kind structural --summary …`) starts the count again; raising
+`max_rounds` is the learner's decision. Repeatedly opposed advice is surfaced to the user, not
+endlessly rewritten. Caps leave findings open; they never turn a failed check into a pass.
 After a material teaching edit, rerun the affected review. A simulated student is a diagnostic,
 not evidence of real learning. If a required review is unavailable, report it; a user-authorized
 waiver is recorded with `studio review-status VIDEO student waived --reason "authorization"`.
@@ -184,13 +188,15 @@ contact sheet does not establish font size. Fix the significant findings; avoid 
 
 Required before delivering a deep-dive, a shared video, or when video.json `frame_review` is true.
 First run `studio sheets VIDEO VIDEO/out/sheets` for the current cut, adding `--strip CLIP T` for
-mechanism-sensitive transitions. `studio review-frames VIDEO` packages that directory together
-with the current cut's stills, script and data; sheets saved elsewhere are not included.
+mechanism-sensitive transitions (`--strip` repeats; `--windows FILE` lists many). `studio
+review-frames VIDEO` packages that directory together with the current cut's stills, script and
+data; sheets saved elsewhere are not included.
 The builder reports **ready for frame review**. The main session dispatches a fresh image-capable
 reviewer using `prompts/frame_review.md`; the command itself does not start an agent. Include
 transition strips for mechanism-sensitive motion. Validate findings against full-resolution frames.
 Import the response with `studio review-frames VIDEO --result FILE`; it must include the bundle's
-REVISION and FRAMES verdict. A change to what the reviewer saw invalidates the receipt (`publishing.md`). Never label a builder's
+REVISION and FRAMES verdict. A change to what the reviewer saw invalidates the receipt, and a result
+for a cut older than the sources is recorded as stale (`publishing.md`). Never label a builder's
 own pass independent. Unavailable/authorized waived reviews use `studio review-status`.
 
 ## Stage 12: Finish and hand over
