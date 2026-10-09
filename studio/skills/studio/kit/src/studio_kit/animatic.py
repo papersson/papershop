@@ -104,13 +104,13 @@ def make(video, boards=False):
     t0 = time.monotonic()
     # Its own stills, at half resolution so text stays readable: scenes where they exist, boards
     # elsewhere (or boards throughout), cached like any other stills.
-    reqs = render.still_requests(timeline, d / "stills")
+    reqs = render.still_requests(timeline, d / "stills", extra=False)    # it holds one picture a sentence
     for r in reqs:
         r["scale"] = SCALE
     made, reused = render.cached_stills(video, timeline, Engine(video), reqs, boards=boards,
                                         cache_name="animatic-board-stills" if boards else "animatic-stills")
     notes = bd.notes(video)
-    stills = [{k: r[k] for k in ("id", "clip", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"}
+    stills = [{k: r[k] for k in ("id", "clip", "kind", "time", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"}
               | ({"note": notes[r["id"]]} if r["id"] in notes else {}) for r in reqs]
     segs = segments(timeline, stills)
     lst = d / "segments.txt"

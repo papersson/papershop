@@ -81,6 +81,7 @@ section.below h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 .strip figcaption.note { color: var(--ink); opacity: 0.8; }
 .strip figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .strip figure.now img { border-color: var(--accent); }
+.strip figure.event figcaption, .strip figure.pause figcaption { color: var(--accent); }
 .chapter-h { font-size: 13px; color: var(--muted); margin: 16px 0 8px; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 720px; }
 .pair img { width: 100%; border-radius: 4px; border: 1px solid var(--line); }
@@ -148,7 +149,7 @@ ul.changes { margin: 0; padding-left: 20px; }
   <section class="below">
     <div id="changelog"></div>
     <div>
-      <h2>Stills, one per sentence</h2>
+      <h2>Stills: each sentence's end, each event and each long pause</h2>
       <div id="stills"></div>
     </div>
   </section>
@@ -275,8 +276,10 @@ function renderStills() {
   S.cut.stills.forEach(function (s) { (byClip[s.clip] = byClip[s.clip] || []).push(s); });
   $('stills').innerHTML = S.chapters.map(function (ch) {
     return '<div class="chapter-h">' + esc(ch.title) + '</div><div class="strip">' + (byClip[ch.id] || []).map(function (s) {
-      return '<figure data-seek="' + s.at + '" data-id="' + s.id + '"><img loading="lazy" src="/cut' + cutN + '/' + s.file +
-        '" alt="' + esc(s.caption) + '"><figcaption>' + esc(s.caption) + '</figcaption>' +
+      // event and pause stills sit between the sentences' in time order, labelled by what they show
+      var label = (s.kind === 'event' ? 'event \u00b7 ' : '') + s.caption;
+      return '<figure class="' + esc(s.kind || '') + '" data-seek="' + s.at + '" data-id="' + s.id + '"><img loading="lazy" src="/cut' + cutN + '/' + s.file +
+        '" alt="' + esc(label) + '"><figcaption>' + esc(label) + '</figcaption>' +
         (S.cut.kind === 'boards' && s.note ? '<figcaption class="note">' + esc(s.note) + '</figcaption>' : '') + '</figure>';
     }).join('') + '</div>';
   }).join('');

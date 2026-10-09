@@ -6,17 +6,28 @@ takes), time is seconds into the video. A moment that belongs to a sentence also
 
   sentence-end  one per sentence, STILL_BEFORE_END before it ends, when its picture is complete
   spread        a clip with no narration, one every NO_NARRATION_STEP seconds, so it has stills too
+  event         one per named cue (cues.json, the beat sheet; not reveal: holds), EVENT_AFTER frames
+                after its contact, so the contact's result is in the frame: id "ev_<name>"
+  pause         the middle of every narration pause longer than PAUSE_MIN, what the viewer looks at
+                while they think: id "pause_<sentence>", labelled "pause after <sentence>"
   check-sample  evenly spaced inside a clip, its ends left out
   strip         consecutive frames around a time, inside its clip, to catch pops and overlaps
 
 The cut's stills, the checks and the sheets take their frames from here, so a new kind is one more
 function and every consumer can ask for it.
 """
+import re
+
 from . import timeline as tl
 
 STILL_BEFORE_END = 0.15     # seconds before a sentence's end, when its picture is complete
 NO_NARRATION_STEP = 1.5     # seconds between stills of a clip that has no narration
 STRIP_FRAMES = 12           # frames in a strip around a time
+# Frames after an event's contact. On its own frame a move timed from the cue has not started (prog,
+# pulse and spring are all 0 there); two frames on, at 30 fps, a 0.4 s ease-out is 42% of the way, a
+# 0.6 s pulse at a third of its height: the result shows, and the next move has not begun.
+EVENT_AFTER = 2
+PAUSE_MIN = 0.8             # seconds: a shorter pause is a breath, with nothing new to look at
 
 
 def _moment(c, local, kind, mid, label=None, **extra):
@@ -55,9 +66,54 @@ def spread(t, clips=None):
     return out
 
 
-def stills(t, clips=None):
-    """The cut's stills: every sentence's end, then the clips without narration."""
-    return sentence_ends(t, clips) + spread(t, clips)
+def _clip_at(t, time):
+    return next((c for c in t["tracks"]["scene"] if c["start"] <= time < c["end"]), None)
+
+
+def _local(t, c, frame):
+    """Clip seconds of a frame of the video: the clip renders its own frames from its first one."""
+    return (frame - tl.half_up(c["start"] * t["fps"])) / t["fps"]
+
+
+def events(t, clips=None):
+    """One moment EVENT_AFTER frames after every named cue (not the reveal: holds), inside the clip
+    that frame falls in; a cue past the video's end has none."""
+    out, seen = [], set()
+    for name, at in t.get("cues", {}).items():
+        if name.startswith("reveal:"):
+            continue
+        frame = tl.half_up(at * t["fps"]) + EVENT_AFTER
+        c = _clip_at(t, frame / t["fps"])
+        if c is None or (clips is not None and c["id"] not in clips):
+            continue
+        mid = "ev_" + re.sub(r"[^\w.-]+", "-", name)
+        while mid in seen:
+            mid += "_"
+        seen.add(mid)
+        out.append(_moment(c, _local(t, c, frame), "event", mid, name, event=name))
+    return out
+
+
+def pauses(t, clips=None):
+    """One moment in the middle of every narration pause longer than PAUSE_MIN, on a whole frame."""
+    out = []
+    for s in t["tracks"]["narration"]:
+        p = s.get("pause")
+        if not p or p["end"] - p["start"] <= PAUSE_MIN:
+            continue
+        frame = tl.half_up((p["start"] + p["end"]) / 2 * t["fps"])
+        c = _clip_at(t, frame / t["fps"])
+        if c is None or (clips is not None and c["id"] not in clips):
+            continue
+        out.append(_moment(c, _local(t, c, frame), "pause", f"pause_{s['id']}", f"pause after {s['id']}", after=s["id"]))
+    return out
+
+
+def stills(t, clips=None, extra=True):
+    """The cut's stills in time order: every sentence's end and the clips without narration, and
+    (extra) the events and long pauses. A sentence-end still names its sentence; the others don't."""
+    found = sentence_ends(t, clips) + spread(t, clips) + (events(t, clips) + pauses(t, clips) if extra else [])
+    return sorted(found, key=lambda m: m["time"])
 
 
 def even(t, n, clips=None):

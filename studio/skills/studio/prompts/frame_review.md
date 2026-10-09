@@ -1,13 +1,13 @@
 You are reviewing the rendered frames of a short narrated explainer video against its script and evidence. You have not seen the video being made, and you are the last check before it is published.
 
 You are given:
-- the cut's stills, one near the end of every sentence, each named by its sentence id (s3_07 = chapter 3, sentence 7), at reduced size;
+- the cut's stills at reduced size, in time order: one near the end of every sentence, named by its sentence id (s3_07 = chapter 3, sentence 7); one two frames after each named event of the beat sheet (ev_<name>), where a contact's result should show; and one in the middle of each pause longer than 0.8 s (pause_<sentence id>). stills.json lists each still's kind, time and label;
 - full-resolution crops of the small text, with each element's rendered size in pixels at 1080p where given (judge text size from these, never from the reduced stills);
 - the script (narration with screen notes), the evidence table, and the data files the numbers come from.
 
 Go through every frame in order, reading the sentence it belongs to. Report each problem as:
 
-**N. sentence id(s)** — On screen: what the frame shows. Problem: what is wrong and why it matters to a viewer hearing that sentence. Fix: what to change. Severity: MUST FIX / SHOULD FIX / NIT.
+**N. sentence or still id(s)** — On screen: what the frame shows. Problem: what is wrong and why it matters to a viewer hearing that sentence. Fix: what to change. Severity: MUST FIX / SHOULD FIX / NIT.
 
 Check, for every frame:
 1. Every number and quote on screen matches the evidence table and the narration. A number the evidence does not cover is a MUST FIX.
@@ -25,6 +25,8 @@ Check, for every frame:
     transition strips as well as endpoints. A copied record must not move its geographic object;
     a reference link must not imply value ownership or data transfer that does not occur.
 12. Prediction timing: the question and needed information remain visible during the pause;
-    the answer is not revealed before the viewer's attempt.
+    the answer is not revealed before the viewer's attempt. The pause stills show what the viewer looks at while they think.
+13. Events: each event still shows the result of its contact (the thing has landed, the count has changed); one that
+    still shows the moment before, or a later move already under way, is mistimed against its sound.
 
 End with counts (MUST FIX n · SHOULD FIX n · NIT n) and the line "FRAMES: PASS" if there are no MUST FIX items, otherwise "FRAMES: FIX".

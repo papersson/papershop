@@ -89,8 +89,10 @@ def frame_cut(video, n=1):
     (d / "stills").mkdir(parents=True)
     (d / "stills" / "s1_01.jpg").write_bytes(b"fixture")
     keys = review_state.review_keys(video, t)
+    stills = [{"id": "s1_01", "clip": "s1", "kind": "sentence-end", "time": 1.2, "caption": "One.", "at": 0.4, "file": "stills/s1_01.jpg"},
+              {"id": "ev_drop", "clip": "s1", "kind": "event", "time": 1.5, "caption": "drop", "at": 0.9, "file": "stills/ev_drop.jpg"}]
     (d / "cut.json").write_text(json.dumps({"cut": n, "source_revision": review_state.fingerprint(video, frames=True, keys=keys),
-                                            "review_keys": keys}))
+                                            "review_keys": keys, "stills": stills}))
     return keys
 
 
@@ -116,6 +118,8 @@ def test_an_older_cuts_frame_review_is_recorded_stale_and_publish_says_what_chan
     manifest = json.loads((bundle / "manifest.json").read_text())
     assert manifest["revision"] == judged and (manifest["data"], manifest["crops"]) == (None, None)
     assert (bundle / "stills").is_dir() and not (bundle / "data").exists() and not (bundle / "sheets").exists()
+    assert json.loads((bundle / manifest["stills_index"]).read_text())[1] == \
+        {"file": "stills/ev_drop.jpg", "kind": "event", "time": 1.5, "label": "drop"}     # what each still shows
     args.result = tmp_path / "response.md"
     args.result.write_text(f"FRAMES: PASS\nREVISION: {current}\n")
     with pytest.raises(SystemExit, match="exact REVISION"):      # the bundle's revision, not the current one

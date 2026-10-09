@@ -10,7 +10,7 @@ chapters that wait on it, and the beat grid counts only for chapters whose code 
 
 videos/<name>/cuts/cutN/
   video.mp4      the composite with narration (draft: 540p)
-  stills/        one frame per sentence, near its end
+  stills/        one frame per sentence, near its end, and at each event and long pause (moments.stills)
   cut.json       what was rendered, how long each step took, and the changelog against cut N-1
 """
 import functools
@@ -249,13 +249,25 @@ def composite(video, timeline, clip_files, out):
     return sound
 
 
-def still_requests(timeline, outdir, clips=None):
-    """The cut's stills (moments.stills) as engine requests, with what the review page shows: the
-    caption, and where to seek (a sentence's start, else the frame's own time)."""
-    starts = {s["id"]: s["start"] for s in timeline["tracks"]["narration"]}
+EVENT_LEAD = 0.5            # seconds before an event the page seeks to, so the contact plays
+
+
+def still_requests(timeline, outdir, clips=None, extra=True):
+    """The cut's stills (moments.stills, in time order) as engine requests, with what the review page
+    shows: the kind, the caption (a sentence's, an event's name, "pause after <sentence>") and where
+    to seek (a sentence's start, just before an event, a pause's start, else the frame's own time).
+    extra=False leaves out the event and pause stills (boards, the animatic: one picture a sentence)."""
+    said = {s["id"]: s for s in timeline["tracks"]["narration"]}
+
+    def seek(m):
+        if "sentence" in m:
+            return round(said[m["sentence"]]["start"], 3)
+        if "after" in m:
+            return round(said[m["after"]]["end"], 3)
+        return round(max(0.0, timeline["cues"][m["event"]] - EVENT_LEAD), 3) if "event" in m else m["time"]
     return [{"id": m["id"], "clip": m["clip"], "t": m["t"], "out": str(outdir / f"{m['id']}.jpg"), "scale": STILL_SCALE,
-             "caption": m["label"], "at": round(starts[m["sentence"]], 3) if "sentence" in m else m["time"]}
-            for m in moments.stills(timeline, clips or None)]
+             "kind": m["kind"], "time": m["time"], "caption": m["label"], "at": seek(m)}
+            for m in moments.stills(timeline, clips or None, extra)]
 
 
 def cached_stills(video, timeline, engine, reqs, boards=False, cache_name=None):
@@ -316,7 +328,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     changed = [cid for cid, key, _ in rows if prev_keys.get(cid) != key]
 
     t0 = time.monotonic()
-    reqs = still_requests(timeline, d / "stills")
+    reqs = still_requests(timeline, d / "stills", extra=not boards)      # a board looks the same at every event
     made, reused = cached_stills(video, timeline, engine, reqs, boards=boards)
     timings["stills"] = round(time.monotonic() - t0, 1)
     log(f"stills: {made} rendered, {reused} unchanged (reused)")
@@ -356,7 +368,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in timeline["tracks"]["scene"]],
         "clips": clips, "sound": sound, "changed": changed if prev else [],
-        "stills": [{k: r[k] for k in ("id", "clip", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"}
+        "stills": [{k: r[k] for k in ("id", "clip", "kind", "time", "caption", "at")} | {"file": f"stills/{r['id']}.jpg"}
                    | ({"note": notes[r["id"]]} if r["id"] in notes else {}) for r in reqs],
         "changelog": changelog or [],
         "seconds": timings,

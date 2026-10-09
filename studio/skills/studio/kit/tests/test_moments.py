@@ -100,8 +100,13 @@ def legacy_crops(t, ids=None):
 
 @pytest.mark.parametrize("clips", [None, {"s2"}, {"s1", "s4"}])
 def test_the_cut_stills_are_unchanged(clips):
+    """The same frames, ids and captions, now in time order and with their kind and time."""
     t, out = fixture(), Path("/stills")
-    assert render.still_requests(t, out, clips) == legacy_still_requests(t, out, clips)
+    got = render.still_requests(t, out, clips)
+    start = {c["id"]: c["start"] for c in t["tracks"]["scene"]}
+    assert [{k: v for k, v in r.items() if k not in ("kind", "time")} for r in got] == \
+        sorted(legacy_still_requests(t, out, clips), key=lambda r: start[r["clip"]] + r["t"])
+    assert [r["time"] for r in got] == sorted(r["time"] for r in got)
 
 
 @pytest.mark.parametrize("per_clip", [1, 2, 3, 5, 8])
@@ -200,3 +205,23 @@ def test_strips_stay_inside_their_clip_and_differ_by_frames_and_fps():
     assert end["frames"] and max(end["frames"]) < 2.4 and len(end["frames"]) < 12
     with pytest.raises(SystemExit, match="no frame of s3 near 9.0 s"):
         moments.sequence(t, "s3", 9.0)
+
+
+def test_events_and_long_pauses_get_stills_of_their_own():
+    t = fixture()
+    t["cues"] = {"drop": round(70 / 30, 6), "late": 30.0, "reveal:s1_03": 4.4, "edge": 7.9, "a b/c": 13.0}
+    t["tracks"]["narration"][2]["pause"] = {"start": 4.25, "end": 5.15}      # 0.9 s: worth a still
+    t["tracks"]["narration"][3]["pause"] = {"start": 5.9, "end": 6.6}        # 0.7 s: a breath
+    ms = moments.stills(t)
+    extra = [(m["kind"], m["id"], m["clip"], m["t"], m["label"]) for m in ms if m["kind"] in ("event", "pause")]
+    assert extra == [("event", "ev_drop", "s1", 2.4, "drop"),                # two frames after frame 70
+                     ("pause", "pause_s1_03", "s1", 4.7, "pause after s1_03"),
+                     ("event", "ev_edge", "s1", 7.967, "edge"),               # still inside s1 (ends at 8.0)
+                     ("event", "ev_a-b-c", "s3", 0.367, "a b/c")]             # s3 starts on frame 381; no reveal:, nothing past the end
+    assert [m["time"] for m in ms] == sorted(m["time"] for m in ms)
+    assert not any("sentence" in m for m in ms if m["kind"] in ("event", "pause"))    # per-sentence views skip them
+    assert [m["id"] for m in moments.stills(t, extra=False)] == [m["id"] for m in moments.stills(fixture())]
+    assert [m["id"] for m in moments.stills(t, {"s3"}) if m["kind"] == "event"] == ["ev_a-b-c"]
+    reqs = {r["id"]: r for r in render.still_requests(t, Path("/stills"))}
+    assert reqs["ev_drop"]["at"] == round(70 / 30 - render.EVENT_LEAD, 3) and reqs["pause_s1_03"]["at"] == 4.25
+    assert reqs["ev_drop"]["out"] == "/stills/ev_drop.jpg" and reqs["ev_drop"]["kind"] == "event"

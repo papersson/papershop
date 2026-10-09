@@ -235,6 +235,9 @@ def main_frames(args):
     for src, target in ((cut / "stills", "stills"), (video / "out/sheets", "sheets"), (video / "data", "data")):
         if src.exists() and (target == "stills" or not stale):
             shutil.copytree(src, bundle / target, dirs_exist_ok=True)
+    # What each still is, in time order: a sentence's end, an event or a pause (the ids alone don't say)
+    atomic_json(bundle / "stills.json", [{"file": s["file"], "kind": s.get("kind", "sentence-end"), "time": s.get("time"),
+                                          "label": s["caption"]} for s in rec.get("stills", [])])
     shutil.copyfile(cut / "SCRIPT.md" if (cut / "SCRIPT.md").exists() else video / "SCRIPT.md", bundle / "SCRIPT.md")
     # Strip conclusions and build history from the reviewer copy.
     from .script import sections
@@ -242,7 +245,7 @@ def main_frames(args):
     (bundle / "SCRIPT.md").write_text(parts.get("Script", "") + "\n" + parts.get("Evidence", ""))
     (bundle / "prompt.md").write_text((ROOT / "prompts/frame_review.md").read_text() +
                                      f"\nInclude this exact line in your result: REVISION: {judged}\n")
-    atomic_json(manifest, {"cut": n, "revision": judged, "script": "SCRIPT.md", "stills": "stills/",
+    atomic_json(manifest, {"cut": n, "revision": judged, "script": "SCRIPT.md", "stills": "stills/", "stills_index": "stills.json",
                           "crops": None if stale else "sheets/", "data": None if stale else "data/", "prompt": "prompt.md"})
     if stale:
         print(f"cut {n} is older than the sources ({changed} changed since): its bundle has its stills and script but "
