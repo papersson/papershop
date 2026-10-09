@@ -487,7 +487,7 @@ def write_timeline(S, timings, timing="narrated"):
     records where the times came from: "narrated" (the audio) or "estimate" (word counts, no audio)."""
     video = S.video
     old = tl.load(video) if (video / "timeline.json").exists() else None
-    t = tl.from_timings(timings, engine=(old or {}).get("tracks", {}).get("scene", [{}])[0].get("engine", "remotion"),
+    t = tl.from_timings(timings, engine=settings.load(video).get("engine", "remotion"),
                         audio_file="audio/narration.mp3")
     t["timing"] = timing
     if old:

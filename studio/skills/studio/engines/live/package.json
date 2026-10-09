@@ -1,0 +1,11 @@
+{
+  "name": "studio-engine-live",
+  "private": true,
+  "type": "module",
+  "description": "The studio's live engine: scenes are plain JS that draw one frame of SVG from t; the same scenes play live on the desk and render the MP4.",
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
+    "playwright-core": "1.63.0"
+  }
+}

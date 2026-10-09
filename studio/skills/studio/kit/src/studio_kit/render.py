@@ -48,9 +48,13 @@ def _engine_of(video):
 
 def has_scene(video, clip_id, engine=None):
     """Whether a chapter renders its own scene rather than its board: as the Remotion root decides,
-    a scenes/<clip>.tsx registered in scenes/index.ts. Motion Canvas videos always render scenes."""
+    a scenes/<clip>.tsx registered in scenes/index.ts; for the live engine, a scenes/<clip>.js.
+    Motion Canvas videos always render scenes."""
     video = Path(video)
-    if (engine or _engine_of(video)) != "remotion":
+    engine = engine or _engine_of(video)
+    if engine == "live":
+        return (video / "scenes" / f"{clip_id}.js").exists()
+    if engine != "remotion":
         return True
     index = next((p for p in (video / "scenes" / "index.ts", video / "scenes" / "index.tsx") if p.exists()), None)
     registered = bool(index and re.search(rf"(?<![\w-]){re.escape(clip_id)}\s*:", index.read_text()))

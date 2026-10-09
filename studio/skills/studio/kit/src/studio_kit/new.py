@@ -34,7 +34,7 @@ def source_record(path):
 
 
 def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
-           level="intro", checkpoints="few"):
+           level="intro", checkpoints="few", mode="background"):
     video = Path(directory).expanduser().resolve() if directory else studio_home() / name
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
@@ -42,7 +42,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     (video / "research").mkdir(exist_ok=True)
     cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
-           "level": level, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
+           "level": level, "mode": mode, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
            "teaching_contract": genre == "explainer"}     # minutes; `studio stage` reports against it
     if genre == "motion":
         cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
@@ -76,6 +76,9 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         # Generator scenes; the script and timeline are unchanged. A genre with its own starter gets it.
         mc = TEMPLATES / "motion-canvas"
         scenes = (mc / genre if (mc / genre).is_dir() else mc) / "scenes"
+    elif engine == "live":
+        # Plain JS scenes, one per chapter, drawn from t; chapters without one show their boards.
+        scenes = TEMPLATES / "live" / "scenes"
     for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)
@@ -90,10 +93,13 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
 
 def main(args):
     source_cfg = settings.raw(args.from_video) if args.from_video else {}
-    args.engine = args.engine or source_cfg.get("engine", "remotion")
+    # An explainer defaults to the live engine (instant reload on the desk); other genres, and code
+    # explainers that need the Remotion code components, name their engine.
+    args.engine = args.engine or source_cfg.get("engine") or ("live" if args.genre == "explainer" and not args.duration else "remotion")
     args.level = args.level or source_cfg.get("level", "intro")
     video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine,
-                            getattr(args, "level", "intro"), getattr(args, "checkpoints", None) or "few")
+                            getattr(args, "level", "intro"), getattr(args, "checkpoints", None) or "few",
+                            getattr(args, "mode", None) or ("interactive" if getattr(args, "checkpoints", None) == "many" else "background"))
     if args.from_video:
         copied = preferences.inherit(video, args.from_video, args.include)
         cfg = json.loads((video / "video.json").read_text())

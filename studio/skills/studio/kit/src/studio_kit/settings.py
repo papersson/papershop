@@ -10,9 +10,11 @@ keys without a default are simply absent when unset (callers use .get).
   drive              author | learner (explainers)
   level              intro | deep-dive                                         default "intro"
   destination        private-page | share | social | files                    default "private-page"
-  engine             remotion | motion-canvas                                  default "remotion"
-  checkpoints        few | many: how often the builder stops to show the user intermediate work
-                     (boards, animatic, the first finished chapter, each chapter)  default "few"
+  engine             remotion | motion-canvas | live                           default "remotion" (studio new picks live for explainers)
+  mode               background | interactive: an agent builds the video unattended, or the user
+                     follows on the desk and the builder works chapter by chapter, note by note
+                     default "background" ("interactive" when an older video says checkpoints: many)
+  checkpoints        few | many: superseded by mode; still read from older videos
   poster             [clip, seconds] for the poster frame
   budget             {"first_cut": minutes, "round": minutes, ...} over the level's defaults (stage)
   keep_cuts          playable cuts kept by clean                               default 10
@@ -42,8 +44,11 @@ DEFAULTS = {
     "keep_cuts": 10,
 }
 
+MODES = ("background", "interactive")
+
 CHOICES = {
     "checkpoints": ("few", "many"),
+    "mode": MODES,
     "level": ("intro", "deep-dive"),
 }
 
@@ -57,6 +62,7 @@ def raw(video):
 def load(video):
     """video.json over the defaults, with enumerated values checked."""
     cfg = {**DEFAULTS, **raw(video)}
+    cfg.setdefault("mode", "interactive" if cfg.get("checkpoints") == "many" else "background")
     for key, allowed in CHOICES.items():
         if cfg.get(key) not in allowed:
             raise SystemExit(f"video.json {key} must be one of {', '.join(allowed)} (got {cfg.get(key)!r})")

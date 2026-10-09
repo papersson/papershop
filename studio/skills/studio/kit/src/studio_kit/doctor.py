@@ -42,7 +42,7 @@ def check_tool(name, cmd, minimum=None, level=FAIL, why=""):
     return OK, name, shutil.which(cmd[0]), ""
 
 
-ENGINE_MARKER = {"remotion": "remotion", "motion-canvas": "@motion-canvas/core"}
+ENGINE_MARKER = {"remotion": "remotion", "motion-canvas": "@motion-canvas/core", "live": "playwright-core"}
 
 
 def check_engine(name):
@@ -170,6 +170,7 @@ def checks(net=False):
         check_tool("uv", ["uv", "--version"]),
         check_engine("remotion"),
         check_engine("motion-canvas"),
+        check_engine("live"),
         check_browser(),
     ]
     if net:

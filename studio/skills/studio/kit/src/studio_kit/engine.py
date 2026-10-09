@@ -12,7 +12,7 @@ from . import settings
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
-ENGINES = ("remotion", "motion-canvas")
+ENGINES = ("remotion", "motion-canvas", "live")
 LAYERS = ("all", "no-captions", "no-band", "background")
 
 

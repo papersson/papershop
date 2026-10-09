@@ -77,13 +77,26 @@ def fold(log, cut=None, since=None):
     return kept, [r for r in rounds if cut is None or r["cut"] == cut]
 
 
+def live_engine(video):
+    try:
+        return settings.load(video).get("engine") == "live"
+    except SystemExit:
+        return False
+
+
 def state(video, cut=None):
     video = Path(video)
     latest = render.latest_cut(video)
     n = cut or latest
     record = render.read_cut(video, n) if n else None
+    # A live-engine video plays its current scenes on the desk, so the latest view follows the
+    # current timeline; an older cut shows the cut as it was.
+    live = live_engine(video) and (cut is None or cut == latest)
     snapshot = video / "cuts" / f"cut{n}" / "timeline.json"
-    t = json.loads(snapshot.read_text()) if snapshot.exists() else tl.load(video)
+    t = tl.load(video) if live or not snapshot.exists() else json.loads(snapshot.read_text())
+    if live and not record:
+        record = {"cut": 0, "kind": "live", "created": "", "quality": "live", "stills": [], "changelog": [],
+                  "video": None, "duration": t.get("duration", 0)}
     if record and record.get("video") and not cuts.playable(video, n):
         record = {**record, "video": None}
     if record:
@@ -101,6 +114,8 @@ def state(video, cut=None):
         "narration": [{k: s[k] for k in ("id", "clip", "start", "end", "caption")} for s in t["tracks"]["narration"]],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in t["tracks"]["scene"]],
         "notes": notes, "rounds": rounds, "status": read_status(video),
+        "live": {"audio": next((a["file"] for a in t["tracks"].get("audio", [])), None),
+                 "duration": t.get("duration", 0)} if live else None,
     }
 
 
@@ -197,6 +212,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/state":
             q = re.search(r"cut=(\d+)", self.path)
             return self._json(state(self.video, int(q.group(1)) if q else None))
+        if path.startswith("/live/"):
+            return self._live(path[len("/live/"):])
         m = re.fullmatch(r"/cut(\d+)/([\w./-]+)", path)
         if m and ".." not in m.group(2):
             f = render.cuts_dir(self.video) / f"cut{m.group(1)}" / m.group(2)
@@ -205,6 +222,38 @@ class Handler(BaseHTTPRequestHandler):
                     cuts.mark_watched(self.video, int(m.group(1)))
                 return self._file(f)
         self._send(404, b"not found", "text/plain")
+
+    LIVE_DIRS = ("scenes", "boards", "assets", "data", "audio")
+
+    def _live(self, rel):
+        """The live engine and the video's live inputs, for drawing scenes in the page."""
+        from .env import engine_dir
+        if ".." in rel.split("/"):
+            return self._send(404, b"not found", "text/plain")
+        if rel.startswith("engine/"):
+            f = engine_dir("live") / rel[len("engine/"):]
+        elif rel == "layout.json":
+            f = self.video / "layout.json"
+        elif rel.startswith("video/"):
+            sub = rel[len("video/"):]
+            ok = sub in ("timeline.json", "layout.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
+            f = self.video / sub if ok else None
+        else:
+            f = None
+        if not f or not f.is_file():
+            return self._send(404, b"not found", "text/plain")
+        if self.command == "HEAD":
+            self.send_response(200)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        return self._file(f)
+
+    def do_HEAD(self):
+        path = self.path.split("?")[0]
+        if path.startswith("/live/"):
+            return self._live(path[len("/live/"):])
+        self._send(404, b"", "text/plain")
 
     def _file(self, f):
         """Serve a file with byte ranges, which a video element needs to seek."""
@@ -223,7 +272,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _events(self):
         """Server-sent events: `notes` when the log changes, `status` when the builder's status line
-        does, `cut` when a newer cut lands. Polled twice a second; a comment line keeps it open."""
+        does, `cut` when a newer cut lands, `scenes` when a live scene, the timeline or the boards
+        change (the page redraws in place). Polled twice a second; a comment line keeps it open."""
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
@@ -231,13 +281,18 @@ class Handler(BaseHTTPRequestHandler):
 
         def stamp(f):
             return f.stat().st_mtime_ns if f.exists() else 0
-        seen = {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
-                "cut": render.latest_cut(self.video)}
+        def scenes():
+            files = [self.video / "timeline.json", *(self.video / "scenes").glob("*.js"), *(self.video / "boards").glob("*.json")]
+            return max((stamp(f) for f in files), default=0)
+
+        def now_state():
+            return {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
+                    "cut": render.latest_cut(self.video), "scenes": scenes()}
+        seen = now_state()
         try:
             while True:
                 time.sleep(0.5)
-                now = {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
-                       "cut": render.latest_cut(self.video)}
+                now = now_state()
                 for k in now:
                     if now[k] != seen[k]:
                         self.wfile.write(f"event: {k}\ndata: {json.dumps(now[k])}\n\n".encode())

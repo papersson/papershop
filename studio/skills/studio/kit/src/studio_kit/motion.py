@@ -87,7 +87,7 @@ def legible(video, samples=3, engine=None, boxes=None):
 def scene_assets(video):
     """File names the scenes refer to as assets: file="x.png" props and staticFile('x.png') calls."""
     found = set()
-    for f in (Path(video) / "scenes").glob("*.ts*"):
+    for f in [*(Path(video) / "scenes").glob("*.ts*"), *(Path(video) / "scenes").glob("*.js")]:
         text = f.read_text()
         found |= set(re.findall(r'file=["\']([^"\']+)["\']', text))
         found |= set(re.findall(r'staticFile\(["\']([^"\']+)["\']\)', text))
