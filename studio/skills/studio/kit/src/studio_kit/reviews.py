@@ -3,7 +3,9 @@
   roles      the receipts it writes (research/reviews/<role>.json)
   scope      what its revision hashes (review_state.fingerprint): "script" or "frames"
   verdict    how a reviewer's text becomes a status: "passed" when its last verdict line passes
-  rounds     the cap on rounds (from video.json, or none) and what starts the count again
+  rounds     the cap on rounds (from video.json, or none), and the kinds of stage mark that start
+             the count again: a round is a review of a revision not yet reviewed since the latest
+             such mark (review_state.rounds), whatever number the caller gives it
   freshness  what a result for an older revision does: "refuse" it, or "record-stale": import it
              marked stale, with what changed since, so the receipt shows the work but `require`
              still asks for a review of the current revision
@@ -27,8 +29,8 @@ def script_cap(cfg):
 
 @dataclass(frozen=True)
 class Rounds:
-    cap: object = None          # video.json -> the last round allowed, or None for no cap
-    resets_on: tuple = ()       # stage marks that start the count again; none yet, so a round is its number
+    cap: object = None          # video.json -> the rounds allowed, or None for no cap
+    resets_on: tuple = ()       # kinds of stage mark (stage.py's --kind) that start the count again
 
 
 def verdict(prefix, passing):
@@ -54,7 +56,7 @@ class Kind:
 KINDS = {
     "script": Kind("script", ("expert", "student", "editor"), "script",
                    verdict(lambda line: "VERDICT" in line, "VERDICT: PASS"),
-                   "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap)),
+                   "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap, resets_on=("structural",))),
     "frames": Kind("frames", ("frames",), "frames",
                    verdict(lambda line: line.startswith("FRAMES:"), "FRAMES: PASS"),
                    "run studio review-frames and return its findings", freshness="record-stale", aliases={"frame": "frames"}),

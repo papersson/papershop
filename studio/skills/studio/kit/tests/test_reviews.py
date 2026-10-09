@@ -22,6 +22,7 @@ def test_each_kind_reads_its_own_verdict_line():
 def test_the_script_cap_comes_from_video_json_and_frames_have_none():
     cap = reviews.KINDS["script"].rounds.cap
     assert (cap({}), cap({"economy": True}), cap({"thorough": True}), cap({"max_rounds": 9})) == (3, 2, 6, 9)
+    assert reviews.KINDS["script"].rounds.resets_on == ("structural",)
     assert reviews.KINDS["frames"].rounds.cap is None and reviews.KINDS["frames"].freshness == "record-stale"
 
 

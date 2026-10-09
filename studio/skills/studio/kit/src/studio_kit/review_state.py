@@ -4,10 +4,12 @@ research/reviews/<role>.json: {role, kind, revision, status, detail, created}, w
 script review, and for a frame review the cut it judged and whether that cut was older than the
 sources when the result came in (stale, with what had changed). What each kind hashes, how its
 verdict reads and what an older revision's result does are its policies in reviews.py.
+research/reviews/rounds.jsonl logs the revision each round reviewed, which the round cap counts.
 """
 import hashlib
 import json
 import shutil
+import time
 from pathlib import Path
 
 from . import reviews
@@ -92,6 +94,41 @@ def required_roles(cfg):
         if role not in roles:
             roles.append(role)
     return tuple(roles)
+
+
+def rounds_log(video):
+    return Path(video) / "research" / "reviews" / "rounds.jsonl"
+
+
+def rounds(video, kind):
+    """The revisions of a kind's material reviewed since the latest stage mark that starts its count
+    again (kind.rounds.resets_on), and that mark (None: there is none, so every round counts).
+    Reviewers run again on a revision already reviewed (a retry, an added role) are the same round."""
+    from . import stage
+    marks = [m for m in stage.read(video) if m.get("kind") in kind.rounds.resets_on]
+    since = marks[-1] if marks else None
+    p, seen = rounds_log(video), []
+    for line in p.read_text().splitlines() if p.exists() else []:
+        e = json.loads(line) if line.strip() else {}
+        if e.get("kind") == kind.name and (since is None or e["t"] >= since["t"]) and e["revision"] not in seen:
+            seen.append(e["revision"])
+    return seen, since
+
+
+def start_round(video, kind, number, revision, cfg):
+    """Log a round of `kind` on `revision`, unless it is a new round past the kind's cap. The cap
+    counts rounds of this revision of the script, so a typed round number neither spends nor saves
+    one."""
+    cap = kind.rounds.cap(cfg) if kind.rounds.cap else None
+    seen, since = rounds(video, kind)
+    if cap is not None and revision not in seen and len(seen) >= cap:
+        where = f"its {since['stage']} mark ({since['at']})" if since else "the first round"
+        raise SystemExit(f"round {number} is past max_rounds ({cap}): this revision of the script has had {len(seen)} "
+                         f"review rounds since {where}. Lock the script with every open finding logged, ask the learner "
+                         "to raise the cap, or, if the script is changing structurally, start a new revision: "
+                         "studio stage VIDEO revision --kind structural --summary \"merge/trim plan and runtime change\"")
+    with rounds_log(video).open("a") as f:
+        f.write(json.dumps({"kind": kind.name, "round": number, "revision": revision, "t": time.time()}) + "\n")
 
 
 def changed_since(video, cut):

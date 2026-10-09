@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 from types import SimpleNamespace
 
@@ -70,10 +71,42 @@ def args(tmp_path, rnd):
     return SimpleNamespace(video=str(tmp_path), round=rnd, narrative=None, only="expert,student,editor")
 
 
-def test_rounds_stop_at_max_rounds(tmp_path):
-    make(tmp_path, {"max_rounds": 1})
+def revise(video, rnd):
+    """SCRIPT.md revised for round `rnd`: a new revision, named on the status line."""
+    p = video / "SCRIPT.md"
+    text = re.sub(r"review round \d+", f"review round {rnd}", p.read_text())
+    p.write_text(re.sub(r"\*Screen:\* a card[^\n]*", f"*Screen:* a card, take {rnd}.", text))
+
+
+def findings(text, cwd):
+    return subprocess.CompletedProcess([], 0, "VERDICT: REVISE\n", "")
+
+
+def test_rounds_count_per_script_revision_not_by_the_number_typed(tmp_path):
+    """The cap compared the typed round number with max_rounds, so a structural rewrite inherited the
+    earlier rounds and the cap was raised instead (3 to 17 in one build)."""
+    from studio_kit import stage
+    make(tmp_path, {"max_rounds": 2})
+    review.main(args(tmp_path, 2), runner=findings)
+    review.main(args(tmp_path, 2), runner=findings)            # the same revision again: a retry, not a round
+    revise(tmp_path, 7)
+    review.main(args(tmp_path, 7), runner=findings)            # a high number spends one round, like any other
+    revise(tmp_path, 8)
+    with pytest.raises(SystemExit, match=r"past max_rounds \(2\): this revision of the script has had 2 review rounds "
+                                         r"since the first round.*--kind structural"):
+        review.main(args(tmp_path, 8), runner=findings)
+    assert not (tmp_path / "research" / "reviews" / "round08_student.md").exists()
+    stage.mark(tmp_path, "revision", kind="local")
     with pytest.raises(SystemExit, match="past max_rounds"):
-        review.main(args(tmp_path, 2))
+        review.main(args(tmp_path, 8), runner=findings)
+    stage.mark(tmp_path, "revision", kind="structural")
+    review.main(args(tmp_path, 8), runner=findings)            # a structural revision starts the count again
+    revise(tmp_path, 9)
+    review.main(args(tmp_path, 9), runner=findings)
+    revise(tmp_path, 10)
+    with pytest.raises(SystemExit, match=r"has had 2 review rounds since its revision mark"):
+        review.main(args(tmp_path, 10), runner=findings)
+    assert json.loads((tmp_path / "research" / "reviews" / "student.json").read_text())["round"] == 9
 
 
 def test_a_failing_reviewer_is_retried_once_then_stops_loudly(tmp_path):
@@ -95,8 +128,11 @@ def test_a_round_writes_reviews_and_verdicts(tmp_path, capsys):
     assert "VERDICT: PASS" in capsys.readouterr().out
 
 
-def test_the_default_cap_is_three_rounds_and_thorough_restores_six(tmp_path):
+def test_the_default_cap_is_three_rounds(tmp_path):
+    make(tmp_path)
+    for rnd in (2, 3, 4):
+        revise(tmp_path, rnd)
+        review.main(args(tmp_path, rnd), runner=findings)
+    revise(tmp_path, 5)
     with pytest.raises(SystemExit, match=r"past max_rounds \(3\)"):
-        review.main(args(make(tmp_path / "a"), 4))
-    with pytest.raises(SystemExit, match=r"past max_rounds \(6\)"):
-        review.main(args(make(tmp_path / "b", {"thorough": True}), 7))
+        review.main(args(tmp_path, 5), runner=findings)

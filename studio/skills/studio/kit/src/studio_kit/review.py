@@ -10,9 +10,11 @@ All three also get the charter the learner decided (the narrative's "Cut on purp
 video's vocabulary), so a finding that reopens it can be declined on sight.
 
 Guards, from earlier builds: a round must be named on SCRIPT.md's status line (rounds once started
-on half-applied revisions); rounds stop at video.json's max_rounds (one lock took 18 rounds); and a
-reviewer that fails to run is retried once, then the round stops loudly, because a fallback that
-is not isolated from the project reviews with knowledge a newcomer would not have. The cap and the
+on half-applied revisions); the rounds of one revision of the script stop at video.json's
+max_rounds, counted from the reviews since the latest structural stage mark rather than from the
+number typed (one lock took 18 rounds; one build raised the cap from 3 to 17); and a reviewer that
+fails to run is retried once, then the round stops loudly, because a fallback that is not isolated
+from the project reviews with knowledge a newcomer would not have. The cap, what resets it and the
 verdict line are the script kind's policies (reviews.py).
 """
 import json
@@ -143,10 +145,6 @@ def run_reviewer(text, runner=None):
 
 def main(args, runner=None):
     video = Path(args.video).resolve()
-    cap = KIND.rounds.cap(video_config(video))
-    if not args.narrative and cap is not None and args.round > cap:
-        raise SystemExit(f"round {args.round} is past max_rounds ({cap}): lock the script with every open finding "
-                         "logged, or ask the learner to raise the cap")
     out_dir = video / "research" / "reviews"
     out_dir.mkdir(parents=True, exist_ok=True)
     narrative = Path(args.narrative).resolve() if args.narrative else None
@@ -157,6 +155,8 @@ def main(args, runner=None):
         raise SystemExit("unknown reviewer roles: " + ", ".join(sorted(unknown)))
     from . import review_state
     revision = review_state.revision(video, KIND)
+    if not narrative:
+        review_state.start_round(video, KIND, args.round, revision, video_config(video))
     todo = [(k, v) for k, v in inputs.items() if k in args.only.split(",")]
     for name, text in todo:
         (out_dir / f"{tag}_{name}.input.md").write_text(text)
