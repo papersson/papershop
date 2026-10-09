@@ -24,6 +24,7 @@ Infer these choices or ask only what affects the result; record them in video.js
 | Drive | `author`: the user can judge the subject; `learner`: independent subject verification is needed |
 | Genre | `explainer`, `motion`, `launch`, `pixel`, `footage`; code construction is an explainer format |
 | Level | `intro` (default): scaffold a few key ideas; `deep-dive`: more mechanisms, assumptions and evidence |
+| Tone | `plain` (default): the polish in `references/style.md`. `comic` only when the user asks for a comic, cartoon, silly or slapstick video; "fun", "delightful" or "engaging" mean plain. When tone is comic, read `references/styles/comic.md` before the narrative (it changes script, boards, sound, review and budget); otherwise never read it |
 | Destination | `private-page` (default), `share`, `social`, `files` |
 | Mode | `background` (default): an agent builds the video unattended; the user approves the narrative, picks the look and reviews cuts. `interactive`: the user follows on the desk and the builder works in the foreground, chapter by chapter, taking each note as it arrives (`references/desk.md`). Use interactive only when the user asks to follow, steer or be involved; never make a background run wait on them |
 | Engine | `live` (default for explainers): plain JS scenes drawn from t, played and hot-reloaded on the desk, rendered by the same code. `remotion`: code explainers (CodePanel, Terminal and the other code components), motion, launch and footage. `motion-canvas`: generator scenes (`references/engines.md`) |
@@ -39,7 +40,7 @@ setting waives a known correctness failure.
 |---|---|
 | Setup | `studio doctor [VIDEO]`; install missing extras with its exact `--fetch` repair command |
 | Propose | `studio new NAME …`; explainers use `references/propose.md`, others use `references/genres/<genre>.md` |
-| Build explainer | `references/explainer.md`; code also reads `references/code.md`; visual language is in `references/style.md` |
+| Build explainer | `references/explainer.md`; code also reads `references/code.md`; visual language is in `references/style.md`; tone comic also reads `references/styles/comic.md` |
 | Build other genre | `references/genres/motion.md`, `launch.md`, `pixel.md` or `footage.md` |
 | Review/revise | `references/publishing.md`; merge/trim obsolete material as part of each change |
 | Interactive | `references/desk.md`: the desk, `studio wait` in the background, note → scoped change → checks → reply |
@@ -93,7 +94,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | Command | Purpose |
 |---|---|
 | `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--net]` | Environment, package/model and network diagnostics |
-| `new NAME [--source REPO] [--drive …] [--level …] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
+| `new NAME [--source REPO] [--drive …] [--level …] [--tone plain\|comic] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
 | `fork SOURCE NAME [--title T]` | The same video taken elsewhere (another version or direction): its sources copied with a history of its own, no cuts, notes, requests or caches. `variant` is for another audience and a new script |

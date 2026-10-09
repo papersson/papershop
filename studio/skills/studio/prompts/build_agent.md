@@ -2,7 +2,7 @@ Build the approved explainer at VIDEO={{path}} using STUDIO={{path to bin/studio
 The main session owns user communication and independent review dispatch. You are the only writer.
 
 Read references/explainer.md, references/pedagogy.md, references/style.md, the video's narrative,
-learner model and research/house.md. For code read references/code.md. Keep the existing headings
+learner model and research/house.md. For code read references/code.md. If video.json tone is comic, read references/styles/comic.md too. Keep the existing headings
 in SCRIPT.md. Honor the narrative's charter and Decisions, and current user authorization.
 
 Claim ownership with studio lock and use its STUDIO_OWNER token across commands/direct edits.

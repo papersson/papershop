@@ -2,6 +2,9 @@
 
 Start from the agreed `research/narrative.md`. Read `pedagogy.md`, `levels.md`, `style.md`, the
 learner model and the video's snapshotted `research/house.md`. For code, also read `code.md`.
+When video.json `tone` is `comic`, also read `styles/comic.md`, and apply it from the script on:
+gags in the screen notes with their meaning, `[beat]` before each punch, comic sound on anchored
+cues, and its questions in the motion review. A plain video never reads it.
 The same stages apply at either level; depth and claim risk determine additional review effort.
 
 ## Stages at a glance
@@ -222,7 +225,7 @@ desk shows it the moment it is saved; on Remotion, every frame is a pure functio
 state or unseeded randomness). `at`, `end` and `word` cue sentences; `phrase('03', 'and the whole
 state')` cues the spoken words themselves, so a label lands as the voice says it and survives edits
 elsewhere in the sentence; `cue('reveal:s1_03')` lands
-a reveal after an inline hold, and a cue of your own is named in `cues.json` (never timeline.json). Call `cue('name')` with the name written out: a clip re-renders when a cue its scene names (or one inside its frames) moves, and a computed name (`cue(x)`, reading `cues` directly) makes it re-render on every cue edit. `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
+a reveal after an inline hold, and an event of your own goes in `cues.json`, the beat sheet (never timeline.json): seconds, or an anchor such as `{"sentence": "s2_03", "phrase": "hits the floor", "offset": 0.05}` that follows its words when the narration moves. Name every contact there and time both the scene's move (`cue('name')`) and its effect (`studio sfx` on the name) from it, so they share a frame; every cut has a still two frames after each event, and `studio timeline VIDEO --events` lists them. Call `cue('name')` with the name written out: a clip re-renders when a cue its scene names (or one inside its frames) moves, and a computed name (`cue(x)`, reading `cues` directly) makes it re-render on every cue edit. `Beats`, `ramp`, `pulse` and closed-form `spring` drive progress.
 Stage coordinates are centered, y up, eight units high, above the reserved caption band.
 
 Use `@studio` primitives and the explainer components documented in `code.md`: CodePanel,
@@ -233,7 +236,8 @@ Motion must preserve the meaning of identity, copying, references and location (
 
 Check a frame with `studio still`, then `studio cut` for changed clips only. Before sharing:
 `studio check`, `studio sheets`, and one craft pass on changed chapters for readability, motion,
-composition, synchronization and banned defaults. Inspect full-resolution crops; a reduced
+composition, synchronization and banned defaults. `studio check` warns at a hold under 0.5 s
+between significant moves (pacing); space the moves or merge them into one. Inspect full-resolution crops; a reduced
 contact sheet does not establish font size. Fix the significant findings; avoid endless polish.
 `studio open VIDEO [CUT]` opens and protects an MP4; `studio desk` provides annotation playback.
 

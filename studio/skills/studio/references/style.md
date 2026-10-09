@@ -18,6 +18,10 @@ video follows a visual identity:
 - **Real imagery beats illustration**: a screenshot, a real capture, a real location as a
   full-bleed background. Treat it as evidence: record its source and capture parameters.
 
+This is the plain tone, and "fun" or "engaging" asks for it done well. A comic video (video.json
+`tone: comic`, only on request) adds gags, acting and layered sound on top of these rules:
+`styles/comic.md`.
+
 ## Map and close-ups
 
 The older rule, one diagram that builds up across the video with details beside it, produced
