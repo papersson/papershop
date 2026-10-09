@@ -8,14 +8,19 @@
                named element's box is checked against the band
   contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
   overlap      no two text elements cover each other (more than 30% of the smaller one's box) at a sample
+  pacing       after a significant move the stage holds at least 0.5 s before the next (motion.pacing): read
+               from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
+               samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
+               hold is a warning, not a failure
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
   filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
 Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
 Incremental by default: the per-chapter checks (length, determinism, bounds, band, contrast,
-legible) re-run only for chapters whose clip key changed since they last passed there; a pass is
-remembered per chapter, check and format in .cache/check/. Video-wide checks always run. `--all`
+legible, overlap, pacing) re-run only for chapters whose clip key changed since they last passed
+there; a pass is remembered per chapter, check and format in .cache/check/ (a warning is a pass; a
+pacing check skipped for want of a rendered clip runs again once a cut renders one). Video-wide checks always run. `--all`
 checks every chapter, and `studio publish` always runs the full check as its gate.
 """
 import hashlib
@@ -38,7 +43,7 @@ SIDE_MARGIN = 80                         # px kept free either side of a caption
 SLACK = 1.0                              # px of tolerance on box edges
 
 
-PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap")
+PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing")
 OVERLAP = 0.3                            # share of the smaller text box another text box may cover
 
 
@@ -224,7 +229,8 @@ def band_pixels_check(video, samples=3, engine=None, clips=None):
 
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
-MORE = "legible (text at least 18 px tall), overlap (no text on top of other text), provenance (assets used are recorded), dead and loop (motion)"
+MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), "
+        "provenance (assets used are recorded), dead and loop (motion)")
 
 
 def config(video):
@@ -246,7 +252,11 @@ def changed_clips(video, kinds, samples=3, fmt=None):
     keys = {c["id"]: render.clip_key(video, t, c["id"], "check", fmt=fmt) for c in t["tracks"]["scene"]}
     f = _cache_file(video, fmt, samples)
     passed = json.loads(f.read_text()) if f.exists() else {}
-    todo = {cid for cid, k in keys.items() if any(passed.get(cid, {}).get(kind) != k for kind in kinds)}
+    from .motion import rendered_clip
+
+    def want(cid, kind):      # a pacing check skipped for want of a rendered clip runs once a cut renders one
+        return keys[cid] + ("+skipped" if kind == "pacing" and rendered_clip(video, t, cid, fmt) is None else "")
+    todo = {cid for cid in keys if any(passed.get(cid, {}).get(kind) != want(cid, kind) for kind in kinds)}
     return keys, todo
 
 
@@ -260,8 +270,9 @@ def remember(video, rows, keys, kinds, samples=3, fmt=None):
             ran.add((r["clip"], r["check"]))
             if not r["ok"]:
                 failed.add((r["clip"], r["check"]))
+    skipped = {(r["clip"], r["check"]) for r in rows if r.get("skipped")}
     for cid, kind in ran - failed:
-        passed.setdefault(cid, {})[kind] = keys[cid]
+        passed.setdefault(cid, {})[kind] = keys[cid] + ("+skipped" if (cid, kind) in skipped else "")
     for cid, kind in failed:
         passed.get(cid, {}).pop(kind, None)
     passed = {cid: v for cid, v in passed.items() if cid in keys}
@@ -275,9 +286,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     default = only is None
     extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
-    always = ("legible", "overlap") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    always = ("legible", "overlap", "pacing") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -320,6 +331,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if genre(video) == "footage" and only & {"filler", "cuts", "levels", "sync", "segments"}:
         from . import footage
         rows += [r for r in footage.checks(video) if r["check"] in only]
+    if "pacing" in only:
+        from . import motion
+        rows += motion.pacing(video, engine, clips, stills=not default)
     if "dead" in only:
         from . import motion
         rows += motion.dead_beats(video, engine=engine)
@@ -343,7 +357,8 @@ def main(args):
                everything=getattr(args, "all", False))
     for r in rows:
         where = f"{r['clip']}" + (f" t={r['t']}" if "t" in r else "")
-        print(f"{'WARN' if r.get('severity') == 'warning' else 'ok  ' if r['ok'] else 'FAIL'}  {r['check']:11} {where:16} {r['detail']}".rstrip())
+        mark = "WARN" if r.get("severity") == "warning" else "skip" if r.get("skipped") else "ok  " if r["ok"] else "FAIL"
+        print(f"{mark}  {r['check']:11} {where:16} {r['detail']}".rstrip())
     by = {}
     for r in rows:
         by.setdefault(r["check"], [0, 0])[0 if r["ok"] else 1] += 1

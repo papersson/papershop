@@ -1,6 +1,7 @@
 import json
+import subprocess
 
-from studio_kit import assets, check, motion
+from studio_kit import assets, check, motion, render
 from test_render import make_video
 
 
@@ -45,3 +46,57 @@ def test_pixel_and_motion_videos_get_their_extra_checks_by_default(tmp_path):
     make_video(tmp_path)
     (tmp_path / "video.json").write_text(json.dumps({"genre": "motion", "loop": True}))
     assert check.genre(tmp_path) == "motion" and check.config(tmp_path)["loop"]
+
+
+def stage(a, b, d=2):
+    """Two boxes landing at a and b seconds; a dot blinking on the stage (ambient) and a bar blinking in
+    the caption band (not the stage) all along."""
+    box = "drawbox=y=100:w=400:h=300:color=white:t=fill"
+    return (f"color=c=black:s=1920x1080:r=30:d={d},{box}:x=100:enable='gte(t,{a})',{box}:x=900:enable='gte(t,{b})',"
+            "drawbox=x=50:y=700:w=12:h=12:color=white:t=fill:enable='lt(mod(t,0.2),0.1)',"
+            "drawbox=x=0:y=950:w=1920:h=100:color=white:t=fill:enable='lt(mod(t,0.2),0.1)'")
+
+
+class StageEngine:
+    """Renders each still from a clip's lavfi graph, at its own time."""
+    def __init__(self, graphs):
+        self.graphs, self.asked = graphs, 0
+
+    def stills(self, requests):
+        self.asked += len(requests)
+        for r in requests:
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", self.graphs[r["clip"]], "-ss", str(r["t"]),
+                            "-frames:v", "1", r["out"]], check=True)
+
+
+def test_moves_are_runs_of_change_big_enough_to_read():
+    sig = [(0.05, 0.0), (0.15, 0.5), (0.25, 0.4), (0.35, 0.05), (0.45, 0.13), (0.55, 0.0), (0.65, 3.0), (0.75, 0.11)]
+    assert motion.moves(sig) == [(0.1, 0.3, 0.9), (0.6, 0.7, 3.0)]      # 0.13 alone is ambient, 0.11 under the level
+    assert motion.moves([(0.05, 0.3), (0.15, 0.3), (0.25, 0.3)]) == [(0.0, 0.3, 0.9)]
+
+
+def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
+    cache = tmp_path / ".cache" / "clips"
+    cache.mkdir(parents=True)
+    for cid, (a, b) in {"s1": (0.5, 0.8), "s2": (0.5, 1.2)}.items():
+        f = cache / f"{cid}-draft-{render.clip_key(tmp_path, t, cid, 'draft')}.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(a, b), "-pix_fmt", "yuv420p", str(f)], check=True)
+    eng = StageEngine({})
+    rows = motion.pacing(tmp_path, eng)
+    assert eng.asked == 0                                       # no stills: the rendered clips are the frames
+    (warn,), (ok,) = [r for r in rows if r["clip"] == "s1"], [r for r in rows if r["clip"] == "s2"]
+    assert warn["severity"] == "warning" and warn["ok"] and warn["t"] == 0.5
+    assert warn["detail"].startswith("0.2 s hold between the move at 0.4-0.5 s and the one at 0.7 s")
+    assert ok["detail"] == "2 significant moves, each held at least 0.5 s"
+    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited: its rendered clip is stale\n")
+    assert [r.get("skipped") for r in motion.pacing(tmp_path, eng, stills=False)] == [None, True]
+
+
+def test_pacing_samples_stills_where_no_clip_is_rendered(tmp_path):
+    make_video(tmp_path)
+    eng = StageEngine({"s1": stage(0.5, 0.8), "s2": stage(0.5, 1.2)})
+    rows = motion.pacing(tmp_path, eng, clips={"s1"})
+    assert eng.asked == 20 and [r.get("severity") for r in rows] == ["warning"]    # 2 s at 10 a second
+    assert rows[0]["detail"].startswith("0.2 s hold")

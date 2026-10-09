@@ -6,6 +6,8 @@
             the loop stutters at the seam
   legible   every text box is at least 18 px tall at 1080p (a phone shows the frame at 360 px wide)
   provenance  every asset a scene refers to is in assets/ with a provenance row
+  pacing    after a significant move, the picture holds at least HOLD_MIN before the next one starts
+            (pacing_signal, moves)
 """
 import hashlib
 import json
@@ -101,3 +103,107 @@ def provenance(video):
     return [{"check": "provenance", "clip": "scenes", "ok": not missing and not absent,
              "detail": (f"no provenance row for {', '.join(missing)}" if missing else "") +
                        (f"; missing from assets/: {', '.join(absent)}" if absent else "") or f"{len(used)} assets used, all recorded"}]
+
+
+# --- pacing: the hold after a move ------------------------------------------------------------------
+
+PACING_FPS = 10         # samples a second: a 0.5 s hold is five
+PACING_SIZE = (192, 108)   # pixels the frame is scaled to: whole moves show, texture and antialiasing don't
+HOLD_MIN = 0.5          # seconds a significant move holds before the next one starts (style.md)
+# Calibrated on the kit's templates (live and Remotion), in mean grey levels over the stage at PACING_SIZE.
+# A sample moving at least MOVE_LEVEL (0.15% of the stage changing fully in 0.1 s) is movement; less is
+# ambient (a jittering dot, a ticking counter, a slow fade). A run of movement is a significant move when
+# it adds up to SIGNIFICANT, about 1% of the stage changing by 80 levels (a title fading in); a chapter
+# tag fading out or an edge lighting up stays under it.
+MOVE_LEVEL = 0.12
+SIGNIFICANT = 0.8
+
+
+def rendered_clip(video, t, cid, fmt=None):
+    """A clip video `studio cut` (or export) rendered for the current scenes, or None."""
+    from . import render
+    tag = f"-{fmt.replace(':', 'x')}" if fmt and fmt != "16:9" else ""
+    for q in ("final", "draft"):
+        f = Path(video) / ".cache" / "clips" / f"{cid}-{q}{tag}-{render.clip_key(video, t, cid, q, fmt=fmt)}.mp4"
+        if f.exists():
+            return f
+    return None
+
+
+def _gray(args, crop, resample=""):
+    """Raw grey frames at PACING_SIZE, the caption band cropped off, from an ffmpeg input."""
+    w, h = PACING_SIZE
+    raw = proc.ffmpeg(*args, "-vf", f"{resample}scale={w}:{h},crop={w}:{crop}:0:0,format=gray",
+                      "-f", "rawvideo", "-", capture_output=True).stdout
+    return [raw[i:i + w * crop] for i in range(0, len(raw), w * crop)]
+
+
+def pacing_signal(video, engine=None, clips=None, stills=True):
+    """{clip: [(time, change)] or None}: each clip's stage (the caption band cropped off) sampled at
+    PACING_FPS, and the mean absolute grey-level change from each sample to the next, at the time
+    between them (clip seconds). The frames come from the clip's rendered video when a cut has one
+    for the current scenes (decoding costs about 0.2 s a clip); otherwise, with stills, the engine
+    renders every sample (about 70 ms each in the live engine), and without, the clip is None."""
+    engine, t = engine or Engine(video), tl.load(video)
+    fmt = getattr(engine, "fmt", None)
+    lay = tl.layout(video, fmt)
+    crop = int(PACING_SIZE[1] * (lay["height"] - lay["band"]["height"]) / lay["height"]) // 2 * 2
+    step = max(1, round(t["fps"] / PACING_FPS))
+    out, todo = {}, []
+    for c in t["tracks"]["scene"]:
+        if clips is not None and c["id"] not in clips:
+            continue
+        times = [k / t["fps"] for k in range(0, tl.frames(t, c["id"])[1], step)]
+        f = rendered_clip(video, t, c["id"], fmt)
+        out[c["id"]] = (times, _gray(["-i", str(f)], crop, f"fps={t['fps'] / step:g},")[:len(times)]) if f else None
+        if f is None and stills:
+            todo.append((c["id"], times))
+    if todo:
+        with tempfile.TemporaryDirectory() as tmp:
+            at = [(cid, x) for cid, times in todo for x in times]
+            engine.stills([{"clip": cid, "t": round(x, 4), "out": str(Path(tmp) / f"{i:06d}.png"), "scale": PACING_SIZE[0] / lay["width"]}
+                           for i, (cid, x) in enumerate(at)])
+            frames = _gray(["-f", "image2", "-i", str(Path(tmp) / "%06d.png")], crop)
+        i = 0
+        for cid, times in todo:
+            out[cid], i = (times, frames[i:i + len(times)]), i + len(times)
+    size = PACING_SIZE[0] * crop
+    return {cid: None if v is None else [(round((a + b) / 2, 3), sum(map(abs, map(int.__sub__, x, y))) / size)
+                                         for a, b, x, y in zip(v[0], v[0][1:], v[1], v[1][1:])]
+            for cid, v in out.items()}
+
+
+def moves(signal, level=MOVE_LEVEL, significant=SIGNIFICANT, dt=1 / PACING_FPS):
+    """The significant moves in a clip's signal: [(start, end, change)], a move being a run of samples
+    changing at least `level` whose total change is at least `significant`."""
+    runs = []
+    for at, d in signal:
+        if d < level:
+            continue
+        if runs and at - dt / 2 <= runs[-1][1] + 1e-6:
+            runs[-1][1:] = [at + dt / 2, runs[-1][2] + d]
+        else:
+            runs.append([at - dt / 2, at + dt / 2, d])
+    return [(round(a, 3), round(b, 3), round(c, 2)) for a, b, c in runs if c >= significant]
+
+
+def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
+    """Rows: a warning at every hold shorter than `hold` between two significant moves of a clip,
+    else a passing row per clip; a clip with no rendered video, when stills are not to be rendered,
+    is skipped. Ground truth is the rendered stage (pacing_signal)."""
+    rows = []
+    for cid, signal in pacing_signal(video, engine, clips, stills).items():
+        if signal is None:
+            rows.append({"check": "pacing", "clip": cid, "ok": True, "skipped": True,
+                         "detail": "no rendered clip for these scenes: `studio cut` renders one; `--only pacing` samples stills (slower)"})
+            continue
+        found = moves(signal)
+        short = [(a, b) for a, b in zip(found, found[1:]) if b[0] - a[1] < hold - 1e-6]
+        for a, b in short:
+            rows.append({"check": "pacing", "clip": cid, "t": a[1], "ok": True, "severity": "warning",
+                         "detail": f"{b[0] - a[1]:.1f} s hold between the move at {a[0]:.1f}-{a[1]:.1f} s and the one "
+                                   f"at {b[0]:.1f} s; hold at least {hold} s after a move"})
+        if not short:
+            rows.append({"check": "pacing", "clip": cid, "ok": True,
+                         "detail": f"{len(found)} significant moves, each held at least {hold} s"})
+    return rows
