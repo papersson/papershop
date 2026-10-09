@@ -113,7 +113,9 @@ def crops(video, out, below=40, ids=None, engine=None):
     cache = video / ".cache" / "crops"
     cache.mkdir(parents=True, exist_ok=True)
     keys = {c["id"]: render.clip_key(video, t, c["id"], "crops") for c in t["tracks"]["scene"]}
-    reqs = [{"clip": m["clip"], "t": m["t"], "id": m["id"], "key": f"{m['clip']}-{keys[m['clip']]}-{tl.half_up(m['t'] * t['fps'])}"}
+    # the threshold is in the key: a frame measured under another --below kept other labels
+    reqs = [{"clip": m["clip"], "t": m["t"], "id": m["id"],
+             "key": f"{m['clip']}-{keys[m['clip']]}-{tl.half_up(m['t'] * t['fps'])}-b{below:g}"}
             for m in moments.sentence_ends(t) if not ids or m["id"] in ids]
     todo = [r for r in reqs if not (cache / r["key"] / "boxes.json").exists()]
     if todo:

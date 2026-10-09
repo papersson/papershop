@@ -85,6 +85,7 @@ def test_crops_reuse_unchanged_frames_and_crop_a_repeated_label_once(tmp_path):
     sheets.crops(tmp_path, tmp_path / "out", engine=eng)
     assert eng.frames == 2                       # unchanged frames: no renders
     assert json.loads((tmp_path / "out" / "crops" / "index.json").read_text()) == idx
+    assert sheets.crops(tmp_path, tmp_path / "out", below=15, engine=eng) == [] and eng.frames == 4   # another threshold measures again
 
 
 class CheckEngine:
