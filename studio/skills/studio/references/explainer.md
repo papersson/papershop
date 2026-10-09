@@ -48,6 +48,53 @@ re-estimate changed scope and report where time went, without skipping correctne
 authorized stages through `studio commit`. Never push a video's repository without authorization.
 See `publishing.md` for revision rounds.
 
+One exception is a hard stop. In background mode, a stage with its own budget in video.json stops
+at twice that budget: `studio stage` prints a STOP line, and `studio stage VIDEO --check` (which
+marks nothing and exits 3 when stopped) says the same between chapters. Run the check between
+chapters and fix rounds of a long stage. On STOP, write a handoff, report to the main session and
+do not continue. The main session decides whether to raise that stage's budget or stop there. The
+`first_cut` and `round` defaults are not calibrated against real builds, so they never stop a build,
+and nothing stops in interactive mode, where the user is watching.
+
+In background mode, write `studio handoff VIDEO --notes "…"` at every stage boundary and before
+stopping. It writes `research/handoff.md`, a brief a fresh builder can act on without your
+transcript: the owner, the stage against its budget, the last cut and its open notes, reviews in
+flight, pending requests, the next commands, and your notes on what the files don't show (a
+half-finished chapter, a decision and its reason, a helper and what it does). `studio lock VIDEO
+acquire --recover` prints the brief and its age to whoever takes over.
+
+Scratch goes in `VIDEO/.studio/work/`, never /tmp: probes, intermediate frames, a helper being
+tried out. Inside the video it survives a restart, but Git ignores it and fork leaves it behind. A
+helper the build depends on, or one a later builder or a fork should rerun, moves to `sims/`, which
+is committed and forked with the sources and holds the video's scripts: evidence extraction and
+build helpers alike. Run either with `studio run VIDEO SCRIPT [ARGS…]`. It uses the kit's Python
+with the kit importable, runs in the video's folder with stdin closed, and goes through the
+allowlisted `bin/studio`, so no path trick is needed to get past a sandbox. `.mjs`/`.js` scripts
+run with node, without the engines' packages on their import path.
+
+## Long passes
+
+A fix round or polish pass over a whole video is where builds run long and builders run out of
+context.
+
+- **Split by chapter when the main session can run several builders.** The lock is per video, and
+  every changing command takes a short operation lock that fails, without waiting, while another
+  runs. So the main session holds the lock (`studio lock VIDEO acquire --owner main`) and gives
+  each chapter fixer its `STUDIO_OWNER` token and a disjoint set of files: its own
+  `scenes/<clip>.js` and its chapter's boards. A fixer edits only those files and checks its frames
+  with `studio still` on its own clips, trying again after a few seconds when told another
+  operation is running. It never runs `cut`, `check`, `narrate`, `timeline`, `stage` or
+  `commit`, and never edits a shared file (SCRIPT.md, `cues.json`, captions, a helper several
+  scenes import). A change to a shared file comes back to the main session as a patch with its
+  reason. When every fixer has reported, the main session applies the patches, runs `studio
+  check` and makes one cut.
+- **Keep each builder's context small.** Hand frame inspection to sub-agents. A sub-agent reads
+  the stills, sheets or strips and returns findings as text (clip, time, element, what is wrong),
+  not images. A builder that reads every frame itself fills its context with pictures and stops
+  mid-pass.
+- **Write a handoff at every stage boundary** in background mode, and before any stop, so a
+  restart costs minutes.
+
 ## Stage 1: Sources
 
 Use sources gathered during proposal. Research further only for unresolved claims. Read the code

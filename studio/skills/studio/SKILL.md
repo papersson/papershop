@@ -45,15 +45,17 @@ setting waives a known correctness failure.
 | Interactive | `references/desk.md`: the desk, `studio wait` in the background, note → scoped change → checks → reply |
 | Publish | Local final master through `studio publish`; external upload per `references/publishing.md` and existing authorization |
 | Revoice | Edit narration.json, narrate, voice-check, inspect affected stills and create a new cut |
-| Status/resume | Read narrative Decisions, SCRIPT.md, review receipts, pending requests, cuts and `studio stage --report` |
+| Status/resume | Read `research/handoff.md` (`studio handoff` writes it; `lock acquire --recover` prints it), narrative Decisions, SCRIPT.md, review receipts, pending requests, cuts and `studio stage --report` |
 
 ## Ownership, review and gates
 
 One builder owns a folder across stages: `studio lock VIDEO acquire --owner NAME` prints an
 `STUDIO_OWNER` token for its commands. The main session queues mid-flight additions with
 `studio request`; the owner reads them at stage boundaries and resolves incorporated IDs.
-Do not launch multiple writers against the same folder. Reviewers use immutable input bundles.
-Release ownership at handoff; `--recover` is for an abandoned build, never a way to displace a live one.
+Do not launch multiple writers against the same folder; chapter fixers working under the main
+session's lock follow `references/explainer.md` (Long passes). Reviewers use immutable input
+bundles. Release ownership at handoff, with `studio handoff` written first when the video is not
+finished; `--recover` is for an abandoned build, never a way to displace a live one.
 
 The main session owns independent review dispatch. A background builder can report **ready for
 script review**, **ready for look choice**, or **ready for frame review** and receive results back.
@@ -74,7 +76,10 @@ hold at every stage:
   an earlier review receipt.
 
 Mark stages with `studio stage` (including `waiting` and `finished`). Budgets are advisory; report
-scope changes and stage time. Commit only at authorized stages through `studio commit`. Never
+scope changes and stage time. The exception: in background mode a stage with its own budget in
+video.json stops at twice it (STOP, and `studio stage VIDEO --check` exits 3); write a handoff and
+report rather than continue. Scratch and helper scripts go in `VIDEO/.studio/work/`, never /tmp;
+run them with `studio run`. Commit only at authorized stages through `studio commit`. Never
 push or upload without authorization. Keep kit changes out of individual video work; implement a
 workaround in the video and report a missing kit capability. Keep production tools and process
 out of the narration; subject-specific code/product names remain legitimate.
@@ -92,8 +97,10 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
 | `fork SOURCE NAME [--title T]` | The same video taken elsewhere (another version or direction): its sources copied with a history of its own, no cuts, notes, requests or caches. `variant` is for another audience and a new script |
-| `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue |
-| `stage VIDEO NAME [--kind local|structural] [--summary TEXT]` · `stage VIDEO --report` | Timing and revision refactoring log |
+| `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue; `acquire --recover` prints the handoff |
+| `handoff VIDEO [--notes TEXT \| --notes-file FILE]` | `research/handoff.md`: a brief a fresh builder resumes from (state, reviews in flight, requests, next commands, builder notes) |
+| `stage VIDEO NAME [--kind local|structural] [--summary TEXT]` · `stage VIDEO --report` · `stage VIDEO --check` | Timing and revision refactoring log; `--check` reads the current stage without marking and exits 3 at a background hard stop |
+| `run [--allow-outside] VIDEO SCRIPT [ARGS…]` | A builder's `.py` (kit Python, kit importable) or `.mjs`/`.js` (node) inside the video, run in its folder with `STUDIO_VIDEO` and `STUDIO_WORK` set and stdin closed; exit status passes through |
 | `check VIDEO --only script|code-source` | Source/text checks before a browser or timeline exists |
 | `steps VIDEO STEPS.json` | Execute full-file program versions and record source/output evidence |
 | `review VIDEO ROUND [--only student|expert|editor] [--narrative FILE]` | Isolated, revision-bound script/narrative review; `max_rounds` counts the rounds since the latest structural stage mark |
@@ -124,7 +131,8 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 
 `SCRIPT.md` owns narration and its learning brief; narrative Decisions own settled direction.
 `narration.json` owns effective voice/timing settings. `boards/` holds the boards (boards.json is
-written by the builder; notes.json is generated). `sims/` and `data/` hold evidence.
+written by the builder; notes.json is generated). `sims/` holds the video's scripts (evidence
+extraction and helpers the build reruns), `data/` the evidence they produce.
 `timeline.json` is built, never edited: each command writes the source it owns and rebuilds it
 (`audio/timings.json` narrate, `audio/words.json` align, `audio/sfx.json` sfx, `audio/beats.json`
 beats, `footage/edit.json` edit, video.json `duration` or `clips` for a piece without narration). Named cues
@@ -132,7 +140,9 @@ go in `cues.json` (`{"name": seconds}`), extra audio such as a music bed in `aud
 (`[{"file", "start", "gain"}]`), and captions the kit must not re-chunk in `captions.json`
 (`[{"start", "end", "text"}]` or `lines`; a whole track, or kit chunks copied from timeline.json to
 lock them); after editing any of them, `studio timeline VIDEO` (or the next cut) rebuilds it.
-`research/` holds reviews, snapshots, timing and pending requests.
+`research/` holds reviews, snapshots, timing, pending requests and the handoff. `.studio/work/` is
+the builder's scratch: kept across a restart, ignored by Git and left behind by fork; a helper worth
+keeping moves to `sims/`.
 `cuts/cutN/` retains a record and MP4; watched/final/noted cuts also retain their review previews.
 `out/master.mp4` is the final-quality local master; the web copy may be smaller.
 

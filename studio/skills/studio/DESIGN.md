@@ -302,6 +302,28 @@ item: the loop is proven by the user's own notes.
   `max_rounds` across the whole video, so a structural rewrite began near the cap, and one build
   raised it from 3 to 17. A round is now a script revision reviewed since the latest structural
   stage mark (logged in research/reviews/rounds.jsonl); ROUND only names the files.
+- **A background stage stops at twice its own budget.** One long session (six builder runs, about
+  14 hours) had a polish stage alone run over five hours unattended, because every budget was
+  advisory and nobody was watching. In background mode, a stage with its own budget in video.json
+  now stops at twice it: the mark prints STOP, and `studio stage VIDEO --check`, run between
+  chapters, exits 3. The builder writes a handoff and reports, and the main session decides
+  whether to raise the budget. The scopes' defaults (20 and 5 minutes) were never calibrated
+  against real builds, so they stay advisory, and so does everything in interactive mode, where
+  the user is watching.
+- **A restart reads a handoff, not a transcript.** In the same session, a builder that ran out of
+  context was resumed from notes it happened to write. `studio handoff` assembles
+  research/handoff.md from the files (owner, stage against budget, last cut and open notes,
+  reviews in flight, requests, the next commands they imply) and adds the builder's own notes.
+  `lock acquire --recover` prints it with its age. Background builders write one at every stage
+  boundary.
+- **Scratch lives in the video, and scripts run through the kit.** That session's key helper
+  scripts lived in /tmp, outside the video and its history, and builders put "claude" in a
+  script's path to get it past the macOS sandbox. Scratch now goes in `.studio/work/`, which
+  survives a restart but stays out of Git and forks; a helper the build depends on moves to
+  `sims/`. `studio run` runs either through the allowlisted `bin/studio`, with the kit's Python.
+- **doctor starts the browser the way a cut does.** It launched Chrome with `--dump-dom`, which a
+  sandbox can allow while refusing the engine's own launch. It now renders a one-frame still
+  through the live engine in a throwaway video.
 
 | Still open | Done when |
 |---|---|
