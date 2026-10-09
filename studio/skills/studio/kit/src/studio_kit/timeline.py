@@ -2,7 +2,8 @@
 
 timeline.json is a build product with one writer, `build(video)`. Each command owns one source file,
 writes it and calls build; nothing carries over from an earlier timeline.json except through the
-one-time `migrate`. Exactly one source gives the base (scenes, narration, duration), in this order:
+one-time `migrate`, and a hand edit to it is lost at the next build, which warns. Exactly one
+source gives the base (scenes, narration, duration), in this order:
 
   footage/edit.json    studio edit       the edit list: footage track, each segment's sound, its words
   audio/timings.json   studio narrate    laid-out sentence timings; "timing": "estimate" | "narrated".
@@ -379,6 +380,22 @@ def _base(video, cfg):
                      "the footage, or give video.json a duration or clips")
 
 
+def _stamp(video):
+    return Path(video) / ".cache" / "studio" / "timeline.sha256"
+
+
+def _hand_edited(video):
+    """timeline.json as it is now, when its bytes are not what build last wrote (an agent used to
+    editing it in place); else None. A timeline built before the stamp was kept is never reported."""
+    f, stamp = Path(video) / "timeline.json", _stamp(video)
+    if not f.exists() or not stamp.exists() or hashlib.sha256(f.read_bytes()).hexdigest() == stamp.read_text().strip():
+        return None
+    try:
+        return json.loads(f.read_text())
+    except ValueError:
+        return {}
+
+
 def build(video, quiet=False):
     """Write timeline.json from its sources (the contract above) and return it. Prints what it
     migrated and what it ignored, unless quiet (a command that builds again prints it then)."""
@@ -386,6 +403,7 @@ def build(video, quiet=False):
     say = (lambda msg: None) if quiet else print
     a = video / "audio"
     with locked(video, "timeline"):
+        edited = _hand_edited(video)
         if (video / "timeline.json").exists():
             migrate(video, load(video))
         t, base = _base(video, settings.load(video))
@@ -432,7 +450,16 @@ def build(video, quiet=False):
         # chunked last, from the final narration (its words included), at this video's line widths
         t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video))
         t["sources"] = used
+        if edited is not None:      # printed even when quiet: the next build would find nothing to say
+            parts = [k for k in sorted(set(edited) | set(t)) if k != "tracks" and edited.get(k) != t.get(k)]
+            parts += [f"tracks.{k}" for k in sorted(set(edited.get("tracks", {})) | set(t["tracks"]))
+                      if edited.get("tracks", {}).get(k) != t["tracks"].get(k)]
+            print("warn: timeline.json was edited by hand since it was built" + (f" ({', '.join(parts)})" if parts else "")
+                  + "; the edit is gone. It is built from its sources: cues go in cues.json, extra audio in "
+                  "audio/tracks.json (the contract at the top of timeline.py)")
         atomic_json(video / "timeline.json", t)
+        _stamp(video).parent.mkdir(parents=True, exist_ok=True)
+        _stamp(video).write_text(hashlib.sha256((video / "timeline.json").read_bytes()).hexdigest())
         if not (video / "layout.json").exists():
             atomic_json(video / "layout.json", DEFAULT_LAYOUT)
     return t

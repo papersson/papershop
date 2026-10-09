@@ -433,3 +433,20 @@ def test_a_piece_without_narration_still_finishes_its_music(tmp_path):
     (tmp_path / "audio").mkdir()
     (tmp_path / "audio" / "tracks.json").write_text(json.dumps([{"file": str(tmp_path / "bed.wav"), "start": 0}]))
     assert audio.finish(tmp_path, timeline=tl.build(tmp_path)) is not None
+
+
+def test_a_hand_edit_to_the_timeline_is_reported_when_build_replaces_it(tmp_path, capsys):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    capsys.readouterr()
+    tl.build(v)
+    assert "by hand" not in capsys.readouterr().out
+    t = tl.load(v)
+    t["cues"]["mine"] = 2.0
+    (v / "timeline.json").write_text(json.dumps(t))
+    tl.build(v, quiet=True)
+    out = capsys.readouterr().out
+    assert "warn: timeline.json was edited by hand since it was built (cues)" in out and "cues.json" in out
+    assert "mine" not in tl.load(v)["cues"]
+    tl.build(v)
+    assert "by hand" not in capsys.readouterr().out
