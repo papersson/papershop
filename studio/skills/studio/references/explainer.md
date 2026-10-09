@@ -237,8 +237,10 @@ contact sheet does not establish font size. Fix the significant findings; avoid 
 Required before delivering a deep-dive, a shared video, or when video.json `frame_review` is true.
 First run `studio sheets VIDEO VIDEO/out/sheets` for the current cut, adding `--strip CLIP T` for
 mechanism-sensitive transitions (`--strip` repeats; `--windows FILE` lists many). `studio
-review-frames VIDEO` packages that directory together with the current cut's stills, script and
-data; sheets saved elsewhere are not included.
+review-frames VIDEO [--cut N]` packages that directory together with the cut's stills and script
+(the latest cut by default) and data/; sheets saved elsewhere are not included. A cut older than
+the sources gets its own stills and script only, since the sheets and data/ are the current
+sources' and would not match its frames.
 The builder reports **ready for frame review**. The main session dispatches a fresh image-capable
 reviewer using `prompts/frame_review.md`; the command itself does not start an agent. Include
 transition strips for mechanism-sensitive motion. Validate findings against full-resolution frames.

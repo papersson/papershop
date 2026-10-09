@@ -99,6 +99,9 @@ def test_an_older_cuts_frame_review_is_recorded_stale_and_publish_says_what_chan
     make_video(tmp_path)
     (tmp_path / "video.json").write_text(json.dumps({"teaching_contract": True, "frame_review": True}))
     (tmp_path / "SCRIPT.md").write_text("## Script\n### 1. A\n> One.\n## Evidence\nActual run.\n")
+    for rel in ("data/rows.json", "out/sheets/crops/index.json"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text("[]")
     frame_cut(tmp_path)
     judged = review_state.fingerprint(tmp_path, frames=True)
     assert review_state.fingerprint(tmp_path, frames=True, keys=review_state.review_keys(tmp_path, tl.load(tmp_path))) == judged
@@ -109,8 +112,10 @@ def test_an_older_cuts_frame_review_is_recorded_stale_and_publish_says_what_chan
     args = SimpleNamespace(video=tmp_path, cut=1, result=None)
     review_state.main_frames(args)                        # an older cut may still be packaged
     assert "s2 changed since" in capsys.readouterr().out
-    manifest = json.loads(next((tmp_path / "research" / "frame_review").glob("cut1-*/manifest.json")).read_text())
-    assert manifest["revision"] == judged
+    bundle = next((tmp_path / "research" / "frame_review").glob("cut1-*"))
+    manifest = json.loads((bundle / "manifest.json").read_text())
+    assert manifest["revision"] == judged and (manifest["data"], manifest["crops"]) == (None, None)
+    assert (bundle / "stills").is_dir() and not (bundle / "data").exists() and not (bundle / "sheets").exists()
     args.result = tmp_path / "response.md"
     args.result.write_text(f"FRAMES: PASS\nREVISION: {current}\n")
     with pytest.raises(SystemExit, match="exact REVISION"):      # the bundle's revision, not the current one
@@ -125,6 +130,8 @@ def test_an_older_cuts_frame_review_is_recorded_stale_and_publish_says_what_chan
         publish.gate(tmp_path)
     frame_cut(tmp_path, 2)
     review_state.main_frames(SimpleNamespace(video=tmp_path, cut=2, result=None))
+    fresh = next((tmp_path / "research" / "frame_review").glob("cut2-*"))
+    assert (fresh / "data" / "rows.json").exists() and (fresh / "sheets" / "crops" / "index.json").exists()
     args.cut, args.result = 2, tmp_path / "fresh.md"
     args.result.write_text(f"FRAMES: PASS\nREVISION: {current}\n")
     assert review_state.main_frames(args) == 0 and review_state.read(tmp_path, "frames")["stale"] is False

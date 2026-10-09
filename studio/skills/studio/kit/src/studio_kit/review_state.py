@@ -230,9 +230,10 @@ def main_frames(args):
               f"; {bundle / 'result.md'}")
         return 0 if status == "passed" and not stale else 1
     bundle.mkdir(parents=True, exist_ok=True)
-    # the sheets are made from the current sources, so an older cut's bundle goes without them
-    for src, target in ((cut / "stills", "stills"), (None if stale else video / "out/sheets", "sheets"), (video / "data", "data")):
-        if src and src.exists():
+    # The sheets and data/ are the current sources'; a cut keeps only its stills and script, so an
+    # older cut's bundle goes without them rather than pair its frames with other numbers.
+    for src, target in ((cut / "stills", "stills"), (video / "out/sheets", "sheets"), (video / "data", "data")):
+        if src.exists() and (target == "stills" or not stale):
             shutil.copytree(src, bundle / target, dirs_exist_ok=True)
     shutil.copyfile(cut / "SCRIPT.md" if (cut / "SCRIPT.md").exists() else video / "SCRIPT.md", bundle / "SCRIPT.md")
     # Strip conclusions and build history from the reviewer copy.
@@ -242,9 +243,9 @@ def main_frames(args):
     (bundle / "prompt.md").write_text((ROOT / "prompts/frame_review.md").read_text() +
                                      f"\nInclude this exact line in your result: REVISION: {judged}\n")
     atomic_json(manifest, {"cut": n, "revision": judged, "script": "SCRIPT.md", "stills": "stills/",
-                          "crops": "sheets/", "data": "data/", "prompt": "prompt.md"})
+                          "crops": None if stale else "sheets/", "data": None if stale else "data/", "prompt": "prompt.md"})
     if stale:
-        print(f"cut {n} is older than the sources ({changed} changed since); its review will be recorded as stale, "
-              "and publish needs a review of a fresh cut")
+        print(f"cut {n} is older than the sources ({changed} changed since): its bundle has its stills and script but "
+              "no crops or data, its review will be recorded as stale, and publish needs a review of a fresh cut")
     print(f"ready for frame review: {manifest}\nMain session: give this bundle to a fresh image-capable reviewer; "
           "import the response with --result FILE. This command does not run a reviewer.")
