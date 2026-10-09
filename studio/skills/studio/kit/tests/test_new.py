@@ -78,3 +78,42 @@ def test_new_video_records_how_often_to_stop_for_the_user(tmp_path, monkeypatch)
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
     video, _ = new.create("busy", checkpoints="many")
     assert json.loads((video / "video.json").read_text())["checkpoints"] == "many"
+
+
+def test_a_fork_copies_the_sources_and_starts_a_history_of_its_own(tmp_path, monkeypatch):
+    import os
+    import subprocess
+    from studio_kit import cli, stage
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    for who in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{who}_NAME", "Test")
+        monkeypatch.setenv(f"GIT_{who}_EMAIL", "test@example.com")
+    src, _ = new.create("first")
+    stage.mark(src, "script", now=0)
+    kept = ["audio/narration.mp3", "assets/talk.mov", "boards/boards.json", "captions.json", "research/reviews/student.json",
+            "research/narrative.md", ".studio/kit/src/studio_kit/cli.py", ".studio/bin/studio"]
+    left = ["cuts/cut1/cut.json", "cuts/cut1/video.mp4", "review/notes.jsonl", "research/requests.md",
+            "research/frame_review/cut1-abc/stills/s1.jpg", ".cache/studio/owner.json", "out/page/index.html",
+            ".studio/engines/live/node_modules/x/index.js", ".studio/kit/.venv/bin/python", ".studio/work/scratch.txt"]
+    for rel in kept + left:
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text(rel)
+    os.mkfifo(src / ".cache" / "pipe")        # copying it would fail: the fork must never enter .cache
+    (src / "assets" / "shared").symlink_to(tmp_path)
+    subprocess.run(["git", "-C", str(src), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(src), "-c", "commit.gpgsign=false", "commit", "-qm", "sources"], check=True)
+    head = subprocess.run(["git", "-C", str(src), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+
+    cli.main(["fork", str(src), "second", "--title", "First, again"])
+    v = tmp_path / "home" / "second"
+    assert all((v / rel).read_text() == rel for rel in kept) and not any((v / rel).exists() for rel in left)
+    assert not (v / "cuts").exists() and not (v / ".cache" / "pipe").exists()
+    assert (v / "assets" / "shared").is_symlink() and (v / "SCRIPT.md").read_text() == (src / "SCRIPT.md").read_text()
+    cfg = json.loads((v / "video.json").read_text())
+    assert (cfg["title"], cfg["version"], cfg["forked_from"]) == ("First, again", "v1", {"path": str(src), "commit": head})
+    (mark,) = stage.read(v)
+    assert (mark["stage"], mark["source"], mark["commit"]) == ("forked_from", str(src), head)
+    assert subprocess.run(["git", "-C", str(v), "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() == str(v)
+    assert [m["stage"] for m in stage.read(src)] == ["script"]
+    with pytest.raises(SystemExit, match="already holds"):
+        new.fork(src, "second")

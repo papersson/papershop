@@ -91,6 +91,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `new NAME [--source REPO] [--drive …] [--level …] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
+| `fork SOURCE NAME [--title T]` | The same video taken elsewhere (another version or direction): its sources copied with a history of its own, no cuts, notes, requests or caches. `variant` is for another audience and a new script |
 | `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue |
 | `stage VIDEO NAME [--kind local|structural] [--summary TEXT]` · `stage VIDEO --report` | Timing and revision refactoring log |
 | `check VIDEO --only script|code-source` | Source/text checks before a browser or timeline exists |

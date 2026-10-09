@@ -5,8 +5,11 @@ does not put renders and caches into that repo; --source records which repo and 
 STUDIO_HOME also holds learner.md, the learner model every video's student reviewer plays.
 """
 import json
+import os
 import re
 import shutil
+import time
+from datetime import datetime
 from pathlib import Path
 
 from . import proc
@@ -159,4 +162,54 @@ def variant(source, name, directory=None, learner=None, vocabulary=None, title=N
 def main_variant(args):
     v = variant(args.source, args.name, args.dir, args.learner, args.vocabulary, args.title)
     print(f"variant at {v}: evidence, assets and scenes copied; rewrite SCRIPT.md for the new audience, then narrate")
+    return 0
+
+
+# What a fork leaves behind. Anywhere: repositories, caches and package folders. At these paths:
+# outputs, and what is the source's alone (its stage log, pending requests) or names its cuts (the
+# desk's notes, frame-review bundles). Cuts stay behind whole: publish, sheets, frame review and
+# the next cut read the stills and video beside a record, so a record without them is a broken cut.
+FORK_SKIP_NAMES = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
+FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/timing.jsonl", "research/requests.md",
+                   ".studio/work"}
+
+
+def fork(source, name, directory=None, title=None):
+    """A copy of a video's sources under a new title, with a history of its own: a fresh stage log
+    that starts at a forked_from mark, no cuts, notes, requests or owner. The tree is walked and
+    copied file by file, pruning what is left behind before entering it, so a large cache is never
+    read."""
+    source = Path(source).resolve()
+    video = Path(directory).expanduser().resolve() if directory else studio_home() / name
+    if (video / "video.json").exists():
+        raise SystemExit(f"{video} already holds a video")
+    if video == source or source in video.parents:
+        raise SystemExit(f"fork {source.name} into a folder outside it")
+    skip = lambda rel: rel.name in FORK_SKIP_NAMES or rel.as_posix() in FORK_SKIP_PATHS
+    for root, dirs, files in os.walk(source):
+        rel = Path(root).relative_to(source)
+        (video / rel).mkdir(parents=True, exist_ok=True)
+        dirs[:] = [d for d in dirs if not skip(rel / d)]
+        links = [d for d in dirs if (Path(root) / d).is_symlink()]      # not walked: copied as links
+        for f in files + links:
+            if not skip(rel / f):
+                shutil.copy2(Path(root) / f, video / rel / f, follow_symlinks=False)
+    origin = source_record(source)
+    cfg = {**settings.raw(source), "title": title or name.replace("-", " ").capitalize(), "version": "v1",
+           "forked_from": origin}
+    (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
+    now = time.time()
+    mark = {"stage": "forked_from", "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"),
+            "kind": "local", "source": origin["path"], **({"commit": origin["commit"]} if "commit" in origin else {})}
+    (video / "research").mkdir(exist_ok=True)
+    (video / "research" / "timing.jsonl").write_text(json.dumps(mark) + "\n")
+    checkpoint.init(video)
+    return video
+
+
+def main_fork(args):
+    v = fork(args.source, args.name, args.dir, args.title)
+    pinned = " The pinned kit came without its packages: `.studio/bin/studio doctor --fetch`." if (v / ".studio").is_dir() else ""
+    print(f"fork at {v}: sources copied, its stage log starts at the fork; cuts, notes and caches stay with "
+          f"{Path(args.source).resolve().name}, so the first cut renders every clip.{pinned}")
     return 0

@@ -80,7 +80,8 @@ def changed_video(arg):
 
 # --- the commands: name -> (help, [(argument names, options)], handler) ---------------------------
 # An argument is A (plain), V (a video folder that must exist) or W (one the command also changes).
-# A video the command makes (new NAME, variant SOURCE NAME, import-tutor LESSON VIDEO) is plain.
+# A video the command makes (new NAME, variant SOURCE NAME, fork SOURCE NAME, import-tutor LESSON VIDEO)
+# is plain.
 
 def A(*names, **kw):
     return names, kw
@@ -123,6 +124,9 @@ COMMANDS = {
         V("source"), A("name"), A("--dir"), A("--title"),
         A("--learner", help="the new audience's learner model"), A("--vocabulary", help="the new audience's glossary"),
     ], "new:main_variant"),
+    "fork": ("a copy of a video's sources with a history of its own, to take the same video elsewhere", [
+        V("source"), A("name"), A("--dir"), A("--title"),
+    ], "new:main_fork"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         W("video"),
         A("--plan", action="store_true", help="report cached chunks and what would be synthesised"),
