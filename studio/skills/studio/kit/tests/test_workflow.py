@@ -143,9 +143,35 @@ def test_a_video_made_under_the_old_ignore_rules_keeps_working(tmp_path, monkeyp
     assert "boards/boards.json" in tracked and "assets/talk.mp4" not in tracked
     assert git(v, "show", "HEAD:audio/narration.mp3") == "mp3, narrated again"     # tracked stays tracked
     lines = (v / ".gitignore").read_text().splitlines()
-    assert lines[:7] == (OLD_GITIGNORE + "my-notes/").splitlines() and "*.mp4" in lines
+    assert lines[:7] == (OLD_GITIGNORE + "my-notes/").splitlines() and "*.[mM][pP]4" in lines
     checkpoint.commit(v, "again")
     assert (v / ".gitignore").read_text().splitlines() == lines
+
+
+def test_a_checkpoint_leaves_out_secrets_media_in_any_case_and_large_new_files(tmp_path, monkeypatch, capsys):
+    """A commit took a top-level .env (an API key) and, where Git compares case, IMG_0001.MOV."""
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    v, _ = new.create("v", directory=tmp_path / "video")
+    unsigned(monkeypatch, v)
+    git(v, "config", "core.ignorecase", "false")
+    files = {".env": "KEY=x", ".env.local": "KEY=y", "footage/IMG_0001.MOV": "rec", "assets/room.AIFF": "a",
+             "assets/loop.gif": "g", "assets/bed.Flac": "f", "keys/deploy.pem": "k", "notes.txt": "mine"}
+    for rel, text in files.items():
+        (v / rel).parent.mkdir(parents=True, exist_ok=True)
+        (v / rel).write_text(text)
+    with (v / "assets" / "big.zip").open("wb") as f:
+        f.truncate(checkpoint.LARGE + 1)
+    checkpoint.commit(v, "sources")
+    tracked = set(git(v, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
+    assert "notes.txt" in tracked and not tracked & (set(files) - {"notes.txt"} | {"assets/big.zip"})
+    assert "not committed: assets/big.zip (20 MB)" in capsys.readouterr().out
+    git(v, "add", "assets/big.zip")                       # tracked by choice: later commits keep it
+    git(v, "commit", "-q", "-m", "the archive, on purpose")
+    with (v / "assets" / "big.zip").open("ab") as f:
+        f.write(b"more")
+    checkpoint.commit(v, "again")
+    assert git(v, "diff", "HEAD~1", "HEAD", "--name-only") == "assets/big.zip"
+    assert "not committed" not in capsys.readouterr().out
 
 
 def test_house_lexicon_and_series_are_portable_snapshots(tmp_path, monkeypatch):

@@ -104,11 +104,12 @@ kits retain their older pruning behavior until explicitly updated: protect/back 
 before resuming production and run the installed `studio init VIDEO --update`.
 
 `studio new` initializes Git for a standalone folder or reuses its enclosing repository. Generated
-media (video, audio, recordings), cut previews, caches, out/ and package folders are ignored;
-source/evidence/review records, boards, captures and paid narration responses remain checkpointable.
-`studio commit VIDEO "message"` uses a private index and stages every file in the video's folder
-that its .gitignore admits, adding the kit's media rules to an older .gitignore first, and preserves
-unrelated staged work. `video.json.git.sign` is null/inherit by default, true
+media (video, audio, recordings and GIFs, in any letter case), cut previews, caches, out/, package
+folders and secrets (`.env*`, keys) are ignored; source/evidence/review records, boards, captures
+and paid narration responses remain checkpointable. `studio commit VIDEO "message"` uses a private
+index and stages every file in the video's folder that its .gitignore admits, adding the kit's
+rules to an older .gitignore first, and preserves unrelated staged work. A new file over 20 MB is
+left out with a note, whatever its type; `git add` it once to track it on purpose. `video.json.git.sign` is null/inherit by default, true
 for explicit signing, false only when unsigned commits are authorized. It never changes global
 Git settings or silently falls back from signed to unsigned. Commit only at authorized stages.
 Existing tracked binaries need an explicit index migration; ignoring a formerly tracked MP4 does

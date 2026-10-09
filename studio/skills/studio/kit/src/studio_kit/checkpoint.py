@@ -4,7 +4,9 @@ A commit takes every file in the video's folder that its .gitignore lets through
 folder a new command writes (boards/, captures/) is never left out the way an allowlist left it.
 The ignore rules keep out what is media or regenerable: renders, recordings and sound, caches,
 outputs, package folders, and every file of a cut but its record (clean and cut retention manage
-those files, not Git).
+those files, not Git), and files that hold secrets. Media extensions match in any case (a camera
+writes IMG_0001.MOV, and core.ignorecase is false on Linux), and a new file over LARGE is left out
+with a note whatever its type, for the media nobody listed.
 """
 import json
 import os
@@ -15,24 +17,19 @@ from pathlib import Path
 from . import proc
 from . import settings
 
-GITIGNORE = """.cache/
-out/
-cuts/*/*
-!cuts/*/cut.json
-*.mp4
-*.mov
-*.m4v
-*.mkv
-*.webm
-*.wav
-*.mp3
-*.m4a
-node_modules/
-.venv/
-.studio/work/
-__pycache__/
-.DS_Store
-"""
+MEDIA = ("mp4 mov m4v mkv webm avi mts m2ts mpg mpeg wmv flv 3gp "     # video
+         "wav mp3 m4a aac flac ogg oga opus aif aiff caf wma "              # sound
+         "gif").split()                                                     # moving pictures, usually renders
+SECRETS = [".env*", "*.pem", "*.key", "*.p12", "*.pfx", "id_rsa*", "id_ed25519*", ".netrc"]
+LARGE = 20 * 2**20       # bytes: a new file over this is not committed unless Git already tracks it
+
+
+def _any_case(ext):
+    return "*." + "".join(f"[{c}{c.upper()}]" if c.isalpha() else c for c in ext)
+
+
+GITIGNORE = "\n".join([".cache/", "out/", "cuts/*/*", "!cuts/*/cut.json", *map(_any_case, MEDIA), *SECRETS,
+                       "node_modules/", ".venv/", ".studio/work/", "__pycache__/", ".DS_Store"]) + "\n"
 
 
 def ignore(video):
@@ -67,7 +64,16 @@ def commit(video, message):
         head = proc.run(base + ["rev-parse", "--verify", "HEAD"], capture_output=True)
         proc.run(base + ["read-tree", "HEAD"] if head.returncode == 0 else base + ["read-tree", "--empty"], env=env, check=True)
         ignore(video)
+        new = proc.run(base + ["ls-files", "-o", "--exclude-standard", "-z", "--", "."], env=env, capture_output=True,
+                       text=True, check=True).stdout.split("\0")
+        large = [(f, (video / f).lstat().st_size) for f in new if f and (video / f).lstat().st_size > LARGE]
         proc.run(base + ["add", "-A", "--", "."], env=env, check=True)      # the video's folder, in a larger repo too
+        if large:
+            proc.run(base + ["rm", "--cached", "-q", "--", *(f for f, _ in large)], check=True,
+                     env={**env, "GIT_LITERAL_PATHSPECS": "1"})
+        for f, size in large:
+            print(f"not committed: {f} ({size / 2**20:.0f} MB), new and over {LARGE // 2**20} MB; add it to .gitignore, "
+                  "or `git add` it yourself once to track it")
         changed = proc.run(base + ["diff", "--cached", "--quiet"], env=env)
         if changed.returncode == 0:
             return "no source changes to commit"
