@@ -172,3 +172,31 @@ def test_sheets_take_several_strips_and_a_windows_file_in_one_engine_call(tmp_pa
     assert sorted(p.name for p in (tmp_path / "out").iterdir()) == sorted(f"{m['id']}.png" for m in expected)
     with pytest.raises(SystemExit, match="strip window"):
         sheets.windows([["s1", "soon"]])
+
+
+@pytest.mark.parametrize("text,error", [
+    ('[{"clip":"s1","t":1,', "is not JSON"), ('{"clip":"s1","t":1}', "must hold a JSON list"), (None, "No such file"),
+    ('[{"clip":"s1","t":1,"frames":0}]', "strip window"), ('[{"clip":"s1","t":1,"fps":0}]', "strip window"),
+    ('[{"clip":"s1","t":"nan"}]', "strip window"), ('[{"clip":"s1","t":1,"frames":2.7}]', "strip window"),
+    ('[["s1", 1]]', "strip window")])
+def test_a_bad_windows_file_is_a_clear_error(tmp_path, text, error):
+    """These gave a traceback, an empty strip, or the timeline's fps in place of 0."""
+    from studio_kit import sheets
+    f = tmp_path / "windows.json"
+    if text is not None:
+        f.write_text(text)
+    with pytest.raises(SystemExit, match=error):
+        sheets.windows([], f)
+
+
+def test_strips_stay_inside_their_clip_and_differ_by_frames_and_fps():
+    from studio_kit import sheets
+    t = fixture()
+    asked = sheets.windows([["s3", "1.0"], ["s3", "1.0"]]) + [{"clip": "s3", "t": 1.0, "frames": 4}, {"clip": "s3", "t": 1.0, "fps": 10}]
+    assert len(asked) == 3                                   # the same window twice is one strip
+    ids = [moments.sequence(t, w["clip"], w["t"], w.get("frames", 12), w.get("fps"))["id"] for w in asked]
+    assert ids == ["strip_s3_1.0", "strip_s3_1.0_4f", "strip_s3_1.0_10fps"]
+    end = moments.sequence(t, "s3", 2.35)                    # s3 runs 2.4 s
+    assert end["frames"] and max(end["frames"]) < 2.4 and len(end["frames"]) < 12
+    with pytest.raises(SystemExit, match="no frame of s3 near 9.0 s"):
+        moments.sequence(t, "s3", 9.0)

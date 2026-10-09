@@ -24,7 +24,6 @@ from .engine import Engine
 
 PHONE_WIDTH = 360
 PHONE_FRAMES = 15
-STRIP_FRAMES = 12
 
 
 def tile(files, out, cols, width=None):
@@ -78,7 +77,7 @@ def strips(video, out, windows, engine=None, width=320):
     """One strip per window {clip, t, frames?, fps?}: consecutive frames around t (moments.sequence),
     every window's frames rendered in one engine call."""
     engine, t = engine or Engine(video), tl.load(video)
-    seqs = [moments.sequence(t, w["clip"], w["t"], w.get("frames", STRIP_FRAMES), w.get("fps")) for w in windows]
+    seqs = [moments.sequence(t, w["clip"], w["t"], w.get("frames", moments.STRIP_FRAMES), w.get("fps")) for w in windows]
     out = Path(out)
     (out / "_tmp").mkdir(parents=True, exist_ok=True)
     scale = width / tl.layout(video)["width"]
@@ -91,15 +90,32 @@ def strips(video, out, windows, engine=None, width=320):
 
 
 def windows(strip=(), file=None):
-    """The strips asked for: --strip CLIP T pairs, then a --windows file's entries."""
-    asked = [{"clip": c, "t": t} for c, t in strip or ()] + (json.loads(Path(file).read_text()) if file else [])
+    """The strips asked for: --strip CLIP T pairs, then a --windows file's entries, each once."""
+    asked = [{"clip": c, "t": t} for c, t in strip or ()]
+    if file:
+        try:
+            listed = json.loads(Path(file).read_text())
+        except OSError as e:
+            raise SystemExit(f"--windows {file}: {e.strerror}")
+        except ValueError as e:
+            raise SystemExit(f"--windows {file} is not JSON: {e}")
+        if not isinstance(listed, list):
+            raise SystemExit(f"--windows {file} must hold a JSON list of {{clip, t, frames?, fps?}}")
+        asked += listed
     out = []
     for w in asked:
         try:
-            out.append({"clip": str(w["clip"]), "t": float(w["t"]),
-                        **{k: f(w[k]) for k, f in (("frames", int), ("fps", float)) if k in w}})
+            win = {"clip": w["clip"], "t": float(w["t"]), **{k: float(w[k]) for k in ("frames", "fps") if k in w}}
         except (TypeError, ValueError, KeyError):
-            raise SystemExit(f"strip window {w}: needs a clip and a time t, and frames and fps as numbers")
+            win = {}
+        n, fps = win.get("frames", 1.0), win.get("fps", 1.0)
+        if not (isinstance(win.get("clip"), str) and math.isfinite(win.get("t", math.nan)) and n.is_integer() and n >= 1
+                and math.isfinite(fps) and fps > 0):
+            raise SystemExit(f"strip window {w}: needs a clip and a time t; frames, if given, a whole number from 1, "
+                             "and fps a number above 0")
+        win |= {"frames": int(n)} if "frames" in win else {}
+        if win not in out:
+            out.append(win)
     return out
 
 

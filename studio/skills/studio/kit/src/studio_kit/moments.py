@@ -7,7 +7,7 @@ takes), time is seconds into the video. A moment that belongs to a sentence also
   sentence-end  one per sentence, STILL_BEFORE_END before it ends, when its picture is complete
   spread        a clip with no narration, one every NO_NARRATION_STEP seconds, so it has stills too
   check-sample  evenly spaced inside a clip, its ends left out
-  strip         consecutive frames around a time, to catch pops and overlaps
+  strip         consecutive frames around a time, inside its clip, to catch pops and overlaps
 
 The cut's stills, the checks and the sheets take their frames from here, so a new kind is one more
 function and every consumer can ask for it.
@@ -16,6 +16,7 @@ from . import timeline as tl
 
 STILL_BEFORE_END = 0.15     # seconds before a sentence's end, when its picture is complete
 NO_NARRATION_STEP = 1.5     # seconds between stills of a clip that has no narration
+STRIP_FRAMES = 12           # frames in a strip around a time
 
 
 def _moment(c, local, kind, mid, label=None, **extra):
@@ -83,15 +84,20 @@ def check_samples(t, per_clip, clips=None):
     return out
 
 
-def sequence(t, clip, at, frames=12, fps=None, kind="strip"):
+def sequence(t, clip, at, frames=STRIP_FRAMES, fps=None, kind="strip"):
     """`frames` consecutive frames at `fps` (the timeline's by default) around clip time `at`; any
-    before the clip's start are left out."""
+    outside the clip are left out. The id names the frames and fps when they aren't the defaults, so
+    two windows at one time don't share a file."""
     c = next((c for c in t["tracks"]["scene"] if c["id"] == clip), None)
     if c is None:
         raise SystemExit(f"no clip {clip!r} on the timeline")
     fps = fps or t["fps"]
-    times = [round(at + (i - frames // 2) / fps, 4) for i in range(frames)]
-    return _moment(c, at, kind, f"{kind}_{clip}_{at}", frames=[x for x in times if x >= 0], fps=fps)
+    dur = c["end"] - c["start"]
+    times = [x for x in (round(at + (i - frames // 2) / fps, 4) for i in range(frames)) if 0 <= x < dur]
+    if not times:
+        raise SystemExit(f"no frame of {clip} near {at} s: the clip runs from 0 to {dur:.2f} s")
+    mid = f"{kind}_{clip}_{at}" + (f"_{frames}f" if frames != STRIP_FRAMES else "") + (f"_{fps:g}fps" if fps != t["fps"] else "")
+    return _moment(c, at, kind, mid, frames=times, fps=fps)
 
 
 def requests(moments):
