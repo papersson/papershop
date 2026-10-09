@@ -126,7 +126,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 written by the builder; notes.json is generated). `sims/` and `data/` hold evidence.
 `timeline.json` is built, never edited: each command writes the source it owns and rebuilds it
 (`audio/timings.json` narrate, `audio/words.json` align, `audio/sfx.json` sfx, `audio/beats.json`
-beats, `footage/edit.json` edit, video.json `duration` for a piece without narration). Named cues
+beats, `footage/edit.json` edit, video.json `duration` or `clips` for a piece without narration). Named cues
 go in `cues.json` (`{"name": seconds}`), extra audio such as a music bed in `audio/tracks.json`
 (`[{"file", "start", "gain"}]`); after editing either, `studio timeline VIDEO` (or the next cut)
 rebuilds it. `research/` holds reviews, snapshots, timing and pending requests.

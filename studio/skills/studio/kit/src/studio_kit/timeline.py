@@ -6,6 +6,8 @@ one-time `migrate`. Exactly one source gives the base (scenes, narration, durati
 
   footage/edit.json    studio edit       the edit list: footage track, each segment's sound, its words
   audio/timings.json   studio narrate    laid-out sentence timings; "timing": "estimate" | "narrated"
+  video.json clips     the builder       a piece with no narration in chapters: [{id, title?, seconds}]
+                                         back to back
   video.json duration  studio new        a piece with no narration: one clip of that length
 
 and the rest layer on:
@@ -90,11 +92,11 @@ def timing(video, timeline=None):
 
 def audio_role(entry, footage=()):
     """An audio entry's role. Entries written before roles were recorded are told by their file:
-    the narration's name, the sfx render, or a footage segment's recording."""
+    the narration `studio narrate` writes, the sfx render, or a footage segment's recording."""
     if entry.get("role"):
         return entry["role"]
     f = entry.get("file", "")
-    if Path(f).name.startswith("narration"):
+    if f in ("audio/narration.mp3", "audio/narration.wav"):
         return "narration"
     if f == SFX["file"]:
         return "sfx"
@@ -327,13 +329,20 @@ def _base(video, cfg):
         t = from_timings(timings, cfg["engine"])
         t["timing"] = timings.get("timing", "narrated")      # only real narrations kept timings before
         return t, "audio/timings.json"
-    if cfg.get("duration"):
-        d = float(cfg["duration"])
-        return {"version": 1, "fps": DEFAULT_LAYOUT["fps"], "duration": d, "cues": {},
-                "tracks": {"scene": [{"id": "s1", "engine": cfg["engine"], "title": cfg.get("title", "s1"), "start": 0.0, "end": d}],
-                           "narration": [], "captions": [], "audio": []}}, "video.json duration"
+    if cfg.get("clips") or cfg.get("duration"):
+        clips = cfg.get("clips") or [{"id": "s1", "title": cfg.get("title", "s1"), "seconds": float(cfg["duration"])}]
+        scenes, at = [], 0.0
+        for c in clips:
+            end = round(at + float(c["seconds"]), 3)
+            scenes.append({"id": c["id"], "engine": cfg["engine"], "title": c.get("title", c["id"]), "start": at, "end": end})
+            at = end
+        if cfg.get("clips") and cfg.get("duration") and abs(float(cfg["duration"]) - at) > 1e-6:
+            raise SystemExit(f"video.json: duration {cfg['duration']} s and clips ({at} s) disagree; keep one")
+        return {"version": 1, "fps": DEFAULT_LAYOUT["fps"], "duration": at, "cues": {},
+                "tracks": {"scene": scenes, "narration": [], "captions": [], "audio": []}}, \
+            "video.json clips" if cfg.get("clips") else "video.json duration"
     raise SystemExit(f"nothing to build {video / 'timeline.json'} from: narrate the script, `studio edit` "
-                     "the footage, or give video.json a duration")
+                     "the footage, or give video.json a duration or clips")
 
 
 def build(video):
@@ -389,8 +398,11 @@ def build(video):
 
 def migrate(video, old):
     """Lift what a timeline.json from before `build` holds into the sources that now own it. Runs
-    once: a built timeline names its sources, and an existing source is never overwritten. Clip
-    engines are not lifted; the renderer always drew every clip with the video's engine."""
+    once: a built timeline names its sources, and an existing source is never overwritten (except a
+    timings.json the old kit left stale, below). Clip engines are not lifted: the renderer always drew
+    every clip with the video's engine. So on this first build a footage, duration or tutor piece on
+    another engine re-renders once (the cache keys on the clip's engine label, which was "remotion"),
+    and every video re-mixes once (each audio entry's new role enters the soundtrack's key)."""
     if "sources" in old:
         return
     a, lifted = video / "audio", []
@@ -407,24 +419,43 @@ def migrate(video, old):
         lift(video / "footage" / "edit.json", [{"src": Path(f["file"]).stem, "in": f["in"], "out": f["out"],
                                                 "gain": gain.get(f["start"], 0)} for f in footage])
     elif tracks.get("narration"):
+        timings = _read(a / "timings.json")
         lift(a / "timings.json", _timings_of(video, old))
-    elif not settings.raw(video).get("duration"):
-        atomic_json(video / "video.json", {**settings.raw(video), "duration": old["duration"]})
-        lifted.append("video.json duration")
+        if timings and "timing" not in timings and _sentences(timings) != _sentences(old):
+            # The old kit's --estimate never wrote timings.json, so an estimate made after a narration
+            # left that narration's timings behind; the timeline is the newer of the two.
+            atomic_json(a / "timings.json", _timings_of(video, old))
+            lifted.append("audio/timings.json")
+    elif not (settings.raw(video).get("duration") or settings.raw(video).get("clips")):
+        scenes = tracks.get("scene", [])
+        if len(scenes) > 1:          # chapters split by hand in tracks.scene
+            value = {"clips": [{"id": c["id"], "title": c.get("title", c["id"]), "seconds": round(c["end"] - c["start"], 3)}
+                               for c in scenes]}
+        else:
+            value = {"duration": old["duration"]}
+        atomic_json(video / "video.json", {**settings.raw(video), **value})
+        lifted.append("video.json " + next(iter(value)))
     lift(video / "cues.json", {k: v for k, v in old.get("cues", {}).items() if not k.startswith("reveal:")})
     # the sfx cues were never kept, so its render stays as a plain track until `studio sfx` runs again
     lift(a / "tracks.json", [{**e, "role": audio_role(e, footage)} for e in audio if audio_role(e, footage) in ("music", "sfx")])
     lift(a / "beats.json", old.get("beats"))
     lift(a / "final.json", old.get("audio_finish"))
     timings = _read(a / "timings.json")
-    if timings and not footage and not (a / "words.json").exists():
-        # words `studio align` attached in place, which a narration of the same audio would drop
+    # Words `studio align` attached in place belong to the old timeline's narration: lift them only
+    # while timings.json is that same narration (a command that just wrote new timings is not).
+    if timings and not footage and not (a / "words.json").exists() and _sentences(timings) == _sentences(old):
         said = {ln["id"]: ln.get("words", []) for seg in timings["segments"] for ln in seg["lines"]}
         if any(s.get("words") and s["words"] != said.get(s["id"]) for s in tracks.get("narration", [])):
             lift(a / "words.json", {"narration": narration_stamp(video),
                                     "words": [w for s in tracks["narration"] for w in s.get("words", [])]})
     if lifted:
         print("timeline: migrated into " + ", ".join(lifted))
+
+
+def _sentences(x):
+    """(id, text, start, end) of every sentence of a timings.json or a timeline."""
+    lines = [ln for seg in x["segments"] for ln in seg["lines"]] if "segments" in x else x["tracks"]["narration"]
+    return [(s["id"], s["text"], s["start"], s["end"]) for s in lines]
 
 
 def _timings_of(video, t):
@@ -447,7 +478,8 @@ def from_tutor(lesson, video):
         atomic_json(video / "video.json", {"title": video.resolve().name.replace("-", " ").capitalize(), "version": "v1",
                                            "genre": "explainer", "engine": "remotion"})
     shutil.copyfile(lesson / "audio" / "narration.mp3", video / "audio" / "narration.mp3")
-    shutil.copyfile(lesson / "audio" / "timings.json", video / "audio" / "timings.json")
+    t = json.loads((lesson / "audio" / "timings.json").read_text())
+    atomic_json(video / "audio" / "timings.json", {**t, "timing": t.get("timing", "narrated")})
     return build(video)
 
 

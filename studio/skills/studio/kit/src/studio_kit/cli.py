@@ -33,8 +33,6 @@ def _engine_call(args):
 
 def _cut(args):
     from .render import make_cut
-    from .timeline import build
-    build(args.video)          # so an edit to cues.json or audio/tracks.json is in the cut
     log = json.loads(Path(args.changelog).read_text()) if args.changelog else None
     rec = make_cut(args.video, args.quality, args.stills_only, log)
     done = [c["id"] for c in rec["clips"] if c["rendered"]]

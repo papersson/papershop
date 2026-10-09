@@ -34,6 +34,9 @@ variants and let the user choose a direction.
 
 ## Building it
 
+- One clip by default (the starter keeps every beat in `scenes/s1.tsx`). To build the beats as
+  chapters, one scene file each, list them in video.json in place of `duration` (`"clips": [{"id":
+  "s1", "title": "Hook", "seconds": 3}, ...]`) and run `studio timeline VIDEO`.
 - Lay every scene out against the stage's size, so one timeline exports 16:9, 9:16 and 1:1
   (`studio export VIDEO --formats 9:16,1:1,16:9`; type scales with `useStage()`; the starter scene
   shows how). `studio check --format 9:16` catches text or images that leave the frame.

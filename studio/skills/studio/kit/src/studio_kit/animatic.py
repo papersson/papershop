@@ -90,7 +90,7 @@ def pacing(video, timeline, cut_dir, stills, segs, boards=False):
 
 def make(video, boards=False):
     video = Path(video).resolve()
-    timeline = tl.load(video)
+    timeline = tl.build(video)
     if tl.timing(video, timeline) != "narrated":
         raise SystemExit("the timeline is estimated: run `studio narrate VIDEO` first, so the animatic plays the real voice")
     from . import boards as bd

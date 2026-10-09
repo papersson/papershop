@@ -77,5 +77,6 @@ character bible if there is one, a beat sheet with timestamps and a visual payof
 five seconds and a hook in the first two, where text goes big and where it sits like subtitles,
 workflow gates (plan, stills, animatic at low resolution, full pass, polish, audio, render), the
 critique loop above, and deliverables (final, loop check, poster, contact sheet). Work in
-chapters: one scene file each (`scenes/sN.tsx`), a shared `docs/ANIMATION_GUIDE.md` written first
-so parallel agents code in one style.
+chapters: one scene file each (`scenes/sN.tsx`) and one clip each in video.json, replacing
+`duration` (`"clips": [{"id": "s1", "title": "Hook", "seconds": 2.5}, ...]`, then `studio timeline
+VIDEO`), a shared `docs/ANIMATION_GUIDE.md` written first so parallel agents code in one style.

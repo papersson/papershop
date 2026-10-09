@@ -232,7 +232,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     stills_only = stills_only or boards
     from . import boards as bd
     bd.write_notes(video)
-    timeline = tl.load(video)
+    timeline = tl.build(video)      # so an edit to cues.json or audio/tracks.json is in the cut
     engine = engine or Engine(video)
     from . import cuts
     prev_n = cuts.latest(video, ("boards",) if boards else cuts.SCENE_STILLS)
@@ -347,7 +347,7 @@ def export_formats(video, formats, quality="final", lufs=None, name=None):
     """The whole video in each format, final quality by default, into out/export/. Every format comes
     from the same timeline and scenes; each has its own stage and caption band."""
     video = Path(video).resolve()
-    timeline = tl.load(video)
+    timeline = tl.build(video)
     if lufs is not None:
         audio.finish(video, lufs)
     out = video / "out" / "export"

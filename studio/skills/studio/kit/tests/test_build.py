@@ -1,5 +1,6 @@
 """timeline.json is built from the files each command owns, and from nothing else."""
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -160,3 +161,117 @@ def test_words_aligned_in_place_are_lifted_with_the_current_narration(tmp_path):
     t = tl.build(v)
     assert read(v / "audio" / "words.json")["narration"] == tl.narration_stamp(v)
     assert t["tracks"]["narration"][0]["words"] == s["words"]
+
+
+# --- what the old kit (before build) left behind, as a first command after the upgrade finds it ----
+
+def old_narrated(v):
+    """An old real paragraph-mode narration: timings.json without "timing", the mp3, and a timeline
+    from_timings made, with the engine's word times, no roles and no sources."""
+    S = narration.Settings(v)
+    chapters = narration.sc.load(v)
+    timings = narration.layout(S, chapters, narration.estimate_durations(S, chapters))
+    for seg in timings["segments"]:
+        for ln in seg["lines"]:
+            ws, d = ln["caption"].split(), (ln["end"] - ln["start"]) / len(ln["caption"].split())
+            ln["words"] = [{"w": w, "start": round(ln["start"] + i * d, 3), "end": round(ln["start"] + (i + 1) * d - 0.01, 3)}
+                           for i, w in enumerate(ws)]
+    (v / "audio").mkdir(exist_ok=True)
+    (v / "audio" / "narration.mp3").write_bytes(b"MP3" * 1000)
+    (v / "audio" / "timings.json").write_text(json.dumps(timings, indent=1))
+    old_timeline(v, tl.from_timings(timings))
+
+
+def old_timeline(v, t):
+    t.pop("sources", None)
+    for a in t["tracks"]["audio"]:
+        a.pop("role", None)
+    (v / "timeline.json").write_text(json.dumps(t))
+
+
+def test_a_new_narration_does_not_inherit_the_old_timelines_words(tmp_path, capsys):
+    v = explainer(tmp_path)
+    old_narrated(v)
+    (v / "SCRIPT.md").write_text(SCRIPT.replace("Then the network goes quiet.", "Then, after a long wait, the network goes quiet."))
+    narration.narrate(v, estimate=True)
+    t = tl.load(v)
+    assert not (v / "audio" / "words.json").exists() and "audio/words.json" not in t["sources"]
+    assert all(not s["words"] for s in t["tracks"]["narration"]) and "aligned" not in capsys.readouterr().out
+
+
+def test_an_import_over_an_old_timeline_keeps_the_lessons_own_timing(tmp_path):
+    v = explainer(tmp_path)
+    old_narrated(v)
+    lesson = tmp_path / "lesson"
+    (lesson / "audio").mkdir(parents=True)
+    (lesson / "audio" / "narration.mp3").write_bytes(b"lesson")
+    line = {"id": "s1_01", "text": "Hello.", "caption": "Hello.", "paragraph": 0, "start": 0.8, "end": 1.6}
+    (lesson / "audio" / "timings.json").write_text(json.dumps(
+        {"total": 3.0, "segments": [{"id": "s1", "title": "Hi", "start": 0.0, "end": 3.0, "lines": [line]}]}))
+    t = tl.from_tutor(lesson, v)
+    assert [s["caption"] for s in t["tracks"]["narration"]] == ["Hello."] and not t["tracks"]["narration"][0]["words"]
+    assert not (v / "audio" / "words.json").exists()
+
+
+def test_an_old_estimate_after_a_narration_is_the_newer_timing(tmp_path):
+    v = explainer(tmp_path)
+    old_narrated(v)
+    (v / "SCRIPT.md").write_text(SCRIPT.replace("Send a key with every attempt.", "Send a key with every attempt. Keep it for a day."))
+    S = narration.Settings(v)
+    chapters = narration.sc.load(v)
+    estimate = tl.from_timings(narration.layout(S, chapters, narration.estimate_durations(S, chapters)))
+    estimate["timing"] = "estimate"
+    old_timeline(v, estimate)            # the old --estimate rewrote the timeline and left timings.json
+    t = tl.build(v)
+    assert t["timing"] == "estimate" and t["duration"] == estimate["duration"]
+    assert t["tracks"]["narration"][-1]["caption"] == "Keep it for a day."
+    assert read(v / "audio" / "timings.json")["timing"] == "estimate"
+
+
+def test_an_old_silent_piece_split_into_chapters_keeps_them(tmp_path):
+    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "genre": "motion", "engine": "remotion"}))
+    old_timeline(tmp_path, {"version": 1, "fps": 30, "duration": 6.0, "cues": {}, "tracks": {
+        "scene": [{"id": f"s{i + 1}", "engine": "remotion", "title": f"S{i + 1}", "start": 2.0 * i, "end": 2.0 * (i + 1)}
+                  for i in range(3)], "narration": [], "captions": [], "audio": []}})
+    t = tl.build(tmp_path)
+    assert [(c["id"], c["start"], c["end"]) for c in t["tracks"]["scene"]] == [("s1", 0.0, 2.0), ("s2", 2.0, 4.0), ("s3", 4.0, 6.0)]
+    assert read(tmp_path / "video.json")["clips"][1] == {"id": "s2", "title": "S2", "seconds": 2.0}
+    assert t["sources"] == ["video.json clips"]
+
+
+def test_clips_and_a_duration_must_agree(tmp_path):
+    clips = [{"id": "s1", "seconds": 1.5}, {"id": "s2", "title": "Two", "seconds": 2.25}]
+    (tmp_path / "video.json").write_text(json.dumps({"duration": 3.75, "clips": clips}))
+    t = tl.build(tmp_path)
+    assert t["duration"] == 3.75 and t["tracks"]["scene"][1] == {"id": "s2", "engine": "remotion", "title": "Two",
+                                                               "start": 1.5, "end": 3.75}
+    (tmp_path / "video.json").write_text(json.dumps({"duration": 4, "clips": clips}))
+    with pytest.raises(SystemExit, match="disagree"):
+        tl.build(tmp_path)
+
+
+def test_a_music_bed_named_like_the_narration_is_still_music(tmp_path):
+    assert tl.audio_role({"file": "assets/narration-bed.wav"}) == "music"
+    assert tl.audio_role({"file": "audio/narration.wav"}) == "narration"
+    v = explainer(tmp_path)
+    old_narrated(v)
+    t = tl.load(v)
+    t["tracks"]["audio"].append({"file": "assets/narration-bed.wav", "start": 0.0, "gain": -20})
+    (v / "timeline.json").write_text(json.dumps(t))
+    assert [a["role"] for a in tl.build(v)["tracks"]["audio"]] == ["narration", "music"]
+
+
+class StillEngine:
+    def stills(self, requests):
+        for r in requests:
+            Path(r["out"]).write_bytes(b"jpg")
+
+
+def test_a_cut_builds_the_timeline_first(tmp_path):
+    from studio_kit import render
+    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "duration": 3}))
+    tl.build(tmp_path)
+    (tmp_path / "cues.json").write_text(json.dumps({"logo": 2.0}))
+    rec = render.make_cut(tmp_path, stills_only=True, engine=StillEngine())
+    assert tl.load(tmp_path)["cues"] == {"logo": 2.0}
+    assert read(tmp_path / "cuts" / f"cut{rec['cut']}" / "timeline.json")["cues"] == {"logo": 2.0}

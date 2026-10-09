@@ -87,7 +87,8 @@ frame-exact. And a scene must end at its clip's end: `studioScene` holds its las
 counting frames on the thread's `fixed` clock (its `time` is the exact sum of the waits, and drifts
 from the frame count after `waitFor(0.7)`). A project needs one scene per clip in the timeline, so a
 video with a placeholder chapter fails with "no scene number N": add each scene as its chapter is
-written.
+written. A piece without narration gets its clips from video.json `clips` (`[{"id", "title",
+"seconds"}]`), never from edits to timeline.json.
 
 Starters exist for motion, pixel, launch and footage (`studio new NAME --genre G --engine
 motion-canvas`), and each passes its genre's checks unchanged.

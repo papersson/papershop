@@ -74,7 +74,8 @@ def test_import_tutor_makes_a_video_the_other_commands_accept(tmp_path):
     assert cli.main(["import-tutor", str(lesson), str(video)]) == 0
     cfg = json.loads((video / "video.json").read_text())
     assert cfg["genre"] == "explainer" and cfg["engine"] == "remotion" and cfg["title"] == "Hello world"
-    assert (video / "audio" / "timings.json").read_text() == (lesson / "audio" / "timings.json").read_text()
+    timings = json.loads((video / "audio" / "timings.json").read_text())
+    assert timings["timing"] == "narrated" and timings["segments"][0]["lines"] == [line]
     assert cli.main(["timeline", str(video)]) == 0
     t = json.loads((video / "timeline.json").read_text())
     assert t["timing"] == "narrated" and t["tracks"]["narration"][0]["caption"] == "Hello."

@@ -32,6 +32,8 @@ keys without a default are simply absent when unset (callers use .get).
   loop               true: a motion piece must loop seamlessly
   duration           seconds: the length of a piece with no narration (new --duration), the
                      timeline's base when there are no narration timings
+  clips              [{"id", "title", "seconds"}]: such a piece in chapters, back to back, one
+                     scene each; replaces duration (both may stay only if they agree)
 """
 
 import json
