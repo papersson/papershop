@@ -1,4 +1,5 @@
-"""Atomic metadata updates, one build owner, and short operation locks (Unix hosts)."""
+"""Atomic metadata updates, one build owner, short operation locks (Unix hosts), pending requests
+and the builder's scratch folder."""
 import contextlib
 import fcntl
 import json
@@ -55,14 +56,34 @@ def owner(video):
     return json.loads(p.read_text()) if p.exists() else None
 
 
+def check_owner(video):
+    """Stop unless this process holds the owner's token, or nobody owns the video."""
+    rec = owner(video)
+    if rec and rec["token"] != os.environ.get("STUDIO_OWNER"):
+        raise SystemExit(f"video owned by {rec['name']} since {rec['created']}; use its STUDIO_OWNER token "
+                         "or `studio lock VIDEO status` (recover only an abandoned build)")
+
+
 @contextlib.contextmanager
 def operation(video):
     with locked(video, "operation", blocking=False):
-        rec = owner(video)
-        if rec and rec["token"] != os.environ.get("STUDIO_OWNER"):
-            raise SystemExit(f"video owned by {rec['name']} since {rec['created']}; use its STUDIO_OWNER token "
-                             "or `studio lock VIDEO status` (recover only an abandoned build)")
+        check_owner(video)
         yield
+
+
+def scratch(video):
+    """VIDEO/.studio/work, made if missing: the builder's scratch files and helper scripts. Inside the
+    video, so they survive a restart; ignored by Git and left behind by fork, so a helper worth
+    keeping moves to sims/."""
+    p = Path(video) / ".studio" / "work"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def pending(video):
+    """The open requests in research/requests.md, as written after their checkbox: "ID TIME — TEXT"."""
+    p = Path(video) / "research" / "requests.md"
+    return [line[6:] for line in p.read_text().splitlines() if line.startswith("- [ ] ")] if p.exists() else []
 
 
 def main_lock(args):
@@ -77,11 +98,18 @@ def main_lock(args):
             rec = {"name": args.owner, "token": uuid.uuid4().hex, "created": now(), "host": socket.gethostname()}
             atomic_json(p, rec)
             print(f"owner: {rec['name']}\nexport STUDIO_OWNER={rec['token']}")
+            if args.recover:
+                from . import handoff
+                print("\n" + handoff.recovered(args.video))
         else:
             if rec and rec["token"] != os.environ.get("STUDIO_OWNER") and not args.recover:
                 raise SystemExit("release needs the owner's STUDIO_OWNER token, or explicit --recover")
             p.unlink(missing_ok=True)
             print("owner released")
+            from . import handoff
+            reminder = handoff.reminder(args.video)
+            if reminder:
+                print(reminder)
 
 
 def main_request(args):

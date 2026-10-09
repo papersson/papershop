@@ -166,12 +166,13 @@ def main_variant(args):
 
 
 # What a fork leaves behind. Anywhere: repositories, caches and package folders. At these paths:
-# outputs, and what is the source's alone (its stage log, pending requests) or names its cuts (the
-# desk's notes, frame-review bundles). Cuts stay behind whole: publish, sheets, frame review and
-# the next cut read the stills and video beside a record, so a record without them is a broken cut.
+# outputs, and what is the source's alone (its stage log, pending requests, handoff, the builder's
+# scratch) or names its cuts (the desk's notes, frame-review bundles). Cuts stay behind whole:
+# publish, sheets, frame review and the next cut read the stills and video beside a record, so a
+# record without them is a broken cut.
 FORK_SKIP_NAMES = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
 FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/timing.jsonl", "research/requests.md",
-                   ".studio/work"}
+                   "research/handoff.md", ".studio/work"}
 
 
 def fork(source, name, directory=None, title=None):
@@ -209,7 +210,7 @@ def fork(source, name, directory=None, title=None):
 
 def main_fork(args):
     v = fork(args.source, args.name, args.dir, args.title)
-    pinned = " The pinned kit came without its packages: `.studio/bin/studio doctor --fetch`." if (v / ".studio").is_dir() else ""
+    pinned = " The pinned kit came without its packages: `.studio/bin/studio doctor --fetch`." if (v / ".studio" / "PIN").exists() else ""
     print(f"fork at {v}: sources copied, its stage log starts at the fork; cuts, notes and caches stay with "
           f"{Path(args.source).resolve().name}, so the first cut renders every clip.{pinned}")
     return 0

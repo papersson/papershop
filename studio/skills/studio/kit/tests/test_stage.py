@@ -1,4 +1,5 @@
 import json
+import time
 
 from studio_kit import stage
 
@@ -84,3 +85,49 @@ def test_a_stage_budget_counts_every_run_of_the_stage_since_the_latest_round(tmp
     stage.mark(v, "scenes", now=121 * 60)
     s = stage.status(v, now=131 * 60)
     assert (s["total"], s["over"]) == (10 * 60, False)
+
+
+def background(tmp_path, budget, mode="background"):
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "mode": mode, "budget": budget}))
+    return tmp_path
+
+
+def test_a_background_stage_stops_at_twice_its_own_budget(tmp_path):
+    v = background(tmp_path, {"polish": 60})
+    stage.mark(v, "polish", now=0)
+    assert not stage.status(v, now=119 * 60)["stop"] and stage.status(v, now=119 * 60)["over"]
+    assert stage.status(v, now=120 * 60)["stop"]
+    lines, stopped = stage.check(v, now=125 * 60)
+    assert stopped and lines[1].startswith("STOP: polish has run 2h05m against its 1h00m budget")
+    assert f"studio handoff {v.resolve()} --notes" in lines[1] and "budget.polish" in lines[1]
+    stage.mark(v, "waiting", now=130 * 60)
+    lines = stage.mark(v, "polish", now=200 * 60)     # a resumed run counts with the earlier ones
+    assert any(ln.startswith("STOP: polish") for ln in lines) and not any("OVER BUDGET" in ln for ln in lines)
+
+
+def test_aggregates_and_interactive_mode_never_stop(tmp_path):
+    v = background(tmp_path, {"first_cut": 10, "round": 1})
+    stage.mark(v, "scenes", now=0)
+    s = stage.status(v, now=10 * 3600)
+    assert s["scope"]["over"] and not s["stop"]
+    assert stage.check(v, now=10 * 3600) == ([stage.check(v, now=10 * 3600)[0][0]], False)
+    v = background(tmp_path, {"scenes": 10}, mode="interactive")
+    assert stage.status(v, now=10 * 3600)["over"] and not stage.status(v, now=10 * 3600)["stop"]
+    v = background(tmp_path, {"waiting": 10})
+    stage.mark(v, "waiting", now=0)
+    assert not stage.status(v, now=10 * 3600)["stop"]
+
+
+def test_check_exits_3_when_stopped_and_takes_no_lock(tmp_path, monkeypatch, capsys):
+    from studio_kit import cli, workspace
+    v = background(tmp_path, {"polish": 1})
+    assert stage.check(v) == (["no stages marked yet (studio stage VIDEO NAME)"], False)
+    stage.mark(v, "polish", now=time.time() - 150)
+    assert cli.main(["stage", str(v), "--check"]) == stage.STOPPED
+    assert "STOP: polish" in capsys.readouterr().out
+    def locked(video):
+        raise AssertionError("a check took the operation lock")
+    monkeypatch.setattr(workspace, "operation", locked)
+    assert cli.main(["stage", str(v), "--check"]) == stage.STOPPED      # while a cut holds the lock
+    background(tmp_path, {"polish": 10 ** 6})
+    assert cli.main(["stage", str(v), "--check"]) == 0

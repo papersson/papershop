@@ -169,6 +169,7 @@ COMMANDS = {
     "sound-lab": ("a page to choose effect candidates by listening", [V("video")], "sfx:main_lab"),
     "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [
         W("video"), A("name", nargs="?"), A("--report", action="store_true"),
+        A("--check", action="store_true", help="the current stage against its budgets, unmarked; exit 3 at a background hard stop"),
         A("--kind", choices=["local", "structural"], default="local"),
         A("--summary", help="revision refactoring entry: merge/trim plan and expected runtime change"),
     ], "stage:main"),
@@ -187,6 +188,10 @@ COMMANDS = {
         V("video"), A("action", choices=["acquire", "release", "status"]), A("--owner", default="builder"),
         A("--recover", action="store_true", help="explicitly recover an abandoned owner's lease"),
     ], "workspace:main_lock"),
+    "handoff": ("write research/handoff.md, a brief a fresh builder can resume from", [
+        W("video"), A("--notes", help="what only the builder knows, for the brief's builder notes"),
+        A("--notes-file", metavar="FILE", help="the builder notes from a file"),
+    ], "handoff:main"),
     "request": ("queue or resolve a mid-flight request", [
         V("video"), A("text", nargs="?"), A("--resolve", metavar="ID"),
     ], "workspace:main_request"),
@@ -260,6 +265,12 @@ COMMANDS = {
 }
 
 
+def reads_only(args):
+    """A changing command asked only to read, which takes no lock: a check between chapters must not
+    fail because a cut is running."""
+    return (args.cmd == "clean" and args.dry_run) or (args.cmd == "stage" and (args.check or args.report or not args.name))
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="studio", description="Drive the studio kit.")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -277,7 +288,7 @@ def main(argv=None):
         module, func = handler.split(":")
         handler = getattr(importlib.import_module(f".{module}", __package__), func)
     changes = any(kw.get("type") is changed_video for _, kw in arguments)
-    if changes and not (args.cmd == "clean" and args.dry_run):
+    if changes and not reads_only(args):
         from .workspace import operation
         with operation(args.video):
             return handler(args) or 0

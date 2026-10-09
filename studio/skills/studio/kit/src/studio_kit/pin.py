@@ -51,7 +51,7 @@ def init(video, update=False):
     if not (video / "video.json").exists():
         raise SystemExit(f"{video} is not a video folder (no video.json)")
     pin = video / ".studio"
-    if pin.exists() and not update:
+    if (pin / "PIN").exists() and not update:      # .studio/work alone is the builder's scratch, not a pin
         raise SystemExit(f"{pin} exists: pinned to studio {(pin / 'PIN').read_text().split()[0] if (pin / 'PIN').exists() else '?'}; "
                          "use --update to replace it with this plugin's current kit")
     if update:
