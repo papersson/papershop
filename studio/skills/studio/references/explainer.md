@@ -42,7 +42,8 @@ Release the lease when handing ownership back; recover only an abandoned build.
 Mark stages with `studio stage VIDEO NAME`; `waiting` excludes user wait from active budgets and
 `finished` closes timing. video.json `budget` holds minutes: `first_cut`, `round` and
 `structural_round` for the scopes, and a stage's name as it is marked (`"scenes": 30`) for a
-budget on that stage alone; there are no per-stage defaults. Over-budget reports are advisory:
+budget on that stage alone: every run of it since the latest round mark (the first cut, before
+one), resumed runs included; there are no per-stage defaults. Over-budget reports are advisory:
 re-estimate changed scope and report where time went, without skipping correctness. Commit at
 authorized stages through `studio commit`. Never push a video's repository without authorization.
 See `publishing.md` for revision rounds.

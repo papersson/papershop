@@ -57,9 +57,10 @@ def durations(marks, now=None):
 def status(video, now=None):
     """Where the build stands against its budgets, as data, for `mark` to print and for anything that
     acts on an overrun. Seconds throughout:
-    {stage, kind, spent, budget, over, scope: {name, spent, limit, ratio, over}}: the latest mark and
-    the time since it, against video.json's budget for that stage if it names one, and the scope the
-    stage counts towards (first_cut, round or structural_round, from the latest round mark on).
+    {stage, kind, spent, total, budget, over, scope: {name, spent, limit, ratio, over}}: the latest
+    mark and the time since it; every run of that stage in the scope (a stage resumed after waiting
+    counts once more), against video.json's budget for it if it names one; and the scope the stage
+    counts towards (first_cut, round or structural_round), which runs from the latest round mark on.
     """
     now = now if now is not None else time.time()
     marks, b = read(video), budget(video)
@@ -68,11 +69,13 @@ def status(video, now=None):
     own = b.get(current.get("stage")) if current.get("stage") not in AGGREGATES else None
     rounds = [m for m in marks if m["stage"] in ROUND_STAGES]
     start = marks.index(rounds[-1]) if rounds else 0
-    scope_spent = sum(d for stage, d in durations(marks[start:], now) if stage not in ("waiting", "finished"))
+    runs = durations(marks[start:], now)
+    total = sum(d for stage, d in runs if stage == current.get("stage"))
+    scope_spent = sum(d for stage, d in runs if stage not in ("waiting", "finished"))
     scope = "structural_round" if rounds and rounds[-1].get("kind") == "structural" else "round" if rounds else "first_cut"
     limit = (b.get("structural_round", b["round"] * 4) if scope == "structural_round" else b[scope]) * 60
-    return {"stage": current.get("stage"), "kind": current.get("kind"), "spent": spent,
-            "budget": own * 60 if own is not None else None, "over": own is not None and spent > own * 60,
+    return {"stage": current.get("stage"), "kind": current.get("kind"), "spent": spent, "total": total,
+            "budget": own * 60 if own is not None else None, "over": own is not None and total > own * 60,
             "scope": {"name": scope, "spent": scope_spent, "limit": limit, "ratio": scope_spent / limit if limit else None,
                       "over": scope_spent > limit}}
 
@@ -85,7 +88,8 @@ def mark(video, name, now=None, kind="local", summary=None):
         ended = status(video, now)
         line = f"{ended['stage']}: {fmt(ended['spent'])}"
         if ended["budget"] is not None:
-            line += f" (stage budget {fmt(ended['budget'])}" + (f", over by {fmt(ended['spent'] - ended['budget'])})" if ended["over"] else ")")
+            line += f" (stage: {fmt(ended['total'])} of {fmt(ended['budget'])}" + \
+                (f", over by {fmt(ended['total'] - ended['budget'])})" if ended["over"] else ")")
         lines.append(line)
     entry = {"stage": name, "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"), "kind": kind}
     f = log_path(video)
@@ -94,7 +98,7 @@ def mark(video, name, now=None, kind="local", summary=None):
         out.write(json.dumps(entry) + "\n")
     s = status(video, now)
     sc = s["scope"]
-    own = f" (stage budget {fmt(s['budget'])})" if s["budget"] is not None else ""
+    own = f" (stage: {fmt(s['total'])} of {fmt(s['budget'])})" if s["budget"] is not None else ""
     lines.append(f"now: {name}{own} · {fmt(sc['spent'])} into {SCOPES[sc['name']]} (budget {fmt(sc['limit'])})")
     if sc["over"]:
         lines.append(f"OVER BUDGET by {fmt(sc['spent'] - sc['limit'])}: finish this stage with what is open logged, "

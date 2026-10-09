@@ -18,7 +18,8 @@ keys without a default are simply absent when unset (callers use .get).
   poster             [clip, seconds] for the poster frame
   budget             minutes, over the level's defaults (stage): "first_cut", "round" and
                      "structural_round" (default 4 × round) for the scopes; any other key is a stage's
-                     name, a budget for that stage alone (none by default)
+                     name, a budget for every run of that stage since the latest round mark (none
+                     by default)
   keep_cuts          playable cuts kept by clean                               default 10
   teaching_contract  true: script check and review receipts gate narration and publish
   review_roles       extra script reviewers beyond those drive and level require
