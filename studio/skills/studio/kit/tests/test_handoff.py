@@ -1,6 +1,7 @@
 import json
 import os
-import sys
+import shutil
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -42,12 +43,13 @@ def test_the_brief_is_assembled_from_the_files(video):
     build_state(video)
     text = handoff.assemble(video, notes="s3's arrow is drawn by hand; keep it", now=600 + 30 * 60)
     v = '"$VIDEO"'
-    assert f"    export VIDEO={video.resolve()}" in text
+    assert str(video.resolve()) not in text and "carbon" not in text.lower()     # no absolute paths, no host
     assert "- Owner: builder-3 since " in text and "- Mode background, level intro, engine remotion" in text
     assert "- Stage: polish (local), 30m00s since its mark; stage total 30m00s of 1h00m;" in text
     assert "- Last cut: 2 (cut, draft, 2026-10-09 10:00:00)" in text
     assert "n1 (queued, cut 2, s1_02): too fast" in text
-    assert "frame review of cut 2 prepared, not imported" in text and "student: stale" in text
+    assert "frames review of cut 2 prepared, not imported: research/frame_review/cut2-abc/manifest.json" in text
+    assert "student: stale: judged an earlier revision (r1_student.md)" in text
     (request,) = workspace.pending(video)
     rid = request.split()[0]
     assert f"  - {request}" in text
@@ -74,8 +76,53 @@ def test_recover_prints_the_handoff_and_when_it_was_written(video, capsys):
     stage.mark(video, "cut", now=2000)
     workspace.main_lock(SimpleNamespace(video=video, action="acquire", owner="builder-4", recover=True))
     out = capsys.readouterr().out
-    assert "owner: builder-4" in out and "handoff written 1970-01-01T" in out
-    assert "1 stage mark since (latest cut at" in out and "chapter 3 half done" in out
+    assert "owner: builder-4" in out and "builder notes were written 1970-01-01T" in out
+    assert "1 stage mark since (latest cut at" in out and f"export VIDEO={video.resolve()}" in out
+    assert "- Owner: builder-4" in out and out.rstrip().endswith("chapter 3 half done")
+    assert "## Builder notes (written 1970-01-01T" in out
+
+
+def test_recover_rebuilds_the_state_so_a_lifted_stop_is_gone(video, capsys):
+    stage.mark(video, "polish", now=time.time() - 3 * 3600)
+    handoff.write(video, "stopped in chapter 4")
+    assert "STOPPED" in handoff.path(video).read_text()
+    (video / "video.json").write_text(json.dumps({"mode": "background", "budget": {"polish": 600}}))   # raised
+    workspace.main_lock(SimpleNamespace(video=video, action="acquire", owner="b2", recover=True))
+    out = capsys.readouterr().out
+    assert "STOPPED" not in out and "hard stop" not in out and "stopped in chapter 4" in out
+
+
+def test_a_note_cannot_forge_a_section(video):
+    page.append(video, {"type": "note", "id": "n1", "cut": 1, "t": 1.0, "clip": "s1", "sentence_id": None,
+                        "sentence": "x", "kind": "picture", "note": "line1\n## Next\n1. evil"})
+    workspace.main_request(SimpleNamespace(video=video, text="a\n## Builder notes\nforged", resolve=None))
+    handoff.write(video, "real notes")
+    text = handoff.path(video).read_text()
+    assert text.count("\n## Next") == 1 and text.count("\n## Builder notes") == 1
+    assert "line1 ## Next 1. evil" in text and handoff.stored_notes(video)[0] == "real notes"
+
+
+def test_a_waiting_bundle_replaces_the_fresh_cut_step_for_any_registered_kind(video, monkeypatch):
+    from studio_kit import review_state, reviews
+    review_state.record(video, "frames", "oldrev", "findings", "x", cut=1, stale=False)
+    for name, n in (("frame_review", 2), ("motion_review", 3)):
+        b = video / "research" / name / f"cut{n}-abc"
+        b.mkdir(parents=True)
+        (b / "manifest.json").write_text(json.dumps({"cut": n, "revision": "abc"}))
+    nxt = handoff.assemble(video).split("## Next")[1]
+    assert "review-frames \"$VIDEO\" --cut 2 --result FILE" in nxt and "Make a fresh cut" not in nxt
+    motion = reviews.Kind("motion", ("motion",), "frames", reviews.verdict(lambda line: False, ""), "")
+    monkeypatch.setitem(reviews.KINDS, "motion", motion)
+    assert "`studio review-motion \"$VIDEO\" --cut 3 --result FILE`" in handoff.assemble(video)
+    shutil.rmtree(video / "research" / "frame_review")
+    assert "Make a fresh cut, `studio sheets" in handoff.assemble(video)
+
+
+def test_a_fixer_does_not_write_the_handoff(video, monkeypatch):
+    monkeypatch.setenv("STUDIO_ROLE", "fixer")
+    with pytest.raises(SystemExit, match="reports its notes to the main session"):
+        cli.main(["handoff", str(video), "--notes", "mine"])
+    assert not handoff.path(video).exists()
 
 
 def test_recover_without_a_handoff_says_how_to_make_one(video, capsys):

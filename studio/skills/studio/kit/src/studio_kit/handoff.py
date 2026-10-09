@@ -5,30 +5,50 @@ One restart after a builder ran out of context depended on notes that builder ha
 So the brief is assembled from the files: the owner, mode and level, the stage against its budget,
 the last cut and its open notes, reviews in flight, pending requests, the next commands they imply
 and where scratch lives, with the builder's own notes for what only it knows. `lock acquire
---recover` prints it.
+--recover` rebuilds the state from the files and keeps only those notes. A chapter fixer
+(STUDIO_ROLE=fixer) reports to the main session instead of writing one.
 """
 import json
+import os
 import shlex
+import time
 from datetime import datetime
 from pathlib import Path
 
 from . import settings, stage, workspace
 
 
+NOTES = "## Builder notes"
+
+
 def path(video):
     return Path(video) / "research" / "handoff.md"
 
 
-def frame_bundles(video):
-    """[(cut, manifest)] for frame-review bundles prepared and not imported, past the last imported cut."""
+def one_line(text):
+    """TEXT with its whitespace collapsed, so a note or a request can't start a line of the brief."""
+    return " ".join(str(text).split())
+
+
+def bundle_dir(video, kind):
+    """Where a review kind packaged for the main session keeps its bundles: research/<kind>_review
+    (frames: frame_review), unless the kind names its own `bundles` folder."""
+    return Path(video) / (getattr(kind, "bundles", None) or f"research/{kind.name.removesuffix('s')}_review")
+
+
+def bundles(video):
+    """[(kind, cut, manifest)] for review bundles prepared and not imported, newer than the cut that
+    kind's receipts last judged, for every kind in the registry."""
     from .review_state import read
-    done = read(video, "frames").get("cut") or 0
+    from .reviews import KINDS
     out = []
-    for m in sorted((Path(video) / "research" / "frame_review").glob("*/manifest.json")):
-        cut = json.loads(m.read_text())["cut"]
-        if not (m.parent / "result.md").exists() and cut > done:
-            out.append((cut, m))
-    return sorted(out)
+    for kind in KINDS.values():
+        done = max((read(video, role).get("cut") or 0 for role in kind.roles), default=0)
+        for m in bundle_dir(video, kind).glob("*/manifest.json"):
+            cut = json.loads(m.read_text()).get("cut") or 0
+            if not (m.parent / "result.md").exists() and cut > done:
+                out.append((kind, cut, m))
+    return sorted(out, key=lambda b: (b[0].name, b[1]))
 
 
 def receipts(video):
@@ -49,8 +69,15 @@ def receipts(video):
     return out
 
 
-def assemble(video, notes=None, now=None):
-    """The brief, as markdown."""
+def relative(video, detail):
+    """A receipt's detail, as a path inside the video where it is one."""
+    p = Path(str(detail))
+    return str(p.relative_to(video)) if p.is_absolute() and p.is_relative_to(video) else str(detail)
+
+
+def assemble(video, notes=None, now=None, notes_at=None):
+    """The brief, as markdown. Paths are relative to the video and commands name it as $VIDEO, so the
+    brief reads the same on another machine; `notes_at` dates builder notes kept from an earlier brief."""
     from . import cuts, page
     from .review_state import fingerprint
     video = Path(video).resolve()
@@ -62,22 +89,23 @@ def assemble(video, notes=None, now=None):
     n = cuts.latest(video, recs=recs)
     rendered = cuts.latest(video, cuts.RENDERED, recs=recs)
     open_notes = [x for x in page.fold(page.read_log(video))[0] if x["status"] != "done"]
-    bundles, stale, pending = frame_bundles(video), receipts(video), workspace.pending(video)
+    waiting, stale, pending = bundles(video), receipts(video), [one_line(r) for r in workspace.pending(video)]
     when = datetime.fromtimestamp(now) if now is not None else datetime.now()
+    fmt = stage.fmt
 
-    out = [f"# Handoff: {cfg.get('title', video.name)}", "",
-           f"Written {when.isoformat(timespec='seconds')}. The commands below name the video as $VIDEO:", "",
-           f"    export VIDEO={shlex.quote(str(video))}", "", "## State", ""]
-    out.append(f"- Owner: {owner['name']} since {owner['created']} on {owner['host']}" if owner else "- Owner: none")
+    out = [f"# Handoff: {one_line(cfg.get('title', video.name))}", "",
+           f"Written {when.isoformat(timespec='seconds')}. Paths are relative to the video's folder, and the commands "
+           "name it as $VIDEO (`export VIDEO=PATH` first).", "", "## State", ""]
+    out.append(f"- Owner: {one_line(owner['name'])} since {owner['created']}" if owner else "- Owner: none")
     out.append(f"- Mode {cfg['mode']}, level {cfg['level']}, engine {cfg['engine']}")
     if s["stage"] is None:
         out.append("- Stage: none marked yet")
     else:
-        own = f"; stage total {stage.fmt(s['total'])} of {stage.fmt(s['budget'])}" if s["budget"] is not None else ""
+        own = f"; stage total {fmt(s['total'])} of {fmt(s['budget'])}" if s["budget"] is not None else ""
         sc = s["scope"]
-        out.append(f"- Stage: {s['stage']} ({s['kind']}), {stage.fmt(s['spent'])} since its mark{own}"
+        out.append(f"- Stage: {one_line(s['stage'])} ({s['kind']}), {fmt(s['spent'])} since its mark{own}"
                    f"{' (STOPPED: past the hard stop)' if s['stop'] else ' (over)' if s['over'] else ''}; "
-                   f"{stage.fmt(sc['spent'])} into {stage.SCOPES[sc['name']]}, budget {stage.fmt(sc['limit'])}"
+                   f"{fmt(sc['spent'])} into {stage.SCOPES[sc['name']]}, budget {fmt(sc['limit'])}"
                    f"{' (over, advisory)' if sc['over'] else ''}")
     if n:
         rec = recs[n]
@@ -86,41 +114,45 @@ def assemble(video, notes=None, now=None):
     else:
         out.append("- Last cut: none")
     out.append(f"- Open desk notes: {len(open_notes)}" + "".join(
-        f"\n  - {x['id']} ({x['status']}, cut {x['cut']}, {x['sentence_id'] or x['clip']}): {x['note'] or '(here)'}"
-        for x in open_notes))
-    out.append("- Reviews in flight:" + (" none" if not (bundles or stale) else "".join(
-        [f"\n  - frame review of cut {c} prepared, not imported: {m.relative_to(video)}" for c, m in bundles] +
-        [f"\n  - {r['role']}: {why} ({r.get('detail') or 'no detail'})" for r, why in stale])))
+        f"\n  - {one_line(x['id'])} ({x['status']}, cut {x['cut']}, {one_line(x['sentence_id'] or x['clip'])}): "
+        f"{one_line(x['note'] or '(here)')}" for x in open_notes))
+    out.append("- Reviews in flight:" + (" none" if not (waiting or stale) else "".join(
+        [f"\n  - {k.name} review of cut {c} prepared, not imported: {m.relative_to(video)}" for k, c, m in waiting] +
+        [f"\n  - {r['role']}: {why} ({one_line(relative(video, r.get('detail') or 'no detail'))})" for r, why in stale])))
     out.append("- Pending requests:" + (" none" if not pending else "".join(f"\n  - {r}" for r in pending)))
 
     steps = []
     if s["stop"]:
-        steps.append(f"Stage {s['stage']} is past its hard stop: the main session decides whether to raise video.json "
-                     f"budget.{s['stage']} before anyone continues it")
+        steps.append(f"Stage {one_line(s['stage'])} is past its hard stop: the main session decides whether to raise "
+                     f"video.json budget.{one_line(s['stage'])} before anyone continues it")
     steps += [f"The main session gives {m.parent.relative_to(video)} to a fresh reviewer; import its response: "
-              f"`studio review-frames {v} --cut {c} --result FILE`" for c, m in bundles]
+              f"`studio review-{k.name} {v} --cut {c} --result FILE`" for k, c, m in waiting]
     for r, why in stale:
         if r["kind"] == "script":
             ready = f"report ready for the {r['role']} script review (`studio review {v} ROUND --only {r['role']}`)"
-            steps.append(f"Address the findings in {r['detail']}, then {ready}" if r["status"] == "findings" else "R" + ready[1:])
-        else:
-            steps.append(f"Make a fresh cut, `studio sheets {v} {v}/out/sheets` and `studio review-frames {v}`, "
-                         "and report ready for frame review")
+            steps.append(f"Address the findings in {one_line(relative(video, r['detail']))}, then {ready}"
+                         if r["status"] == "findings" else "R" + ready[1:])
+        elif not any(k.name == r["kind"] for k, _, _ in waiting):    # a newer bundle is already out
+            sheets = f"`studio sheets {v} {v}/out/sheets`, " if r["kind"] == "frames" else ""
+            steps.append(f"Make a fresh cut, {sheets}`studio review-{r['kind']} {v}`, and report ready for "
+                         f"the {r['kind']} review")
     steps += [f"Incorporate request {r.split()[0]}, then `studio request {v} --resolve {r.split()[0]}`" for r in pending]
-    steps += [f"Resolve note {x['id']}: `studio notes {v} --start {x['id']}`, change, then "
-              f"`studio notes {v} --resolve {x['id']} --reply TEXT`" for x in open_notes]
+    steps += [f"Resolve note {one_line(x['id'])}: `studio notes {v} --start {one_line(x['id'])}`, change, then "
+              f"`studio notes {v} --resolve {one_line(x['id'])} --reply TEXT`" for x in open_notes]
     if rendered and recs[rendered].get("source_revision") != fingerprint(video, frames=True):
         steps.append(f"Cut, since the sources changed after cut {rendered}: `studio cut {v}`")
-    steps.append(f"Mark the stage you resume: `studio stage {v} NAME`" + (f" (the log's latest is {s['stage']})" if s["stage"] else ""))
+    steps.append(f"Mark the stage you resume: `studio stage {v} NAME`"
+                 + (f" (the log's latest is {one_line(s['stage'])})" if s["stage"] else ""))
     out += ["", "## Next", ""] + [f"{i}. {step}" for i, step in enumerate(steps, 1)]
 
     work = video / ".studio" / "work"
-    files = sorted(str(p.relative_to(work)) for p in work.rglob("*") if p.is_file()) if work.is_dir() else []
+    files = sorted(one_line(p.relative_to(work)) for p in work.rglob("*") if p.is_file()) if work.is_dir() else []
     out += ["", "## Scratch", "",
-            f"$VIDEO/.studio/work: {len(files)} file{'' if len(files) == 1 else 's'}" + (": " + ", ".join(files[:12]) if files else "")
+            f".studio/work: {len(files)} file{'' if len(files) == 1 else 's'}" + (": " + ", ".join(files[:12]) if files else "")
             + (", …" if len(files) > 12 else "") + ". Ignored by Git and left behind by fork; helpers worth keeping "
             "belong in sims/."]
-    out += ["", "## Builder notes", "", (notes or "").strip() or "(none given)"]
+    dated = f" (written {datetime.fromtimestamp(notes_at).isoformat(timespec='seconds')})" if notes_at else ""
+    out += ["", NOTES + dated, "", (notes or "").strip() or "(none given)"]
     return "\n".join(out) + "\n"
 
 
@@ -131,18 +163,32 @@ def write(video, notes=None, now=None):
     return p
 
 
+def stored_notes(video):
+    """(notes, when written) from research/handoff.md: the one part of a brief the files can't rebuild."""
+    p = path(video)
+    head, sep, tail = p.read_text().partition("\n" + NOTES)
+    notes = tail.split("\n", 1)[1].strip() if sep and "\n" in tail else ""
+    return ("" if notes == "(none given)" else notes), p.stat().st_mtime
+
+
+def export(video):
+    return f"export VIDEO={shlex.quote(str(Path(video).resolve()))}"
+
+
 def recovered(video):
-    """What `lock acquire --recover` prints: the handoff and when it was written, or how to make one."""
+    """What `lock acquire --recover` prints: a brief assembled now, so it never repeats a state that
+    has changed since (a stop the main session lifted), with the stored builder notes and their age."""
     p = path(video)
     if not p.exists():
         return f"no handoff at {p}; assemble one from the files with `studio handoff {shlex.quote(str(Path(video).resolve()))}`"
-    written = p.stat().st_mtime
-    marks = stage.read(video)
-    after = [m for m in marks if m["t"] > written]
-    since = f"; {len(after)} stage mark{'' if len(after) == 1 else 's'} since (latest {after[-1]['stage']} at {after[-1]['at']})" \
-        if after else ""
-    return (f"handoff written {datetime.fromtimestamp(written).isoformat(timespec='seconds')}"
-            f" ({stage.fmt(datetime.now().timestamp() - written)} ago{since}):\n\n{p.read_text()}")
+    notes, written = stored_notes(video)
+    after = [m for m in stage.read(video) if m["t"] > written]
+    since = f"; {len(after)} stage mark{'' if len(after) == 1 else 's'} since (latest {one_line(after[-1]['stage'])} " \
+        f"at {after[-1]['at']})" if after else ""
+    return (f"handoff: the state below is read from the files now; the builder notes were written "
+            f"{datetime.fromtimestamp(written).isoformat(timespec='seconds')} "
+            f"({stage.fmt(time.time() - written)} ago{since})\n{export(video)}\n\n"
+            + assemble(video, notes, notes_at=written))
 
 
 def reminder(video):
@@ -160,7 +206,9 @@ def reminder(video):
 
 
 def main(args):
+    if os.environ.get("STUDIO_ROLE") == "fixer":
+        raise SystemExit("a chapter fixer reports its notes to the main session, which writes the handoff")
     notes = Path(args.notes_file).read_text() if args.notes_file else args.notes
     p = write(args.video, notes)
-    print(p.read_text() + f"\nwritten to {p}")
+    print(f"{export(args.video)}\n\n{p.read_text()}\nwritten to {p}")
     return 0
