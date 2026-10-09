@@ -2,7 +2,7 @@
 // and helpers scenes use, so a term means exactly what a scene can do. glossary.html shows them all
 // (or ?term=<term> alone); the desk links to it next to the note box.
 
-import { clamp, ease, lerp, prog, pulse, stagger, countUp } from './kit.js'
+import { clamp, ease, lerp, prog, pulse, stagger, countUp, keyed, follow, settle, wobble } from './kit.js'
 
 export const LOOP = 3.6 // seconds per demo loop
 export const W = 480, H = 270
@@ -40,6 +40,34 @@ export const DEMOS = {
   'shake': (S, t) => { const d = Math.sin(t * 60) * 8 * pulse(t, 1.0, 0.8); S.rect('sk', 160 + d, 80, 160, 110, { fill: 'var(--bg3)', stroke: t > 1 ? bad : 'var(--line)', sw: 3, r: 12 }) },
   'count-up': (S, t) => S.text('cu', 240, 140, countUp(t, 0.3, 2, 0, 6, v => `${v.toFixed(1)} h`), { size: 64, weight: 700, anchor: 'middle', mono: true, fill: bad }),
   'dim the rest': (S, t) => [0, 1, 2].forEach(i => S.rect(`dr${i}`, 60 + i * 140, 90, 110, 90, { fill: 'var(--bg3)', stroke: i === 1 ? hot : 'var(--line)', sw: 3, r: 10, op: i === 1 ? 1 : lerp(1, 0.2, prog(t, 0.6, 0.8)) })),
+  'keyframe': (S, t) => {
+    const keys = [[0.3, [70, 200]], [1.1, [200, 70], 'out'], [1.9, [330, 70], 'linear'], [2.8, [420, 200], 'heavy']]
+    keys.forEach(([, [x, y]], i) => S.circle(`kk${i}`, x, y, 5, { fill: 'var(--line)' }))
+    const [x, y] = keyed(t, keys)
+    S.rect('kb', x - 22, y - 22, 44, 44, { fill: hot, r: 6 })
+  },
+  'heavy': (S, t) => versus(S, t, ease.heavy, 'heavy'),
+  'float': (S, t) => versus(S, t, ease.float, 'float'),
+  'snap': (S, t) => versus(S, t, ease.snap, 'snap'),
+  'follow-through': (S, t) => {
+    const x = s => keyed(s, [[0.3, 110], [1.1, 370, 'snap'], [2.2, 370], [3.0, 110, 'snap']])
+    const tag = follow(t, x, 0.06, 90, 7)
+    S.line('fl', x(t), 110, tag, 185, { stroke: 'var(--line)', sw: 2 })
+    S.rect('fb', x(t) - 50, 70, 100, 50, { fill: 'var(--bg3)', stroke: hot, sw: 3, r: 8 })
+    S.circle('ft', tag, 195, 14, { fill: cold })
+  },
+  'settle': (S, t) => {
+    const y = lerp(30, 170, prog(t, 0.4, 0.5, ease.in)) + settle(t, 0.9, -18, 2.5, 4)
+    S.line('sg', 120, 201, 360, 201, { stroke: 'var(--line)', sw: 3 })
+    S.rect('sb', 170, y - 30, 140, 60, { fill: 'var(--bg3)', stroke: hot, sw: 3, r: 8 })
+  },
+  'wobble': (S, t) => {
+    for (let i = 0; i < 3; i++) {
+      const x = 120 + i * 120 + wobble(t, 10, 1.2, i + 1), y = 135 + wobble(t, 7, 0.9, i + 11)
+      S.line(`wl${i}`, 120 + i * 120, 0, x, y - 18, { stroke: 'var(--line)', sw: 2 })
+      S.circle(`wc${i}`, x, y, 18, { fill: i === 1 ? log : 'var(--bg3)', stroke: log, sw: 2 })
+    }
+  },
   'blur together': (S, t) => { const m = prog(t, 1.4, 1.4); const f = S.blur('gblur', 8 * m); ['var(--key)', cold, 'var(--warm)', hot].forEach((c, i) => S.rect(`bt${i}`, 40, lerp(50 + i * 48, 92 + i * 17, m), 400 * prog(t, stagger(0.2, i, 0.2), 0.8), lerp(30, 22, m), { fill: c, r: 15, filter: f })) },
 }
 

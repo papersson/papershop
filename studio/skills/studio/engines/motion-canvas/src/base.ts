@@ -6,7 +6,7 @@ import layout from '@layout';
 
 // The motion maths and narration times are the engines' shared modules (engines/shared/). `mix`
 // here blends #rrggbb colours, unlike the live kit's array mix.
-export {spring, track, swapAlpha, loopT, rng} from '../../shared/motion.js';
+export {spring, track, swapAlpha, loopT, rng, ease, keyed, follow, settle, wobble} from '../../shared/motion.js';
 export {phraseStart} from '../../shared/timing.js';
 
 export type LayoutJson = {width: number; height: number; fps: number; format?: string; band: {height: number; style: string; font?: number; chars?: number}};

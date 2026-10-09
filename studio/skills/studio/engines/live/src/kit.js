@@ -8,7 +8,7 @@
 
 import * as motion from '../../shared/motion.js'
 
-export { clamp, lerp, mix, ease, stagger, spring, track, rand, countUp } from '../../shared/motion.js'
+export { clamp, lerp, mix, ease, stagger, spring, track, rand, countUp, keyed, follow, settle, wobble } from '../../shared/motion.js'
 export { phraseStart } from '../../shared/timing.js'
 
 /** Progress 0..1 of a movement that starts at t0 and lasts d seconds. */

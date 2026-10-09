@@ -7,7 +7,7 @@ import type {Timeline} from './types';
 
 // The motion maths and narration times are the engines' shared modules (engines/shared/); only the
 // defaults that are this kit's own (ramp's ease and length, pulse's length) are set here.
-export {smooth, spring, track, swapAlpha, loopT, rng} from '../../../shared/motion.js';
+export {smooth, spring, track, swapAlpha, loopT, rng, ease, follow, settle, wobble} from '../../../shared/motion.js';
 /** See useClip().phrase; exported for scenes that hold a narration entry directly. */
 export {phraseStart} from '../../../shared/timing.js';
 
@@ -62,6 +62,14 @@ export function useClip() {
 /** 0 before `start`, 1 after `start + dur`, eased in between. */
 export function ramp(t: number, start: number, dur = 0.4, ease = motion.smooth): number {
 	return motion.ramp(t, start, dur, ease);
+}
+
+/**
+ * Keyframes [time, value, ease?] (a value a number or an array); a key's ease shapes the move into
+ * it, a function or a name in `ease` (heavy, float, back, snap, ...), `smooth` by default as ramp's.
+ */
+export function keyed<V extends number | number[]>(t: number, keys: [number, V, (motion.Ease | keyof typeof motion.ease)?][], ease: motion.Ease = motion.smooth): V {
+	return motion.keyed(t, keys, ease) as V;
 }
 
 /** 0 → 1 → 0 over `dur`, for a momentary emphasis. */
