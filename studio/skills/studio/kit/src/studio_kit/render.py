@@ -139,7 +139,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
                        "pause": {**s["pause"], "start": rel(s["pause"]["start"]), "end": rel(s["pause"]["end"])} if "pause" in s else None,
                        "words": [{**w, "start": rel(w["start"]), "end": rel(w["end"])} for w in s.get("words", [])]}
                       for s in timeline["tracks"]["narration"] if s["clip"] == clip_id],
-        "captions": [{**x, "start": rel(x["start"]), "end": rel(x["end"])}
+        "captions": [{"start": rel(x["start"]), "end": rel(x["end"]), "lines": tl.caption_lines(x, fmt)}
                      for x in timeline["tracks"]["captions"] if x["end"] > c["start"] and x["start"] < c["end"]],
         "cues": {k: rel(v) for k, v in timeline.get("cues", {}).items() if reads(k, v)},
         "footage": timeline["tracks"].get("footage", []),

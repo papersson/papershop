@@ -83,22 +83,3 @@ export function phraseStart(s, phrase) {
   if (k < 0) throw new Error(`sentence ${s.id} has no phrase "${phrase}"`)
   return s.start + (k / Math.max(1, cap.length)) * (s.end - s.start)
 }
-
-const NO_BREAK_AFTER = new Set(['the', 'a', 'an', 'of', 'to'])
-
-/** Greedy caption lines of at most `chars` characters that never end on an article (as Remotion's). */
-export function wrapCaption(text, chars) {
-  const lines = []
-  let cur = []
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (cur.length && [...cur, word].join(' ').length > chars) {
-      const carry = []
-      while (cur.length > 1 && NO_BREAK_AFTER.has(cur[cur.length - 1].toLowerCase())) carry.unshift(cur.pop())
-      lines.push(cur.join(' '))
-      cur = carry
-    }
-    cur.push(word)
-  }
-  if (cur.length) lines.push(cur.join(' '))
-  return lines
-}

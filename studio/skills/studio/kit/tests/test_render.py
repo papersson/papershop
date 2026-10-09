@@ -184,3 +184,16 @@ def test_the_engine_kits_read_cues_only_through_cue():
         for i, line in enumerate(lines):
             if re.search(r"\.cues\b|\[['\"]cues['\"]\]|\bcue\s*\(", line):
                 assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]), f"{f}:{i + 1}: {line.strip()}"
+
+
+def test_a_formats_key_holds_that_formats_caption_lines(tmp_path):
+    t = make_video(tmp_path)
+    t["tracks"]["captions"][1]["wrapped"] = {"9:16": ["Two."], "1:1": ["Two."]}
+    before = {f: keys_in(tmp_path, t, f) for f in ("9:16", "1:1")}
+    t["tracks"]["captions"][1]["wrapped"]["9:16"] = ["Two", "lines."]
+    assert keys_in(tmp_path, t, "9:16")["s2"] != before["9:16"]["s2"]
+    assert keys_in(tmp_path, t, "9:16")["s1"] == before["9:16"]["s1"] and keys_in(tmp_path, t, "1:1") == before["1:1"]
+
+
+def keys_in(video, t, fmt):
+    return {c["id"]: render.clip_key(video, t, c["id"], "draft", fmt=fmt) for c in t["tracks"]["scene"]}

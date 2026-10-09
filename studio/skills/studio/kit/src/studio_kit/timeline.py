@@ -23,16 +23,23 @@ and the rest layer on:
   audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio, which
                                          each mix renders against this timeline (audio.sources)
   audio/beats.json     studio beats      the beat grid, as "beats"
+  layout.json          studio new        each format's caption line width (band.chars, and its own
+                                         "formats"); every video has one, so it isn't in sources
 
 timeline.json
   fps, duration, timing, voice, sources (the files it was built from)
   tracks.scene      [{id, engine, title, start, end}]           one generated clip per chapter
   tracks.narration  [{id, clip, text, caption, paragraph, start, end, words: [{w, start, end}]}]
-  tracks.captions   [{start, end, lines}]                         chunked from the narration
+  tracks.captions   [{start, end, lines, wrapped}]                chunked from the narration: lines are
+                                                                  the 16:9 lines, wrapped {format: lines}
+                                                                  every other format's (caption_lines)
   tracks.audio      [{file, start, role, gain?, in?, out?, fade?}]  role: narration | sfx | music | footage
   tracks.footage    [{id, file, in, out, start, end}]             footage videos only
   cues              {name: seconds}                               extra times scenes can wait on
   beats             {bpm, beats, downbeats, hits}
+
+Captions are wrapped here only, for every format a video can be exported in: an engine shows the
+lines stored for its layout's format, and fails on a format the timeline has none for.
 
 Frame boundaries are rounded once, from absolute times, so clips rendered separately concatenate
 to exactly the narration's length (rounding each clip's duration instead drifts a frame per clip).
@@ -183,6 +190,26 @@ def wrap(text, width=LINE_CHARS):
     return lines
 
 
+def caption_widths(video=None):
+    """Characters per caption line in each format a video can be exported in (FORMATS and
+    layout.json's own "formats"), read from the layout the engine gets for it: {format: chars}.
+    Without a video, the FORMATS defaults."""
+    if video is None:
+        return {f: v["band"].get("chars", LINE_CHARS) for f, v in FORMATS.items()}
+    fmts = dict.fromkeys([*FORMATS, *layout(video).get("formats", {})])
+    return {f: layout(video, f)["band"].get("chars", LINE_CHARS) for f in fmts}
+
+
+def caption_lines(chunk, fmt=None):
+    """A caption chunk's lines in a format; raises for a format the timeline wasn't wrapped for."""
+    if not fmt or fmt == "16:9":
+        return chunk["lines"]
+    if fmt not in chunk.get("wrapped", {}):
+        raise SystemExit(f"timeline.json has no {fmt} caption lines (built before they were kept, or for "
+                         "another layout.json); `studio timeline VIDEO` rebuilds it")
+    return chunk["wrapped"][fmt]
+
+
 def split_phrases(text, width=LINE_CHARS * MAX_LINES):
     """Pieces of at most `width` characters, split after punctuation nearest the middle when a
     piece is too long, else at the word boundary nearest the middle."""
@@ -194,16 +221,18 @@ def split_phrases(text, width=LINE_CHARS * MAX_LINES):
     return split_phrases(text[:at].strip(), width) + split_phrases(text[at:].strip(), width)
 
 
-def chunk_captions(narration, fps=30):
+def chunk_captions(narration, fps=30, widths=None):
     """One caption per sentence, or per phrase for long sentences, timed from word timings when
-    present and from character counts otherwise."""
+    present and from character counts otherwise, and wrapped at `widths` (caption_widths)."""
+    widths = widths or caption_widths()
     chunks = []
     for s in narration:
         pieces = split_phrases(s["caption"])
         words = s.get("words") or []
         spans = _piece_spans(pieces, s, words)
         for piece, (a, b) in zip(pieces, spans):
-            chunks.append({"start": round(a, 3), "end": round(b + TAIL, 3), "lines": wrap(piece)})
+            chunks.append({"start": round(a, 3), "end": round(b + TAIL, 3), "lines": wrap(piece, widths["16:9"]),
+                           "wrapped": {f: wrap(piece, w) for f, w in widths.items() if f != "16:9"}})
     gap = 2 / fps
     for cur, nxt in zip(chunks, chunks[1:]):
         cur["end"] = round(min(max(cur["end"], cur["start"] + MIN_SHOW), nxt["start"] - gap), 3)
@@ -365,7 +394,6 @@ def build(video, quiet=False):
         if words is not None and base == "audio/timings.json":
             if words.get("narration") == narration_stamp(video):
                 matched, total = attach_words(t, words["words"])
-                t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"])
                 used.append("audio/words.json")
                 say(f"timeline: aligned {matched} of {total} script words ({total - matched} interpolated)")
             else:
@@ -395,6 +423,8 @@ def build(video, quiet=False):
         if beats is not None:
             t["beats"] = beats
             used.append("audio/beats.json")
+        # chunked last, from the final narration (its words included), at this video's line widths
+        t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video))
         t["sources"] = used
         atomic_json(video / "timeline.json", t)
         if not (video / "layout.json").exists():

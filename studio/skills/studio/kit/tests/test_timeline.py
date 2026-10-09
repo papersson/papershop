@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from studio_kit import timeline as tl
 
@@ -87,3 +89,20 @@ def test_phrase_start_finds_spoken_words_and_falls_back_to_the_caption():
     assert phrase_start(entry, "MTBF") == pytest.approx(10.0 + k / len(entry["caption"]) * 4.0)
     with pytest.raises(KeyError):
         phrase_start(entry, "quorum")
+
+
+def test_captions_are_wrapped_for_every_format_and_lines_stay_the_16_9_ones():
+    text = "After a few seconds with no reply the client gives up and marks it as a timeout"
+    (c,) = tl.chunk_captions([sentence(text, 0.0, 4.0)])
+    assert c["lines"] == tl.wrap(text, 42)
+    assert set(c["wrapped"]) == {"9:16", "1:1"}
+    assert c["wrapped"]["9:16"] == tl.wrap(text, 26) and c["wrapped"]["1:1"] == tl.wrap(text, 34)
+    assert tl.caption_lines(c, "9:16") == c["wrapped"]["9:16"] and tl.caption_lines(c) == c["lines"]
+    with pytest.raises(SystemExit, match="4:5"):
+        tl.caption_lines(c, "4:5")
+
+
+def test_line_widths_come_from_the_layout_each_format_renders(tmp_path):
+    (tmp_path / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "band": {"height": 160, "style": "opaque", "chars": 50},
+                                                      "formats": {"4:5": {"width": 1080, "height": 1350, "band": {"height": 260, "chars": 30}}}}))
+    assert tl.caption_widths(tmp_path) == {"16:9": 50, "9:16": 26, "1:1": 34, "4:5": 30}

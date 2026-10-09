@@ -336,3 +336,12 @@ def test_a_cut_builds_the_timeline_first(tmp_path):
     rec = render.make_cut(tmp_path, stills_only=True, engine=StillEngine())
     assert tl.load(tmp_path)["cues"] == {"logo": 2.0}
     assert read(tmp_path / "cuts" / f"cut{rec['cut']}" / "timeline.json")["cues"] == {"logo": 2.0}
+
+
+def test_the_build_wraps_captions_at_each_formats_width_in_layout_json(tmp_path):
+    v = explainer(tmp_path)
+    (v / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "formats": {"9:16": {"band": {"height": 340, "chars": 20}}}}))
+    narration.narrate(v, estimate=True)
+    for c in tl.load(v)["tracks"]["captions"]:
+        text = " ".join(c["lines"])
+        assert c["lines"] == tl.wrap(text, 42) and c["wrapped"]["9:16"] == tl.wrap(text, 20)

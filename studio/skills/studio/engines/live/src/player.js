@@ -22,6 +22,14 @@ import * as kit from './kit.js'
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
 const half = x => Math.floor(x + 0.5) // frame boundaries round half up, like the kit's timeline
 
+/** A caption chunk's lines in the layout's format: the kit wraps them for every format, never the engine. */
+function captionLines(chunk, layout) {
+  const fmt = layout.format ?? '16:9'
+  const lines = fmt === '16:9' ? chunk.lines : chunk.wrapped?.[fmt]
+  if (!lines) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`)
+  return lines
+}
+
 async function json(url, fallback) {
   const r = await fetch(url, { cache: 'no-store' })
   if (!r.ok) {
@@ -132,10 +140,10 @@ export async function boot({ svg, video, layout: layoutUrl }) {
 
   /** The caption band and the caption chunk spoken at absolute time `at` (Remotion's look). */
   function band(at, withCaptions) {
-    const top = bandTop(), font = L.band.font ?? 38, chars = L.band.chars ?? 42
+    const top = bandTop(), font = L.band.font ?? 38
     stage.rect('band', 0, top, L.width, L.band.height, { fill: 'var(--band)', r: 0, layer: 'ui' })
     const chunk = withCaptions ? T.tracks.captions.find(x => x.start <= at && at < x.end) : null
-    const lines = chunk ? kit.wrapCaption(chunk.lines.join(' '), chars) : []
+    const lines = chunk ? captionLines(chunk, L) : []
     const lh = font * 1.3, y0 = top + L.band.height / 2 - (lines.length * lh) / 2 + lh / 2
     lines.forEach((line, i) => stage.el(`caption${i}`, 'text', {
       x: L.width / 2, y: y0 + i * lh, text: line, fill: 'var(--ink)', 'font-size': font, 'font-weight': 400,

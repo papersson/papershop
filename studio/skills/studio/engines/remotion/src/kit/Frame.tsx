@@ -10,7 +10,7 @@ import timeline from '@timeline';
 import {StageContext} from './stage';
 import {ClipContext} from './time';
 import {BAND, BG, INK, SANS} from './theme';
-import type {Layout, Timeline} from './types';
+import type {Caption, Layout, Timeline} from './types';
 
 // all; no-captions (band, no caption text); no-band (the scene alone, no band); background (nothing but the background).
 export type Layers = 'all' | 'no-captions' | 'no-band' | 'background';
@@ -59,38 +59,26 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 				</StageContext.Provider>
 			)}
 			{layers !== 'no-band' && layers !== 'background' && (
-				<CaptionBand top={stageH} height={l.band.height} font={l.band.font ?? 38} chars={l.band.chars ?? 42}
+				<CaptionBand top={stageH} height={l.band.height} font={l.band.font ?? 38}
 					time={first / fps + frame / fps} show={ready && layers === 'all'} />
 			)}
 		</AbsoluteFill>
 	);
 };
 
-const NO_BREAK_AFTER = new Set(['the', 'a', 'an', 'of', 'to']);
-
-/** Greedy lines of at most `chars` characters that never end on an article or preposition. */
-export function wrapCaption(text: string, chars: number): string[] {
-	const lines: string[] = [];
-	let cur: string[] = [];
-	for (const word of text.split(/\s+/).filter(Boolean)) {
-		if (cur.length && [...cur, word].join(' ').length > chars) {
-			const carry: string[] = [];
-			while (cur.length > 1 && NO_BREAK_AFTER.has(cur[cur.length - 1].toLowerCase())) carry.unshift(cur.pop() as string);
-			lines.push(cur.join(' '));
-			cur = carry;
-		}
-		cur.push(word);
-	}
-	if (cur.length) lines.push(cur.join(' '));
+/** A caption chunk's lines in the layout's format: the kit wraps them for every format, never the engine. */
+function captionLines(chunk: Caption, l: Layout): string[] {
+	const fmt = l.format ?? '16:9';
+	const lines = fmt === '16:9' ? chunk.lines : chunk.wrapped?.[fmt];
+	if (!lines) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`);
 	return lines;
 }
 
-const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean; font: number; chars: number}> = ({
-	top, height, time, show, font, chars,
+const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean; font: number}> = ({
+	top, height, time, show, font,
 }) => {
 	const chunk = show ? (timeline as Timeline).tracks.captions.find((c) => c.start <= time && time < c.end) : undefined;
-	// The timeline's chunks are wrapped for 16:9; a narrower format re-wraps the same words.
-	const lines = chunk ? wrapCaption(chunk.lines.join(' '), chars) : [];
+	const lines = chunk ? captionLines(chunk, layout as Layout) : [];
 	return (
 		<div style={{position: 'absolute', left: 0, top, width: '100%', height, background: BAND,
 			display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'}}>

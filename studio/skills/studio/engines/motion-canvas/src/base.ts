@@ -4,7 +4,7 @@ import {Vector2} from '@motion-canvas/core';
 import timeline from '@timeline';
 import layout from '@layout';
 
-export type LayoutJson = {width: number; height: number; fps: number; band: {height: number; style: string; font?: number; chars?: number}};
+export type LayoutJson = {width: number; height: number; fps: number; format?: string; band: {height: number; style: string; font?: number; chars?: number}};
 export type NarrationEntry = {id: string; start: number; end: number; caption?: string; text?: string; words: {w: string; start: number; end: number}[]};
 
 const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '');
@@ -30,7 +30,7 @@ export type TimelineJson = {
 	tracks: {
 		scene: {id: string; start: number; end: number}[];
 		narration: NarrationEntry[];
-		captions: {start: number; end: number; lines: string[]}[];
+		captions: {start: number; end: number; lines: string[]; wrapped?: Record<string, string[]>}[];
 	};
 };
 

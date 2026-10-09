@@ -38,22 +38,6 @@ export type Ctx = {
 	box: (at: [number, number], w: number, h: number, o?: {fill?: string; stroke?: string; radius?: number; opacity?: number; name?: string}) => Rect;
 };
 
-const wrap = (text: string, chars: number) => {
-	const lines: string[] = [];
-	let cur: string[] = [];
-	for (const w of text.split(/\s+/).filter(Boolean)) {
-		if (cur.length && [...cur, w].join(' ').length > chars) {
-			const carry: string[] = [];
-			while (cur.length > 1 && ['the', 'a', 'an', 'of', 'to'].includes(cur[cur.length - 1].toLowerCase())) carry.unshift(cur.pop() as string);
-			lines.push(cur.join(' '));
-			cur = carry;
-		}
-		cur.push(w);
-	}
-	if (cur.length) lines.push(cur.join(' '));
-	return lines;
-};
-
 /**
  * A scene for one clip of the timeline. Draws the background, runs `body`, and holds the frame
  * until the clip's end so consecutive clips tile the video exactly. The caption band and the
@@ -151,14 +135,17 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 /** The caption band's text, changing at each chunk boundary of the timeline's captions track. */
 function* captions(view: Node, start: number, end: number, T: TimelineJson): ThreadGenerator {
 	const font = layout.band.font ?? 38;
-	const chars = layout.band.chars ?? 42;
+	const fmt = layout.format ?? '16:9';
 	const lines = new Txt({position: new Vector2(0, layout.height / 2 - band / 2), fill: INK, fontSize: font, fontFamily: SANS, lineHeight: font * 1.3, textAlign: 'center', key: 'caption'});
 	view.add(lines);
 	let t = 0;
 	for (const c of T.tracks.captions.filter((x) => x.end > start && x.start < end)) {
 		const a = Math.max(0, c.start - start);
 		if (a > t) yield* waitFor(a - t);
-		lines.text(wrap(c.lines.join(' '), chars).join('\n'));
+		// The kit wraps captions for every format, never the engine.
+		const wrapped = fmt === '16:9' ? c.lines : c.wrapped?.[fmt];
+		if (!wrapped) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`);
+		lines.text(wrapped.join('\n'));
 		const b = Math.min(end - start, c.end - start);
 		yield* waitFor(Math.max(0, b - Math.max(a, t)));
 		lines.text('');
