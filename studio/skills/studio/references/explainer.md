@@ -152,8 +152,9 @@ Fix blockers and apply relevant smaller fixes once. Default cap is three rounds 
 blocking issue), economy two, thorough six, per revision of the script: the kit counts the scripts
 reviewed since the latest structural stage mark, whatever ROUND says, and a re-run on an unchanged
 script is the same round. A structural revision
-(`studio stage VIDEO revision --kind structural --summary …`) starts the count again; raising
-`max_rounds` is the learner's decision. Repeatedly opposed advice is surfaced to the user, not
+(`studio stage VIDEO revision --kind structural --summary …`), marked over a script that changed
+since its last review, starts the count again; a mark alone does not. Raising `max_rounds` is the
+learner's decision. Repeatedly opposed advice is surfaced to the user, not
 endlessly rewritten. Caps leave findings open; they never turn a failed check into a pass.
 After a material teaching edit, rerun the affected review. A simulated student is a diagnostic,
 not evidence of real learning. If a required review is unavailable, report it; a user-authorized

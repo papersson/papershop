@@ -167,12 +167,12 @@ def main_variant(args):
 
 # What a fork leaves behind. Anywhere: repositories, caches and package folders. At these paths:
 # outputs, and what is the source's alone (its stage log, pending requests, handoff, the builder's
-# scratch) or names its cuts (the desk's notes, frame-review bundles). Cuts stay behind whole:
-# publish, sheets, frame review and the next cut read the stills and video beside a record, so a
-# record without them is a broken cut.
+# scratch, its review rounds) or names its cuts (the desk's notes, frame-review bundles). Cuts stay
+# behind whole: publish, sheets, frame review and the next cut read the stills and video beside a
+# record, so a record without them is a broken cut.
 FORK_SKIP_NAMES = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
 FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/timing.jsonl", "research/requests.md",
-                   "research/handoff.md", ".studio/work"}
+                   "research/handoff.md", "research/reviews/rounds.jsonl", ".studio/work"}
 
 
 def fork(source, name, directory=None, title=None):
@@ -181,11 +181,15 @@ def fork(source, name, directory=None, title=None):
     copied file by file, pruning what is left behind before entering it, so a large cache is never
     read."""
     source = Path(source).resolve()
-    video = Path(directory).expanduser().resolve() if directory else studio_home() / name
+    video = (Path(directory).expanduser() if directory else studio_home() / name).resolve()
+    # a fork into a folder that holds the source made that folder (STUDIO_HOME, once) a video
+    # repository, so every later video landed inside it and a commit swept up its siblings
+    if video == source or source in video.parents or video in source.parents:
+        raise SystemExit(f"fork into a new folder of its own: {video} is {source.name}, inside it, or holds it")
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
-    if video == source or source in video.parents:
-        raise SystemExit(f"fork {source.name} into a folder outside it")
+    if video.is_dir() and any(video.iterdir()):
+        raise SystemExit(f"{video} is not empty; fork into a new folder")
     skip = lambda rel: rel.name in FORK_SKIP_NAMES or rel.as_posix() in FORK_SKIP_PATHS
     for root, dirs, files in os.walk(source):
         rel = Path(root).relative_to(source)
@@ -201,7 +205,7 @@ def fork(source, name, directory=None, title=None):
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
     now = time.time()
     mark = {"stage": "forked_from", "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"),
-            "kind": "local", "source": origin["path"], **({"commit": origin["commit"]} if "commit" in origin else {})}
+            "kind": "fork", "source": origin["path"], **({"commit": origin["commit"]} if "commit" in origin else {})}
     (video / "research").mkdir(exist_ok=True)
     (video / "research" / "timing.jsonl").write_text(json.dumps(mark) + "\n")
     checkpoint.init(video)

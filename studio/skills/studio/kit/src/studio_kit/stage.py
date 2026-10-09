@@ -104,6 +104,11 @@ def mark(video, name, now=None, kind="local", summary=None):
                 (f", over by {fmt(ended['total'] - ended['budget'])})" if ended["over"] else ")")
         lines.append(line)
     entry = {"stage": name, "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"), "kind": kind}
+    from .reviews import KINDS
+    resets = [k for k in KINDS.values() if kind in k.rounds.resets_on]
+    if resets:      # what the mark revises from: a mark over unchanged material starts no new review count
+        from .review_state import revision
+        entry["revisions"] = {k.name: revision(video, k) for k in resets}
     f = log_path(video)
     f.parent.mkdir(parents=True, exist_ok=True)
     with f.open("a") as out:

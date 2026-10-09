@@ -117,3 +117,37 @@ def test_a_fork_copies_the_sources_and_starts_a_history_of_its_own(tmp_path, mon
     assert [m["stage"] for m in stage.read(src)] == ["script"]
     with pytest.raises(SystemExit, match="already holds"):
         new.fork(src, "second")
+
+
+def test_a_fork_starts_its_review_rounds_afresh(tmp_path, monkeypatch):
+    """The fork copied rounds.jsonl and its log had no structural mark, so its first review was
+    refused as past max_rounds."""
+    import subprocess
+    from types import SimpleNamespace
+    from studio_kit import review, stage
+    from test_review import make as review_video, revise
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    src = review_video(tmp_path / "src", {"max_rounds": 1})
+    ran = lambda text, cwd: subprocess.CompletedProcess([], 0, "VERDICT: REVISE\n", "")
+    review.main(SimpleNamespace(video=str(src), round=2, narrative=None, only="student"), runner=ran)
+    v = new.fork(src, "second")
+    assert not (v / "research" / "reviews" / "rounds.jsonl").exists() and stage.read(v)[0]["kind"] == "fork"
+    revise(v, 3)
+    review.main(SimpleNamespace(video=str(v), round=3, narrative=None, only="student"), runner=ran)
+
+
+def test_a_fork_goes_into_a_new_folder_of_its_own(tmp_path, monkeypatch):
+    """A fork into STUDIO_HOME itself made it a video repository holding every later video."""
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    src, _ = new.create("first")
+    for target in (src, src / "scenes" / "copy", tmp_path / "home", tmp_path):
+        with pytest.raises(SystemExit, match="new folder of its own"):
+            new.fork(src, "x", directory=target)
+    busy = tmp_path / "busy"
+    busy.mkdir()
+    (busy / "SCRIPT.md").write_text("mine")
+    with pytest.raises(SystemExit, match="not empty"):
+        new.fork(src, "x", directory=busy)
+    assert (busy / "SCRIPT.md").read_text() == "mine" and not (tmp_path / "home" / ".git").exists()
+    (tmp_path / "empty").mkdir()
+    assert (new.fork(src, "x", directory=tmp_path / "empty") / "video.json").exists()

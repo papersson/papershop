@@ -100,17 +100,43 @@ def rounds_log(video):
     return Path(video) / "research" / "reviews" / "rounds.jsonl"
 
 
-def rounds(video, kind):
+def _logged(video, kind):
+    """A kind's rounds in the log, oldest first. A line that doesn't read (one cut short when a run
+    was killed) is skipped with a warning, rather than stopping every later review."""
+    p, out, bad = rounds_log(video), [], 0
+    for line in p.read_text().splitlines() if p.exists() else []:
+        try:
+            e = json.loads(line)
+            ok = isinstance(e, dict) and isinstance(e.get("t"), (int, float)) and isinstance(e.get("revision"), str)
+        except ValueError:
+            ok = False
+        if not ok:
+            bad += bool(line.strip())
+        elif e.get("kind") == kind.name:
+            out.append(e)
+    if bad:
+        print(f"warn: {p}: {bad} unreadable line(s) skipped")
+    return out
+
+
+def rounds(video, kind, revision=None):
     """The revisions of a kind's material reviewed since the latest stage mark that starts its count
     again (kind.rounds.resets_on), and that mark (None: there is none, so every round counts).
-    Reviewers run again on a revision already reviewed (a retry, an added role) are the same round."""
+    A mark starts the count only when the material it was made over (its "revisions", or for an
+    older mark the first revision reviewed after it, or `revision`, about to be) is not the last
+    revision reviewed before it, so a mark alone buys no rounds. Reviewers run again on a revision
+    already reviewed (a retry, an added role) are the same round."""
     from . import stage
-    marks = [m for m in stage.read(video) if m.get("kind") in kind.rounds.resets_on]
-    since = marks[-1] if marks else None
-    p, seen = rounds_log(video), []
-    for line in p.read_text().splitlines() if p.exists() else []:
-        e = json.loads(line) if line.strip() else {}
-        if e.get("kind") == kind.name and (since is None or e["t"] >= since["t"]) and e["revision"] not in seen:
+    log, since = _logged(video, kind), None
+    for m in stage.read(video):
+        if m.get("kind") in kind.rounds.resets_on:
+            before = [e["revision"] for e in log if e["t"] < m["t"]]
+            over = m.get("revisions", {}).get(kind.name) or next((e["revision"] for e in log if e["t"] >= m["t"]), revision)
+            if not before or over != before[-1]:
+                since = m
+    seen = []
+    for e in log:
+        if (since is None or e["t"] >= since["t"]) and e["revision"] not in seen:
             seen.append(e["revision"])
     return seen, since
 
@@ -120,15 +146,19 @@ def start_round(video, kind, number, revision, cfg):
     counts rounds of this revision of the script, so a typed round number neither spends nor saves
     one."""
     cap = kind.rounds.cap(cfg) if kind.rounds.cap else None
-    seen, since = rounds(video, kind)
+    seen, since = rounds(video, kind, revision)
     if cap is not None and revision not in seen and len(seen) >= cap:
         where = f"its {since['stage']} mark ({since['at']})" if since else "the first round"
         raise SystemExit(f"round {number} is past max_rounds ({cap}): this revision of the script has had {len(seen)} "
-                         f"review rounds since {where}. Lock the script with every open finding logged, ask the learner "
-                         "to raise the cap, or, if the script is changing structurally, start a new revision: "
-                         "studio stage VIDEO revision --kind structural --summary \"merge/trim plan and runtime change\"")
-    with rounds_log(video).open("a") as f:
-        f.write(json.dumps({"kind": kind.name, "round": number, "revision": revision, "t": time.time()}) + "\n")
+                         f"review rounds since {where}. Lock the script with every open finding logged, or ask the "
+                         "learner to raise the cap. A structural rewrite (a new chapter or a changed arc, marked with "
+                         "studio stage VIDEO revision --kind structural --summary …) starts a new count; a mark over "
+                         "an unchanged script does not")
+    log = rounds_log(video)
+    text = log.read_text() if log.exists() else ""
+    torn = bool(text) and not text.endswith("\n")      # a line cut short must not swallow this one
+    with log.open("a") as f:
+        f.write("\n" * torn + json.dumps({"kind": kind.name, "round": number, "revision": revision, "t": time.time()}) + "\n")
 
 
 def changed_since(video, cut):

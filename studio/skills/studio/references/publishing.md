@@ -23,7 +23,8 @@ note to the sentence/chapter of its cut. An empty note still means “here.”
    subject review after material changes. `max_rounds` caps the review rounds of one revision of
    the script: rounds are counted from the reviews since the latest structural round mark, not
    from the ROUND typed, and reviewers run again on an unchanged script are the same round. A
-   structural round mark (step 2) starts the count again; raising the cap is the learner's
+   structural round mark (step 2) made over a script changed since its last review starts the
+   count again; a mark over an unchanged script does not. Raising the cap is the learner's
    decision. Keep sentence cues/per-ID pronunciation overrides in sync. Narrate and voice-check
    only changed speech; a timing-only edit should reuse synthesis.
 5. Answer picture notes with a still where useful, then `studio cut VIDEO --changelog FILE`.

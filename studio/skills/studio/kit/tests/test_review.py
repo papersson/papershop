@@ -136,3 +136,31 @@ def test_the_default_cap_is_three_rounds(tmp_path):
     revise(tmp_path, 5)
     with pytest.raises(SystemExit, match=r"past max_rounds \(3\)"):
         review.main(args(tmp_path, 5), runner=findings)
+
+
+def test_a_structural_mark_over_an_unchanged_script_starts_no_new_count(tmp_path):
+    """One `studio stage --kind structural` with no change to the script reset the cap."""
+    from studio_kit import stage
+    make(tmp_path, {"max_rounds": 2})
+    for rnd in (2, 3):
+        revise(tmp_path, rnd)
+        review.main(args(tmp_path, rnd), runner=findings)
+    stage.mark(tmp_path, "revision", kind="structural")         # the script is the one round 3 reviewed
+    revise(tmp_path, 4)
+    with pytest.raises(SystemExit, match="a mark over an unchanged script does not"):
+        review.main(args(tmp_path, 4), runner=findings)
+    stage.mark(tmp_path, "revision", kind="structural")         # now over a revised script
+    review.main(args(tmp_path, 4), runner=findings)
+
+
+def test_an_unreadable_round_log_line_is_skipped_with_a_warning(tmp_path, capsys):
+    make(tmp_path, {"max_rounds": 2})
+    review.main(args(tmp_path, 2), runner=findings)
+    log = tmp_path / "research" / "reviews" / "rounds.jsonl"
+    log.write_text(log.read_text() + '{"kind": "script", "round": 3, "revis')       # a run killed mid-write
+    revise(tmp_path, 3)
+    review.main(args(tmp_path, 3), runner=findings)
+    assert "1 unreadable line(s) skipped" in capsys.readouterr().out
+    revise(tmp_path, 4)
+    with pytest.raises(SystemExit, match="has had 2 review rounds"):
+        review.main(args(tmp_path, 4), runner=findings)
