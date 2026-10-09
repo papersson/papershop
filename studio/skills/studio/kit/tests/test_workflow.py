@@ -88,6 +88,66 @@ def test_private_checkpoint_preserves_unrelated_staged_changes_and_excludes_medi
     assert "video/cuts/cut1/cut.json" in git(tmp_path, "ls-tree", "-r", "--name-only", "HEAD")
 
 
+OLD_GITIGNORE = ".cache/\naudio/*.wav\ncuts/*/*\n!cuts/*/cut.json\nout/\n__pycache__/\n"
+
+
+def unsigned(monkeypatch, v):
+    for who in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{who}_NAME", "Test")
+        monkeypatch.setenv(f"GIT_{who}_EMAIL", "test@example.com")
+    cfg = json.loads((v / "video.json").read_text())
+    cfg["git"] = {"sign": False}
+    (v / "video.json").write_text(json.dumps(cfg))
+
+
+def test_a_checkpoint_takes_every_source_and_leaves_media_and_caches_out(tmp_path, monkeypatch):
+    """boards/ and captures/ were missing from the allowlist, so boards were never checkpointed."""
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    v, _ = new.create("v", directory=tmp_path / "video")
+    unsigned(monkeypatch, v)
+    files = {"boards/boards.json": "[]", "captures/home.png": "png", "notes.txt": "mine", "captions.json": "[]",
+             "audio/narration.mp3": "mp3", "audio/sfx.wav": "wav", "assets/talk.mov": "rec", "assets/bed.m4a": "m4a",
+             ".cache/clips/s1.mp4": "c", "out/page/index.html": "o", "node_modules/x/index.js": "n",
+             ".studio/work/scratch.txt": "w", ".studio/kit/.venv/bin/python": "p", "cuts/cut1/cut.json": "{}",
+             "cuts/cut1/stills/s1_01.jpg": "jpg", "cuts/cut1/video.mp4": "mp4"}
+    for rel, text in files.items():
+        (v / rel).parent.mkdir(parents=True, exist_ok=True)
+        (v / rel).write_text(text)
+    checkpoint.commit(v, "sources")
+    tracked = set(git(v, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
+    assert {"boards/boards.json", "captures/home.png", "notes.txt", "captions.json", "cuts/cut1/cut.json",
+            "SCRIPT.md", "video.json", ".gitignore"} <= tracked
+    assert not tracked & {rel for rel in files if rel not in ("boards/boards.json", "captures/home.png", "notes.txt",
+                                                              "captions.json", "cuts/cut1/cut.json")}
+    (v / "boards/boards.json").unlink()
+    checkpoint.commit(v, "a board removed")
+    assert "boards/boards.json" not in git(v, "ls-tree", "-r", "--name-only", "HEAD")
+
+
+def test_a_video_made_under_the_old_ignore_rules_keeps_working(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    v, _ = new.create("v", directory=tmp_path / "video")
+    unsigned(monkeypatch, v)
+    (v / ".gitignore").write_text(OLD_GITIGNORE + "my-notes/")          # no final newline, a line of the builder's
+    (v / "audio").mkdir()
+    (v / "audio/narration.mp3").write_text("mp3")                       # the allowlist took audio/
+    git(v, "add", "-A")
+    git(v, "commit", "-q", "-m", "made by an older kit")
+    (v / "audio/narration.mp3").write_text("mp3, narrated again")
+    (v / "assets").mkdir()
+    (v / "assets/talk.mp4").write_text("recording")
+    (v / "boards").mkdir()
+    (v / "boards/boards.json").write_text("[]")
+    checkpoint.commit(v, "sources")
+    tracked = git(v, "ls-tree", "-r", "--name-only", "HEAD").splitlines()
+    assert "boards/boards.json" in tracked and "assets/talk.mp4" not in tracked
+    assert git(v, "show", "HEAD:audio/narration.mp3") == "mp3, narrated again"     # tracked stays tracked
+    lines = (v / ".gitignore").read_text().splitlines()
+    assert lines[:7] == (OLD_GITIGNORE + "my-notes/").splitlines() and "*.mp4" in lines
+    checkpoint.commit(v, "again")
+    assert (v / ".gitignore").read_text().splitlines() == lines
+
+
 def test_house_lexicon_and_series_are_portable_snapshots(tmp_path, monkeypatch):
     home = tmp_path / "home"
     home.mkdir()

@@ -1,4 +1,11 @@
-"""Scoped source checkpoints; media retention is independent of Git history."""
+"""Scoped source checkpoints; media retention is independent of Git history.
+
+A commit takes every file in the video's folder that its .gitignore lets through, so a source
+folder a new command writes (boards/, captures/) is never left out the way an allowlist left it.
+The ignore rules keep out what is media or regenerable: renders, recordings and sound, caches,
+outputs, package folders, and every file of a cut but its record (clean and cut retention manage
+those files, not Git).
+"""
 import json
 import os
 import signal
@@ -9,14 +16,33 @@ from . import proc
 from . import settings
 
 GITIGNORE = """.cache/
-audio/*.wav
+out/
 cuts/*/*
 !cuts/*/cut.json
-out/
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.webm
+*.wav
+*.mp3
+*.m4a
+node_modules/
+.venv/
+.studio/work/
 __pycache__/
+.DS_Store
 """
-PATHS = ("SCRIPT.md", "video.json", "narration.json", "lexicon.json", "layout.json", "timeline.json", "cues.json",
-         ".gitignore", "research", "scenes", "sims", "data", "assets", "review", "cuts", "audio", "footage", ".studio")
+
+
+def ignore(video):
+    """Append the GITIGNORE lines the video's .gitignore lacks, so a video made under older rules
+    keeps its media out too; the builder's own lines stay. A file Git already tracks stays tracked."""
+    p = Path(video) / ".gitignore"
+    text = p.read_text() if p.exists() else ""
+    missing = [line for line in GITIGNORE.splitlines() if line not in text.splitlines()]
+    if missing:
+        p.write_text(text + ("\n" if text and not text.endswith("\n") else "") + "\n".join(missing) + "\n")
 
 
 def init(video):
@@ -40,9 +66,8 @@ def commit(video, message):
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
         head = proc.run(base + ["rev-parse", "--verify", "HEAD"], capture_output=True)
         proc.run(base + ["read-tree", "HEAD"] if head.returncode == 0 else base + ["read-tree", "--empty"], env=env, check=True)
-        tracked = proc.run(base + ["ls-files", "-z"], capture_output=True, text=True, check=True).stdout.split("\0")
-        paths = [p for p in PATHS if (video / p).exists() or any(x == p or x.startswith(p + "/") for x in tracked)]
-        proc.run(base + ["add", "-A", "--", *paths], env=env, check=True)
+        ignore(video)
+        proc.run(base + ["add", "-A", "--", "."], env=env, check=True)      # the video's folder, in a larger repo too
         changed = proc.run(base + ["diff", "--cached", "--quiet"], env=env)
         if changed.returncode == 0:
             return "no source changes to commit"
@@ -58,7 +83,7 @@ def commit(video, message):
         if p.returncode:
             raise SystemExit(f"commit failed: {err.strip()}")
         # Bring just the video's paths in the real index up to the new commit; leave other staged work alone.
-        proc.run(base + ["reset", "-q", "HEAD", "--", *paths], check=True)
+        proc.run(base + ["reset", "-q", "HEAD", "--", "."], check=True)
         return out.strip()
 
 
