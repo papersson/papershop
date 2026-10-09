@@ -67,6 +67,19 @@ def sources(video, timeline):
     return out
 
 
+def require_voice(video, timeline, files=None):
+    """Stop when a narrated video has no voice to finish: its timings are an estimate, or its narration
+    file is gone. Finishing the rest would raise effects alone to the target and publish a silent
+    master. A piece with no narration (duration, clips) or a footage edit has nothing to wait for."""
+    video = Path(video)
+    if not timeline["tracks"].get("narration") or timeline["tracks"].get("footage"):
+        return
+    files = sources(video, timeline) if files is None else files
+    if not any(tl.audio_role(e) == "narration" for e, _ in files):
+        why = " (the timeline's times are an estimate)" if tl.timing(video, timeline) == "estimate" else ""
+        raise SystemExit(f"no narration in {video / 'audio'}{why}: run `studio narrate` first")
+
+
 def inputs(timeline, files):
     """A stamp of everything the bus is made from: the entries, the length, each file's size and time."""
     h = hashlib.sha1(json.dumps([timeline["tracks"]["audio"], timeline["duration"]], sort_keys=True).encode())
@@ -163,6 +176,7 @@ def finish(video, lufs=-16.0, peak=-1.5, timeline=None):
     video = Path(video)
     timeline = timeline or tl.load(video)
     files = sources(video, timeline)
+    require_voice(video, timeline, files)
     stamp_in = inputs(timeline, files)
     stamp = f"{stamp_in}:{lufs}:{peak}"
     done = _record(video)

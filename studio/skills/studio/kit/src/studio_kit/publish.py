@@ -144,7 +144,7 @@ def gate(video):
 
 def build(video, skip_gate=False):
     video = Path(video).resolve()
-    tl.build(video)                 # the gate, the master and the page all read the current sources
+    audio.require_voice(video, tl.build(video))   # the gate, the master and the page all read the current sources
     if not skip_gate:
         gate(video)
     cfg = settings.load(video)

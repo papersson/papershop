@@ -409,3 +409,27 @@ def test_check_rebuilds_an_old_timeline_first(tmp_path):
     (v / "timeline.json").write_text(json.dumps(old))
     check.main(SimpleNamespace(video=v, samples=1, only="script", format="9:16", all=False))
     assert all("9:16" in c["wrapped"] for c in tl.load(v)["tracks"]["captions"])
+
+
+def test_an_estimated_video_is_not_finished_published_or_exported_without_its_voice(tmp_path, monkeypatch):
+    """Finishing the rest raised effects alone to the target and published a master with no voice."""
+    from studio_kit import publish, render
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    click_track(tmp_path / "bed.wav")
+    (v / "audio" / "tracks.json").write_text(json.dumps([{"file": str(tmp_path / "bed.wav"), "start": 0}]))
+    monkeypatch.setattr(publish, "gate", lambda video: pytest.fail("the refusal comes before the gate"))
+    for run in (lambda: audio.main(SimpleNamespace(video=v, lufs=-16.0, peak=-1.5)),
+                lambda: publish.build(v), lambda: render.export_formats(v, ["16:9"]),
+                lambda: render.make_cut(v, "final", engine=object())):
+        with pytest.raises(SystemExit, match=r"no narration in .*estimate.*studio narrate"):
+            run()
+    assert not (v / "audio" / "final.wav").exists()
+
+
+def test_a_piece_without_narration_still_finishes_its_music(tmp_path):
+    (tmp_path / "video.json").write_text(json.dumps({"title": "M", "genre": "motion", "duration": 3}))
+    click_track(tmp_path / "bed.wav")
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "tracks.json").write_text(json.dumps([{"file": str(tmp_path / "bed.wav"), "start": 0}]))
+    assert audio.finish(tmp_path, timeline=tl.build(tmp_path)) is not None

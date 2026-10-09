@@ -272,6 +272,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     timeline = tl.build(video)      # so an edit to cues.json or audio/tracks.json is in the cut
     if not stills_only:
         audio.sources(video, timeline)   # an effect with no time stops the cut before any clip renders
+        if quality == "final":
+            audio.require_voice(video, timeline)   # a draft may play without its voice; a final may not
     engine = engine or Engine(video)
     from . import cuts
     prev_n = cuts.latest(video, ("boards",) if boards else cuts.SCENE_STILLS)
