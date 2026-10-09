@@ -28,7 +28,7 @@ def fingerprint(video, frames=False):
     video = Path(video)
     from .script import sections
     script = video / "SCRIPT.md"
-    parts = sections(script.read_text()) if script.exists() else None
+    parts = sections(script.read_bytes().decode()) if script.exists() else None   # bytes: CRLF hashes as written
     h = hashlib.sha256()
     if frames:
         if parts is not None:

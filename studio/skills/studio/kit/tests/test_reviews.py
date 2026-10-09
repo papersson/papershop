@@ -62,3 +62,20 @@ def test_a_sound_edit_keeps_a_frame_review_current_and_a_caption_edit_stales_it(
     caption["tracks"]["captions"] = tl.chunk_captions(caption["tracks"]["narration"])
     (tmp_path / "timeline.json").write_text(json.dumps(caption))
     assert review_state.fingerprint(tmp_path, frames=True) != before
+
+
+def test_a_crlf_script_hashes_its_line_endings_as_before(tmp_path):
+    """Receipts written before the registry stay current: the script is hashed as its bytes decode."""
+    import hashlib
+    review_video(tmp_path)
+    p = tmp_path / "SCRIPT.md"
+    text = p.read_text().replace("\n", "\r\n")
+    p.write_bytes(text.encode())
+    from studio_kit.script import sections
+    parts = sections(text)
+    h = hashlib.sha256()
+    h.update(review.learner_brief(tmp_path).encode())
+    h.update(review.charter(tmp_path).encode())
+    h.update(b"SCRIPT.md")
+    h.update("\n".join(parts.get(k, "") for k in ("Argument", "Chain", "Script", "Evidence")).encode())
+    assert review_state.fingerprint(tmp_path) == h.hexdigest()
