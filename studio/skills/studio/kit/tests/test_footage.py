@@ -31,7 +31,7 @@ def test_paper_edit_marks_fillers_and_pauses():
 
 def test_edit_list_becomes_a_timeline_with_captions_from_the_footage(tmp_path):
     v = setup(tmp_path)
-    t = footage.build(v, [{"src": "talk", "in": 0.9, "out": 1.8}, {"src": "talk", "in": 2.9, "out": 4.1, "gain": -3}])
+    t = footage.edit(v, [{"src": "talk", "in": 0.9, "out": 1.8}, {"src": "talk", "in": 2.9, "out": 4.1, "gain": -3}])
     f = t["tracks"]["footage"]
     assert [(x["start"], x["end"]) for x in f] == [(0.0, 0.9), (0.9, 2.1)]
     n = t["tracks"]["narration"]
@@ -41,17 +41,33 @@ def test_edit_list_becomes_a_timeline_with_captions_from_the_footage(tmp_path):
     assert t["tracks"]["captions"] and t["tracks"]["scene"][0]["end"] == 2.1
 
 
+def test_the_edit_list_is_kept_and_the_timeline_rebuilds_from_it(tmp_path):
+    v = setup(tmp_path)
+    edl = [{"src": "talk", "in": 0.9, "out": 1.8}, {"src": "talk", "in": 2.9, "out": 4.1, "gain": -3}]
+    t = footage.edit(v, edl)
+    assert json.loads((v / "footage" / "edit.json").read_text()) == edl and t["sources"] == ["footage/edit.json"]
+    assert {a["role"] for a in t["tracks"]["audio"]} == {"footage"}
+    (v / "audio").mkdir()
+    (v / "audio" / "tracks.json").write_text(json.dumps([{"file": "assets/bed.wav", "start": 0, "gain": -20}]))
+    again = tl.build(v)
+    assert again["tracks"]["footage"] == t["tracks"]["footage"] and again["tracks"]["narration"] == t["tracks"]["narration"]
+    assert [a["role"] for a in again["tracks"]["audio"]] == ["footage", "footage", "music"]
+    with pytest.raises(SystemExit, match="not after"):
+        footage.edit(v, [{"src": "talk", "in": 2.0, "out": 1.0}])
+    assert json.loads((v / "footage" / "edit.json").read_text()) == edl      # a bad list is not kept
+
+
 def test_segments_must_run_forward_and_recordings_must_be_ingested(tmp_path):
     v = setup(tmp_path)
     with pytest.raises(SystemExit, match="not after"):
-        footage.build(v, [{"src": "talk", "in": 2.0, "out": 1.0}])
+        footage.edit(v, [{"src": "talk", "in": 2.0, "out": 1.0}])
     with pytest.raises(SystemExit, match="no ingested recording"):
-        footage.build(v, [{"src": "other", "in": 0, "out": 1}])
+        footage.edit(v, [{"src": "other", "in": 0, "out": 1}])
 
 
 def test_checks_flag_a_kept_filler_and_a_flickering_segment(tmp_path):
     v = setup(tmp_path)
-    footage.build(v, [{"src": "talk", "in": 2.9, "out": 3.2}])
+    footage.edit(v, [{"src": "talk", "in": 2.9, "out": 3.2}])
     rows = footage.checks(v)
     bad = {r["check"] for r in rows if not r["ok"]}
     assert {"filler", "cuts", "segments", "sync"} <= bad     # and the fake one-byte recording cannot be probed

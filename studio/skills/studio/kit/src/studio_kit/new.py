@@ -49,6 +49,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         cfg["pixel"] = {"grid": [320, 180], "palette": ["#0f1318", "#e6ebf0", "#8fd3ff", "#f2a93b", "#e4715f", "#2b333c"]}
     if source:
         cfg["source"] = source_record(source)
+    if duration and genre != "footage":
+        cfg["duration"] = float(duration)
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
     (video / "layout.json").write_text(json.dumps(DEFAULT_LAYOUT, indent=1) + "\n")
     if genre == "footage":
@@ -56,12 +58,10 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         (video / "footage").mkdir(exist_ok=True)
         scenes = TEMPLATES / "footage" / "scenes"
     elif duration:
-        # A piece with no narration (a motion reel, a product film): one clip of this length; scenes
-        # time themselves, and captions are none.
+        # A piece with no narration (a motion reel, a product film): one clip of video.json's
+        # duration; scenes time themselves, and captions are none.
         scenes = TEMPLATES / (genre if (TEMPLATES / genre).is_dir() else "scenes") / "scenes"
-        tl.save(video, {"version": 1, "fps": tl.DEFAULT_LAYOUT["fps"], "duration": float(duration), "cues": {},
-                        "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": cfg["title"], "start": 0.0, "end": float(duration)}],
-                                   "narration": [], "captions": [], "audio": []}})
+        tl.build(video)
     else:
         nr = json.loads((TEMPLATES / "narration.json").read_text())
         if genre == "explainer" and level == "intro":

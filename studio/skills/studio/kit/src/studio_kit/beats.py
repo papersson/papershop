@@ -2,12 +2,11 @@
 
 Onset strength from a short-time spectrum (positive change in log-magnitude), the tempo from the
 autocorrelation of that curve between 70 and 190 BPM, and the phase from the grid offset that
-collects the most onset strength. Writes audio/beats.json and timeline.json's "beats":
+collects the most onset strength. Writes audio/beats.json, which the timeline carries as "beats":
   bpm, beats (seconds), downbeats (every fourth beat, from the strongest phase of four), hits
 (the onset peaks, for effects).
 Scenes read them with `useClip().beat(i)` and `useClip().hits`. Numpy only; the `audio` extra.
 """
-import json
 from pathlib import Path
 
 from . import proc
@@ -74,16 +73,14 @@ def analyse(y):
 
 def main(args):
     from . import timeline as tl
+    from .workspace import atomic_json
     video = Path(args.video)
     try:
         result = analyse(load_mono(args.file))
     except ImportError:
         raise SystemExit("beats needs numpy: run `studio doctor --fetch --extra audio`")
-    (video / "audio").mkdir(exist_ok=True)
-    (video / "audio" / "beats.json").write_text(json.dumps(result, indent=1) + "\n")
-    if (video / "timeline.json").exists():
-        t = tl.load(video)
-        t["beats"] = result
-        tl.save(video, t)
+    atomic_json(video / "audio" / "beats.json", result)
+    if (video / "timeline.json").exists():     # else the first narration or edit builds it with the beats
+        tl.build(video)
     print(f"{result['bpm']} BPM, {len(result['beats'])} beats, {len(result['downbeats'])} downbeats, {len(result['hits'])} hits")
     return 0

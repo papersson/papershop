@@ -30,6 +30,8 @@ keys without a default are simply absent when unset (callers use .get).
   git                {"sign": true | false | null} for checkpoint commits
   pixel              {"grid": [w, h], "palette": [...]} (pixel genre)
   loop               true: a motion piece must loop seamlessly
+  duration           seconds: the length of a piece with no narration (new --duration), the
+                     timeline's base when there are no narration timings
 """
 
 import json

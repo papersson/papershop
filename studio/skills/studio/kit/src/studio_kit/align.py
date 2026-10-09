@@ -1,10 +1,13 @@
 """`studio align VIDEO`: word timings for the narration, then captions re-chunked from them.
 
-Uses faster-whisper (the `align` extra); the model downloads from Hugging Face on first use.
+The recognised words go to audio/words.json with a stamp of the narration they were heard in; the
+timeline attaches them while that narration is current. Uses faster-whisper (the `align` extra);
+the model downloads from Hugging Face on first use.
 """
 from pathlib import Path
 
 from . import timeline as tl
+from .workspace import atomic_json
 
 MODEL = "small.en"
 
@@ -22,11 +25,11 @@ def recognise(audio, model=MODEL):
 
 def main(args):
     video = Path(args.video)
-    t = tl.load(video)
-    heard = recognise(video / t["tracks"]["audio"][0]["file"], args.model)
-    matched, total = tl.attach_words(t, heard)
-    t["tracks"]["captions"] = tl.chunk_captions(t["tracks"]["narration"], t["fps"])
-    tl.save(video, t)
-    print(f"aligned {matched} of {total} script words ({total - matched} interpolated); "
-          f"{len(t['tracks']['captions'])} caption chunks")
+    narration = tl.narration_audio(tl.load(video))
+    if not narration:
+        raise SystemExit("this video has no narration to align (a footage edit's words come from `studio ingest`)")
+    heard = recognise(video / narration["file"], args.model)
+    atomic_json(video / "audio" / "words.json", {"narration": tl.narration_stamp(video), "words": heard})
+    t = tl.build(video)
+    print(f"{len(t['tracks']['captions'])} caption chunks")
     return 0

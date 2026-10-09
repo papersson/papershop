@@ -15,8 +15,8 @@ cuts/*/*
 out/
 __pycache__/
 """
-PATHS = ("SCRIPT.md", "video.json", "narration.json", "lexicon.json", "layout.json", "timeline.json", ".gitignore",
-         "research", "scenes", "sims", "data", "assets", "review", "cuts", "audio", ".studio")
+PATHS = ("SCRIPT.md", "video.json", "narration.json", "lexicon.json", "layout.json", "timeline.json", "cues.json",
+         ".gitignore", "research", "scenes", "sims", "data", "assets", "review", "cuts", "audio", "footage", ".studio")
 
 
 def init(video):

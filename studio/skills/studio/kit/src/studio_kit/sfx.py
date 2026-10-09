@@ -3,7 +3,8 @@
 CUES.json is a list of {"t": seconds, "type": "click", "gain": 0}; `t` may also be a cue or beat
 name ("beat_3", "downbeat_1") from the timeline. The voices are small numpy synths (a click, a pop,
 a thump and a whoosh), so effects are code like everything else and land on the measured beat. The
-result is audio/sfx.wav, added to timeline.tracks.audio at -8 dB under the narration.
+cues are kept as audio/sfx.json and the render is audio/sfx.wav, which the timeline mixes at -8 dB
+under the narration.
 
 Sound effects are off by default and belong in pauses. The sound lab renders candidates for each
 type, each played alone and in context (after a sentence of the narration, in its pause), on one
@@ -14,6 +15,7 @@ import math
 from pathlib import Path
 
 from . import timeline as tl
+from .workspace import atomic_json
 
 RATE = 48_000
 SEED = 42
@@ -84,17 +86,14 @@ def write_wav(path, buf):
 
 def main(args):
     video = Path(args.video)
-    t = tl.load(video)
     cues = json.loads(Path(args.cues).read_text())
     try:
-        buf = render(cues, t)
+        buf = render(cues, tl.build(video))       # cue and beat names resolve against the current sources
         write_wav(video / "audio" / "sfx.wav", buf)
     except ImportError:
         raise SystemExit("sfx needs numpy and soundfile: run `studio doctor --fetch --extra audio`")
-    audio = [e for e in t["tracks"]["audio"] if e["file"] != "audio/sfx.wav"]
-    audio.append({"file": "audio/sfx.wav", "start": 0.0, "gain": -8})
-    t["tracks"]["audio"] = audio
-    tl.save(video, t)
+    atomic_json(video / "audio" / "sfx.json", cues)
+    tl.build(video)
     print(f"{len(cues)} effects → audio/sfx.wav")
     return 0
 

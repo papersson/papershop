@@ -19,7 +19,7 @@ def make_video(tmp_path):
                               {"id": "s2", "engine": "remotion", "title": "B", "start": 2.0, "end": 4.0}],
                     "narration": narration, "captions": tl.chunk_captions(narration),
                     "audio": [{"file": "audio/narration.mp3", "start": 0.0}]}}
-    tl.save(tmp_path, t)
+    (tmp_path / "timeline.json").write_text(json.dumps(t))          # a built timeline, as the engines read it
     return t
 
 

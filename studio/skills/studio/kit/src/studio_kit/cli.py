@@ -33,6 +33,8 @@ def _engine_call(args):
 
 def _cut(args):
     from .render import make_cut
+    from .timeline import build
+    build(args.video)          # so an edit to cues.json or audio/tracks.json is in the cut
     log = json.loads(Path(args.changelog).read_text()) if args.changelog else None
     rec = make_cut(args.video, args.quality, args.stills_only, log)
     done = [c["id"] for c in rec["clips"] if c["rendered"]]
@@ -136,6 +138,7 @@ COMMANDS = {
         A("--all", action="store_true", help="transcribe every sentence again, ignoring the cache"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [W("video"), A("--model", default="small.en")], "align:main"),
+    "timeline": ("build timeline.json from its sources (after editing cues.json or audio/tracks.json)", [W("video")], "timeline:main"),
     "capture": ("a screenshot of a page into assets/, recorded with its source", [
         A("url"), W("video"), A("--name"), A("--size", default="1440x900"),
         A("--wait", type=int, default=4000, help="virtual milliseconds to let the page settle"),
@@ -156,8 +159,8 @@ COMMANDS = {
     "ingest": ("a recording: transcript with word times, shot changes, filler marks, a paper edit", [
         A("file"), W("video"), A("--name"), A("--model", default="small.en"),
     ], "footage:main_ingest"),
-    "edit": ("build the timeline from an edit list of footage segments", [W("video"), A("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
-    "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into the timeline", [W("video"), A("file")], "beats:main"),
+    "edit": ("keep an edit list of footage segments and build the timeline from it", [W("video"), A("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
+    "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), A("file")], "beats:main"),
     "sfx": ("synthesised effects from a cues file, on the timeline", [W("video"), A("cues", help="JSON list of {t, type, gain}")], "sfx:main"),
     "sound-lab": ("a page to choose effect candidates by listening", [V("video")], "sfx:main_lab"),
     "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [

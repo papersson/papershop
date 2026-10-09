@@ -76,7 +76,7 @@ def test_crops_reuse_unchanged_frames_and_crop_a_repeated_label_once(tmp_path):
         s["clip"] = "s1"                         # both sentences in one chapter
     t["tracks"]["scene"][0]["end"] = 4.0
     t["tracks"]["scene"] = t["tracks"]["scene"][:1]
-    tl.save(tmp_path, t)
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
     eng = BoxEngine()
     idx = sheets.crops(tmp_path, tmp_path / "out", engine=eng)
     assert eng.frames == 2

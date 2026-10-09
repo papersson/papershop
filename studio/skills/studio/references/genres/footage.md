@@ -18,10 +18,10 @@ sentences, the kit builds the timeline, and captions come from the recording's o
    write an edit list: `[{"src": "talk", "in": 4.64, "out": 7.10}, {"src": "talk", "in": 15.66,
    "out": 22.76, "gain": -2}]`. Segments play back to back; a jump cut is two segments. Cut between
    words: start a segment a fraction before its first word (0.05 s), end it a fraction after its last.
-4. **Build**: `studio edit VIDEO edl.json` writes the timeline: the footage track (segments), the
-   audio track (each segment's sound, with an 8 ms fade at each cut so a cut never clicks, and its
-   `gain`), the narration track (the words spoken inside each segment, mapped onto the new timeline)
-   and captions chunked from them.
+4. **Build**: `studio edit VIDEO edl.json` keeps the list as `footage/edit.json` and builds the
+   timeline from it: the footage track (segments), the audio track (each segment's sound, with an
+   8 ms fade at each cut so a cut never clicks, and its `gain`), the narration track (the words
+   spoken inside each segment, mapped onto the new timeline) and captions chunked from them.
 5. **Overlays**: `scenes/s1.tsx` draws over the `Footage` component (callouts, lower thirds, titles,
    zooms), cued on the words: `at('03')` is sentence 3 of the edit, `word('03', 2)` its third word.
    The footage plays muted; its sound is mixed from the edit list. `fit="cover"` fills the frame,

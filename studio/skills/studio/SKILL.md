@@ -100,6 +100,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization |
 | `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
+| `timeline VIDEO` | Rebuild timeline.json from its sources, after editing `cues.json` or `audio/tracks.json` |
 | `lexicon add WORD --spoken TEXT [--phonemes IPA]` | Promote a pronunciation for future videos |
 | `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; reports actual output dimensions. Chapters without a scene show their boards |
 | `boards VIDEO` | A stills cut of every chapter's board (`boards/boards.json`, notes from the screen notes); reports sentences with nothing on screen |
@@ -123,7 +124,12 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 `SCRIPT.md` owns narration and its learning brief; narrative Decisions own settled direction.
 `narration.json` owns effective voice/timing settings. `boards/` holds the boards (boards.json is
 written by the builder; notes.json is generated). `sims/` and `data/` hold evidence.
-`timeline.json` is generated. `research/` holds reviews, snapshots, timing and pending requests.
+`timeline.json` is built, never edited: each command writes the source it owns and rebuilds it
+(`audio/timings.json` narrate, `audio/words.json` align, `audio/sfx.json` sfx, `audio/beats.json`
+beats, `footage/edit.json` edit, video.json `duration` for a piece without narration). Named cues
+go in `cues.json` (`{"name": seconds}`), extra audio such as a music bed in `audio/tracks.json`
+(`[{"file", "start", "gain"}]`); after editing either, `studio timeline VIDEO` (or the next cut)
+rebuilds it. `research/` holds reviews, snapshots, timing and pending requests.
 `cuts/cutN/` retains a record and MP4; watched/final/noted cuts also retain their review previews.
 `out/master.mp4` is the final-quality local master; the web copy may be smaller.
 

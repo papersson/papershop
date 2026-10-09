@@ -1,22 +1,47 @@
 """The timeline contract: `timeline.json` and `layout.json`, the only files an engine reads.
 
+timeline.json is a build product with one writer, `build(video)`. Each command owns one source file,
+writes it and calls build; nothing carries over from an earlier timeline.json except through the
+one-time `migrate`. Exactly one source gives the base (scenes, narration, duration), in this order:
+
+  footage/edit.json    studio edit       the edit list: footage track, each segment's sound, its words
+  audio/timings.json   studio narrate    laid-out sentence timings; "timing": "estimate" | "narrated"
+  video.json duration  studio new        a piece with no narration: one clip of that length
+
+and the rest layer on:
+
+  audio/words.json     studio align      recognised words, stamped with the narration they were heard
+                                         in; attached only while that narration is current
+  cues.json            the builder       named cues {name: seconds} scenes can wait on (reveal: cues
+                                         come from the timings); anchors on sentences and words may
+                                         join the numbers later
+  audio/tracks.json    the builder       extra audio [{file, start, gain?, in?, out?, role?}] (music)
+  audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio
+  audio/beats.json     studio beats      the beat grid, as "beats"
+
 timeline.json
-  fps, duration
+  fps, duration, timing, voice, sources (the files it was built from)
   tracks.scene      [{id, engine, title, start, end}]           one generated clip per chapter
   tracks.narration  [{id, clip, text, caption, paragraph, start, end, words: [{w, start, end}]}]
   tracks.captions   [{start, end, lines}]                         chunked from the narration
-  tracks.audio      [{file, start}]
+  tracks.audio      [{file, start, role, gain?, in?, out?, fade?}]  role: narration | sfx | music | footage
+  tracks.footage    [{id, file, in, out, start, end}]             footage videos only
   cues              {name: seconds}                               extra times scenes can wait on
+  beats             {bpm, beats, downbeats, hits}
 
 Frame boundaries are rounded once, from absolute times, so clips rendered separately concatenate
 to exactly the narration's length (rounding each clip's duration instead drifts a frame per clip).
 """
+import hashlib
 import json
 import math
 import re
 import shutil
 from difflib import SequenceMatcher
 from pathlib import Path
+
+from . import settings
+from .workspace import atomic_json, locked
 
 LINE_CHARS = 42
 MAX_LINES = 2
@@ -59,16 +84,30 @@ def timing(video, timeline=None):
     t = timeline or load(video)
     if t.get("timing"):
         return t["timing"]
-    audio = next((a for a in t.get("tracks", {}).get("audio", []) if a.get("role", "narration") == "narration"), None)
+    audio = narration_audio(t)
     return "narrated" if audio and (Path(video) / audio.get("file", "")).exists() else "estimate"
+
+
+def audio_role(entry, footage=()):
+    """An audio entry's role. Entries written before roles were recorded are told by their file:
+    the narration's name, the sfx render, or a footage segment's recording."""
+    if entry.get("role"):
+        return entry["role"]
+    f = entry.get("file", "")
+    if Path(f).name.startswith("narration"):
+        return "narration"
+    if f == SFX["file"]:
+        return "sfx"
+    return "footage" if any(f == f"assets/{x['file']}" for x in footage) else "music"
+
+
+def narration_audio(timeline):
+    """The narration's tracks.audio entry, or None (a footage edit, a silent piece)."""
+    return next((a for a in timeline.get("tracks", {}).get("audio", []) if audio_role(a) == "narration"), None)
 
 
 def load(video):
     return json.loads((Path(video) / "timeline.json").read_text())
-
-
-def save(video, timeline):
-    (Path(video) / "timeline.json").write_text(json.dumps(timeline, indent=1, ensure_ascii=False) + "\n")
 
 
 # Formats a video can be exported in. Each has its own stage (the frame above the caption band), so
@@ -254,19 +293,162 @@ def from_timings(t, engine="remotion", audio_file="audio/narration.mp3"):
             "voice": {k: t[k] for k in ("engine", "voice", "model", "speed", "mode", "credit") if t.get(k) is not None},
             "tracks": {"scene": scenes, "narration": narration,
                        "captions": chunk_captions(narration, fps),
-                       "audio": [{"file": audio_file, "start": 0.0}]},
+                       "audio": [{"file": audio_file, "start": 0.0, "role": "narration"}]},
             "cues": {f"reveal:{s['id']}": s["pause"]["end"] for s in narration if "pause" in s}}
 
 
-def from_tutor(lesson, video, engine="remotion"):
-    """A timeline for an existing tutor lesson: its sentence timings and narration become the
-    narration track, and each chapter becomes a scene clip."""
+# --- the one writer --------------------------------------------------------------------------------
+
+SFX = {"file": "audio/sfx.wav", "start": 0.0, "gain": -8, "role": "sfx"}
+ROLES = ("narration", "sfx", "music", "footage")
+
+
+def _read(p):
+    return json.loads(p.read_text()) if p.exists() else None
+
+
+def narration_stamp(video):
+    """What recognised words were heard in: the narration's timings and its audio, hashed. Any new
+    narration, an estimate included, changes it."""
+    h = hashlib.sha256()
+    for p in (Path(video) / "audio" / "timings.json", Path(video) / "audio" / "narration.mp3"):
+        h.update(p.read_bytes() if p.exists() else b"")
+        h.update(b"\0")
+    return h.hexdigest()[:16]
+
+
+def _base(video, cfg):
+    """The timeline from the one source that gives scenes, narration and duration, and its name."""
+    edl, timings = _read(video / "footage" / "edit.json"), _read(video / "audio" / "timings.json")
+    if edl is not None:
+        from .footage import compose
+        return compose(video, edl), "footage/edit.json"
+    if timings is not None:
+        t = from_timings(timings, cfg["engine"])
+        t["timing"] = timings.get("timing", "narrated")      # only real narrations kept timings before
+        return t, "audio/timings.json"
+    if cfg.get("duration"):
+        d = float(cfg["duration"])
+        return {"version": 1, "fps": DEFAULT_LAYOUT["fps"], "duration": d, "cues": {},
+                "tracks": {"scene": [{"id": "s1", "engine": cfg["engine"], "title": cfg.get("title", "s1"), "start": 0.0, "end": d}],
+                           "narration": [], "captions": [], "audio": []}}, "video.json duration"
+    raise SystemExit(f"nothing to build {video / 'timeline.json'} from: narrate the script, `studio edit` "
+                     "the footage, or give video.json a duration")
+
+
+def build(video):
+    """Write timeline.json from its sources (the contract above) and return it. Prints what it
+    migrated and what it ignored."""
+    video = Path(video)
+    a = video / "audio"
+    with locked(video, "timeline"):
+        if (video / "timeline.json").exists():
+            migrate(video, load(video))
+        t, base = _base(video, settings.load(video))
+        used = [base]
+        words = _read(a / "words.json")
+        if words is not None and base == "audio/timings.json":
+            if words.get("narration") == narration_stamp(video):
+                matched, total = attach_words(t, words["words"])
+                t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"])
+                used.append("audio/words.json")
+                print(f"timeline: aligned {matched} of {total} script words ({total - matched} interpolated)")
+            else:
+                print("timeline: audio/words.json was aligned against an earlier narration; ignored "
+                      "(`studio align` again for word timings)")
+        cues = _read(video / "cues.json")
+        if cues is not None:
+            bad = [k for k, v in cues.items() if not isinstance(v, (int, float)) or isinstance(v, bool)]
+            if bad:
+                raise SystemExit(f"cues.json: {', '.join(bad)} must be seconds")
+            t["cues"] = {**cues, **t["cues"]}
+            used.append("cues.json")
+        sfx = (a / "sfx.json").exists()
+        extra = _read(a / "tracks.json")
+        if extra is not None:
+            for e in extra:
+                if "file" not in e or e.get("role", "music") not in ROLES:
+                    raise SystemExit(f"audio/tracks.json: {e} needs a file, and a role among {', '.join(ROLES)}")
+            # sfx.json owns audio/sfx.wav; a migrated copy of its entry gives way
+            t["tracks"]["audio"] += [{"start": 0.0, **e, "role": e.get("role", "music")} for e in extra
+                                     if not (sfx and e["file"] == SFX["file"])]
+            used.append("audio/tracks.json")
+        if sfx:
+            t["tracks"]["audio"].append(dict(SFX))
+            used.append("audio/sfx.json")
+        beats = _read(a / "beats.json")
+        if beats is not None:
+            t["beats"] = beats
+            used.append("audio/beats.json")
+        t["sources"] = used
+        atomic_json(video / "timeline.json", t)
+        if not (video / "layout.json").exists():
+            atomic_json(video / "layout.json", DEFAULT_LAYOUT)
+    return t
+
+
+def migrate(video, old):
+    """Lift what a timeline.json from before `build` holds into the sources that now own it. Runs
+    once: a built timeline names its sources, and an existing source is never overwritten. Clip
+    engines are not lifted; the renderer always drew every clip with the video's engine."""
+    if "sources" in old:
+        return
+    a, lifted = video / "audio", []
+
+    def lift(path, value):
+        if value and not path.exists():
+            atomic_json(path, value)
+            lifted.append(str(path.relative_to(video)))
+
+    tracks = old.get("tracks", {})
+    footage, audio = tracks.get("footage", []), tracks.get("audio", [])
+    if footage:
+        gain = {e["start"]: e.get("gain", 0) for e in audio if audio_role(e, footage) == "footage"}
+        lift(video / "footage" / "edit.json", [{"src": Path(f["file"]).stem, "in": f["in"], "out": f["out"],
+                                                "gain": gain.get(f["start"], 0)} for f in footage])
+    elif tracks.get("narration"):
+        lift(a / "timings.json", _timings_of(video, old))
+    elif not settings.raw(video).get("duration"):
+        atomic_json(video / "video.json", {**settings.raw(video), "duration": old["duration"]})
+        lifted.append("video.json duration")
+    lift(video / "cues.json", {k: v for k, v in old.get("cues", {}).items() if not k.startswith("reveal:")})
+    # the sfx cues were never kept, so its render stays as a plain track until `studio sfx` runs again
+    lift(a / "tracks.json", [{**e, "role": audio_role(e, footage)} for e in audio if audio_role(e, footage) in ("music", "sfx")])
+    lift(a / "beats.json", old.get("beats"))
+    lift(a / "final.json", old.get("audio_finish"))
+    timings = _read(a / "timings.json")
+    if timings and not footage and not (a / "words.json").exists():
+        # words `studio align` attached in place, which a narration of the same audio would drop
+        said = {ln["id"]: ln.get("words", []) for seg in timings["segments"] for ln in seg["lines"]}
+        if any(s.get("words") and s["words"] != said.get(s["id"]) for s in tracks.get("narration", [])):
+            lift(a / "words.json", {"narration": narration_stamp(video),
+                                    "words": [w for s in tracks["narration"] for w in s.get("words", [])]})
+    if lifted:
+        print("timeline: migrated into " + ", ".join(lifted))
+
+
+def _timings_of(video, t):
+    """Narration timings from a timeline (from_timings inverted), for one made before
+    audio/timings.json was kept: an estimate, or an imported lesson."""
+    keep = ("id", "text", "caption", "paragraph", "start", "end", "words", "pause")
+    segments = [{"id": c["id"], "title": c.get("title", c["id"]), "start": c["start"], "end": c["end"],
+                 "lines": [{k: s[k] for k in keep if k in s} for s in t["tracks"]["narration"] if s["clip"] == c["id"]]}
+                for c in t["tracks"]["scene"]]
+    return {**t.get("voice", {}), "total": t["duration"], "segments": segments, "timing": timing(video, t)}
+
+
+def from_tutor(lesson, video):
+    """A video from an existing tutor lesson: its narration audio and sentence timings are copied in,
+    and the timeline is built from them, one scene clip per chapter."""
     lesson, video = Path(lesson), Path(video)
-    t = json.loads((lesson / "audio" / "timings.json").read_text())
     (video / "audio").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(lesson / "audio" / "narration.mp3", video / "audio" / "narration.mp3")
-    timeline = from_timings(t, engine)
-    save(video, timeline)
-    if not (video / "layout.json").exists():
-        (video / "layout.json").write_text(json.dumps(DEFAULT_LAYOUT, indent=1) + "\n")
-    return timeline
+    shutil.copyfile(lesson / "audio" / "timings.json", video / "audio" / "timings.json")
+    return build(video)
+
+
+def main(args):
+    t = build(args.video)
+    print(f"{len(t['tracks']['scene'])} clips, {len(t['tracks']['narration'])} sentences, {t['duration']:.1f} s "
+          f"from {', '.join(t['sources'])}")
+    return 0

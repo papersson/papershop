@@ -45,7 +45,8 @@ idea, and hundreds of them produced reels that rhyme. So:
   into the timeline; scenes cue with `useClip().beat(i)`, `downbeat(i)`, `hits`. Start on a
   downbeat; state changes on beats, big moments on downbeats. No track: synthesise effects,
   `studio sfx VIDEO cues.json` (click, pop, thump, whoosh, placed on beat or cue names), and choose
-  candidates by ear with `studio sound-lab`. Add the track to `timeline.tracks.audio`. Finish with
+  candidates by ear with `studio sound-lab`. Add the track to `audio/tracks.json`
+  (`[{"file": "assets/track.wav", "start": 0}]`) and run `studio timeline VIDEO`. Finish with
   `studio audio` (-14 LUFS for social: `--lufs -14`).
 - Motion needs less structure than an explainer: no SCRIPT.md, no reviewers. It has a brief (the
   state list) and the user's notes.

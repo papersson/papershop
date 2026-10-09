@@ -9,7 +9,7 @@
   - no room tone and no one-pass loudnorm: that filter is dynamic, so it raised the room tone and
     the breaths in every pause, and the learner heard "a constant background noise".
 Fixed gain alone pushed the raw voice to about +6.5 dBTP on a few samples; the limiter is for those.
-The measured loudness and true peak are printed and stored in timeline.json's "audio_finish".
+The measured loudness and true peak are printed and stored in audio/final.json.
 
 `mix` builds the video's soundtrack from timeline.tracks.audio: each entry {file, start, in, out,
 gain} is trimmed, delayed to its start and summed.
@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 
 from . import proc
-from . import timeline as tl
+from .workspace import atomic_json
 
 RATE = 48_000
 MAX_PASSES = 4
@@ -52,8 +52,9 @@ def finish(video, lufs=-16.0, peak=-1.5):
     # picture-only change).
     st = src.stat()
     stamp = f"{src.name}:{st.st_size}:{st.st_mtime_ns}:{lufs}:{peak}"
-    if (video / "timeline.json").exists() and out.exists():
-        done = tl.load(video).get("audio_finish", {})
+    record = video / "audio" / "final.json"
+    if record.exists() and out.exists():
+        done = json.loads(record.read_text())
         if done.get("stamp") == stamp:
             print("audio finish: unchanged source, kept")
             return done
@@ -78,10 +79,7 @@ def finish(video, lufs=-16.0, peak=-1.5):
     result = {"target_lufs": lufs, "lufs": got, "true_peak_dbtp": tp, "ceiling_dbtp": peak,
               "gain_db": round(gain, 2), "source": src.name, "input_lufs": before, "input_true_peak_dbtp": before_tp,
               "stamp": stamp}
-    if (video / "timeline.json").exists():
-        t = tl.load(video)
-        t["audio_finish"] = result
-        tl.save(video, t)
+    atomic_json(record, result)
     return result
 
 

@@ -5,7 +5,7 @@
         footage/N.shots.json   scene-change times (ffmpeg's scene score)
         footage/N.paper.md     a paper edit: the transcript as numbered sentences with timestamps,
                                filler words and long pauses marked, so an edit is a list of ids
-  studio edit VIDEO EDL.json            build the timeline from an edit list
+  studio edit VIDEO EDL.json            keep the edit list as footage/edit.json and build the timeline
 
 An edit list is a list of segments, [{"src": "N", "in": 12.4, "out": 19.0, "gain": 0}, ...], played
 back to back (a jump cut is two segments). The timeline's footage track holds the segments, its
@@ -25,7 +25,9 @@ from pathlib import Path
 
 from . import proc
 from . import assets
+from . import settings
 from . import timeline as tl
+from .workspace import atomic_json
 
 FILLERS = {"um", "uh", "erm", "er", "ah", "hmm", "like", "basically", "actually", "so", "right", "okay"}
 HARD_FILLERS = {"um", "uh", "erm", "er", "hmm"}
@@ -113,8 +115,8 @@ def fade_ms():
     return 0.008
 
 
-def build(video, edl):
-    """The timeline for an edit list; returns it (and writes it)."""
+def compose(video, edl):
+    """The timeline an edit list gives (the base `timeline.build` layers the other sources on)."""
     video = Path(video)
     fps = tl.DEFAULT_LAYOUT["fps"]
     footage, audio, narration = [], [], []
@@ -132,7 +134,8 @@ def build(video, edl):
             words_cache[src] = json.loads((folder(video) / f"{src}.words.json").read_text())
         dur = b - a
         footage.append({"id": f"f{i}", "file": file, "in": a, "out": b, "start": round(at, 3), "end": round(at + dur, 3)})
-        entry = {"file": f"assets/{file}", "start": round(at, 3), "in": a, "out": b, "gain": seg.get("gain", 0), "fade": fade_ms()}
+        entry = {"file": f"assets/{file}", "start": round(at, 3), "in": a, "out": b, "gain": seg.get("gain", 0),
+                 "fade": fade_ms(), "role": "footage"}
         audio.append(entry)
         inside = [w for w in words_cache[src] if w["start"] >= a - 0.01 and w["end"] <= b + 0.01]
         for s in sentences(inside):
@@ -142,13 +145,17 @@ def build(video, edl):
             narration.append({"id": f"s1_{n_sent:02d}", "clip": "s1", "text": text, "caption": text, "paragraph": i - 1,
                               "start": words[0]["start"], "end": words[-1]["end"], "words": words})
         at += dur
-    t = {"version": 1, "fps": fps, "duration": round(at, 3), "cues": {},
-         "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": "Edit", "start": 0.0, "end": round(at, 3)}],
-                    "footage": footage, "narration": narration, "captions": tl.chunk_captions(narration, fps), "audio": audio}}
-    tl.save(video, t)
-    if not (video / "layout.json").exists():
-        (video / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT, indent=1) + "\n")
-    return t
+    engine = settings.load(video)["engine"]
+    return {"version": 1, "fps": fps, "duration": round(at, 3), "cues": {},
+            "tracks": {"scene": [{"id": "s1", "engine": engine, "title": "Edit", "start": 0.0, "end": round(at, 3)}],
+                       "footage": footage, "narration": narration, "captions": tl.chunk_captions(narration, fps), "audio": audio}}
+
+
+def edit(video, edl):
+    """Keep an edit list as footage/edit.json (once it composes) and build the timeline from it."""
+    compose(video, edl)
+    atomic_json(folder(video) / "edit.json", edl)
+    return tl.build(video)
 
 
 # --- checks -----------------------------------------------------------------------------------------
@@ -221,7 +228,7 @@ def main_ingest(args):
 
 
 def main_edit(args):
-    t = build(args.video, json.loads(Path(args.edl).read_text()))
+    t = edit(args.video, json.loads(Path(args.edl).read_text()))
     print(f"{len(t['tracks']['footage'])} segments, {t['duration']:.1f} s, {len(t['tracks']['narration'])} sentences, "
           f"{len(t['tracks']['captions'])} caption chunks")
     return 0

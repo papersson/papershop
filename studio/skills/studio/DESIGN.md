@@ -250,6 +250,11 @@ item: the loop is proven by the user's own notes.
 - **Cues on what the voice says.** Positional sentence cues broke whenever a note split a sentence
   (several did). `phrase(id, text)` cues the spoken words (word timings, or the caption position where
   a spoken rule rewrote them), in all three engines.
+- **One writer for the timeline.** Seven commands edited timeline.json in place, and a re-narration
+  rebuilt it keeping only the hand cues, so it dropped the effects track, the beat grid and any music
+  bed. Each command now owns one source file (narrate the timings, align the words, sfx its cues, the
+  builder `cues.json` and `audio/tracks.json`) and `timeline.build` composes the file from them; words
+  aligned against an earlier narration are ignored rather than misplaced.
 - **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
   synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
 - **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare

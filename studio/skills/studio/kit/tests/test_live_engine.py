@@ -37,7 +37,7 @@ def live_video(tmp_path, scene=SCENE):
          "tracks": {"scene": [{"id": "s1", "engine": "live", "title": "One", "start": 0.0, "end": 2.0},
                               {"id": "s2", "engine": "live", "title": "Two", "start": 2.0, "end": 3.5}],
                     "narration": narration, "captions": tl.chunk_captions(narration), "audio": []}}
-    tl.save(tmp_path, t)
+    (tmp_path / "timeline.json").write_text(json.dumps(t))          # a built timeline, as the engines read it
     (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live"}))
     return t
 

@@ -1,3 +1,4 @@
+import json
 import subprocess
 
 import pytest
@@ -64,11 +65,9 @@ def test_a_video_without_audio_gets_silence_of_its_length(tmp_path):
 
 
 def test_finish_is_skipped_when_its_source_is_unchanged(tmp_path, monkeypatch):
-    from studio_kit import timeline as tl
     v = video(tmp_path)
-    tl.save(v, {"version": 1, "fps": 30, "duration": 6.0, "cues": {},
-                "tracks": {"scene": [], "narration": [], "captions": [], "audio": []}})
     first = audio.finish(v)
+    assert json.loads((v / "audio" / "final.json").read_text()) == first and not (v / "timeline.json").exists()
     calls = []
     real = audio.measure
     monkeypatch.setattr(audio, "measure", lambda f: calls.append(f) or real(f))

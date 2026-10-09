@@ -6,8 +6,9 @@ ends where the pause into the next sentence begins, both snapped to silence. Kok
 render one sentence per call with fixed gaps ("paragraph": false): flatter, since every sentence
 then starts at the same pitch.
 
-Writes audio/narration.wav and .mp3, and the timeline's narration track (with each sentence's
-words, from the engine's own timestamps) and scene track (one clip per chapter).
+Writes audio/narration.wav and .mp3 and audio/timings.json (each sentence's times and words, from
+the engine's own timestamps; `--estimate` writes only the timings), then builds the timeline: its
+narration track and its scene track (one clip per chapter).
 
 Engines (narration.json "engine"):
   kokoro (default)  local, free, deterministic. "kokoro": voice, speed, paragraph. Each chunk's
@@ -46,6 +47,7 @@ from . import proc
 from . import settings
 from . import script as sc
 from . import timeline as tl
+from .workspace import atomic_json
 
 RATE = 24_000
 LEAD_IN = 0.8        # silence before the first sentence
@@ -483,19 +485,10 @@ def estimate_durations(S, chapters):
 
 
 def write_timeline(S, timings, timing="narrated"):
-    """The narration and scene tracks from the laid-out timings; cues and engines are kept. `timing`
-    records where the times came from: "narrated" (the audio) or "estimate" (word counts, no audio)."""
-    video = S.video
-    old = tl.load(video) if (video / "timeline.json").exists() else None
-    t = tl.from_timings(timings, engine=settings.load(video).get("engine", "remotion"),
-                        audio_file="audio/narration.mp3")
-    t["timing"] = timing
-    if old:
-        t["cues"] = {**{k: v for k, v in old.get("cues", {}).items() if not k.startswith("reveal:")}, **t["cues"]}
-    tl.save(video, t)
-    if not (video / "layout.json").exists():
-        (video / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT, indent=1) + "\n")
-    return t
+    """audio/timings.json, with where its times came from: "narrated" (the audio) or "estimate" (word
+    counts, no audio); then the timeline, built from it and the video's other sources."""
+    atomic_json(S.audio / "timings.json", {**timings, "timing": timing})
+    return tl.build(S.video)
 
 
 def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
@@ -556,7 +549,6 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     proc.ffmpeg("-i", S.audio / "narration.wav", "-codec:a", "libmp3lame", "-b:a", "128k", S.audio / "narration.mp3")
     timings["phonemes"] = spoken_text
     timings["peak"] = float(np.abs(track).max())
-    (S.audio / "timings.json").write_text(json.dumps(timings, indent=1))
     write_timeline(S, timings)
     print(f"total {timings['total']:.1f}s, peak {timings['peak']:.2f}")
     return timings
