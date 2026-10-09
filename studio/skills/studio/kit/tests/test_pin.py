@@ -36,6 +36,7 @@ def test_init_copies_the_shared_pixel_module_and_both_engines(tmp_path, monkeypa
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
     video, _ = new.create("v", directory=str(tmp_path / "v"))
     p = pin.init(video)
-    assert (p / "engines" / "shared" / "pixels.ts").exists()
+    assert all((p / "engines" / "shared" / f).exists() for f in ("pixels.ts", "motion.js", "timing.js", "package.json"))
+    assert (p / "engines" / "live" / "glossary.html").exists()
     assert (p / "engines" / "motion-canvas" / "cli.mjs").exists() and (p / "engines" / "motion-canvas" / "src" / "map.ts").exists()
     assert not (p / "engines" / "motion-canvas" / "node_modules").exists()

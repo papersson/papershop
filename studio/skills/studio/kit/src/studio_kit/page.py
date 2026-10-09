@@ -230,12 +230,15 @@ class Handler(BaseHTTPRequestHandler):
     LIVE_DIRS = ("scenes", "boards", "assets", "data", "audio")
 
     def _live(self, rel):
-        """The live engine and the video's live inputs, for drawing scenes in the page."""
+        """The live engine, the engines' shared modules (its kit imports ../../shared/) and the
+        video's live inputs, for drawing scenes in the page."""
         from .env import engine_dir
         if ".." in rel.split("/"):
             return self._send(404, b"not found", "text/plain")
         if rel.startswith("engine/"):
             f = engine_dir("live") / rel[len("engine/"):]
+        elif rel.startswith("shared/"):
+            f = engine_dir("shared") / rel[len("shared/"):]
         elif rel == "layout.json":
             f = self.video / "layout.json"
         elif rel.startswith("video/"):

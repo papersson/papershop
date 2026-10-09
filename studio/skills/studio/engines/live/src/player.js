@@ -18,17 +18,9 @@
 
 import { Stage } from './stage.js'
 import * as kit from './kit.js'
+import { captionLines, clipTimes, frameOf } from '../../shared/timing.js'
 
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
-const half = x => Math.floor(x + 0.5) // frame boundaries round half up, like the kit's timeline
-
-/** A caption chunk's lines in the layout's format: the kit wraps them for every format, never the engine. */
-function captionLines(chunk, layout) {
-  const fmt = layout.format ?? '16:9'
-  const lines = fmt === '16:9' ? chunk.lines : chunk.wrapped?.[fmt]
-  if (!lines) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`)
-  return lines
-}
 
 async function json(url, fallback) {
   const r = await fetch(url, { cache: 'no-store' })
@@ -71,36 +63,18 @@ export async function boot({ svg, video, layout: layoutUrl }) {
   function clipRange(id) {
     const c = T.tracks.scene.find(x => x.id === id)
     if (!c) throw new Error(`no clip ${id} in timeline.json`)
-    const first = half(c.start * T.fps)
-    return { c, first, frames: half(c.end * T.fps) - first }
+    const first = frameOf(c.start, T.fps)
+    return { c, first, frames: frameOf(c.end, T.fps) - first }
   }
 
   function context(clip, t) {
     const { c, first, frames } = clipRange(clip)
-    const start = first / T.fps
-    const sentence = id => {
-      const full = id.includes('_') ? id : `${clip}_${id}`
-      const s = T.tracks.narration.find(n => n.id === full)
-      if (!s) throw new Error(`no sentence ${full} in timeline.json`)
-      return s
-    }
+    const { at, end, word, phrase, cue, sentences } = clipTimes(T, clip, first / T.fps)
     const H = bandTop()
     return {
       S: stage, t, dur: frames / T.fps, W: L.width, H, unit: H / 8, kit,
       clip, index: T.tracks.scene.indexOf(c), title: c.title, chapters: T.tracks.scene, timeline: T, layout: L,
-      at: (id, off = 0) => sentence(id).start - start + off,
-      end: (id, off = 0) => sentence(id).end - start + off,
-      word: (id, i, off = 0) => {
-        const w = sentence(id).words?.[i]
-        if (!w) throw new Error(`sentence ${id} has no word ${i}`)
-        return w.start - start + off
-      },
-      phrase: (id, text, off = 0) => kit.phraseStart(sentence(id), text) - start + off,
-      cue: (name, off = 0) => {
-        if (!(name in (T.cues ?? {}))) throw new Error(`no cue ${name} in timeline.json`)
-        return T.cues[name] - start + off
-      },
-      sentences: T.tracks.narration.filter(n => n.clip === clip).map(n => ({ ...n, start: n.start - start, end: n.end - start })),
+      at, end, word, phrase, cue, sentences,
       P: (t0, d, e) => kit.prog(t, t0, d, e),
       asset: file => `${base}assets/${file}`,
     }
@@ -180,9 +154,9 @@ export async function boot({ svg, video, layout: layoutUrl }) {
 
   /** Draw the frame at absolute time `at` (the desk's live playback). */
   function drawAt(at, layers = 'all') {
-    const f = half(at * T.fps)
-    const c = T.tracks.scene.find(x => half(x.start * T.fps) <= f && f < half(x.end * T.fps)) ?? T.tracks.scene[T.tracks.scene.length - 1]
-    return draw(c.id, f - half(c.start * T.fps), layers)
+    const f = frameOf(at, T.fps)
+    const c = T.tracks.scene.find(x => frameOf(x.start, T.fps) <= f && f < frameOf(x.end, T.fps)) ?? T.tracks.scene[T.tracks.scene.length - 1]
+    return draw(c.id, f - frameOf(c.start, T.fps), layers)
   }
 
   return {

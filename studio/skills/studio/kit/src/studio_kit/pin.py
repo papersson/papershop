@@ -22,7 +22,7 @@ FROM_SKILL = ["bin", "prompts", "templates", "references", "SKILL.md", "DESIGN.m
               "engines/remotion/package-lock.json", "engines/remotion/tsconfig.json",
               "engines/shared", "engines/motion-canvas/cli.mjs", "engines/motion-canvas/render.html", "engines/motion-canvas/src",
               "engines/motion-canvas/package.json", "engines/motion-canvas/package-lock.json", "engines/motion-canvas/tsconfig.json",
-              "engines/live/cli.mjs", "engines/live/render.html", "engines/live/src", "engines/live/package.json",
+              "engines/live/cli.mjs", "engines/live/render.html", "engines/live/glossary.html", "engines/live/src", "engines/live/package.json",
               "engines/live/package-lock.json"]
 FROM_PLUGIN = ["flake.nix", "flake.lock", "shell.nix"]
 GITIGNORE = ".cache/\nkit/.venv/\nengines/*/node_modules/\n__pycache__/\n"

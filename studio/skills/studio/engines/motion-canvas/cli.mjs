@@ -17,6 +17,7 @@ import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'node
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createServer} from 'vite';
+import {frameOf} from '../shared/timing.js';
 
 // The plugin is CommonJS: its default export is the module, with the plugin factory inside.
 const motionCanvas = motionCanvasPlugin.default ?? motionCanvasPlugin.motionCanvas ?? motionCanvasPlugin;
@@ -41,13 +42,13 @@ const clipOf = (t, id) => {
 	if (!c) throw new Error(`no clip ${id} in timeline.json`);
 	return c;
 };
-// Frame boundaries round half up, like the kit's timeline.half_up, so clips tile the video.
-const half = (x) => Math.floor(x + 0.5);
-const frameOf = (t, clip, sec) => {
+// A clip time as a frame of the whole video; boundaries round half up, like the kit's
+// timeline.half_up, so clips tile the video.
+const videoFrame = (t, clip, sec) => {
 	const c = clipOf(t, clip);
-	const first = half(c.start * t.fps);
-	const frames = half(c.end * t.fps) - first;
-	return first + Math.min(frames - 1, Math.max(0, half(Number(sec) * t.fps)));
+	const first = frameOf(c.start, t.fps);
+	const frames = frameOf(c.end, t.fps) - first;
+	return first + Math.min(frames - 1, Math.max(0, frameOf(Number(sec), t.fps)));
 };
 
 // Chrome's headless builds don't decode H.264, so each recording in the footage track is transcoded
@@ -130,7 +131,7 @@ async function stills(video, requests) {
 	for (const [layers, reqs] of Object.entries(groups)) {
 		await withPage(video, layers, async (page) => {
 			for (const r of reqs) {
-				const frame = frameOf(t, r.clip, r.t);
+				const frame = videoFrame(t, r.clip, r.t);
 				const mime = /\.jpe?g$/i.test(r.out) ? 'image/jpeg' : 'image/png';
 				const img = dataUrlToBuffer(await page.evaluate(([f, m, sc]) => window.studio.seek(f, m, sc), [frame, mime, Number(r.scale ?? 1)]));
 				mkdirSync(path.dirname(r.out), {recursive: true});
@@ -148,7 +149,7 @@ async function boxesAt(video, requests) {
 	const frames = await withPage(video, 'all', async (page) => {
 		const out = [];
 		for (const r of requests) {
-			await page.evaluate((f) => window.studio.seek(f), frameOf(t, r.clip, r.t));
+			await page.evaluate((f) => window.studio.seek(f), videoFrame(t, r.clip, r.t));
 			out.push({clip: r.clip, t: Number(r.t), band: {y: lay.height - lay.band.height, h: lay.band.height}, boxes: await page.evaluate(() => window.studio.boxes())});
 		}
 		return out;
@@ -161,9 +162,9 @@ async function render(video, clip, out, quality, range) {
 	if (!q) throw new Error(`unknown quality ${quality}`);
 	const t = timeline(video);
 	const c = clipOf(t, clip);
-	const first = half(c.start * t.fps);
-	const frames = half(c.end * t.fps) - first;
-	const [a, b] = range ? [half(range[0] * t.fps), Math.min(frames - 1, half(range[1] * t.fps))] : [0, frames - 1];
+	const first = frameOf(c.start, t.fps);
+	const frames = frameOf(c.end, t.fps) - first;
+	const [a, b] = range ? [frameOf(range[0], t.fps), Math.min(frames - 1, frameOf(range[1], t.fps))] : [0, frames - 1];
 	mkdirSync(path.dirname(out), {recursive: true});
 	const started = Date.now();
 	await withPage(video, 'all', async (page) => {

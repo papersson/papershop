@@ -176,7 +176,7 @@ def test_the_engine_kits_read_cues_only_through_cue():
     """scene_cues scans scene code only; a kit that read timeline cues itself, or called cue() with a
     name a scene passed it, would go unseen."""
     engines = Path(render.__file__).parents[3] / "engines"
-    for f in engines.glob("*/src/**/*"):
+    for f in [*engines.glob("*/src/**/*"), *engines.glob("shared/**/*")]:
         if f.suffix not in render.SCENE_CODE:
             continue
         code = render._CODE.sub(lambda m: m.group(1) or re.sub(r"[^\n]", " ", m.group(0)), f.read_text())
@@ -197,3 +197,17 @@ def test_a_formats_key_holds_that_formats_caption_lines(tmp_path):
 
 def keys_in(video, t, fmt):
     return {c["id"]: render.clip_key(video, t, c["id"], "draft", fmt=fmt) for c in t["tracks"]["scene"]}
+
+
+def test_editing_the_engines_shared_modules_changes_every_chapter(tmp_path, monkeypatch):
+    engines = tmp_path / "engines"
+    for f in ("remotion/src/kit/time.ts", "shared/motion.js"):
+        (engines / f).parent.mkdir(parents=True, exist_ok=True)
+        (engines / f).write_text(f"// {f}\n")
+    monkeypatch.setattr(render, "engine_dir", lambda name: engines / name)
+    (tmp_path / "v").mkdir()
+    t = make_video(tmp_path / "v")
+    before = keys(tmp_path / "v", t)
+    (engines / "shared" / "motion.js").write_text("// motion, edited\n")
+    after = keys(tmp_path / "v", t)
+    assert all(after[c] != before[c] for c in before)

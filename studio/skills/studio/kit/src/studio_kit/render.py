@@ -112,6 +112,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     clip_ids = {c["id"] for c in timeline["tracks"]["scene"]}
     h = hashlib.sha1(quality.encode())
     _hash_tree(h, engine_dir(engine) / "src")
+    _hash_tree(h, engine_dir("shared"))  # the engines' shared modules: motion maths, narration times
     _hash_tree(h, engine_dir(engine) / "package-lock.json")
     scenes = sorted((video / "scenes").iterdir()) if (video / "scenes").is_dir() else []
     for f in scenes:

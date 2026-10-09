@@ -93,3 +93,22 @@ def test_a_scene_error_names_the_clip_and_time(tmp_path):
     live_video(tmp_path, SCENE.replace("globalThis.BROKEN", "true"))
     with pytest.raises(EngineError, match=r"scene error in s1 at 1\.500 s: Error: boom"):
         Engine(tmp_path).still("s1", 1.5, tmp_path / "x.png")
+
+
+@needs_engine
+def test_the_kit_has_the_shared_keyed_track_and_a_format_shows_its_own_caption_lines(tmp_path):
+    t = live_video(tmp_path, """
+export default function draw(c) {
+  c.S.rect('mover', c.kit.track(c.t, [[0, 100], [0.2, 700]]), 100, 50, 50, { fill: '#fff', box: 'mover' })
+}
+""")
+    (f,) = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.5}])
+    assert next(b for b in f["boxes"] if b["name"] == "mover")["x"] == pytest.approx(700, abs=1)
+    t["tracks"]["captions"][0]["wrapped"]["9:16"] = ["Keys", "and values."]
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    (f,) = Engine(tmp_path, fmt="9:16").boxes_at([{"clip": "s1", "t": 1.0}])
+    assert len([b for b in f["boxes"] if b["name"] == "caption"]) == 2
+    del t["tracks"]["captions"][0]["wrapped"]
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    with pytest.raises(EngineError, match="no 9:16 caption lines"):
+        Engine(tmp_path, fmt="9:16").still("s1", 1.0, tmp_path / "x.png")

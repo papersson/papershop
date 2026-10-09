@@ -21,6 +21,7 @@ import {existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync} from
 import {availableParallelism, tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {frameOf} from '../shared/timing.js';
 
 const ENGINE = path.dirname(fileURLToPath(import.meta.url));
 const QUALITY = {
@@ -91,7 +92,7 @@ function boardFile(video, name) {
 
 async function getBundle(video) {
 	const h = createHash('sha1');
-	for (const p of [path.join(ENGINE, 'src'), path.join(ENGINE, 'package-lock.json'),
+	for (const p of [path.join(ENGINE, 'src'), path.join(ENGINE, '..', 'shared'), path.join(ENGINE, 'package-lock.json'),
 		path.join(video, 'scenes'), path.join(video, 'data'), path.join(video, 'boards'), path.join(video, 'timeline.json'),
 		opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json')]) {
 		hashTree(h, p);
@@ -146,7 +147,7 @@ async function composition(serveUrl, clip, inputProps, puppeteerInstance) {
 }
 
 function frameAt(comp, t) {
-	return Math.min(comp.durationInFrames - 1, Math.max(0, Math.round(Number(t) * comp.fps)));
+	return Math.min(comp.durationInFrames - 1, Math.max(0, frameOf(Number(t), comp.fps)));
 }
 
 async function stills(video, requests) {

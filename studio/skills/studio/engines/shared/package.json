@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Code every engine imports: motion maths, narration times and the pixel-art core. No dependencies."
+}

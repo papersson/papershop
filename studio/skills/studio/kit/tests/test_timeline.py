@@ -1,7 +1,10 @@
 import json
+import shutil
+import subprocess
 
 import pytest
 from studio_kit import timeline as tl
+from studio_kit.env import engine_dir
 
 
 def sentence(caption, start, end, clip="s1"):
@@ -89,6 +92,41 @@ def test_phrase_start_finds_spoken_words_and_falls_back_to_the_caption():
     assert phrase_start(entry, "MTBF") == pytest.approx(10.0 + k / len(entry["caption"]) * 4.0)
     with pytest.raises(KeyError):
         phrase_start(entry, "quorum")
+
+
+PARITY = """
+import { frameOf, phraseStart } from %s
+const { entries, phrases, times } = JSON.parse(process.argv[2])
+const tryStart = (e, p) => { try { return phraseStart(e, p) } catch { return null } }
+console.log(JSON.stringify({ starts: entries.map(e => phrases.map(p => tryStart(e, p))), frames: times.map(([t, fps]) => frameOf(t, fps)) }))
+"""
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is not installed")
+def test_the_engines_shared_phrase_start_and_frame_rounding_agree_with_the_kits(tmp_path):
+    """engines/shared/timing.js is what every engine runs; the kit's twins must give the same times."""
+    spoken = "The M T T R is longer than the M T B F, naïve or not, at the café."
+    words = [{"w": w, "start": round(10.0 + 0.3 * i, 3), "end": round(10.2 + 0.3 * i, 3)} for i, w in enumerate(spoken.split())]
+    entries = [{"id": "s1_02", "start": 10.0, "end": 14.0, "caption": "The MTTR is longer than the MTBF, naïve or not, at the café.",
+                "text": spoken, "words": words},
+               {"id": "s1_03", "start": 3.25, "end": 7.9, "caption": "A co-op's 3.5 nodes: the café, the quorum.", "words": []},
+               {"id": "s1_04", "start": 1.0, "end": 2.0, "text": "No caption, no words here."}]
+    phrases = ["is longer", "Longer than", "MTBF", "naive", "naïve or", "caf", "café", "co-op's", "3.5 nodes", "the", "quorum.", "here", "absent", ""]
+    times = [[14.55, 30], [23.557, 30], [0.0, 30], [1 / 60, 30], [74.475, 30], [2.5, 1], [12.345, 25], [436.5 / 30, 30]]
+    script = tmp_path / "parity.mjs"
+    script.write_text(PARITY % json.dumps((engine_dir("shared") / "timing.js").as_uri()))
+    run = subprocess.run(["node", str(script), json.dumps({"entries": entries, "phrases": phrases, "times": times})],
+                         capture_output=True, text=True, check=True)
+    js = json.loads(run.stdout)
+
+    def start(e, p):
+        try:
+            return tl.phrase_start(e, p)
+        except KeyError:
+            return None
+    assert js["starts"] == [[start(e, p) for p in phrases] for e in entries]
+    assert js["frames"] == [tl.half_up(t * fps) for t, fps in times]
+    assert any(x is None for row in js["starts"] for x in row) and any(x is not None for x in js["starts"][1])
 
 
 def test_captions_are_wrapped_for_every_format_and_lines_stay_the_16_9_ones():

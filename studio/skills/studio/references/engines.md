@@ -5,6 +5,12 @@ same `timeline.json` and `layout.json`, so cuts, checks, sheets, exports, the de
 don't care which one draws. A video picks its engine in video.json (`"engine": "live"`,
 `"remotion"` or `"motion-canvas"`; `studio new --engine …`). One engine per video.
 
+What the engines have in common is written once, in `engines/shared/`: the motion maths
+(`motion.js`: eases, springs, `track`, `pulse`, ...), the narration times (`timing.js`: `at`, `end`,
+`word`, `phrase`, `cue`, half-up frame rounding) and the pixel-art core (`pixels.ts`). Each kit
+re-exports them under its own names and defaults. Captions are wrapped by the kit for every
+format and stored in timeline.json; an engine never wraps them.
+
 ## Which to use
 
 - **Live** (default for explainers). A chapter is a plain JS module that draws one frame of SVG
@@ -35,8 +41,9 @@ The context `c` (all times in clip seconds):
 - `c.t`, `c.dur`; `c.W`, `c.H` (the stage above the caption band, in pixels); `c.unit` (`H / 8`).
 - `c.at('03')`, `c.end('03')`, `c.word('03', 2)`, `c.phrase('03', 'the whole state')`, `c.cue(name)`.
 - `c.P(t0, d, ease)` progress of a movement; `c.kit`: `ease` (`out`, `in`, `inOut`, `back`, `smooth`),
-  `stagger`, `pulse`, `spring`, `countUp`, `rand` (never `Math.random`), `lerp`, `clamp`, and the
-  theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, ...).
+  `stagger`, `pulse`, `spring`, `track` (a value that springs to each new key), `countUp`, `rand`
+  (never `Math.random`), `lerp`, `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`,
+  `C.bad`, `C.ink`, `C.dim`, ...).
 - `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
 
 Text is named for the checks by its key (`legible`, `overlap`, `bounds`); give a shape `{box: 'name'}`

@@ -5,7 +5,8 @@ import {makeScene2D, Rect, Txt, type Node} from '@motion-canvas/2d';
 import {all, useScene, useThread, waitFor, Vector2, type ThreadGenerator} from '@motion-canvas/core';
 import timeline from '@timeline';
 import layout from '@layout';
-import {BAND, BG, INK, MONO, SANS, band, phraseStart, px, pt, unit, type TimelineJson} from './base';
+import {BAND, BG, INK, MONO, SANS, band, px, pt, unit, type TimelineJson} from './base';
+import {captionLines, clipTimes, frameOf} from '../../shared/timing.js';
 
 export * from './base';
 export * from './map';
@@ -51,12 +52,7 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 		const me = T.tracks.scene.find((s) => s.id === clip);
 		if (!me) throw new Error(`no clip ${clip} in timeline.json`);
 		const dur = me.end - me.start;
-		const sentence = (id: string) => {
-			const full = id.includes('_') ? id : `${clip}_${id}`;
-			const s = T.tracks.narration.find((n) => n.id === full);
-			if (!s) throw new Error(`no sentence ${full} in timeline.json`);
-			return s;
-		};
+		const {at, end, word, phrase, cue} = clipTimes(T, clip, me.start);
 		view.fill(BG);
 		if (layers === 'background') {
 			yield* waitFor(dur);
@@ -66,25 +62,14 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 			view, clip, dur, start: me.start,
 			every: () => {},
 			asset: (file) => __STUDIO_ASSETS__ + file,
-			at: (id, off = 0) => sentence(id).start - me.start + off,
-			end: (id, off = 0) => sentence(id).end - me.start + off,
-			word: (id, i, off = 0) => {
-				const w = sentence(id).words[i];
-				if (!w) throw new Error(`sentence ${id} has no word ${i}; run studio align`);
-				return w.start - me.start + off;
-			},
-			phrase: (id, text, off = 0) => phraseStart(sentence(id), text) - me.start + off,
-			cue: (name, off = 0) => {
-				if (!(name in T.cues)) throw new Error(`no cue ${name} in timeline.json`);
-				return T.cues[name] - me.start + off;
-			},
+			at, end, word, phrase, cue,
 			now: () => useThread().time(),
 			// Whole frames, rounding halves up like the kit and the other engine, so a clip's scene lasts
 			// exactly its timeline frames. A bare `yield` advances one frame, so counting frames is exact
 			// (a thread's `time` is the exact sum of its waits, `fixed` the frame-quantised clock: only `fixed` counts frames).
 			*until(t: number) {
 				const fps = T.fps;
-				const target = Math.floor(t * fps + 0.5);
+				const target = frameOf(t, fps);
 				while (Math.round(useThread().fixed * fps) < target) yield;
 			},
 			text: (s, at, o = {}) => {
@@ -135,17 +120,13 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 /** The caption band's text, changing at each chunk boundary of the timeline's captions track. */
 function* captions(view: Node, start: number, end: number, T: TimelineJson): ThreadGenerator {
 	const font = layout.band.font ?? 38;
-	const fmt = layout.format ?? '16:9';
 	const lines = new Txt({position: new Vector2(0, layout.height / 2 - band / 2), fill: INK, fontSize: font, fontFamily: SANS, lineHeight: font * 1.3, textAlign: 'center', key: 'caption'});
 	view.add(lines);
 	let t = 0;
 	for (const c of T.tracks.captions.filter((x) => x.end > start && x.start < end)) {
 		const a = Math.max(0, c.start - start);
 		if (a > t) yield* waitFor(a - t);
-		// The kit wraps captions for every format, never the engine.
-		const wrapped = fmt === '16:9' ? c.lines : c.wrapped?.[fmt];
-		if (!wrapped) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`);
-		lines.text(wrapped.join('\n'));
+		lines.text(captionLines(c, layout).join('\n'));
 		const b = Math.min(end - start, c.end - start);
 		yield* waitFor(Math.max(0, b - Math.max(a, t)));
 		lines.text('');

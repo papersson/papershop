@@ -17,8 +17,10 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createRea
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { frameOf } from '../shared/timing.js'
 
 const ENGINE = path.dirname(fileURLToPath(import.meta.url))
+const SHARED = path.join(ENGINE, '..', 'shared') // the engines' shared modules, which the kit imports as ../../shared/
 const QUALITY = { draft: { scale: 0.5, crf: 26 }, final: { scale: 1, crf: 18 } }
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
   '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -34,7 +36,6 @@ for (let i = 0; i < rest.length; i++) {
   else opt[key] = rest[i + 1] && !rest[i + 1].startsWith('--') ? rest[++i] : true
 }
 const log = (...a) => console.error(...a)
-const half = x => Math.floor(x + 0.5)
 
 const timeline = video => JSON.parse(readFileSync(path.join(video, 'timeline.json'), 'utf8'))
 function layoutOf(video) {
@@ -44,12 +45,12 @@ function layoutOf(video) {
 function clipRange(t, id) {
   const c = t.tracks.scene.find(x => x.id === id)
   if (!c) throw new Error(`no clip ${id} in timeline.json`)
-  const first = half(c.start * t.fps)
-  return { first, frames: half(c.end * t.fps) - first }
+  const first = frameOf(c.start, t.fps)
+  return { first, frames: frameOf(c.end, t.fps) - first }
 }
-const frameIn = (t, clip, sec) => Math.min(clipRange(t, clip).frames - 1, Math.max(0, half(Number(sec) * t.fps)))
+const frameIn = (t, clip, sec) => Math.min(clipRange(t, clip).frames - 1, Math.max(0, frameOf(Number(sec), t.fps)))
 
-/** A static server for the engine (/engine/) and the video folder (/video/); nothing outside them. */
+/** A static server for the engine (/engine/), the engines' shared modules (/shared/) and the video folder (/video/); nothing outside them. */
 function serve(video) {
   const layoutFile = opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json')
   const server = createServer((req, res) => {
@@ -57,8 +58,9 @@ function serve(video) {
     let file = null
     if (url === '/layout.json') file = existsSync(layoutFile) ? layoutFile : null
     else if (url.startsWith('/engine/')) file = path.join(ENGINE, url.slice(8))
+    else if (url.startsWith('/shared/')) file = path.join(SHARED, url.slice(8))
     else if (url.startsWith('/video/')) file = path.join(video, url.slice(7))
-    const inside = file && (file.startsWith(ENGINE + path.sep) || file.startsWith(video + path.sep) || file === layoutFile)
+    const inside = file && ([ENGINE, SHARED, video].some(dir => file.startsWith(dir + path.sep)) || file === layoutFile)
     if (!file || !inside || !existsSync(file) || !statSync(file).isFile()) {
       res.writeHead(url === '/layout.json' ? 404 : 404, { 'Cache-Control': 'no-store' })
       return res.end(url === '/layout.json' ? JSON.stringify(DEFAULT_LAYOUT) : 'not found')
@@ -137,7 +139,7 @@ async function render(video, clip, out, quality, range) {
   if (!q) throw new Error(`unknown quality ${quality}`)
   const t = timeline(video)
   const { frames } = clipRange(t, clip)
-  const [a, b] = range ? [half(range[0] * t.fps), Math.min(frames - 1, half(range[1] * t.fps))] : [0, frames - 1]
+  const [a, b] = range ? [frameOf(range[0], t.fps), Math.min(frames - 1, frameOf(range[1], t.fps))] : [0, frames - 1]
   mkdirSync(path.dirname(out), { recursive: true })
   const started = Date.now()
   await withPage(video, async page => {

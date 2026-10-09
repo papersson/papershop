@@ -10,7 +10,8 @@ import timeline from '@timeline';
 import {StageContext} from './stage';
 import {ClipContext} from './time';
 import {BAND, BG, INK, SANS} from './theme';
-import type {Caption, Layout, Timeline} from './types';
+import type {Layout, Timeline} from './types';
+import {captionLines} from '../../../shared/timing.js';
 
 // all; no-captions (band, no caption text); no-band (the scene alone, no band); background (nothing but the background).
 export type Layers = 'all' | 'no-captions' | 'no-band' | 'background';
@@ -65,14 +66,6 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 		</AbsoluteFill>
 	);
 };
-
-/** A caption chunk's lines in the layout's format: the kit wraps them for every format, never the engine. */
-function captionLines(chunk: Caption, l: Layout): string[] {
-	const fmt = l.format ?? '16:9';
-	const lines = fmt === '16:9' ? chunk.lines : chunk.wrapped?.[fmt];
-	if (!lines) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`);
-	return lines;
-}
 
 const CaptionBand: React.FC<{top: number; height: number; time: number; show: boolean; font: number}> = ({
 	top, height, time, show, font,
