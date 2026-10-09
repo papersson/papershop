@@ -15,7 +15,9 @@ Obey the hard stop. Run `studio stage VIDEO --check` between chapters and fix ro
 a stage mark prints STOP (exit 3), write the handoff, report to the main session and do not
 continue that stage. At every stage boundary, and before you stop for any reason, write
 `studio handoff VIDEO --notes "…"` with what the files don't show: a half-finished chapter, a
-decision and its reason, a helper and what it does.
+decision and its reason, a helper and what it does. A chapter fixer (STUDIO_ROLE=fixer) writes no
+handoff and edits no shared file (boards/boards.json, cues.json, captions.json, SCRIPT.md); it
+reports those notes and patches to the main session.
 
 Put scratch files and helper scripts in VIDEO/.studio/work, never /tmp; move a helper the build
 depends on to sims/. Run them with `studio run VIDEO SCRIPT [ARGS…]`, not by path. Keep your

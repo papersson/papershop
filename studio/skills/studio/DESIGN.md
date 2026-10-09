@@ -314,13 +314,21 @@ item: the loop is proven by the user's own notes.
   context was resumed from notes it happened to write. `studio handoff` assembles
   research/handoff.md from the files (owner, stage against budget, last cut and open notes,
   reviews in flight, requests, the next commands they imply) and adds the builder's own notes.
-  `lock acquire --recover` prints it with its age. Background builders write one at every stage
-  boundary.
+  `lock acquire --recover` rebuilds the state from the files and keeps only the stored notes: a
+  stored brief once told the next builder to obey a stop the main session had already lifted.
+  Background builders write one at every stage boundary; chapter fixers report to the owner
+  instead, since they share its token and would overwrite each other's. The brief is committed,
+  so it names paths relative to the video and no host.
 - **Scratch lives in the video, and scripts run through the kit.** That session's key helper
   scripts lived in /tmp, outside the video and its history, and builders put "claude" in a
   script's path to get it past the macOS sandbox. Scratch now goes in `.studio/work/`, which
   survives a restart but stays out of Git and forks; a helper the build depends on moves to
-  `sims/`. `studio run` runs either through the allowlisted `bin/studio`, with the kit's Python.
+  `sims/`. `studio run` runs either through the allowlisted `bin/studio`, with the kit's Python
+  and that kit's own `studio` first on PATH, so a pinned video's script calls the pinned kit.
+- **Stills wait their turn.** Parallel chapter fixers rendering stills hit the operation lock,
+  which refuses at once. Stills can't skip it: Remotion bundles into `.cache/bundle` and deletes
+  other bundles there, and Motion Canvas transcodes footage into `.cache/mc-footage`. So `still`,
+  `boxes` and `duration` wait up to two minutes for it instead.
 - **doctor starts the browser the way a cut does.** It launched Chrome with `--dump-dom`, which a
   sandbox can allow while refusing the engine's own launch. It now renders a one-frame still
   through the live engine in a throwaway video.

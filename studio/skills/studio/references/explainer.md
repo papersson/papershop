@@ -61,7 +61,10 @@ stopping. It writes `research/handoff.md`, a brief a fresh builder can act on wi
 transcript: the owner, the stage against its budget, the last cut and its open notes, reviews in
 flight, pending requests, the next commands, and your notes on what the files don't show (a
 half-finished chapter, a decision and its reason, a helper and what it does). `studio lock VIDEO
-acquire --recover` prints the brief and its age to whoever takes over.
+acquire --recover` prints the brief to whoever takes over, its state read from the files at that
+moment (so a stop lifted since is gone) with your notes and when you wrote them. The brief names
+paths relative to the video and holds no host, so it is committed with the sources and still reads
+right on another machine.
 
 Scratch goes in `VIDEO/.studio/work/`, never /tmp: probes, intermediate frames, a helper being
 tried out. Inside the video it survives a restart, but Git ignores it and fork leaves it behind. A
@@ -79,21 +82,23 @@ context.
 
 - **Split by chapter when the main session can run several builders.** The lock is per video, and
   every changing command takes a short operation lock that fails, without waiting, while another
-  runs. So the main session holds the lock (`studio lock VIDEO acquire --owner main`) and gives
-  each chapter fixer its `STUDIO_OWNER` token and a disjoint set of files: its own
-  `scenes/<clip>.js` and its chapter's boards. A fixer edits only those files and checks its frames
-  with `studio still` on its own clips, trying again after a few seconds when told another
-  operation is running. It never runs `cut`, `check`, `narrate`, `timeline`, `stage` or
-  `commit`, and never edits a shared file (SCRIPT.md, `cues.json`, captions, a helper several
-  scenes import). A change to a shared file comes back to the main session as a patch with its
-  reason. When every fixer has reported, the main session applies the patches, runs `studio
-  check` and makes one cut.
+  runs (`still`, `boxes` and `duration` wait their turn for up to two minutes instead). So the main
+  session holds the lock (`studio lock VIDEO acquire --owner main`) and starts each chapter fixer
+  with its `STUDIO_OWNER` token, `STUDIO_ROLE=fixer` and a disjoint set of files: its own
+  `scenes/<clip>.js` and nothing shared. A fixer edits only those files and checks its frames with
+  `studio still` on its own clips. It never runs `cut`, `check`, `narrate`, `timeline`, `stage`,
+  `commit` or `handoff` (with `STUDIO_ROLE=fixer`, `handoff` refuses), and never edits a shared
+  file: SCRIPT.md, `boards/boards.json` (every chapter's boards are in that one file), `cues.json`,
+  `captions.json`, `audio/tracks.json`, or a helper several scenes import. A change to a shared
+  file, and the notes a handoff would hold, come back to the main session in the fixer's report,
+  as a patch with its reason. When every fixer has reported, the main session applies the patches,
+  runs `studio check`, makes one cut and writes the handoff.
 - **Keep each builder's context small.** Hand frame inspection to sub-agents. A sub-agent reads
   the stills, sheets or strips and returns findings as text (clip, time, element, what is wrong),
   not images. A builder that reads every frame itself fills its context with pictures and stops
   mid-pass.
 - **Write a handoff at every stage boundary** in background mode, and before any stop, so a
-  restart costs minutes.
+  restart costs minutes. The video's one owner writes it; fixers report to the owner.
 
 ## Stage 1: Sources
 

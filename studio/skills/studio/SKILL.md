@@ -100,7 +100,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue; `acquire --recover` prints the handoff |
 | `handoff VIDEO [--notes TEXT \| --notes-file FILE]` | `research/handoff.md`: a brief a fresh builder resumes from (state, reviews in flight, requests, next commands, builder notes) |
 | `stage VIDEO NAME [--kind local|structural] [--summary TEXT]` · `stage VIDEO --report` · `stage VIDEO --check` | Timing and revision refactoring log; `--check` reads the current stage without marking and exits 3 at a background hard stop |
-| `run [--allow-outside] VIDEO SCRIPT [ARGS…]` | A builder's `.py` (kit Python, kit importable) or `.mjs`/`.js` (node) inside the video, run in its folder with `STUDIO_VIDEO` and `STUDIO_WORK` set and stdin closed; exit status passes through |
+| `run [--allow-outside] VIDEO SCRIPT [ARGS…]` | A builder's `.py` (kit Python, kit importable) or `.mjs`/`.js` (node) inside the video, run in its folder with `STUDIO_VIDEO` and `STUDIO_WORK` set, `studio` on PATH as the video's own kit, and stdin closed; arguments pass verbatim, SIGTERM reaches the script, exit status passes through |
 | `check VIDEO --only script|code-source` | Source/text checks before a browser or timeline exists |
 | `steps VIDEO STEPS.json` | Execute full-file program versions and record source/output evidence |
 | `review VIDEO ROUND [--only student|expert|editor] [--narrative FILE]` | Isolated, revision-bound script/narrative review; `max_rounds` counts the rounds since the latest structural stage mark |
