@@ -52,8 +52,9 @@ def bundles(video):
 
 
 def receipts(video):
-    """[(receipt, why)] for each review receipt that does not stand for the current revision."""
-    from .review_state import read, revision
+    """[(receipt, why)] for each review receipt that does not stand for the current revision (or, for
+    a kind that stands for its lineage, that a structural revision has superseded) or is unsettled."""
+    from .review_state import read, revision, stands
     from .reviews import KINDS, ROLES
     current, out = {}, []
     for role in ROLES:
@@ -62,10 +63,10 @@ def receipts(video):
             continue
         kind = KINDS[rec["kind"]]
         current.setdefault(kind.name, revision(video, kind))
-        if rec.get("revision") != current[kind.name]:
+        if not stands(video, rec, kind, current[kind.name]):
             out.append((rec, f"stale: judged {'cut ' + str(rec['cut']) if rec.get('cut') else 'an earlier revision'}"))
-        elif rec["status"] not in ("passed", "waived"):
-            out.append((rec, rec["status"]))
+        elif rec["status"] not in kind.settled:
+            out.append((rec, rec["status"] + (", OPEN at the round cap" if rec.get("stopped") == "cap" else "")))
     return out
 
 
@@ -132,9 +133,16 @@ def assemble(video, notes=None, now=None, notes_at=None):
             ready = f"report ready for the {r['role']} script review (`studio review {v} ROUND --only {r['role']}`)"
             steps.append(f"Address the findings in {one_line(relative(video, r['detail']))}, then {ready}"
                          if r["status"] == "findings" else "R" + ready[1:])
+        elif r.get("stopped") == "cap" and not why.startswith("stale"):
+            steps.append(f"The motion review stopped at its cap with must-fix findings open "
+                         f"({one_line(relative(video, r.get('detail') or 'no detail'))}): the main session decides whether to "
+                         f"fix them and record the user's acceptance (`studio review-status {v} motion waived --reason …`) "
+                         "or, if the user asks, raise video.json motion_rounds")
         elif not any(k.name == r["kind"] for k, _, _ in waiting):    # a newer bundle is already out
             sheets = f"`studio sheets {v} {v}/out/sheets`, " if r["kind"] == "frames" else ""
-            steps.append(f"Make a fresh cut, {sheets}`studio review-{r['kind']} {v}`, and report ready for "
+            fix = f"Fix the must-fix findings in {one_line(relative(video, r['detail']))}, then make" \
+                if r["status"] == "findings" and not why.startswith("stale") else "Make"
+            steps.append(f"{fix} a fresh cut, {sheets}`studio review-{r['kind']} {v}`, and report ready for "
                          f"the {r['kind']} review")
     steps += [f"Incorporate request {r.split()[0]}, then `studio request {v} --resolve {r.split()[0]}`" for r in pending]
     steps += [f"Resolve note {one_line(x['id'])}: `studio notes {v} --start {one_line(x['id'])}`, change, then "

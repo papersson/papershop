@@ -207,8 +207,12 @@ COMMANDS = {
     "review-frames": ("prepare a fresh frame-review bundle or import its result", [
         V("video"), A("--cut", type=int), A("--result", help="review response including its REVISION and FRAMES verdict"),
     ], "review_state:main_frames"),
+    "review-motion": ("prepare a motion-review bundle of a cut's frame sequences, or import its result", [
+        V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
+        A("--result", help="review response including its REVISION and MOTION verdict"),
+    ], "motion_review:main"),
     "review-status": ("record an unavailable or explicitly waived review", [
-        V("video"), A("role", type=reviews.role, choices=reviews.ROLES, help="frame is an alias of frames"),
+        V("video"), A("role", type=reviews.role, choices=reviews.ROLES, help="a script reviewer, frames (alias frame) or motion"),
         A("status", choices=["unavailable", "waived"]), A("--reason"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [

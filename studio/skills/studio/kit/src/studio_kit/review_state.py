@@ -1,9 +1,10 @@
 """Review receipts identify the exact material judged, without exposing earlier findings.
 
-research/reviews/<role>.json: {role, kind, revision, status, detail, created}, with the round of a
-script review, and for a frame review the cut it judged and whether that cut was older than the
-sources when the result came in (stale, with what had changed). What each kind hashes, how its
-verdict reads and what an older revision's result does are its policies in reviews.py.
+research/reviews/<role>.json: {role, kind, revision, status, detail, created, t}, with the round of a
+script or motion review, and for a frame or motion review the cut it judged and whether that cut was
+older than the sources when the result came in (stale, with what had changed). What each kind
+hashes, how its verdict reads, what an older revision's result does and what a settled receipt
+stands for are its policies in reviews.py.
 research/reviews/rounds.jsonl logs the revision each round reviewed, which the round cap counts.
 """
 import hashlib
@@ -69,7 +70,8 @@ def revision(video, kind):
 
 def record(video, role, revision, status, detail="", **extra):
     """Write a receipt; `extra` (round, cut, stale, changed) only where the kind has them."""
-    rec = {"role": role, "kind": kind_of(role).name, "revision": revision, "status": status, "detail": detail, "created": now()}
+    rec = {"role": role, "kind": kind_of(role).name, "revision": revision, "status": status, "detail": detail, "created": now(),
+           "t": round(time.time(), 3)}
     rec |= {k: v for k, v in extra.items() if v is not None}
     atomic_json(Path(video) / "research" / "reviews" / f"{role}.json", rec)
 
@@ -141,20 +143,27 @@ def rounds(video, kind, revision=None):
     return seen, since
 
 
-def start_round(video, kind, number, revision, cfg):
-    """Log a round of `kind` on `revision`, unless it is a new round past the kind's cap. The cap
-    counts rounds of this revision of the script, so a typed round number neither spends nor saves
-    one."""
+def next_round(video, kind, revision):
+    """The round a review of `revision` is in its count: the one that reviewed it already, or the next."""
+    seen, _ = rounds(video, kind, revision)
+    return seen.index(revision) + 1 if revision in seen else len(seen) + 1
+
+
+def check_cap(video, kind, number, revision, cfg):
+    """Refuse a new round of `kind` past its cap (counted as rounds() counts, so a typed round number
+    neither spends nor saves one), with the kind's own reason and way forward."""
     cap = kind.rounds.cap(cfg) if kind.rounds.cap else None
     seen, since = rounds(video, kind, revision)
     if cap is not None and revision not in seen and len(seen) >= cap:
         where = f"its {since['stage']} mark ({since['at']})" if since else "the first round"
-        raise SystemExit(f"round {number} is past max_rounds ({cap}): this revision of the script has had {len(seen)} "
-                         f"review rounds since {where}. Lock the script with every open finding logged, or ask the "
-                         "learner to raise the cap. A structural rewrite (a new chapter or a changed arc, marked with "
-                         "studio stage VIDEO revision --kind structural --summary …) starts a new count; a mark over "
-                         "an unchanged script does not")
+        raise SystemExit(kind.rounds.past_cap.format(number=number, cap=cap, count=len(seen), where=where))
+
+
+def start_round(video, kind, number, revision, cfg):
+    """Log a round of `kind` on `revision`, unless it is a new round past the kind's cap."""
+    check_cap(video, kind, number, revision, cfg)
     log = rounds_log(video)
+    log.parent.mkdir(parents=True, exist_ok=True)
     text = log.read_text() if log.exists() else ""
     torn = bool(text) and not text.endswith("\n")      # a line cut short must not swallow this one
     with log.open("a") as f:
@@ -174,11 +183,31 @@ def changed_since(video, cut):
     return ", ".join(clips) if clips else "SCRIPT.md's Script or Evidence"
 
 
+def stands(video, rec, kind, current):
+    """Whether a receipt stands for the current material: it judged the current revision, or (a kind
+    that stands for its lineage) no stage mark that restarts the kind's round count has come since it
+    was written. A motion review stops by its rule, so later small edits (frame-review fixes, desk
+    notes) don't ask for another round; the frame review and the user judge those."""
+    if rec.get("revision") == current:
+        return True
+    if kind.stands != "lineage" or not rec:
+        return False
+    _, since = rounds(video, kind, current)
+    return since is None or rec.get("t", 0) >= since["t"]
+
+
 def require(video, role):
     kind = kind_of(role)
     rec, current = read(video, role), revision(video, kind)
-    if rec.get("revision") == current and rec.get("status") in ("passed", "waived"):
+    if rec.get("status") in kind.settled and stands(video, rec, kind, current):
         return
+    if kind.stands == "lineage" and rec and not stands(video, rec, kind, current):
+        raise SystemExit(f"the {role} review judged cut {rec.get('cut', '?')}, before a structural revision that started a "
+                         f"new count: {kind.remedy.format(role=role)}, or record an authorized waiver with studio review-status")
+    if kind.name == "motion" and rec.get("stopped") == "cap":
+        raise SystemExit(f"the motion review of cut {rec.get('cut')} stopped at its cap with must-fix findings open "
+                         f"({rec.get('detail') or 'no detail'}): fix them and record the user's acceptance with studio review-status "
+                         "VIDEO motion waived --reason …, or, if the user asks, raise video.json motion_rounds")
     if kind.freshness == "record-stale" and rec.get("cut") is not None and rec.get("revision") != current:
         raise SystemExit(f"the {role} review judged cut {rec['cut']}, and {changed_since(video, rec['cut'])} changed since: "
                          f"make a fresh cut and {kind.remedy.format(role=role)}, or record an authorized waiver with "

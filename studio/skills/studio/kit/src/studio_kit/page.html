@@ -261,6 +261,14 @@ function renderChangelog() {
       return '<li><b>' + esc(x.note) + '</b> \u2014 ' + esc(x.change) + '</li>';
     }).join('') + '</ul>';
   }
+  // what the motion review's stop rule left on purpose: shown so nobody raises it again
+  if (c.known_issues && c.known_issues.length) {
+    html += '<h2' + (html ? ' style="margin-top:16px"' : '') + '>Known issues, left on purpose (motion review of cut ' +
+      esc(c.known_issues[0].cut) + ')</h2><ul class="changes known">' + c.known_issues.map(function (x) {
+      return '<li><b>' + esc(x.window || '') + (x.t != null ? ' \u00b7 ' + esc(x.t) + ' s' : '') + '</b> ' +
+        esc(x.severity) + ' \u2014 ' + esc(x.text) + '</li>';
+    }).join('') + '</ul>';
+  }
   var pairs = c.stills.filter(function (s) { return s.before; });
   if (pairs.length) {
     html += '<h2 style="margin-top:16px">Before and after</h2>' + pairs.map(function (s) {

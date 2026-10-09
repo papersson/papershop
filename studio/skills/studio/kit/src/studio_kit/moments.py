@@ -140,19 +140,22 @@ def check_samples(t, per_clip, clips=None):
     return out
 
 
-def sequence(t, clip, at, frames=STRIP_FRAMES, fps=None, kind="strip"):
-    """`frames` consecutive frames at `fps` (the timeline's by default) around clip time `at`; any
-    outside the clip are left out. The id names the frames and fps when they aren't the defaults, so
-    two windows at one time don't share a file."""
+def sequence(t, clip, at, frames=STRIP_FRAMES, fps=None, kind="strip", before=None):
+    """`frames` consecutive frames at `fps` (the timeline's by default) around clip time `at`, `before`
+    of them ahead of it (half by default; a motion review puts a contact fourth, so its anticipation
+    shows before and its settle after); any outside the clip are left out. The id names the frames,
+    fps and lead when they aren't the defaults, so two windows at one time don't share a file."""
     c = next((c for c in t["tracks"]["scene"] if c["id"] == clip), None)
     if c is None:
         raise SystemExit(f"no clip {clip!r} on the timeline")
     fps = fps or t["fps"]
+    lead = frames // 2 if before is None else before
     dur = c["end"] - c["start"]
-    times = [x for x in (round(at + (i - frames // 2) / fps, 4) for i in range(frames)) if 0 <= x < dur]
+    times = [x for x in (round(at + (i - lead) / fps, 4) for i in range(frames)) if 0 <= x < dur]
     if not times:
         raise SystemExit(f"no frame of {clip} near {at} s: the clip runs from 0 to {dur:.2f} s")
-    mid = f"{kind}_{clip}_{at}" + (f"_{frames}f" if frames != STRIP_FRAMES else "") + (f"_{fps:g}fps" if fps != t["fps"] else "")
+    mid = f"{kind}_{clip}_{at}" + (f"_{frames}f" if frames != STRIP_FRAMES else "") + (f"_{fps:g}fps" if fps != t["fps"] else "") \
+        + (f"_{lead}b" if lead != frames // 2 else "")
     return _moment(c, at, kind, mid, frames=times, fps=fps)
 
 

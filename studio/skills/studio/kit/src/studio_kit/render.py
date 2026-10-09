@@ -373,6 +373,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "changelog": changelog or [],
         "seconds": timings,
     }
+    if prev and prev.get("known_issues"):
+        record["known_issues"] = prev["known_issues"]     # what a motion review left on purpose, until the next one ends
     if prev:
         _keep_befores(video, prev_n, d, record)
     (d / "cut.json").write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")

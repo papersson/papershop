@@ -10,16 +10,29 @@
   freshness  what a result for an older revision does: "refuse" it, or "record-stale": import it
              marked stale, with what changed since, so the receipt shows the work but `require`
              still asks for a review of the current revision
+  settled    the statuses `require` accepts: passed or waived, and for a motion review also
+             "known-issues" (stopped by its rule with should-fix findings left on the cut)
+  stands     what a settled receipt stands for: the "revision" it judged, or the "lineage": every
+             later revision until a stage mark that starts the kind's round count again over changed
+             material (review_state.stands)
 
 A script review runs reviewers against the current revision, so it has nothing to import; a frame
 review is packaged for the main session and its result imported later, which is where freshness
-applies. The CLI's review-status roles and review_state.require are read from here.
+applies. A motion review is packaged the same way, and its rounds stop by a rule (motion_review.py):
+at a round with no must-fix findings, or at the cap. The CLI's review-status roles and
+review_state.require are read from here.
 """
+import re
 from dataclasses import dataclass, field
 
 # Rounds are the slowest loop in a build (one search video spent six rounds reaching the gate), so
 # the default is two rounds plus one more for an expert's blocking finding; "thorough" restores six.
 DEFAULT_MAX_ROUNDS = {"thorough": 6, "default": 3, "economy": 2}
+
+
+# Should-fix findings plateaued at 25 to 45 a round in one long session, so a motion review stops at
+# a round with no must-fix findings, or after two rounds, and what is left is recorded on the cut.
+DEFAULT_MOTION_ROUNDS = 2
 
 
 def script_cap(cfg):
@@ -28,11 +41,18 @@ def script_cap(cfg):
     return cfg.get("max_rounds", DEFAULT_MAX_ROUNDS[pace])
 
 
+def motion_cap(cfg):
+    """video.json's motion_rounds, else DEFAULT_MOTION_ROUNDS."""
+    return cfg.get("motion_rounds", DEFAULT_MOTION_ROUNDS)
+
+
 @dataclass(frozen=True)
 class Rounds:
     cap: object = None          # video.json -> the rounds allowed, or None for no cap
     resets_on: tuple = ()       # kinds of stage mark (stage.py's --kind; "fork", fork's first mark) that
                                 # start the count again, when the material changed across the mark
+    past_cap: str = ""          # why a round past the cap is refused, and what to do instead; filled
+                                # with {number}, {cap}, {count} and {where} (the mark the count runs from)
 
 
 def verdict(prefix, passing):
@@ -40,6 +60,19 @@ def verdict(prefix, passing):
     def parse(text):
         lines = [line.strip() for line in text.splitlines() if prefix(line.strip())]
         return ("passed" if lines and lines[-1] == passing else "findings"), (lines[-1] if lines else None)
+    return parse
+
+
+def loose_verdict(word):
+    """A parser for "WORD: PASS" or "WORD: FIX" that tolerates a reviewer's drift in format: markdown
+    around it (bold, a heading, a quote, backticks) and its letter case. The line is returned in the
+    canonical form, or None when there is no verdict line."""
+    pattern = re.compile(rf"^{word}\s*:\s*(PASS|FIX)\b", re.I)
+
+    def parse(text):
+        found = [m.group(1).upper() for m in (pattern.match(re.sub(r"[*_`#>]", "", line).strip()) for line in text.splitlines()) if m]
+        line = f"{word}: {found[-1]}" if found else None
+        return ("passed" if found and found[-1] == "PASS" else "findings"), line
     return parse
 
 
@@ -53,15 +86,35 @@ class Kind:
     rounds: Rounds = Rounds()
     freshness: str = "refuse"
     aliases: dict = field(default_factory=dict)
+    settled: tuple = ("passed", "waived")
+    stands: str = "revision"
 
 
 KINDS = {
     "script": Kind("script", ("expert", "student", "editor"), "script",
                    verdict(lambda line: "VERDICT" in line, "VERDICT: PASS"),
-                   "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap, resets_on=("structural", "fork"))),
+                   "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap, resets_on=("structural", "fork"), past_cap=(
+                       "round {number} is past max_rounds ({cap}): this revision of the script has had {count} review rounds "
+                       "since {where}. Lock the script with every open finding logged, or ask the learner to raise the cap. "
+                       "A structural rewrite (a new chapter or a changed arc, marked with studio stage VIDEO revision --kind "
+                       "structural --summary …) starts a new count; a mark over an unchanged script does not"))),
     "frames": Kind("frames", ("frames",), "frames",
                    verdict(lambda line: line.startswith("FRAMES:"), "FRAMES: PASS"),
                    "run studio review-frames and return its findings", freshness="record-stale", aliases={"frame": "frames"}),
+    # Counted per cut lineage: every round reviews a new cut (fixing changes the frames), so a count per
+    # revision would never stop, and a count per script revision would buy two more rounds with every
+    # local wording fix. A structural revision changes the picture widely enough to start a new count.
+    "motion": Kind("motion", ("motion",), "frames", loose_verdict("MOTION"),
+                   "run studio review-motion and return its findings",
+                   Rounds(cap=motion_cap, resets_on=("structural", "fork"), past_cap=(
+                       "a motion review round {number} would pass motion_rounds ({cap}): {count} cuts of this lineage "
+                       "have been motion-reviewed since {where}. The stop rule ends a motion review at a round with no "
+                       "must-fix findings or at the cap, and the last round's should-fix findings are on its cut as "
+                       "known issues. To proceed: accept those known issues; fix any must-fix finding still open and "
+                       "record the user's acceptance with studio review-status VIDEO motion waived --reason …; or, only "
+                       "if the user explicitly asks for more rounds, raise video.json motion_rounds. A structural "
+                       "revision (studio stage VIDEO revision --kind structural --summary …) starts a new count")),
+                   freshness="record-stale", settled=("passed", "known-issues", "waived"), stands="lineage"),
 }
 
 ROLES = tuple(r for k in KINDS.values() for r in k.roles)

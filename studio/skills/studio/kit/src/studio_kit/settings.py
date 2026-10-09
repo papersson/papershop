@@ -31,6 +31,9 @@ keys without a default are simply absent when unset (callers use .get).
                      latest structural stage mark (default by economy/thorough, reviews)
   economy, thorough  effort settings (review)
   frame_review       true: an independent frame review is required before publish
+  motion_rounds      cap on motion review rounds per cut lineage (counted since the latest
+                     structural stage mark); the review stops at a round with no must-fix
+                     findings or at the cap. Raised only when the user asks     default 2 (reviews)
   script_check       {"accept": [...], "products": {...}, "product_budget": n, "number_budget": n}
   target_minutes     intended main-story length
   learner            path to the learner model (review)

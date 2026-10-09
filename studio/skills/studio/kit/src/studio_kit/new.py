@@ -173,8 +173,8 @@ def main_variant(args):
 # behind whole: publish, sheets, frame review and the next cut read the stills and video beside a
 # record, so a record without them is a broken cut.
 FORK_SKIP_NAMES = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
-FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/timing.jsonl", "research/requests.md",
-                   "research/handoff.md", "research/reviews/rounds.jsonl", ".studio/work"}
+FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/motion_review", "research/timing.jsonl",
+                   "research/requests.md", "research/handoff.md", "research/reviews/rounds.jsonl", ".studio/work"}
 
 
 def fork(source, name, directory=None, title=None):

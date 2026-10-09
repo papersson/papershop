@@ -138,6 +138,29 @@ def _gray(args, crop, resample=""):
     return [raw[i:i + w * crop] for i in range(0, len(raw), w * crop)]
 
 
+def _crop(lay):
+    """Rows of a PACING_SIZE frame above the caption band, even."""
+    return int(PACING_SIZE[1] * (lay["height"] - lay["band"]["height"]) / lay["height"]) // 2 * 2
+
+
+def _changes(times, frames, crop):
+    """[(time, change)]: the mean absolute grey-level change from each sample to the next."""
+    size = PACING_SIZE[0] * crop
+    return [(round((a + b) / 2, 3), sum(map(abs, map(int.__sub__, x, y))) / size)
+            for a, b, x, y in zip(times, times[1:], frames, frames[1:])]
+
+
+def file_signal(path, t, lay, first, count):
+    """A clip's signal as pacing_signal gives it, decoded from a rendered file that holds the clip's
+    `count` frames from its frame `first`: a cut's own video.mp4 (first: where the clip starts in
+    it) or its clip render (first 0), so a motion review finds the moves of the cut it judges."""
+    crop, step = _crop(lay), max(1, round(t["fps"] / PACING_FPS))
+    times = [k / t["fps"] for k in range(0, count, step)]
+    frames = _gray(["-ss", f"{max(0.0, (first - 0.5) / t['fps']):.4f}", "-t", f"{count / t['fps']:.4f}", "-i", str(path)],
+                   crop, f"fps={t['fps'] / step:g},")[:len(times)]
+    return _changes(times[:len(frames)], frames, crop)
+
+
 def pacing_signal(video, engine=None, clips=None, stills=True):
     """{clip: [(time, change)] or None}: each clip's stage (the caption band cropped off) sampled at
     PACING_FPS, and the mean absolute grey-level change from each sample to the next, at the time
@@ -147,7 +170,7 @@ def pacing_signal(video, engine=None, clips=None, stills=True):
     engine, t = engine or Engine(video), tl.load(video)
     fmt = getattr(engine, "fmt", None)
     lay = tl.layout(video, fmt)
-    crop = int(PACING_SIZE[1] * (lay["height"] - lay["band"]["height"]) / lay["height"]) // 2 * 2
+    crop = _crop(lay)
     step = max(1, round(t["fps"] / PACING_FPS))
     out, todo = {}, []
     for c in t["tracks"]["scene"]:
@@ -167,10 +190,7 @@ def pacing_signal(video, engine=None, clips=None, stills=True):
         i = 0
         for cid, times in todo:
             out[cid], i = (times, frames[i:i + len(times)]), i + len(times)
-    size = PACING_SIZE[0] * crop
-    return {cid: None if v is None else [(round((a + b) / 2, 3), sum(map(abs, map(int.__sub__, x, y))) / size)
-                                         for a, b, x, y in zip(v[0], v[0][1:], v[1], v[1][1:])]
-            for cid, v in out.items()}
+    return {cid: None if v is None else _changes(v[0], v[1], crop) for cid, v in out.items()}
 
 
 def moves(signal, level=MOVE_LEVEL, significant=SIGNIFICANT, dt=1 / PACING_FPS):
