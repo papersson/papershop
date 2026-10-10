@@ -91,12 +91,16 @@ role's sub-bus as it sits in the mix, at the master's level):
 - **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
 - **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
   within 10 dB.
-- **pauses** (fails): an effect peaking over -24 dBFS under a spoken word. `studio check` runs this
-  guard whenever there are effects, so publish's full-check gate stops on it.
+- **pauses** (fails): an effect over -24 dBFS during a spoken word, at the master's gain before its
+  limiter; the row names the part of the word it covers and its peak there. `studio check` runs this
+  guard whenever there are effects (`audio/sfx.json`, or a `tracks.json` entry with role `sfx`) and
+  a narration, so publish's full-check gate stops on it. Both keep the target the mix was last
+  finished to, so a check after `export --lufs -14` stays at -14.
 - **loudness**: the master against its target and ceiling, and the web copy's true peak.
 
 Then the user listens once. With effects or music, before publishing, ask the user to play the
-finished mix (`out/master.mp4` after `studio audio`, or the desk's latest cut) and record what they
+finished mix (the desk's latest cut, `audio/final.wav` after `studio audio`, or `out/master.mp4` once
+a publish has made it) and record what they
 said: `studio review-status VIDEO listen passed --reason "…"`, or `waived` with their reason. The
 receipt is bound to the soundtrack's stamp, so a new mix makes it stale. Publish warns, not stops,
 when none stands, and the handoff lists it as a next step. A narration alone needs no listening

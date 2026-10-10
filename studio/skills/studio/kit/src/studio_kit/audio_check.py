@@ -14,14 +14,16 @@ out/audio-check.json and printed a line a row; the exit status is 1 when a row f
             duck has let go, in pauses of at least 1 s), warning under DUCK_MIN dB
   masking   per spoken word, the effects and music in 1-4 kHz against the narration in that band,
             warning when they come within MASK_MARGIN dB of it
-  pauses    an effect peaking over PAUSE_PEAK dBFS (in the effects stem, at the master's level) during
-            a spoken word fails: effects belong in pauses (style.md), and the finish limits peaks, it
+  pauses    an effect rising over PAUSE_PEAK dBFS (in the effects stem, at the master's gain, before
+            its limiter) during a spoken word fails, naming the part of the word it covers: effects belong in pauses (style.md), and the finish limits peaks, it
             does not unmask a word. A quiet effect under speech, below it, is allowed
   loudness  the master's integrated loudness and true peak against its target and ceiling, and the web
             copy's true peak when out/web.mp4 exists
 
-`studio check` runs the pauses guard as its `pauses` check whenever audio/sfx.json exists (so publish,
-whose gate is the full check, stops on it); the other rows are this command's.
+`studio check` runs the pauses guard as its `pauses` check whenever the soundtrack has an effect
+(audio/sfx.json, or an audio/tracks.json entry with role sfx) and a narration, so publish, whose gate
+is the full check, stops on it; the other rows are this command's. Both measure at the target the
+mix was last finished to, so a check after `export --lufs -14` does not re-finish it at -16.
 """
 import json
 from pathlib import Path
@@ -96,30 +98,53 @@ def _band_power(x):
 # --- pauses: the guard ----------------------------------------------------------------------------
 
 def pauses(stems, timeline):
-    """Rows: a failure for every spoken word an effect peaks over PAUSE_PEAK during, else one ok row."""
+    """Rows: a failure for every spoken word an effect rises over PAUSE_PEAK during, naming the part of
+    the word it is over the line and its peak there, else one ok row. Levels are at the master's gain,
+    before its limiter (which takes the peaks past the ceiling down, and unmasks nothing)."""
     import numpy as np
     if "sfx" not in stems.roles:
         return []
     said = words(timeline)
-    bad = []
+    bad, line = [], 10 ** (PAUSE_PEAK / 20)
     for w, a, b in said:
-        seg = stems.span("sfx", a, b)
-        peak = 20 * np.log10(float(np.abs(seg).max())) if len(seg) and np.abs(seg).max() > 0 else -200.0
-        if peak > PAUSE_PEAK:
-            bad.append({"check": "pauses", "clip": "audio", "t": round(a, 2), "ok": False,
-                        "detail": f"an effect peaks at {peak:.1f} dBFS under the word {w!r} ({a:.2f}-{b:.2f} s): "
-                                  f"move it into a pause or keep it under {PAUSE_PEAK:g} dBFS"})
+        seg = np.abs(stems.span("sfx", a, b))
+        over = np.nonzero(seg > line)[0]
+        if not len(over):
+            continue
+        a0 = max(0, int(a * audio.RATE))
+        x, y = (a0 + over[0]) / audio.RATE, (a0 + over[-1] + 1) / audio.RATE
+        peak = 20 * np.log10(float(seg[over].max()))
+        bad.append({"check": "pauses", "clip": "audio", "t": round(x, 2), "ok": False, "peak_dbfs": round(peak, 1),
+                    "overlap": [round(x, 3), round(y, 3)],
+                    "detail": f"an effect is over {PAUSE_PEAK:g} dBFS for {x:.2f}-{y:.2f} s of the word {w!r} "
+                              f"({a:.2f}-{b:.2f} s), peaking there at {peak:.1f} dBFS at the master's gain, before its "
+                              f"limiter: move it into a pause or keep it under {PAUSE_PEAK:g} dBFS"})
     return bad or [{"check": "pauses", "clip": "audio", "ok": True,
                     "detail": f"no effect over {PAUSE_PEAK:g} dBFS under any of {len(said)} spoken words"}]
 
 
+def has_effects(video, timeline):
+    """Whether the soundtrack has an effect: audio/sfx.json's, or any audio entry with role sfx."""
+    return (Path(video) / "audio" / "sfx.json").exists() or any(tl.audio_role(e) == "sfx" for e in timeline["tracks"]["audio"])
+
+
+def finished(video, timeline):
+    """The finish record for the current mix, made at the target and ceiling it was last finished to
+    (after `export --lufs -14` it stays at -14), else at the defaults."""
+    done = audio._record(video)
+    if done:
+        return audio.finish(video, done["target_lufs"], done["ceiling_dbtp"], timeline=timeline)
+    return audio.finish(video, timeline=timeline)
+
+
 def guard(video, timeline=None):
-    """The pauses guard as `studio check` runs it: rows, empty when there are no effects or no voice yet."""
+    """The pauses guard as `studio check` runs it: rows, empty when there are no effects or no words to
+    guard (a piece with no narration, by design), skipped while the narration is an estimate."""
     video = Path(video)
-    if not (video / "audio" / "sfx.json").exists():
-        return []
     timeline = timeline or tl.load(video)
-    if not timeline["tracks"].get("narration") or tl.timing(video, timeline) == "estimate":
+    if not timeline["tracks"].get("narration") or not has_effects(video, timeline):
+        return []
+    if tl.timing(video, timeline) == "estimate":
         return [{"check": "pauses", "clip": "audio", "ok": True, "skipped": True,
                  "detail": "no narration audio yet: the guard runs once `studio narrate` has voiced it"}]
     try:
@@ -127,8 +152,7 @@ def guard(video, timeline=None):
     except ImportError:
         from .sfx import NEEDS
         raise SystemExit(NEEDS)
-    record = audio.finish(video, timeline=timeline)
-    return pauses(Stems(video, timeline, record), timeline)
+    return pauses(Stems(video, timeline, finished(video, timeline)), timeline)
 
 
 # --- sync -----------------------------------------------------------------------------------------
@@ -285,7 +309,7 @@ def run(video, cut=None):
     except ImportError:
         from .sfx import NEEDS
         raise SystemExit(NEEDS)
-    record = audio.finish(video, timeline=timeline)
+    record = finished(video, timeline)
     stems = Stems(video, timeline, record)
     n = cut or cuts.latest(video, cuts.RENDERED)
     rec = render.read_cut(video, n) if n else None

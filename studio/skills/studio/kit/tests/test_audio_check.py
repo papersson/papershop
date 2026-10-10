@@ -128,3 +128,44 @@ def test_the_picture_note_finds_where_motion_starts(tmp_path):
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", str(movie)], check=True)
     assert audio_check._picture(v, {"fps": 30}, 60, movie) == (63, "starts")
     assert audio_check._picture(v, {"fps": 30}, 20, movie) is None
+
+
+def test_an_effect_from_tracks_json_is_guarded_too(tmp_path):
+    """The guard ran only with audio/sfx.json, so a hit in tracks.json at +1 dBFS under a word passed check."""
+    from studio_kit import sfx
+    v = narrated(tmp_path)
+    sfx.write_wav(v / "hit.wav", sfx.voice("thump"))
+    t = json.loads((v / "timeline.json").read_text())
+    t["tracks"]["audio"].append({"file": "hit.wav", "start": 3.5, "role": "sfx"})
+    (v / "timeline.json").write_text(json.dumps(t))
+    rows = audio_check.guard(v)
+    assert rows and not rows[0]["ok"] and check.run(v, only=["pauses"]) == rows
+
+
+def test_the_guard_names_the_overlap_and_its_level_there(tmp_path):
+    """It said "peaks at 0.7 dBFS under the word 'into' (8.37-8.61 s)" for a thump starting at 8.60."""
+    v = narrated(tmp_path, [{"t": 4.40, "type": "thump"}])       # the word 'three' runs 4.0-4.45
+    (bad,) = audio_check.guard(v)
+    x, y = bad["overlap"]
+    assert abs(x - 4.40) < 0.01 and abs(y - 4.45) < 0.01 and bad["t"] == 4.4
+    assert "for 4.40-4.45 s of the word 'three' (4.00-4.45 s)" in bad["detail"]
+    assert "at the master's gain, before its limiter" in bad["detail"] and bad["peak_dbfs"] > audio_check.PAUSE_PEAK
+
+
+def test_the_guard_keeps_the_target_the_mix_was_finished_to(tmp_path):
+    """After `export --lufs -14`, the next check re-finished final.wav at -16."""
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop"}])
+    audio.finish(v, -14.0, timeline=tl.load(v))
+    audio_check.guard(v)
+    assert json.loads((v / "audio" / "final.json").read_text())["target_lufs"] == -14.0
+    rows, _ = audio_check.run(v)
+    assert abs([r for r in rows if r["check"] == "loudness"][0]["lufs"] + 14) < 0.5
+
+
+def test_a_piece_with_no_narration_has_nothing_to_guard(tmp_path):
+    v = narrated(tmp_path, [{"t": 1.0, "type": "pop"}])
+    t = json.loads((v / "timeline.json").read_text())
+    t["tracks"]["narration"] = []
+    t["tracks"]["audio"] = t["tracks"]["audio"][1:]
+    (v / "timeline.json").write_text(json.dumps(t))
+    assert audio_check.guard(v) == []
