@@ -134,3 +134,20 @@ def test_check_reruns_only_changed_chapters_and_forgets_failures(tmp_path, capsy
     eng = CheckEngine(tmp_path)
     check.run(tmp_path, samples=1, engine=eng, everything=True)
     assert set(eng.asked) == {"s1", "s2"}                         # --all and the publish gate check everything
+
+
+def test_a_cut_makes_only_the_pacing_check_due(tmp_path):
+    """Pacing was skipped with no rendered clip; once a cut renders s1, the next check runs pacing on
+    s1 alone, not every other check of that chapter again."""
+    from studio_kit import check, render
+    t = make_video(tmp_path)
+    eng = CheckEngine(tmp_path)
+    rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert all(r.get("skipped") for r in rows if r["check"] == "pacing")
+    f = tmp_path / ".cache" / "clips" / f"s1-draft-{render.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
+    f.parent.mkdir(parents=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=1920x1080:r=30:d=2", "-pix_fmt", "yuv420p", str(f)], check=True)
+    eng = CheckEngine(tmp_path)
+    rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert [(r["check"], r["clip"]) for r in rows if r["check"] in check.PER_CLIP] == [("pacing", "s1")] and not eng.asked
+    assert check.run(tmp_path, samples=1, engine=CheckEngine(tmp_path), everything=False) == []

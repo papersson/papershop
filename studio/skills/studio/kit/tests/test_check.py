@@ -146,3 +146,12 @@ def test_a_label_is_narrated_when_its_words_are_said_together():
     assert check.narrated("box hash function", words) and check.narrated("bucket", words)
     assert not check.narrated("node function hash", words) and not check.narrated("card", words)
     assert not check.narrated("a", words) and not check.narrated("box the", words)
+
+
+def test_bounds_leaves_elements_under_a_moved_camera_alone(tmp_path):
+    lay = {"width": 1920, "height": 1080, "band": {"height": 160}}
+    box = lambda name, x, **k: {"name": name, "kind": "", "x": x, "y": 100, "w": 300, "h": 100, **k}
+    frames = [{"clip": "s1", "t": 1.0, "boxes": [box("cropped", 1800, camera=True), box("gone", 2500, camera=True)]},
+              {"clip": "s1", "t": 2.0, "boxes": [box("placed off", 1800)]}]
+    rows = check.bounds(tmp_path, engine=object(), boxes=(lay, frames))
+    assert rows[0]["ok"] and rows[1]["detail"] == "'placed off' leaves the frame"

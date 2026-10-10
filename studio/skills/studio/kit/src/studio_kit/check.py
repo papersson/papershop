@@ -120,6 +120,9 @@ def _boxes(video, per_clip, engine, clips=None):
 
 
 def bounds(video, samples=3, engine=None, boxes=None):
+    """Captions inside the band and its margins, and every other named element inside the frame. An
+    element under a camera that has moved (a push-in, a pan: the engine marks its box "camera") may be
+    cropped or left out of the shot: that is the camera's doing, and in_frame checks the narrated one."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)
     W, H, band = lay["width"], lay["height"], lay["height"] - lay["band"]["height"]
@@ -132,7 +135,7 @@ def bounds(video, samples=3, engine=None, boxes=None):
                     bad.append(f"caption line {b['w']:.0f} px wide leaves the {SIDE_MARGIN} px margins")
                 if b["y"] < band - SLACK or b["y"] + b["h"] > H + SLACK:
                     bad.append("caption outside the band")
-            elif b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK:
+            elif not b.get("camera") and (b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK):
                 bad.append(f"{b['name']!r} leaves the frame")
         rows.append({"check": "bounds", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad)})
     return rows
@@ -313,7 +316,7 @@ def _cache_file(video, fmt, samples):
 
 
 def changed_clips(video, kinds, samples=3, fmt=None):
-    """({clip: key}, {clip ids whose key changed for any of `kinds` since it last passed})."""
+    """({clip: key}, {kind: clip ids whose key changed for that kind since it last passed})."""
     from . import render
     t = tl.load(video)
     keys = {c["id"]: render.clip_key(video, t, c["id"], "check", fmt=fmt) for c in t["tracks"]["scene"]}
@@ -323,8 +326,7 @@ def changed_clips(video, kinds, samples=3, fmt=None):
 
     def want(cid, kind):      # a pacing check skipped for want of a rendered clip runs once a cut renders one
         return keys[cid] + ("+skipped" if kind == "pacing" and rendered_clip(video, t, cid, fmt) is None else "")
-    todo = {cid for cid in keys if any(passed.get(cid, {}).get(kind) != want(cid, kind) for kind in kinds)}
-    return keys, todo
+    return keys, {kind: {cid for cid in keys if passed.get(cid, {}).get(kind) != want(cid, kind)} for kind in kinds}
 
 
 def remember(video, rows, keys, kinds, samples=3, fmt=None):
@@ -369,8 +371,11 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))
-    keys, todo = changed_clips(video, kinds, samples, fmt)
-    clips = None if everything else todo
+    keys, by_kind = changed_clips(video, kinds, samples, fmt)
+    todo = set().union(*by_kind.values())
+    # pacing reads the cut's clips, so a cut can make it due alone: it doesn't re-run the others
+    clips = None if everything else set().union(*(v for k, v in by_kind.items() if k != "pacing"))
+    pacing_clips = None if everything else by_kind.get("pacing", set())
     if not everything:
         skipped = sorted(set(keys) - todo, key=lambda c: list(keys).index(c))
         print(f"check: {len(todo)} chapter(s) changed since their last pass"
@@ -402,7 +407,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         rows += [r for r in footage.checks(video) if r["check"] in only]
     if "pacing" in only:
         from . import motion
-        rows += motion.pacing(video, engine, clips, stills=not default)
+        rows += motion.pacing(video, engine, pacing_clips, stills=not default)
     if "dead" in only:
         from . import motion
         rows += motion.dead_beats(video, engine=engine)

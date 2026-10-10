@@ -118,3 +118,26 @@ export default function draw(c) {
 def test_doctor_renders_a_still_the_way_the_engine_starts_its_browser():
     from studio_kit import doctor
     assert doctor.check_launch()[:2] == (doctor.OK, "browser launch")
+
+
+@needs_engine
+def test_bounds_leaves_a_push_ins_crop_to_inframe(tmp_path):
+    """A camera pushed in on the left box crops the right one off the frame: the camera's doing, so
+    bounds passes it; a box placed off the frame with the camera at rest still fails."""
+    from studio_kit import check
+    live_video(tmp_path, """
+export default function draw(c) {
+  const { S, W, H } = c
+  c.camAt([[0, { x: W / 2, y: H / 2, z: 1 }], [1, { x: 400, y: H / 2, z: 3 }, 'linear']])
+  S.rect('left', 300, H / 2 - 50, 200, 100, { fill: '#fff', box: 'left box' })
+  S.rect('right', W - 400, H / 2 - 50, 300, 100, { fill: '#fff', box: 'right box' })
+  if (c.t < 0.5) S.rect('stray', W - 100, 100, 300, 100, { fill: '#fff', box: 'stray box', layer: 'ui' })
+}
+""")
+    e = Engine(tmp_path)
+    lay = e.layout()
+    frames = e.boxes_at([{"clip": "s1", "t": 1.5}, {"clip": "s1", "t": 0.2}])
+    right = next(b for b in frames[0]["boxes"] if b["name"] == "right box")
+    assert right["camera"] is True and right["x"] > lay["width"]
+    rows = check.bounds(tmp_path, boxes=(lay, frames))
+    assert rows[0]["ok"] and not rows[1]["ok"] and "'stray box' leaves the frame" in rows[1]["detail"]

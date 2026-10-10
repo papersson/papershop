@@ -47,6 +47,7 @@ export class Stage {
 
   /** Point the camera at (x, y) with zoom z: a push-in is z rising, a pan is (x, y) moving. */
   cam(x, y, z) {
+    this.moved = z !== 1 || x !== this.width / 2 || y !== this.height / 2
     const tx = this.width / 2 - x * z, ty = this.height / 2 - y * z
     this.camera.setAttribute('transform', `translate(${tx} ${ty}) scale(${z})`)
   }
@@ -192,8 +193,9 @@ export class Stage {
       if (!name || Number(node.getAttribute('opacity') ?? 1) <= 0.001 || !node.textContent && node.tagName === 'text') continue
       const r = node.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) continue
+      // camera: drawn under a camera that has moved (not the ui layer), whose crop is the inframe check's, not bounds'
       out.push({ name, kind: node.getAttribute('data-kind') ?? '', x: (r.left - origin.left) * sx, y: (r.top - origin.top) * sy, w: r.width * sx, h: r.height * sy,
-        opacity: Number(node.getAttribute('opacity') ?? 1) })
+        opacity: Number(node.getAttribute('opacity') ?? 1), camera: !!this.moved && this.camera.contains(node) })
     }
     return out
   }

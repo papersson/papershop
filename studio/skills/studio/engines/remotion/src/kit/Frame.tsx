@@ -53,7 +53,8 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box],[data-caption]')].map((el) => {
 			const r = el.getBoundingClientRect();
 			return {name: el.dataset.box ?? 'caption', kind: el.dataset.kind ?? '', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height,
-				opacity: shown(el)};
+				// camera: under a Camera that has moved (data-camera), whose crop is the inframe check's, not bounds'
+				opacity: shown(el), camera: !!el.closest('[data-camera]')};
 		});
 		console.log('STUDIO_BOXES ' + JSON.stringify({band: {y: stageH, h: l.band.height}, boxes}));
 	}, [reportBoxes, ready, frame, stageH, l.band.height]);

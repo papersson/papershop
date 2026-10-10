@@ -88,7 +88,7 @@ export const Camera: React.FC<{cx?: number; cy?: number; zoom?: number; keys?: C
 	const shot = keys ? camAt(frame / fps, keys, ease) : {cx, cy, zoom};
 	const y = shot.cy + (headerInset ?? headerOf(s)) / (2 * shot.zoom);    // the shot's centre, moved to the middle of the stage below the header
 	return (
-		<div style={{position: 'absolute', inset: 0, opacity, transformOrigin: 'center',
+		<div data-camera={shot.zoom !== 1 || shot.cx !== 0 || shot.cy !== 0 ? '' : undefined} style={{position: 'absolute', inset: 0, opacity, transformOrigin: 'center',
 			transform: `scale(${shot.zoom}) translate(${-shot.cx * s.unit}px, ${y * s.unit}px)`}}>
 			{children}
 		</div>
