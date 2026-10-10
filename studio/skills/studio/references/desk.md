@@ -22,7 +22,7 @@ video.json, or the user asks to follow along). In background mode nothing here w
 Settle the narrative and pass the script review first (`explainer.md`); the desk is for the build.
 Build in the foreground, one chapter at a time. Unbuilt chapters show their boards, so the desk
 always plays the whole video. After each chapter: `studio check VIDEO` (incremental: only changed
-chapters), then tell the user **chapter N is ready on the desk**, and keep building while notes
+chapters; an unchanged chapter's open warnings print again), then tell the user **chapter N is ready on the desk**, and keep building while notes
 arrive. Make a cut (`studio cut VIDEO`) when a chapter or a round of notes is done; on the live
 engine a cut is for the record and the publish gate, not for the user to see the change.
 

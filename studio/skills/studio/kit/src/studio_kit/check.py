@@ -26,8 +26,10 @@ Sample times are spread across each clip's sentences, `--samples` per clip (mome
 Incremental by default: the per-chapter checks (length, determinism, bounds, band, contrast,
 legible, overlap, pacing) re-run only for chapters whose clip key changed since they last passed
 there; a pass is remembered per chapter, check and format in .cache/check/ (a warning is a pass; a
-pacing check skipped for want of a rendered clip runs again once a cut renders one). Video-wide checks always run. `--all`
-checks every chapter, and `studio publish` always runs the full check as its gate.
+pacing check skipped for want of a rendered clip runs again once a cut renders one). A warning is
+remembered with its pass and printed again by each check that skips the chapter, until the chapter
+changes. Video-wide checks always run. `--all` checks every chapter, and `studio publish` always runs
+the full check as its gate.
 """
 import hashlib
 import json
@@ -354,6 +356,10 @@ def _cache_file(video, fmt, samples):
     return Path(video) / ".cache" / "check" / f"{(fmt or '16:9').replace(':', 'x')}-s{samples}.json"
 
 
+def _warnings_file(video, fmt, samples):
+    return _cache_file(video, fmt, samples).with_suffix(".warnings.json")
+
+
 def changed_clips(video, kinds, samples=3, fmt=None):
     """({clip: key}, {kind: clip ids whose key changed for that kind since it last passed})."""
     from . import render
@@ -369,12 +375,12 @@ def changed_clips(video, kinds, samples=3, fmt=None):
 
 
 def remember(video, rows, keys, kinds, samples=3, fmt=None):
-    """Record a pass for each (clip, kind) that ran in `rows` with no failure."""
+    """Record a pass for each (clip, kind) that ran in `rows` with no failure, and its warnings with it."""
     f = _cache_file(video, fmt, samples)
     passed = json.loads(f.read_text()) if f.exists() else {}
     ran, failed = set(), set()
     for r in rows:
-        if r["check"] in kinds and r.get("clip") in keys:
+        if r["check"] in kinds and r.get("clip") in keys and not r.get("remembered"):
             ran.add((r["clip"], r["check"]))
             if not r["ok"]:
                 failed.add((r["clip"], r["check"]))
@@ -386,6 +392,30 @@ def remember(video, rows, keys, kinds, samples=3, fmt=None):
     passed = {cid: v for cid, v in passed.items() if cid in keys}
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps(passed, indent=1, sort_keys=True))
+    w = _warnings_file(video, fmt, samples)
+    warned = json.loads(w.read_text()) if w.exists() else {}
+    for cid, kind in ran:
+        warned.get(cid, {}).pop(kind, None)
+    for r in rows:
+        key = (r.get("clip"), r["check"])
+        if key in ran - failed and r.get("severity") == "warning" and not r.get("remembered"):
+            entry = warned.setdefault(key[0], {}).setdefault(key[1], {"key": passed[key[0]][key[1]], "rows": []})
+            entry["rows"].append(r)
+    warned = {cid: v for cid, v in warned.items() if cid in keys and v}
+    w.write_text(json.dumps(warned, indent=1, sort_keys=True))
+
+
+def open_warnings(video, rows, kinds, samples=3, fmt=None):
+    """The warnings remembered with the pass of each (clip, kind) that did not run in `rows`, while
+    that pass still holds (the chapter has not changed): marked remembered, to be printed again."""
+    w, f = _warnings_file(video, fmt, samples), _cache_file(video, fmt, samples)
+    if not w.exists() or not f.exists():
+        return []
+    warned, passed = json.loads(w.read_text()), json.loads(f.read_text())
+    ran = {(r.get("clip"), r["check"]) for r in rows}
+    return [{**r, "remembered": True} for cid, by in warned.items() for kind, entry in by.items()
+            if kind in kinds and (cid, kind) not in ran and passed.get(cid, {}).get(kind) == entry["key"]
+            for r in entry["rows"]]
 
 
 def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
@@ -464,7 +494,18 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         from . import pixel
         rows += [r for r in pixel.run(video, samples, engine) if r["check"] in only]
     remember(video, rows, keys, kinds, samples, fmt)
-    return rows
+    return rows + open_warnings(video, rows, kinds, samples, fmt)
+
+
+def summary(rows):
+    """One line: per check, how many rows passed, warned, were skipped and failed; a warning is not
+    counted as ok."""
+    by = {}
+    for r in rows:
+        tally = by.setdefault(r["check"], {"ok": 0, "warning": 0, "skipped": 0, "FAILED": 0})
+        tally["FAILED" if not r["ok"] else "warning" if r.get("severity") == "warning" else "skipped" if r.get("skipped") else "ok"] += 1
+    return "; ".join(f"{k}: " + ", ".join(f"{n} {what}{'s' if what == 'warning' and n > 1 else ''}"
+                                          for what, n in v.items() if n or what == "ok") for k, v in by.items())
 
 
 def main(args):
@@ -475,9 +516,7 @@ def main(args):
     for r in rows:
         where = f"{r['clip']}" + (f" t={r['t']}" if "t" in r else "")
         mark = "WARN" if r.get("severity") == "warning" else "skip" if r.get("skipped") else "ok  " if r["ok"] else "FAIL"
-        print(f"{mark}  {r['check']:11} {where:16} {r['detail']}".rstrip())
-    by = {}
-    for r in rows:
-        by.setdefault(r["check"], [0, 0])[0 if r["ok"] else 1] += 1
-    print("; ".join(f"{k}: {v[0]} ok" + (f", {v[1]} FAILED" if v[1] else "") for k, v in by.items()))
+        again = " (open since an earlier check; the chapter is unchanged)" if r.get("remembered") else ""
+        print(f"{mark}  {r['check']:11} {where:16} {r['detail']}{again}".rstrip())
+    print(summary(rows))
     return 1 if any(not r["ok"] for r in rows) else 0

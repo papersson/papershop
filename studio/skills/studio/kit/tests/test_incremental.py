@@ -151,3 +151,33 @@ def test_a_cut_makes_only_the_pacing_check_due(tmp_path):
     rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
     assert [(r["check"], r["clip"]) for r in rows if r["check"] in check.PER_CLIP] == [("pacing", "s1")] and not eng.asked
     assert check.run(tmp_path, samples=1, engine=CheckEngine(tmp_path), everything=False) == []
+
+
+class WarnEngine(CheckEngine):
+    """s1's narrated element ("node one", for "One.") sits off the frame under a moved camera: an inframe warning."""
+    def boxes_at(self, requests):
+        frames = super().boxes_at(requests)
+        for f in frames:
+            if f["clip"] == "s1":
+                f["boxes"].append({"name": "node one", "kind": "", "x": -500, "y": 100, "w": 200, "h": 60, "camera": True})
+        return frames
+
+
+def test_a_warning_stays_open_until_its_chapter_changes_and_is_never_counted_ok(tmp_path):
+    """`check` summarised a WARN as ok ("pacing: 3 ok"), and the next incremental check skipped the
+    chapter, so the warning vanished though nothing was fixed."""
+    from studio_kit import check
+    make_video(tmp_path)
+    warned = lambda rows: [(r["check"], r["clip"], bool(r.get("remembered"))) for r in rows if r.get("severity") == "warning"]
+    rows = check.run(tmp_path, samples=1, engine=WarnEngine(tmp_path), everything=False)
+    assert warned(rows) == [("inframe", "s1", False)]
+    assert "inframe: 1 ok, 1 warning" in check.summary(rows)
+    eng = WarnEngine(tmp_path)
+    rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert not eng.asked and warned(rows) == [("inframe", "s1", True)] and check.summary(rows) == "inframe: 0 ok, 1 warning"
+    (tmp_path / "scenes" / "s1.tsx").write_text("// s1, the element moved into frame\n")
+    eng = CheckEngine(tmp_path)
+    rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
+    assert set(eng.asked) == {"s1"} and warned(rows) == []
+    assert check.run(tmp_path, samples=1, engine=CheckEngine(tmp_path), everything=False) == []
+
