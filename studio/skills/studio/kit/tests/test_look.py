@@ -24,8 +24,13 @@ class FakeEngine:
         return {"pages": pages}
 
 
-def test_the_sheet_is_recorded_for_the_review_bundles_and_goes_stale_with_its_sources(tmp_path):
+def live(tmp_path):
     make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live"}))
+
+
+def test_the_sheet_is_recorded_for_the_review_bundles_and_goes_stale_with_its_sources(tmp_path):
+    live(tmp_path)
     (tmp_path / "out" / "look").mkdir(parents=True)
     (tmp_path / "out" / "look" / "look-9.png").write_bytes(b"old")
     e = FakeEngine(tmp_path)
@@ -52,3 +57,19 @@ def test_look_sheet_is_a_command():
     from studio_kit import cli
     help_, arguments, handler = cli.COMMANDS["look-sheet"]
     assert handler == "look:main" and "out/look" in help_
+
+
+def test_the_sheet_goes_stale_when_the_engine_changes_or_a_file_its_look_imports_does(tmp_path):
+    live(tmp_path)
+    (tmp_path / "scenes" / "look.js").write_text("import { drawToken } from './parts/token.js'\nexport default function look(c) {}\n")
+    (tmp_path / "scenes" / "parts").mkdir()
+    (tmp_path / "scenes" / "parts" / "token.js").write_text("export function drawToken() {}\n")
+    look.make(tmp_path, engine=FakeEngine(tmp_path))
+    assert look.latest(tmp_path)["stale"] is False
+    (tmp_path / "scenes" / "parts" / "token.js").write_text("export function drawToken() { /* rounder */ }\n")
+    assert look.latest(tmp_path)["stale"] is True
+    look.make(tmp_path, engine=FakeEngine(tmp_path))
+    (tmp_path / "scenes" / "s1.tsx").write_text("// a chapter edit the sheet doesn't draw\n")
+    assert look.latest(tmp_path)["stale"] is False
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "remotion"}))
+    assert look.latest(tmp_path)["stale"] is True

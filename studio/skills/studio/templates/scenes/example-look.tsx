@@ -4,7 +4,8 @@ import {Rect, Txt, useStage, CORAL, ICE, MUTED, AMBER, PANEL, type XY} from '@st
 // The look sheet's own pages: rename to scenes/look.tsx and `studio look-sheet VIDEO` draws them after
 // the kit's pages (colour and type, elements and states, map, close-up, code), into out/look/. Draw
 // this video's own elements here, each in every state a scene will show it in, before the scenes are
-// built: the motion review checks that drawings stay on this sheet. Export each element as a
+// built: studio review-motion hands these pages to its reviewer, who checks the scenes' drawings
+// stay on sheet (and is told when the sheet is missing or stale). Export each element as a
 // component the scenes import too, so the sheet and the scenes stay the same. A page is drawn alone,
 // on the stage above the band, at frame 0; it has no clip, so no useClip() times.
 

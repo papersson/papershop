@@ -1,7 +1,8 @@
 // The look sheet's own page: rename to scenes/look.js and `studio look-sheet VIDEO` draws it after
 // the kit's pages (colour and type, elements and states, close-up), into out/look/. Draw this
 // video's own elements here, each in every state a scene will show it in, with the same helpers the
-// scenes use, before the scenes are built: the motion review checks that drawings stay on this sheet.
+// scenes use, before the scenes are built: studio review-motion hands these pages to its reviewer,
+// who checks the scenes' drawings stay on sheet (and is told when the sheet is missing or stale).
 // One function per element, imported by the scenes too, keeps the sheet and the scenes the same.
 //
 // `pages` names the pages (c.page is the index of the one being drawn). The context is a scene's at

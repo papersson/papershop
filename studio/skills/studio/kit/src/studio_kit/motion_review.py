@@ -20,6 +20,8 @@ research/motion_review/cut<N>-<rev12>/
                   number, the contact outlined
   SCRIPT.md       the cut's Script section
   previous.json   the last round's findings, when there is one (the prompt asks about regressions)
+  look/           the look sheet's pages (look.latest), what "on sheet" is judged against; the manifest's
+                    look says current, stale or missing, and the prompt says so when it isn't current
   prompt.md       prompts/motion_review.md, with comic.md's questions when tone is comic
   result.md, findings.json   the imported response: its findings [{severity, window, t, frame,
                   text}], its regression check and a comic review's gags
@@ -368,8 +370,36 @@ def comic_questions():
     return part
 
 
-def prompt(cfg, judged, prior, dropped=()):
+def look_sheet(video, bundle):
+    """The look sheet's pages copied into the bundle (look/), and what the prompt says of it:
+    {status: current | stale | missing, pages, titles}."""
+    from . import look
+    rec = look.latest(video)
+    if rec is None:
+        return {"status": "missing", "pages": [], "titles": []}
+    (bundle / "look").mkdir(exist_ok=True)
+    pages = []
+    for p in rec["pages"]:
+        src = Path(video) / p["file"]
+        if src.exists():
+            shutil.copyfile(src, bundle / "look" / src.name)
+            pages.append(f"look/{src.name}")
+    return {"status": "stale" if rec["stale"] else "current", "pages": pages, "titles": [p["title"] for p in rec["pages"]]}
+
+
+LOOK_NOTES = {
+    "missing": ("This video has no look sheet (look/ is empty): judge \"on sheet\" by comparing the windows with "
+                "each other, and add one SHOULD FIX line: no look sheet, run studio look-sheet VIDEO."),
+    "stale": ("The look sheet in look/ is older than the scenes, layout or engine it was drawn from: where a drawing "
+              "differs from it, say whether the drawing or the sheet looks out of date, and add one SHOULD FIX line: "
+              "the look sheet is stale, run studio look-sheet VIDEO."),
+}
+
+
+def prompt(cfg, judged, prior, dropped=(), sheet_status="current"):
     text = (ROOT / "prompts" / "motion_review.md").read_text()
+    if sheet_status in LOOK_NOTES:
+        text += "\n\n" + LOOK_NOTES[sheet_status] + "\n"
     if cfg.get("tone") == "comic":
         text += ("\n\nThis video's tone is comic. " + comic_questions().split("\n", 1)[1].strip() +
                  "\n\nScore every gag on a line of its own inside the findings block: GAG | window name | n/5 | the "
@@ -437,13 +467,16 @@ def main(args):
     prior = previous(video, current)
     if prior:
         atomic_json(bundle / "previous.json", prior)
-    (bundle / "prompt.md").write_text(prompt(cfg, judged, prior, dropped))
+    sheet_of = look_sheet(video, bundle)
+    (bundle / "prompt.md").write_text(prompt(cfg, judged, prior, dropped, sheet_of["status"]))
     atomic_json(manifest, {"cut": n, "revision": judged, "round": number, "cap": cap, "tone": cfg.get("tone"),
                            "windows": "windows.json", "sheets": "sheets/", "labelled": labelled, "script": "SCRIPT.md",
-                           "sfx_from": sfx_from, "dropped": dropped,
+                           "sfx_from": sfx_from, "dropped": dropped, "look": sheet_of,
                            "previous": "previous.json" if prior else None, "prompt": "prompt.md"})
     if stale:
         print(f"cut {n} is older than the sources ({changed} changed since): its review will be recorded as stale")
+    if sheet_of["status"] != "current":
+        print(f"warn: the look sheet is {sheet_of['status']}; the reviewer is told so (studio look-sheet VIDEO)")
     for d in dropped:
         print(f"no window for event {d['name']} at {d['time']:g} s: {d['reason']}")
     if not labelled:

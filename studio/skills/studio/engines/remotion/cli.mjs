@@ -97,8 +97,10 @@ function boardFile(video, name) {
 	return existsSync(f) ? f : path.join(ENGINE, 'src', 'empty.json');
 }
 
-async function getBundle(video) {
+// entry: the bundle's entry point in src/; the look sheet's (look-entry.tsx) is a bundle of its own.
+async function getBundle(video, entry = 'entry.tsx') {
 	const h = createHash('sha1');
+	h.update(entry);
 	for (const p of [path.join(ENGINE, 'src'), path.join(ENGINE, '..', 'shared'), path.join(ENGINE, 'package-lock.json'),
 		path.join(video, 'scenes'), path.join(video, 'data'), path.join(video, 'boards'), path.join(video, 'timeline.json'),
 		opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json')]) {
@@ -107,12 +109,12 @@ async function getBundle(video) {
 	hashListing(h, path.join(video, 'assets'));
 	const key = h.digest('hex').slice(0, 16);
 	// One folder per layout (format), so exporting several formats doesn't discard each other's bundles.
-	const root = path.join(video, '.cache', 'bundle', opt.layout ? path.basename(opt.layout, '.json') : 'default');
+	const root = path.join(video, '.cache', 'bundle', (opt.layout ? path.basename(opt.layout, '.json') : 'default') + (entry === 'entry.tsx' ? '' : '-look'));
 	const out = path.join(root, key);
 	if (existsSync(path.join(out, 'index.html'))) return {serveUrl: out, cached: true};
 	const layoutFile = opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json');
 	await bundle({
-		entryPoint: path.join(ENGINE, 'src', 'entry.tsx'),
+		entryPoint: path.join(ENGINE, 'src', entry),
 		outDir: out,
 		enableCaching: true,
 		publicDir: existsSync(path.join(video, 'assets')) ? path.join(video, 'assets') : null,
@@ -243,7 +245,7 @@ async function boxes(video, clip, t) {
 
 async function look(video, outDir, caption) {
 	// The studio-look composition draws one page per frame; its titles are the kit's and scenes/look.tsx's.
-	const {serveUrl} = await getBundle(video);
+	const {serveUrl} = await getBundle(video, 'look-entry.tsx');
 	const inputProps = {caption: caption ? JSON.parse(caption) : []};
 	const browser = await openBrowser('chrome', browserOptions());
 	try {

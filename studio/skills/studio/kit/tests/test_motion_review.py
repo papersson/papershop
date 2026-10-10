@@ -456,3 +456,31 @@ def test_a_new_cut_snapshots_its_effects_and_layout_and_carries_the_known_issues
     issues = [{"severity": "should-fix", "window": "logo", "t": 2.0, "frame": 60, "text": "late settle", "cut": 1}]
     motion_review.write_known_issues(tmp_path, rec["cut"], issues)
     assert render.make_cut(tmp_path, stills_only=True, engine=StillEngine())["known_issues"] == issues
+
+
+def test_the_bundle_carries_the_look_sheet_and_says_when_it_is_missing_or_stale(video, tmp_path, capsys):
+    """"On sheet" is judged against the look sheet: its pages are copied into the bundle, and a video
+    with none, or with one older than its sources, is flagged in the manifest and the prompt."""
+    from studio_kit import look, settings
+    from test_look import FakeEngine
+    make_cut(video, 1)
+    prepare(video, 1)
+    b = bundle_of(video, 1)
+    assert json.loads((b / "manifest.json").read_text())["look"] == {"status": "missing", "pages": [], "titles": []}
+    assert "no look sheet" in (b / "prompt.md").read_text() and "the look sheet is missing" in capsys.readouterr().out
+    look.make(video, engine=FakeEngine(video, settings.load(video)["engine"]))
+    make_cut(video, 2)
+    prepare(video, 2)
+    b = bundle_of(video, 2)
+    sheet = json.loads((b / "manifest.json").read_text())["look"]
+    assert sheet == {"status": "current", "pages": ["look/look-1.png", "look/look-2.png"], "titles": ["colour and type", "elements and states"]}
+    assert (b / "look" / "look-1.png").read_bytes() == b"png"
+    prompt = (b / "prompt.md").read_text()
+    assert "drawn as the look sheet (look/) draws them" in prompt and "stale" not in prompt
+    (video / "layout.json").write_text(json.dumps({"width": 1920, "height": 1080, "fps": 30, "band": {"height": 200}}))
+    respond(video, 2, "```findings\n```\nMOTION: PASS", tmp_path)
+    make_cut(video, 3)
+    prepare(video, 3)
+    b = bundle_of(video, 3)
+    assert json.loads((b / "manifest.json").read_text())["look"]["status"] == "stale"
+    assert "the look sheet is stale" in (b / "prompt.md").read_text()

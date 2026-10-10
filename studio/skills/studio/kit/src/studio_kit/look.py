@@ -36,16 +36,32 @@ def own_file(video):
     return next((Path(video) / "scenes" / f for f in OWN if (Path(video) / "scenes" / f).is_file()), None)
 
 
+def look_files(video):
+    """The video's look file and every scenes/ file it imports, followed as render follows a scene's."""
+    from .render import _imports
+    own = own_file(video)
+    if own is None:
+        return []
+    root, seen, todo = (Path(video) / "scenes").resolve(), [], [own.resolve()]
+    while todo:
+        f = todo.pop(0)
+        if f not in seen:
+            seen.append(f)
+            todo += _imports(f, f.read_text(errors="replace"), root)
+    return seen
+
+
 def key(video, engine, fmt=None):
-    """A hash of what the sheet is drawn from: the engine's source, the layout and the video's look file."""
+    """A hash of what the sheet is drawn from: the engine and its source, the layout, and the video's
+    look file with the scene files it imports."""
     h = hashlib.sha256(engine.encode())
     h.update(json.dumps(tl.layout(video, fmt), sort_keys=True).encode())
     roots = [engine_dir(engine) / "src", engine_dir("shared")]
     for f in sorted(p for root in roots for p in root.rglob("*") if p.is_file() and "node_modules" not in p.parts):
         h.update(f.name.encode() + f.read_bytes())
-    own = own_file(video)
-    if own:
-        h.update(own.read_bytes())
+    scenes = (Path(video) / "scenes").resolve()
+    for f in look_files(video):
+        h.update(str(f.relative_to(scenes)).encode() + f.read_bytes())
     return h.hexdigest()[:16]
 
 
@@ -74,13 +90,17 @@ def make(video, fmt=None, engine=None):
 
 
 def latest(video, fmt=None):
-    """The current sheet's record with "stale" (drawn from an older engine, layout or look file) and
-    each page's file checked, or None when there is no sheet. What a review bundle includes."""
+    """The current sheet's record with "stale" (drawn by another engine than video.json's, or from an
+    older engine source, layout, look file or file it imports) and each page's file checked, or None
+    when there is no sheet. What the motion review's bundle includes."""
+    from . import settings
     f = sheet_dir(video, fmt) / "look.json"
     if not f.exists():
         return None
     rec = json.loads(f.read_text())
-    rec["stale"] = rec.get("key") != key(video, rec["engine"], fmt) or not all((Path(video) / p["file"]).exists() for p in rec["pages"])
+    engine = settings.load(video)["engine"]
+    rec["stale"] = (rec.get("engine") != engine or rec.get("key") != key(video, engine, fmt)
+                    or not all((Path(video) / p["file"]).exists() for p in rec["pages"]))
     return rec
 
 
