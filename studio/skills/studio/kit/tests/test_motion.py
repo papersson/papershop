@@ -213,6 +213,17 @@ def test_the_frame_signal_starts_on_the_frame_asked_for(tmp_path):
         assert unlinked(motion.frame_signal(f, LAY, 30, first, 12)) == unlinked(whole[first:first + 11])
 
 
+def test_the_frame_signal_reads_a_cut_with_sound_from_any_frame(tmp_path):
+    """A cut's video.mp4 carries its sound: the raw muxer's default frame-rate mode then duplicated the
+    first frame after a seek in two seek positions of three, so a box appearing on frame 46 read as 47."""
+    f = tmp_path / "with-sound.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=640x360:r=30:d=3,"
+                    "drawbox=x=100:y=60:w=160:h=120:color=white:t=fill:enable=gte(n\\,46)", "-f", "lavfi", "-i", "sine=d=3",
+                    "-c:v", "libx264", "-c:a", "aac", "-pix_fmt", "yuv420p", str(f)], check=True)
+    for first in range(36, 46):
+        assert max(motion.frame_signal(f, LAY, 30, first, 12), key=lambda r: r[1])[0] == 46, first
+
+
 def test_the_frame_signal_names_where_motion_starts_peaks_ends_and_cuts(tmp_path):
     f = tmp_path / "p.mp4"
     gray_clip(f, picture())

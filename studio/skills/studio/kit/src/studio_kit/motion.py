@@ -155,10 +155,12 @@ def rendered_clip(video, t, cid, fmt=None):
 
 
 def _gray(args, crop, resample=""):
-    """Raw grey frames at PACING_SIZE, the caption band cropped off, from an ffmpeg input."""
+    """Raw grey frames at PACING_SIZE, the caption band cropped off, from an ffmpeg input. Every decoded
+    frame once, in order (passthrough): the raw muxer's default frame-rate mode duplicated the first
+    frame after a seek in two seek positions out of three, so a window read one frame late."""
     w, h = PACING_SIZE
     raw = proc.ffmpeg(*args, "-vf", f"{resample}scale={w}:{h},crop={w}:{crop}:0:0,format=gray",
-                      "-f", "rawvideo", "-", capture_output=True).stdout
+                      "-fps_mode", "passthrough", "-f", "rawvideo", "-", capture_output=True).stdout
     return [raw[i:i + w * crop] for i in range(0, len(raw), w * crop)]
 
 
