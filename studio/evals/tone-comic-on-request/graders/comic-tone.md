@@ -1,6 +1,6 @@
 ---
 type: regex
-pattern: 'tone\W{1,6}comic'
+pattern: 'tone\b.{0,20}\bcomic'
 flags: i
 match: contains
 ---

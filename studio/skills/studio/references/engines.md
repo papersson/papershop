@@ -59,7 +59,8 @@ The context `c` (all times in clip seconds):
 - `c.at('03')`, `c.end('03')`, `c.word('03', 2)`, `c.phrase('03', 'the whole state')`, `c.cue(name)`.
 - `c.P(t0, d, ease)` progress of a movement; `c.kit`: `ease` (`out`, `in`, `inOut`, `back`, `smooth`,
   `heavy`, `float`, `snap`), `stagger`, `pulse`, `spring`, `track` (a value that springs to each new
-  key), `keyed`, `follow`, `settle`, `wobble` (below), `countUp`, `rand` (never `Math.random`), `lerp`,
+  key), `keyed`, `follow`, `settle`, `wobble` (below), `countUp`, `rand` and `rng(seed)` (never
+  `Math.random`), `lerp`,
   `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, `C.edge`
   and `C.tray` for a box's outline and fill, ...).
 - `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
@@ -89,14 +90,17 @@ value never depends on what was computed before it.
 - `follow(t, fn, lag = 0.1, k = 120, d = 14)`: secondary motion. `fn(s)` is the source's value at
   any time `s` (write the source as a function, as `s => keyed(s, keys)`); the result trails it by
   `lag` through a slightly bouncy spring, so a tag hanging off a box starts late, swings past and
-  catches up.
+  catches up. `k` and `d` must be above 0 (a spring with no damping never settles, and `follow` says
+  so), and it weighs at most 10 s of the source's past.
 - `settle(t, t0, amp = 1, freq = 3, decay = 5)`: a decaying oscillation after a stop at `t0`, added to
   a value that has just landed (`y + settle(t, land, 12)`); 0 before `t0`, and it starts at 0.
 - `wobble(t, amp = 1, freq = 1, seed = 0)`: smooth seeded noise in `-amp..amp`, for hand-held drift
   and idle life; a different seed per element.
 
 Use `cue(name)` from the beat sheet (`cues.json`) for the times these take, so a move, its sound and
-its still share a frame.
+its still share a frame. Every engine's `t` is the clip's frame / fps, and `cue()` returns the cue's
+own clip frame / fps exactly, so a hard switch `t >= cue('hit')` happens on the cue's frame, never a
+frame late.
 
 ## The camera (live and Remotion)
 
@@ -118,9 +122,9 @@ its boxes there and a close-up opens there. With no header (the default) nothing
 
 Stage camera moves and content changes; don't run them together (`style.md`). The glossary names
 them: "push-in", "pull back", "pan", "frame on". `studio check`'s `inframe` warns when an element
-the sentence names is cut by the frame, the header or the band at the sentence's end; `bounds` fails
-any named element the camera pushes past the frame's edge, so keep named elements in frame or leave
-them unnamed while a push-in crops them.
+the sentence names is cut by the frame, the header or the band at the sentence's end. `bounds` leaves
+alone an element under a camera that has moved (a push-in or pan crops on purpose; the engines mark its
+box `camera`), and still fails one placed past the frame's edge with the camera at rest.
 
 ## The look sheet (live and Remotion)
 
@@ -162,7 +166,8 @@ Anything Motion Canvas offers is available: import from `@motion-canvas/core` an
 ## The Motion Canvas kit
 
 Everything the Remotion kit has, in generator form. Scenes drive the components from `c.every((t) =>
-...)`, which runs on every frame with the clip time, so each frame is still a pure function of time:
+...)`, which runs on every frame with the clip time (the frame / fps, as in the other engines), so each
+frame is still a pure function of time:
 
 | | Remotion | Motion Canvas |
 |---|---|---|
