@@ -171,6 +171,13 @@ COMMANDS = {
     "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), A("file")], "beats:main"),
     "sfx": ("synthesised effects from a cues file, on the timeline", [W("video"), A("cues", help="JSON list of {t, type, gain}")], "sfx:main"),
     "sound-lab": ("a page to choose effect candidates by listening", [V("video")], "sfx:main_lab"),
+    "music": ("an optional generated bed (quiet chords and a soft pulse) as a music track the mix ducks, with its beat grid", [
+        W("video"), A("--bed", action="store_true", help="make the bed (audio/bed.wav) and register it in audio/tracks.json"),
+        A("--remove", action="store_true", help="take the bed, its track entry and its beat grid out again"),
+        A("--seconds", type=float, help="its length (default: the video's)"),
+        A("--key", default="C", help="C, F#, Bb ...; Am for minor (default C)"),
+        A("--bpm", type=float, default=72.0, help="the pulse, one chord every four beats (default 72)"),
+    ], "music:main"),
     "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [
         W("video"), A("name", nargs="?"), A("--report", action="store_true"),
         A("--check", action="store_true", help="the current stage against its budgets, unmarked; exit 3 at a background hard stop"),

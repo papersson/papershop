@@ -37,10 +37,11 @@ and the rest layer on:
                                          is: that is how one is locked), or fixed at {start, end}, which
                                          warns once the narration changes. The kit chunks only the words
                                          and times they don't cover; {start, end, lines: []} blanks a span
-  audio/tracks.json    the builder       extra audio [{file, start, gain?, in?, out?, role?}] (music)
+  audio/tracks.json    the builder       extra audio [{file, start, gain?, in?, out?, role?}] (music;
+                                         `studio music --bed` adds its bed here)
   audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio, which
                                          each mix renders against this timeline (audio.sources)
-  audio/beats.json     studio beats      the beat grid, as "beats"
+  audio/beats.json     studio beats      the beat grid, as "beats" (or the bed's, from studio music)
   layout.json          studio new        each format's caption line width (band.chars, and its own
                                          "formats"); every video has one, so it isn't in sources
 
