@@ -449,3 +449,14 @@ part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its 
   puts every cue on a timeline once, and all four read it. The track's cache key is the placements'
   digests, times and gains, so an edit elsewhere in the kit no longer re-renders every video's
   effects.
+- **Recordings are pinned, verified and copied in.** A public tool we studied fetched hundreds of
+  unpinned URLs with no checksums. The sound kit's manifest (`soundkit.json`, beside the kit's
+  modules, so `studio init` pins it) names each pack's URL, sha256, size, licence (CC0 only) and
+  creator. `studio doctor --fetch --sounds` downloads each once into `$STUDIO_HOME/cache/sounds/`:
+  one cache for every video and pinned kit, outside the plugin folder an update replaces, and named
+  by digest, so two kits' manifests coexist. A mismatch deletes the download and names both
+  digests; only whitelisted members are unpacked, and an archive with an absolute path, a `..` or
+  a link is refused whole. A video never reads the cache: `studio asset library` copies a sound
+  from the verified zip into `assets/sounds/` with a provenance row (pack, member, licence,
+  creator, sha256), so it renders without the cache and its page credits the packs. Git leaves the
+  sound out, and `studio asset restore` copies it back by its recorded digest.
