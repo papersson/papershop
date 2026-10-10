@@ -100,12 +100,14 @@ export const Camera: React.FC<{cx?: number; cy?: number; zoom?: number; keys?: C
 /**
  * The map. With `frame` (the default) the camera frames the boxes shown so far, below the header
  * (`headerInset`, stage units, defaults to the layout's); without it the map is drawn where it is.
- * `accent` is the colour a lit box or arrow turns (ice, the thing being explained).
+ * `accent` is the colour a lit box or arrow turns (ice, the thing being explained); `litMeans` tags a
+ * lit box with that meaning from the video's colour legend, for the legend check.
  */
 export const MapView: React.FC<{
 	nodes: MapNode[]; edges?: MapEdge[]; visible: Record<string, number>; lit?: Record<string, number>;
-	litEdges?: Record<string, number>; opacity?: number; frame?: boolean; headerInset?: number; accent?: string; children?: React.ReactNode;
-}> = ({nodes, edges = [], visible, lit = {}, litEdges = {}, opacity = 1, frame = true, headerInset, accent = ICE, children}) => {
+	litEdges?: Record<string, number>; opacity?: number; frame?: boolean; headerInset?: number; accent?: string; litMeans?: string;
+	children?: React.ReactNode;
+}> = ({nodes, edges = [], visible, lit = {}, litEdges = {}, opacity = 1, frame = true, headerInset, accent = ICE, litMeans, children}) => {
 	const s = useStage();
 	const hi = frame ? headerInset ?? headerOf(s) : 0;
 	const cam = frame ? frameCamera(nodes, visible, [s.width / s.unit, s.height / s.unit], hi) : {cx: 0, cy: 0, zoom: 1};
@@ -142,7 +144,7 @@ export const MapView: React.FC<{
 				return (
 					<React.Fragment key={n.id}>
 						<Rect at={n.at} w={w} h={h} radius={0.12} stroke={mix(TRAY_EDGE, accent, on)} strokeWidth={2 + on}
-							fill={mix(TRAY_FILL, litFill, on)} opacity={v} name={`node ${n.name}`} />
+							fill={mix(TRAY_FILL, litFill, on)} opacity={v} name={`node ${n.name}`} means={on > 0 ? litMeans : undefined} />
 						<Txt at={n.at} size={20} color={INK} opacity={v} name={n.name}>{n.name}</Txt>
 					</React.Fragment>
 				);
@@ -155,22 +157,22 @@ export const MapView: React.FC<{
 export type TokenState = 'idle' | 'ok' | 'bad' | 'wait';
 const GLYPH: Record<TokenState, [string, string]> = {idle: ['○', MUTED], ok: ['✓', ICE], bad: ['✕', CORAL], wait: ['…', AMBER]};
 
-/** The thing the video follows: a token whose glyph shows its state. Keep it on screen. */
-export const Token: React.FC<{at: XY; state?: TokenState; opacity?: number; label?: string}> = ({at, state = 'idle', opacity = 1, label}) => {
+/** The thing the video follows: a token whose glyph shows its state. Keep it on screen. `means` tags it (stage.tsx). */
+export const Token: React.FC<{at: XY; state?: TokenState; opacity?: number; label?: string; means?: string}> = ({at, state = 'idle', opacity = 1, label, means}) => {
 	const [glyph, color] = GLYPH[state];
 	return (
 		<>
-			<Rect at={at} w={0.5} h={0.5} radius={0.25} stroke={color} strokeWidth={3} fill={PANEL} opacity={opacity} name="token" />
-			<Txt at={at} size={18} color={color} opacity={opacity} name={`token ${state}`}>{glyph}</Txt>
+			<Rect at={at} w={0.5} h={0.5} radius={0.25} stroke={color} strokeWidth={3} fill={PANEL} opacity={opacity} name="token" means={means} />
+			<Txt at={at} size={18} color={color} opacity={opacity} name={`token ${state}`} means={means}>{glyph}</Txt>
 			{label && <Txt at={[at[0], at[1] - 0.5]} size={14} color={MUTED} opacity={opacity}>{label}</Txt>}
 		</>
 	);
 };
 
-/** A proposed change, drawn as a translucent copy of the thing it would replace. */
-export const GhostCard: React.FC<{at: XY; w: number; h: number; opacity?: number; children?: React.ReactNode}> = ({at, w, h, opacity = 1, children}) => (
+/** A proposed change, drawn as a translucent copy of the thing it would replace. `means` tags it (stage.tsx). */
+export const GhostCard: React.FC<{at: XY; w: number; h: number; opacity?: number; means?: string; children?: React.ReactNode}> = ({at, w, h, opacity = 1, means, children}) => (
 	<>
-		<Rect at={at} w={w} h={h} radius={0.1} stroke={ICE} strokeWidth={2} fill="rgba(143, 211, 255, 0.10)" opacity={opacity * 0.9} name="ghost" />
+		<Rect at={at} w={w} h={h} radius={0.1} stroke={ICE} strokeWidth={2} fill="rgba(143, 211, 255, 0.10)" opacity={opacity * 0.9} name="ghost" means={means} />
 		{children}
 	</>
 );
@@ -181,12 +183,13 @@ export const GhostCard: React.FC<{at: XY; w: number; h: number; opacity?: number
  * the item's name only. A corner minimap has no labels and fills only the source box, in `accent`.
  * Children are drawn on the whole stage, so a part can sit outside the panel; with `clip` they are
  * cut to the panel, grown by `bleed` stage units, so a part may cross its edge by that much and no
- * more. `headerInset` (stage units) defaults to the layout's header.
+ * more. `headerInset` (stage units) defaults to the layout's header. `means` tags the minimap's filled
+ * box with a meaning from the video's colour legend, as MapView's `litMeans` does its lit box.
  */
 export const CloseUp: React.FC<{
 	open: number; from: MapNode; name: string; nodes: MapNode[]; accent?: string; clip?: boolean; bleed?: number;
-	headerInset?: number; children: React.ReactNode;
-}> = ({open, from, name, nodes, accent = ICE, clip = false, bleed = 0, headerInset, children}) => {
+	headerInset?: number; means?: string; children: React.ReactNode;
+}> = ({open, from, name, nodes, accent = ICE, clip = false, bleed = 0, headerInset, means, children}) => {
 	const s = useStage();
 	if (open <= 0) return null;
 	const hi = headerInset ?? headerOf(s);
@@ -222,7 +225,7 @@ export const CloseUp: React.FC<{
 					const on = n.id === from.id;
 					const p: XY = [W / 2 - mini / 2 - 0.15 + n.at[0] * minis, y0 + H / 2 - 0.4 + n.at[1] * minis];
 					return <Rect key={n.id} at={p} w={w * minis} h={h * minis} radius={0.03} stroke={on ? accent : MUTED} strokeWidth={1.5}
-						fill={on ? accent : 'transparent'} name="minimap" />;
+						fill={on ? accent : 'transparent'} name="minimap" means={on ? means : undefined} />;
 				})}
 			</div>
 		</>

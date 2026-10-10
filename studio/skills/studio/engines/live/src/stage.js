@@ -9,6 +9,12 @@
 
 export const NS = 'http://www.w3.org/2000/svg'
 
+/** A node's colours for the legend check: fill and stroke, resolved, and its meaning tag. */
+function paint(node) {
+  const st = getComputedStyle(node), means = node.getAttribute('data-means')
+  return { fill: st.fill, stroke: st.stroke, ...(means ? { means } : {}) }
+}
+
 export class Stage {
   /** svg: the <svg> element; width/height: the frame in pixels (the viewBox). */
   constructor(svg, { width = 1920, height = 1080 } = {}) {
@@ -59,6 +65,8 @@ export class Stage {
   /**
    * Create or update the keyed node with exactly these attributes. attrs.text sets its text;
    * attrs.box names it for the engine's boxes (the checks); text nodes are named by their key.
+   * attrs.means tags it with a meaning from the video's colour legend (video.json legend), which
+   * the legend check reads with its colours; any drawing call takes it as `means`.
    */
   el(key, tag, attrs = {}, layer = 'main') {
     let rec = this.nodes.get(key)
@@ -77,7 +85,7 @@ export class Stage {
         if (rec.node.textContent !== String(v)) rec.node.textContent = v
         continue
       }
-      const name = k === 'box' ? 'data-box' : k
+      const name = k === 'box' ? 'data-box' : k === 'means' ? 'data-means' : k
       now.add(name)
       rec.node.setAttribute(name, v)
     }
@@ -90,14 +98,14 @@ export class Stage {
     return this.el(key, 'rect', {
       x, y, width: Math.max(0, w), height: Math.max(0, h), rx: o.r ?? 10,
       fill: o.fill ?? 'none', stroke: o.stroke ?? 'none', 'stroke-width': o.sw ?? 3,
-      opacity: o.op ?? 1, 'stroke-dasharray': o.dash, transform: o.transform, filter: o.filter, box: o.box,
+      opacity: o.op ?? 1, 'stroke-dasharray': o.dash, transform: o.transform, filter: o.filter, box: o.box, means: o.means,
     }, o.layer)
   }
 
   circle(key, cx, cy, r, o = {}) {
     return this.el(key, 'circle', {
       cx, cy, r: Math.max(0, r), fill: o.fill ?? 'none', stroke: o.stroke ?? 'none',
-      'stroke-width': o.sw ?? 3, opacity: o.op ?? 1, box: o.box,
+      'stroke-width': o.sw ?? 3, opacity: o.op ?? 1, box: o.box, means: o.means,
     }, o.layer)
   }
 
@@ -107,7 +115,7 @@ export class Stage {
       'font-size': o.size ?? 32, 'font-weight': o.weight ?? 500,
       'text-anchor': o.anchor ?? 'start', 'dominant-baseline': 'middle',
       'font-family': o.mono ? 'var(--mono)' : 'var(--sans)', 'letter-spacing': o.ls,
-      transform: o.transform, box: o.box ?? key, 'data-kind': 'text',
+      transform: o.transform, box: o.box ?? key, means: o.means, 'data-kind': 'text',
     }, o.layer)
   }
 
@@ -117,7 +125,7 @@ export class Stage {
     return this.el(key, 'line', {
       x1, y1, x2: x1 + (x2 - x1) * p, y2: y1 + (y2 - y1) * p, stroke: o.stroke ?? 'var(--ink)',
       'stroke-width': o.sw ?? 3, opacity: p <= 0 ? 0 : o.op ?? 1, 'stroke-linecap': 'round',
-      'stroke-dasharray': o.dash, 'marker-end': o.arrow && p > 0.05 ? 'url(#arrow)' : undefined, box: o.box,
+      'stroke-dasharray': o.dash, 'marker-end': o.arrow && p > 0.05 ? 'url(#arrow)' : undefined, box: o.box, means: o.means,
     }, o.layer)
   }
 
@@ -128,7 +136,7 @@ export class Stage {
       d, fill: o.fill ?? 'none', stroke: o.stroke ?? 'var(--ink)', 'stroke-width': o.sw ?? 3,
       opacity: p <= 0 ? 0 : o.op ?? 1, pathLength: o.p === undefined ? undefined : 1,
       'stroke-dasharray': o.p === undefined ? o.dash : `${p} 1`,
-      'stroke-linecap': 'round', 'stroke-linejoin': 'round', filter: o.filter, box: o.box,
+      'stroke-linecap': 'round', 'stroke-linejoin': 'round', filter: o.filter, box: o.box, means: o.means,
     }, o.layer)
   }
 
@@ -186,7 +194,10 @@ export class Stage {
     return sd > 0.05 ? `url(#${id})` : undefined
   }
 
-  /** Pixel boxes of every named node drawn this frame and visible (the engine's `boxes`). */
+  /**
+   * Pixel boxes of every named node drawn this frame and visible (the engine's `boxes`), each with
+   * its fill and stroke as the browser resolves them ("rgb(…)", "none") and its `means` tag, if any.
+   */
   boxes() {
     const origin = this.svg.getBoundingClientRect()
     const sx = this.width / origin.width, sy = this.height / origin.height
@@ -199,7 +210,8 @@ export class Stage {
       if (r.width <= 0 || r.height <= 0) continue
       // camera: drawn under a camera that has moved (not the ui layer), whose crop is the inframe check's, not bounds'
       out.push({ name, kind: node.getAttribute('data-kind') ?? '', x: (r.left - origin.left) * sx, y: (r.top - origin.top) * sy, w: r.width * sx, h: r.height * sy,
-        opacity: Number(node.getAttribute('opacity') ?? 1), camera: !!this.moved && this.camera.contains(node) })
+        opacity: Number(node.getAttribute('opacity') ?? 1), camera: !!this.moved && this.camera.contains(node),
+        ...paint(node) })
     }
     return out
   }

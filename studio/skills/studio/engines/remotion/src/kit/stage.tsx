@@ -26,14 +26,15 @@ const SHIFT: Record<Anchor, string> = {center: '-50%', left: '0%', right: '-100%
 
 /**
  * Text at a stage point. `anchor` picks which edge sits on x. `name` labels it for `boxes`;
- * unnamed text is reported by its content.
+ * unnamed text is reported by its content. `means` tags it with a meaning from the video's colour
+ * legend (video.json legend), for the legend check; Rect takes it too.
  */
 export const Txt: React.FC<{
 	at: XY; size?: number; color?: string; font?: 'mono' | 'sans'; weight?: number; anchor?: Anchor;
-	rotate?: number; opacity?: number; scale?: number; dx?: number; dy?: number; name?: string;
+	rotate?: number; opacity?: number; scale?: number; dx?: number; dy?: number; name?: string; means?: string;
 	children: React.ReactNode;
 }> = ({at, size = 20, color = INK, font = 'mono', weight = 400, anchor = 'center', rotate = 0, opacity = 1,
-	scale = 1, dx = 0, dy = 0, name, children}) => {
+	scale = 1, dx = 0, dy = 0, name, means, children}) => {
 	const s = useStage();
 	const [left, top] = toPx(s, [at[0] + dx, at[1] + dy]);
 	if (opacity <= 0) return null;
@@ -41,6 +42,7 @@ export const Txt: React.FC<{
 		<div
 			data-box={name ?? String(children)}
 			data-kind="text"
+			data-means={means}
 			style={{
 				position: 'absolute', left, top, whiteSpace: 'pre', color, opacity, lineHeight: 1,
 				fontFamily: font === 'mono' ? MONO : SANS, fontSize: pt(s, size), fontWeight: weight,
@@ -56,9 +58,9 @@ export const Txt: React.FC<{
 /** A rectangle centred at a stage point, w×h stage units. */
 export const Rect: React.FC<{
 	at: XY; w: number; h: number; radius?: number; stroke?: string; strokeWidth?: number; fill?: string;
-	opacity?: number; scale?: number; name?: string; dashed?: boolean;
+	opacity?: number; scale?: number; name?: string; dashed?: boolean; means?: string;
 }> = ({at, w, h, radius = 0, stroke = 'transparent', strokeWidth = 2, fill = 'transparent', opacity = 1,
-	scale = 1, name, dashed}) => {
+	scale = 1, name, dashed, means}) => {
 	const s = useStage();
 	const [cx, cy] = toPx(s, at);
 	if (opacity <= 0) return null;
@@ -66,6 +68,7 @@ export const Rect: React.FC<{
 		<div
 			data-box={name ?? 'rect'}
 			data-default={name === undefined ? '' : undefined}
+			data-means={means}
 			style={{
 				position: 'absolute', left: cx - (w * s.unit) / 2, top: cy - (h * s.unit) / 2,
 				width: w * s.unit, height: h * s.unit, borderRadius: radius * s.unit, background: fill,

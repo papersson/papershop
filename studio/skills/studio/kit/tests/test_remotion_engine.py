@@ -50,7 +50,7 @@ export const S1: React.FC = () => {
 	const s = useStage();
 	return <>
 		<Camera keys={[[0, {cx: 0, cy: 0, zoom: 1}], [1, frameOn(s, [4.5, -0.7, 7.5, 0.7]), 'linear']]}>
-			<Rect at={[6, 0]} w={3} h={1.4} fill="#8FD3FF" name="node server" />
+			<Rect at={[6, 0]} w={3} h={1.4} fill="#8FD3FF" name="node server" means="focus" />
 			<Rect at={[-6, 0]} w={3} h={1.4} fill="#8FD3FF" name="node cache" />
 			<Rect at={[-4, 1]} w={2} h={1} fill="#8FD3FF" />
 		</Camera>
@@ -94,6 +94,16 @@ def test_a_push_in_and_shapes_with_no_name_of_their_own_never_fail_bounds(camera
     assert {b.get("named") for b in f["boxes"] if b["name"] == "rect"} == {False}
     rows = check.bounds(camera_video, engine=e, boxes=(e.layout(), [f]))
     assert rows[0]["detail"] == "'stray' leaves the frame"
+
+
+@needs_engine
+def test_boxes_carry_colours_and_meanings(camera_video):
+    """The legend check's inputs: a box's background and border as the browser resolves them, a text's
+    colour, and the `means` tag."""
+    (f,) = Engine(camera_video).boxes_at([{"clip": "s1", "t": 0.0}])
+    server = next(b for b in f["boxes"] if b["name"] == "node server")
+    assert (server["fill"], server["stroke"], server["means"]) == ("rgb(143, 211, 255)", "rgba(0, 0, 0, 0)", "focus")
+    assert "means" not in next(b for b in f["boxes"] if b["name"] == "stray")
 
 
 @needs_engine

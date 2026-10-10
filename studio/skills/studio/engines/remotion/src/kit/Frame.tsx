@@ -22,8 +22,23 @@ export const FONTS = ['400 20px "IBM Plex Sans"', '500 20px "IBM Plex Sans"', '6
 /**
  * Every clip renders inside a Frame: the background, the stage the scene draws on, and the caption
  * band below it, which belongs to the captions track alone. The layers prop drops parts of this for
- * the band checks. With reportBoxes, the frame logs every labelled element's pixel box.
+ * the band checks. With reportBoxes, the frame logs every labelled element's pixel box, with its
+ * colours and meaning tag (paint).
  */
+/**
+ * An element's colours as the browser resolves them ("rgb(…)"), for the legend check: a text's is its
+ * colour; a box's its background and, when it has a border, the border's; an SVG node's its fill
+ * and stroke. `means` is its data-means tag (Txt, Rect and Box take a `means` prop).
+ */
+function paint(el: Element) {
+	const st = getComputedStyle(el);
+	const means = el.getAttribute('data-means');
+	const colours = el instanceof SVGElement ? {fill: st.fill, stroke: st.stroke}
+		: el.getAttribute('data-kind') === 'text' ? {fill: st.color, stroke: 'none'}
+		: {fill: st.backgroundColor, stroke: parseFloat(st.borderTopWidth) > 0 && st.borderTopStyle !== 'none' ? st.borderTopColor : 'none'};
+	return {...colours, ...(means ? {means} : {})};
+}
+
 export const Frame: React.FC<{clip: string; first: number; layers: Layers; reportBoxes?: boolean; children: React.ReactNode}> = ({
 	clip, first, layers, reportBoxes, children,
 }) => {
@@ -66,7 +81,7 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 				// camera: under a Camera that has moved (data-camera), whose crop is the inframe check's, not bounds'
 				opacity: shown(el), camera: !!el.closest('[data-camera]'),
 				// named: false for a shape given no name of its own (reported as "rect"), which bounds leaves alone
-				...(el.hasAttribute('data-default') ? {named: false} : {})}];
+				...(el.hasAttribute('data-default') ? {named: false} : {}), ...paint(el)}];
 		});
 		console.log('STUDIO_BOXES ' + JSON.stringify({band: {y: stageH, h: l.band.height}, boxes}));
 	}, [reportBoxes, ready, frame, stageH, l.band.height]);

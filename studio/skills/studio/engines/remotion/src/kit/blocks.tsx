@@ -20,16 +20,16 @@ export function span(t: number, at: (id: string, off?: number) => number, a: str
 	return b ? i * (1 - ramp(t, at(b, bOff), 0.4)) : i;
 }
 
-/** A labelled box. `lit` turns it ice; `bad` coral; `sub` is a smaller second line. */
+/** A labelled box. `lit` turns it ice; `bad` coral; `sub` is a smaller second line; `means` tags the box and its text (stage.tsx). */
 export const Box: React.FC<{at: XY; w: number; h?: number; text: string; opacity?: number; lit?: number; bad?: number; size?: number;
-	color?: string; sub?: string; name?: string}> = ({at, w, h = 0.8, text, opacity = 1, lit = 0, bad = 0, size = 18, color, sub, name}) => {
+	color?: string; sub?: string; name?: string; means?: string}> = ({at, w, h = 0.8, text, opacity = 1, lit = 0, bad = 0, size = 18, color, sub, name, means}) => {
 	if (opacity <= 0) return null;
 	const edge = bad ? CORAL : color ?? mix(TRAY_EDGE, ICE, lit);
 	return (
 		<>
-			<Rect at={at} w={w} h={h} radius={0.1} stroke={edge} strokeWidth={2 + lit} fill={TRAY_FILL} opacity={opacity} name={name ?? `box ${text}`} />
-			<Txt at={[at[0], at[1] + (sub ? 0.15 : 0)]} size={size} color={bad ? CORAL : color ?? mix(INK, ICE, lit)} opacity={opacity}>{text}</Txt>
-			{sub && <Txt at={[at[0], at[1] - 0.22]} size={14} color={MUTED} opacity={opacity}>{sub}</Txt>}
+			<Rect at={at} w={w} h={h} radius={0.1} stroke={edge} strokeWidth={2 + lit} fill={TRAY_FILL} opacity={opacity} name={name ?? `box ${text}`} means={means} />
+			<Txt at={[at[0], at[1] + (sub ? 0.15 : 0)]} size={size} color={bad ? CORAL : color ?? mix(INK, ICE, lit)} opacity={opacity} means={means}>{text}</Txt>
+			{sub && <Txt at={[at[0], at[1] - 0.22]} size={14} color={MUTED} opacity={opacity} means={means}>{sub}</Txt>}
 		</>
 	);
 };
