@@ -130,6 +130,29 @@ def test_a_kit_sound_lands_on_its_peak_and_its_digest_is_its_file(kit):
         sfx.resolve({"t": 1.0, "sound": "kit:knock", "params": {"freq": 900}}, at=1.0)
 
 
+def test_a_kit_sound_plays_at_its_trim_and_its_digest_holds_it(kit):
+    fetched()
+    before = sfx.resolve("kit:knock")
+    m = json.loads(soundkit.MANIFEST.read_text())
+    m["sounds"][0]["facts"]["trim_db"] = -6.0
+    soundkit.MANIFEST.write_text(json.dumps(m))
+    after = sfx.resolve("kit:knock")
+    assert after.digest != before.digest                                 # so the track's key, and its render, move
+    assert np.allclose(after.samples, before.samples * 10 ** (-6 / 20), atol=1e-6)
+    m["sounds"][0]["facts"]["trim_db"] = 20
+    assert any("facts.trim_db must be dB from -30 to 12" in p for p in soundkit.problems(m))
+
+
+def test_a_trim_brings_a_recording_to_its_synth_voices_level():
+    """By soundkit.level (K-weighted, the loudest 10 ms); a type the synths lack goes to their median."""
+    hot = sfx.voice("confirm") * 4
+    assert soundkit.trim(hot, "confirm") == pytest.approx(-12.0, abs=0.1)
+    y = sfx.voice("pop")
+    trimmed = y * 10 ** (soundkit.trim(y * 0.3, "dice") / 20) * 0.3
+    assert soundkit.level(trimmed) == pytest.approx(soundkit.reference_level("dice"), abs=0.1)
+    assert soundkit.level(sfx.voice("thump")) - soundkit.level(sfx.voice("thump") * 0.5) == pytest.approx(6.02, abs=0.01)
+
+
 def test_a_cue_plays_the_synth_unless_it_asks_for_the_kit(kit):
     """A type keeps its synth voice; "kit" is the type's default recording; a type only the kit has
     plays its default; "kit" for a type the kit lacks stops."""
@@ -216,6 +239,7 @@ def test_the_curated_kit_has_a_default_per_type_and_a_line_per_sound():
     for s in m["sounds"]:
         f = s["facts"]
         assert 0 <= f["contact"] < f["samples"] and f["events"] == 1 and f["peak_dbfs"] >= -20, s["id"]
+        assert -16 <= f["trim_db"] <= 9, s["id"]                       # Kenney's files are hot: most come down
         assert s["member"].startswith("Audio/") and s["id"].split("-")[0] in ("impact", "interface", "ui", "rpg", "casino")
 
 
@@ -237,3 +261,4 @@ def test_the_committed_facts_are_what_the_kit_measures():
         assert sha(data) == s["sha256"], s["id"]
         f = soundkit.measure(soundkit.decode(data)[0], sfx.RATE)
         assert (f["contact"], f["samples"]) == (s["facts"]["contact"], s["facts"]["samples"]), s["id"]
+        assert s["facts"]["trim_db"] == soundkit.trim(soundkit.decode(data)[0], s["type"]), s["id"]

@@ -7,7 +7,9 @@ CUES.json is a list of cues:
    "sound": "kit:interface-click-001", optional: one specific sound, as provider:name (synth:NAME,
                                      kit:ID), or "kit" for the type's default recording
    "gain": 0,                        dB, optional
-   "params": {"freq": 1800}}         optional: what a synth reads (freq, decay, length); a recording takes none
+   "params": {"freq": 1800},         optional: what a synth reads (freq, decay, length); a recording takes none
+   "visual": "land"}                 optional: what the picture does on the effect's frame (VISUALS: cut,
+                                     move, land, appear), which audio-check measures and the motion review shows
 
 `t` may be a cue or beat name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline,
 or an anchor as cues.json takes one (timeline.event_time). Naming the cue a scene waits on gives
@@ -28,6 +30,17 @@ audio-check's sync all read. `studio sfx` checks the cues and keeps them as audi
 renders them against the timeline it mixes (`rendered`, into audio/sfx.wav, again only when a
 placement changed), so a re-narration moves an effect with its cue. The timeline mixes it at -8 dB
 under the narration.
+
+A cue's `visual` tag says what the picture does at that moment, never when: the time is still the cue
+or beat the effect names, the beat sheet's one time for picture and sound. The tag lets audio-check
+judge the cut's picture there (a cut, a move at its fastest, a landing, an appearance), labels the
+effect on the sound sheet, and shows in the motion review's windows. In those reports each effect is
+fxN, its place in audio/sfx.json (`effect_id`).
+
+A recording plays at its trim (facts.trim_db in soundkit.json) plus the cue's gain. Kenney's files are
+normalised near -1 dBFS, so a kit confirm played 12.9 dB over the voice at gain 0; the trim, measured
+at curation (soundkit.trim), brings each to the level of the synth voice of its type by
+soundkit.level (the K-weighted loudest 10 ms), so swapping a synth for a recording keeps the mix.
 
 Sound effects are off by default and belong in pauses. The sound lab renders candidates for each
 type (the synth's, then the kit's recordings once the kit is fetched), each played alone and in
@@ -303,6 +316,19 @@ def _counter_tick(t, p):
 
 KINDS = tuple(VOICES)
 
+# What a cue's `visual` tag says the picture does on the effect's frame; audio-check measures it
+# (audio_check.VISUAL_FRAMES has each one's tolerance).
+VISUALS = {"cut": "the picture cuts to another shot",
+           "move": "a move at its fastest (a whoosh, a slide)",
+           "land": "a move landing: its motion ends (a thump, a snap)",
+           "appear": "something appearing: motion starts (a pop)"}
+
+
+def effect_id(i):
+    """An effect's id in the reports (audio-check's rows, the sound sheet, the motion review): fxN, its
+    place in audio/sfx.json from 1."""
+    return f"fx{i + 1}"
+
 
 PARAMS = {"freq": (20, 20_000), "decay": (0.1, 2000), "length": (0.01, 10)}     # each voice reads some of them
 
@@ -388,7 +414,8 @@ class Kit:
     so placing one needs neither the file nor numpy. Its samples come from the video's own copy,
     assets/sounds/ID.ogg (put there by `studio sfx`, with its provenance row), checked against the
     manifest's sha256, so a render never reads the cache; without a video (the sound lab) they come
-    from the verified kit in the cache. It takes no params; a cue's gain still applies."""
+    from the verified kit in the cache. It takes no params; it plays at its trim (facts.trim_db, 0 when
+    the manifest has none), and a cue's gain applies on top."""
     name = "kit"
     _loaded = (None, None)
 
@@ -454,10 +481,11 @@ class Kit:
             if hashlib.sha256(data).hexdigest() != e["sha256"]:
                 raise SystemExit(f"assets/{library_file(e)} is not the kit's {e['pack']}:{e['member']} (sha256 differs); "
                                  "remove it and run `studio sfx` again")
-            y = soundkit.decode(data)[0]
-            return np.pad(y, (0, max(0, facts["samples"] - len(y))))[:facts["samples"]]
+            y = soundkit.decode(data)[0] * 10 ** (trim / 20)
+            return np.pad(y, (0, max(0, facts["samples"] - len(y))))[:facts["samples"]].astype(np.float32)
+        trim = facts.get("trim_db", 0)
         return Sound(f"kit:{name}", "peak", facts["contact"], facts["samples"],
-                     _digest(self.name, name, e["sha256"], facts["contact"], facts["samples"], KIT_VERSION), make)
+                     _digest(self.name, name, e["sha256"], facts["contact"], facts["samples"], trim, KIT_VERSION), make)
 
     def candidates(self):
         """Each type's recordings, its default first; none until the kit is fetched (the lab plays
@@ -609,12 +637,16 @@ def write_wav(path, buf, subtype="PCM_24"):
 
 def check(cues, timeline):
     """Stop on an effect with no time in this timeline, a sound the resolver can't make (an unknown
-    type or sound, params its provider can't render) or a gain that isn't a number."""
+    type or sound, params its provider can't render), a gain that isn't a number or a visual tag
+    that isn't one of VISUALS."""
     for c in cues:
         resolve_time(c["t"], timeline)
         resolve(c, at=c["t"])
         if not isinstance(c.get("gain", 0), (int, float)):
             raise SystemExit(f"effect at {c['t']!r}: gain must be dB")
+        if "visual" in c and c["visual"] not in VISUALS:
+            raise SystemExit(f"effect at {c['t']!r}: visual must be one of {', '.join(VISUALS)}, what the picture does on "
+                             f"its frame (got {c['visual']!r})")
 
 
 TRACK_VERSION = 1       # in the track's key: bump it when placing or mixing changes how the track sounds

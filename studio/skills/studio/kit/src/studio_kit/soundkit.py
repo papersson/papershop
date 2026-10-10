@@ -9,7 +9,8 @@ library never moves. It lists:
   sounds  [{id, pack, member, type, default?, sha256, facts?}]: the curated sounds, one a line, each a
           member of a pack with its own digest, a type (what it is for; one sound of each type is its
           default) and measured facts (`measure`: its length and contact in samples at sfx.RATE, peak,
-          attack, brightness, floor and events), which the sfx kit provider places it by
+          attack, brightness, floor and events), which the sfx kit provider places it by, and
+          its trim_db (`trim`): the gain that brings it to the level of the synth voice of its type
 
 `studio doctor --fetch --sounds` downloads and unpacks every pack into $STUDIO_HOME/cache/sounds/,
 verified; a video never reads the cache when it renders: `studio asset library` copies a sound into
@@ -34,6 +35,7 @@ SCHEMES = ("https://",)                    # a pack's url (tests add file://)
 PACK_KEYS = {"title": str, "version": str, "url": str, "sha256": str, "bytes": int, "license": str,
              "creator": str, "homepage": str, "unpack": list}
 SOUND_KEYS = {"id": str, "pack": str, "member": str, "type": str, "sha256": str}
+TRIM_RANGE = (-30.0, 12.0)                 # dB a sound's trim may be
 
 
 def repair():
@@ -93,6 +95,8 @@ def problems(manifest):
             out.append(f"{where}: facts must be an object")
         elif not _contact_ok(s.get("facts", {})):
             out.append(f"{where}: facts.contact must be a sample within facts.samples")
+        elif not _trim_ok(s.get("facts", {})):
+            out.append(f"{where}: facts.trim_db must be dB from {TRIM_RANGE[0]:g} to {TRIM_RANGE[1]:g}")
         if s.get("default", False) is not False:
             if s["default"] is not True:
                 out.append(f"{where}: default must be true or left out")
@@ -108,6 +112,11 @@ def _contact_ok(facts):
         return True
     c, n = facts.get("contact"), facts.get("samples")
     return all(isinstance(v, int) and not isinstance(v, bool) for v in (c, n)) and 0 <= c < n
+
+
+def _trim_ok(facts):
+    v = facts.get("trim_db", 0)
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and TRIM_RANGE[0] <= v <= TRIM_RANGE[1]
 
 
 def load(path=None):
@@ -325,3 +334,56 @@ def measure(y, rate, raw_peak=None):
             "centroid_hz": round(float((freq * spectrum).sum() / max(spectrum.sum(), 1e-20))),
             "floor_db": round(_db(float(np.percentile(frames, 10))) - _db(float(frames.max())), 1) if frames.max() > 0 else 0.0,
             "events": max(events, 1)}
+
+
+# --- level: how loud a sound plays against the voice -----------------------------------------------
+
+# ITU-R BS.1770's K-weighting at 48 kHz (a high shelf of about +4 dB over 2 kHz, then a high-pass near
+# 60 Hz): how loud a sound is heard, not how much energy it carries, so a 90 Hz thump and a 900 Hz
+# confirm with one RMS are not one loudness. As two biquads (b, a).
+K_WEIGHTING = (((1.53512485958697, -2.69169618940638, 1.19839281085285), (1.0, -1.69065929318241, 0.73248077421585)),
+               ((1.0, -2.0, 1.0), (1.0, -1.99004745483398, 0.99007225036621)))
+LEVEL_WINDOW = 0.01     # seconds: a sound's level is its loudest this long
+
+
+def k_weighted(y, rate=48_000):
+    """y through the K-weighting's magnitude response (zero-phase, by FFT, over a span padded with
+    0.1 s of silence either side so nothing wraps around); at `rate` 48 kHz, the biquads' own."""
+    import numpy as np
+    pad = int(0.1 * rate)
+    n = len(y) + 2 * pad
+    spectrum = np.fft.rfft(np.pad(np.asarray(y, dtype=np.float64), (pad, pad)))
+    z = np.exp(-1j * np.pi * np.fft.rfftfreq(n, 1 / rate) / (rate / 2))
+    for b, a in K_WEIGHTING:
+        spectrum *= np.abs((b[0] + b[1] * z + b[2] * z * z) / (a[0] + a[1] * z + a[2] * z * z))
+    return np.fft.irfft(spectrum, n)[pad:pad + len(y)]
+
+
+def level(y, rate=48_000):
+    """A sound's level in dB (K-weighted dBFS): the power of its loudest LEVEL_WINDOW, K-weighted. The
+    kit's trims and audio-check's loud audit both read it, so a trimmed sound at gain 0 is where the
+    synth voice of its type is, by the measure that judges it."""
+    import numpy as np
+    x = k_weighted(y, rate)
+    k = max(1, min(len(x), int(LEVEL_WINDOW * rate)))
+    if not len(x):
+        return -200.0
+    c = np.concatenate([[0.0], np.cumsum(x ** 2)])
+    p = float(((c[k:] - c[:-k]) / k).max())
+    return 10 * np.log10(p) if p > 1e-20 else -200.0
+
+
+def reference_level(kind):
+    """The level a sound of type `kind` is trimmed to: the synth voice of that type at its defaults,
+    or for a type only the kit has (question, dice, ...), the median of the synth voices."""
+    import statistics
+    from . import sfx
+    if kind in sfx.VOICES:
+        return level(sfx.voice(kind))
+    return statistics.median(level(sfx.voice(k)) for k in sfx.VOICES)
+
+
+def trim(y, kind, rate=48_000):
+    """facts.trim_db for a recording's samples y of type `kind`: the dB that brings its level to
+    reference_level(kind), to 0.1 dB, within TRIM_RANGE."""
+    return round(float(min(TRIM_RANGE[1], max(TRIM_RANGE[0], reference_level(kind) - level(y, rate)))), 1)
