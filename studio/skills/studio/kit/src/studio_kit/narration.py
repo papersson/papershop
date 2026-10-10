@@ -496,6 +496,19 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     S.audio.mkdir(exist_ok=True)
     chapters = sc.load(S.video)
     sents = [(lid, cap) for _, _, ss in chapters for lid, cap, _ in ss]
+    if not estimate:
+        # The gates first, so a refusal is instant: the pronunciation pass below loads Kokoro (torch).
+        cfg = settings.load(S.video)
+        if cfg.get("teaching_contract"):
+            from .script_check import run as check_script
+            failures = [r["detail"] for r in check_script(S.video) if not r["ok"]]
+            if failures:
+                raise SystemExit("script is not ready: " + "; ".join(failures))
+            from .review_state import require, required_roles
+            for role in required_roles(cfg):
+                require(S.video, role)
+        from .doctor import require_extra
+        require_extra("kokoro" if S.engine == "kokoro" else "audio")
     from . import pronounce
     pronounce.report(S, chapters)
     if estimate:
@@ -503,17 +516,6 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
         write_timeline(S, timings, timing="estimate")
         print(f"estimated total {timings['total']:.1f}s (no audio; scenes can be timed against it)")
         return timings
-    from .doctor import require_extra
-    require_extra("kokoro" if S.engine == "kokoro" else "audio")
-    cfg = settings.load(S.video)
-    if cfg.get("teaching_contract"):
-        from .script_check import run as check_script
-        failures = [r["detail"] for r in check_script(S.video) if not r["ok"]]
-        if failures:
-            raise SystemExit("script is not ready: " + "; ".join(failures))
-        from .review_state import require, required_roles
-        for role in required_roles(cfg):
-            require(S.video, role)
     chunks = all_chunks(S, chapters)
     if S.engine == "elevenlabs" and (S.phonemes or S.phonemes_by_id):
         print("note: phoneme overrides are Kokoro-only; ElevenLabs speaks those words as written "

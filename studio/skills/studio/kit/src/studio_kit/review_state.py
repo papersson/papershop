@@ -310,16 +310,16 @@ def require(video, role):
     if gone:
         raise SystemExit(f"the {role} review no longer stands: {gone}. Mark a structural revision (studio stage {v} "
                          "revision --kind structural --summary …), which starts a new count, make a fresh cut and "
-                         f"{kind.remedy.format(role=role)}; or record an authorized waiver with studio review-status")
+                         f"{kind.remedy.format(role=role, video=v)}; or record an authorized waiver with studio review-status")
     if kind.name == "motion" and rec.get("stopped") == "cap":
         raise SystemExit(f"the motion review of cut {rec.get('cut')} stopped at its cap with must-fix findings open "
                          f"({rec.get('detail') or 'no detail'}): fix them and record the user's acceptance with studio review-status "
                          f"{v} motion waived --reason …, or, if the user asks, raise video.json motion_rounds")
     if kind.freshness == "record-stale" and rec.get("cut") is not None and rec.get("revision") != current:
         raise SystemExit(f"the {role} review judged cut {rec['cut']}, and {changed_since(video, rec['cut'])} changed since: "
-                         f"make a fresh cut and {kind.remedy.format(role=role)}, or record an authorized waiver with "
+                         f"make a fresh cut and {kind.remedy.format(role=role, video=v)}, or record an authorized waiver with "
                          "studio review-status")
-    raise SystemExit(f"{unsettled(video, role, kind, rec, current)}; {kind.remedy.format(role=role)}"
+    raise SystemExit(f"{unsettled(video, role, kind, rec, current)}; {kind.remedy.format(role=role, video=v)}"
                      f"; an authorized waiver can be recorded with studio review-status {v} {role} waived --reason …")
 
 

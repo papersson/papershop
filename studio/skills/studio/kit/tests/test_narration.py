@@ -102,6 +102,16 @@ def test_estimate_writes_a_timeline_scenes_can_be_timed_against(tmp_path):
     assert len(t["tracks"]["narration"]) == 4 and t["tracks"]["captions"]
 
 
+def test_a_refused_narration_refuses_before_the_pronunciation_pass(tmp_path, monkeypatch):
+    """A narrate the review gate refused loaded torch and ran the pronunciation pass first."""
+    from studio_kit import pronounce
+    (video(tmp_path) / "video.json").write_text(json.dumps({"teaching_contract": True}))
+    monkeypatch.setattr("studio_kit.script_check.run", lambda video: [])
+    monkeypatch.setattr(pronounce, "report", lambda S, chapters: pytest.fail("the pronunciation pass ran before the gates"))
+    with pytest.raises(SystemExit, match="^no student review is recorded"):
+        nr.narrate(tmp_path)
+
+
 def test_voice_check_spells_numbers_before_comparing():
     from studio_kit.voice_check import score
     assert score("It took 18 doublings in 2023.", "it took eighteen doublings in twenty twenty-three") > 0.95

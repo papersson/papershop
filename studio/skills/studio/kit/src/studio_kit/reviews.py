@@ -116,7 +116,7 @@ class Kind:
     roles: tuple
     scope: str
     verdict: object
-    remedy: str                 # what `require` tells the builder to run; {role} is filled in
+    remedy: str                 # what `require` tells the builder to run; {role} and {video} are filled in
     rounds: Rounds = Rounds()
     freshness: str = "refuse"
     aliases: dict = field(default_factory=dict)
@@ -128,7 +128,7 @@ class Kind:
 KINDS = {
     "script": Kind("script", ("expert", "student", "editor"), "script",
                    verdict(lambda line: "VERDICT" in line, "VERDICT: PASS"),
-                   "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap, resets_on=("structural", "fork"), past_cap=(
+                   "run studio review {video} ROUND --only {role}", Rounds(cap=script_cap, resets_on=("structural", "fork"), past_cap=(
                        "round {number} is past max_rounds ({cap}): this revision of the script has had {count} review rounds "
                        "since {where}. Lock the script with every open finding logged, or ask the learner to raise the cap. "
                        "A structural rewrite (a new chapter or a changed arc, marked with studio stage {video} revision --kind "
@@ -145,7 +145,7 @@ KINDS = {
                    freshness="record-stale", settled=("passed", "known-issues", "waived"), stands="lineage"),
     "listen": Kind("listen", ("listen",), "sound", None,
                    "ask the user to listen once to the finished mix (out/master.mp4, or the desk's latest cut) and record "
-                   "it with studio review-status VIDEO listen passed --reason \"…\" (or waived)",
+                   "it with studio review-status {video} listen passed --reason \"…\" (or waived)",
                    records=("passed", "waived")),
 }
 
