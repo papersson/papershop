@@ -171,6 +171,9 @@ COMMANDS = {
     "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), A("file")], "beats:main"),
     "sfx": ("synthesised effects from a cues file, on the timeline", [W("video"), A("cues", help="JSON list of {t, type, gain}")], "sfx:main"),
     "sound-lab": ("a page to choose effect candidates by listening", [V("video")], "sfx:main_lab"),
+    "audio-check": ("measure the soundtrack: effect sync, ducking, masking, the pauses guard and loudness, into out/audio-check.json", [
+        W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
+    ], "audio_check:main"),
     "music": ("an optional generated bed (quiet chords and a soft pulse) as a music track the mix ducks, with its beat grid", [
         W("video"), A("--bed", action="store_true", help="make the bed (audio/bed.wav) and register it in audio/tracks.json"),
         A("--remove", action="store_true", help="take the bed, its track entry and its beat grid out again"),
