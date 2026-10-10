@@ -133,8 +133,9 @@ def gate(video):
             require(video, role)
         if cfg.get("level") == "deep-dive" or cfg.get("destination") in ("share", "social") or cfg.get("frame_review"):
             require(video, "frames")
-        if cfg["genre"] == "explainer":
-            require(video, "motion")        # polish is a stage of every explainer; a waiver records the user's notes instead
+        if cfg["genre"] == "explainer" and cfg["mode"] == "background":
+            # In interactive mode the user watches every cut on the desk; a gate would only repeat them.
+            require(video, "motion")
     rows = check.run(video, everything=True)
     bad = [r for r in rows if not r["ok"]]
     print(f"publish gate: full check, {len(rows)} results, {len(bad)} failed")

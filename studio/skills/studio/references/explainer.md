@@ -295,11 +295,12 @@ desk notes) don't call for another round. When a chapter is added or half the ch
 change since the reviewed cut, it no longer stands; publish names the chapters, and the way on is a
 structural stage mark, which starts a new count, a fresh cut and a new motion review.
 
-In interactive mode the user watches the cuts on the desk, and their notes can stand in for the
-motion review if they prefer. Record that as a waiver whose reason names the notes by id:
+In interactive mode the user watches every cut on the desk, so publish doesn't require the motion
+review; run it when the user asks for one. A background video's user can still let their desk notes
+stand in for it, recorded as a waiver whose reason names the notes by id:
 `studio review-status VIDEO motion waived --reason "the user's desk notes ab12cd34, 9f00e1aa stand in"`.
 The receipt records the mode, the note ids, the cut and how many known issues it accepts; a reason
-citing desk notes is refused in background mode, or without note ids.
+citing desk notes is refused without note ids.
 
 ## Stage 12: Independent frame review
 

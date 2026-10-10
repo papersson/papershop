@@ -50,8 +50,9 @@ invent an editorial revision.
 
 ## The motion review and its stop rule
 
-An explainer with a teaching contract (what `studio new` makes) publishes only with a settled motion
-receipt: `passed`, `known-issues` or `waived`. Other genres don't need one. `studio review-motion`
+An explainer with a teaching contract (what `studio new` makes) built in background mode publishes
+only with a settled motion receipt: `passed`, `known-issues` or `waived`. In interactive mode the user
+watches every cut on the desk, so it runs only when they ask; other genres don't need one. `studio review-motion`
 packages a cut's motion windows and imports the reviewer's findings (`explainer.md`, Stage 11).
 
 The review stops at a round with no must-fix findings, or after video.json `motion_rounds` rounds
@@ -75,9 +76,8 @@ judged by the frame review and the user, not by another motion round. It stops s
 reviewed cut came before a structural mark that started a new count, or when a chapter is new or
 half the chapters or more changed since that cut; publish names them and asks for a structural mark,
 a fresh cut and a new review. A later review that ends replaces the known issues; a waiver records
-how many it accepts. In interactive mode, when the user prefers to judge motion on the desk, record
-a waiver whose reason names their notes by id (the receipt keeps the mode and the ids; such a reason
-is refused in background mode). A video made before this requirement is told so at publish, with
+how many it accepts. When the user prefers to judge motion on the desk, record a waiver whose
+reason names their notes by id (the receipt keeps the mode and the ids). A video made before this requirement is told so at publish, with
 the waiver to record if the user agrees.
 
 ## Sound: measured, then heard once
@@ -110,7 +110,7 @@ unless the user wants one.
 ## Publishing
 
 `studio publish VIDEO` first requires the review receipts (script reviews, the frame review where
-required, the motion review for an explainer) and runs the full `studio check` on every chapter as
+required, the motion review for a background explainer) and runs the full `studio check` on every chapter as
 its gate (a failure stops it; with effects, it includes the pauses guard), then renders the final cut (1080p) unless the latest cut is one (only chapters
 whose key changed since the last final render re-render) with its whole mix finished to -16 LUFS
 under a -1.5 dBTP ceiling (`studio audio`; a social export takes `--lufs -14`, below), links it as

@@ -364,8 +364,8 @@ item: the loop is proven by the user's own notes.
   frames are cut from the cut's own renders, so the bundle carries that cut's revision, and a
   result for an older cut is recorded as stale, as a frame review's is. Polish became a planned
   stage of the explainer (Stage 11), after the blocking and before the frame review, with the
-  motion review as its gate; publish requires it for explainers, and in interactive mode the user's
-  desk notes can stand in through a waiver.
+  motion review as its gate; publish requires it for explainers built in background mode; in
+  interactive mode the user watches every cut on the desk, so a gate would only repeat them.
 - **A motion review stops by a rule.** The same session's review loop ran for hours with no natural
   end: should-fix findings plateaued at 25 to 45 a review. A motion review now ends at a round with
   no must-fix findings or after `motion_rounds` (default 2) rounds, whichever comes first, and the

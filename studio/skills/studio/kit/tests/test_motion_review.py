@@ -425,8 +425,10 @@ def test_publish_asks_an_explainer_for_its_motion_review(video, monkeypatch):
     review_state.record(video, "motion", review_state.revision(video, reviews.KINDS["motion"]), "waived",
                         "the user accepts the motion as it is")
     publish.gate(video)
-    (video / "video.json").write_text(json.dumps({"teaching_contract": True, "genre": "motion"}))
     (video / "research" / "reviews" / "motion.json").unlink()
+    (video / "video.json").write_text(json.dumps({"teaching_contract": True, "mode": "interactive"}))
+    publish.gate(video)                   # the user watched every cut on the desk
+    (video / "video.json").write_text(json.dumps({"teaching_contract": True, "genre": "motion"}))
     publish.gate(video)
 
 
@@ -436,15 +438,12 @@ def test_a_motion_waiver_records_the_mode_and_the_desk_notes_it_cites(video, cap
     page.append(video, {"type": "note", "id": "ab12cd34", "cut": 1, "t": 1.0, "note": "the drop lands late"})
     status = lambda reason: review_state.main_status(cli.build_parser().parse_args(
         ["review-status", str(video), "motion", "waived", "--reason", reason]))
-    with pytest.raises(SystemExit, match="only in interactive mode"):
-        status("the user's desk notes ab12cd34 stand in")
-    (video / "video.json").write_text(json.dumps({"teaching_contract": True, "mode": "interactive"}))
     with pytest.raises(SystemExit, match="by their ids"):
         status("the user's desk notes stand in")
     status("the user's desk notes ab12cd34 stand in")
     assert "(cut 1, its 1 known issue(s) accepted)" in capsys.readouterr().out
     rec = review_state.read(video, "motion")
-    assert (rec["mode"], rec["notes"], rec["cut"], rec["accepted"]) == ("interactive", ["ab12cd34"], 1, 1)
+    assert (rec["mode"], rec["notes"], rec["cut"], rec["accepted"]) == ("background", ["ab12cd34"], 1, 1)
     assert rec["cut_t"] == json.loads((d / "cut.json").read_text())["t"]
     review_state.require(video, "motion")
 

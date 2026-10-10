@@ -360,18 +360,14 @@ def listening(video, timeline):
 def motion_waiver(video, reason):
     """What a motion waiver records beyond its reason: the mode, the latest rendered cut (whose
     lineage it stands for), the desk notes it cites by id, and how many known issues it accepts.
-    Desk notes stand in for the review only in interactive mode, named by their ids."""
+    The user's desk notes can stand in for the review, named by their ids."""
     from . import cuts, page
     mode = settings.load(video)["mode"]
     ids = {e["id"] for e in page.read_log(video) if e.get("type") == "note"}
     notes = sorted(i for i in ids if re.search(rf"\b{re.escape(i)}\b", reason))
-    if re.search(r"\bdesk\b|\bnotes?\b", reason, re.I):
-        if mode != "interactive":
-            raise SystemExit("desk notes stand in for the motion review only in interactive mode; in background mode "
-                             "run studio review-motion, or record the user's own reason for the waiver")
-        if not notes:
-            raise SystemExit("name the desk notes that stand in for the motion review by their ids in --reason "
-                             f"(studio notes {quoted(video)} lists them)")
+    if re.search(r"\bdesk\b|\bnotes?\b", reason, re.I) and not notes:
+        raise SystemExit("name the desk notes that stand in for the motion review by their ids in --reason "
+                         f"(studio notes {quoted(video)} lists them)")
     n = cuts.latest(video, cuts.RENDERED)
     issues = (cuts.records(video).get(n) or {}).get("known_issues") or []
     return {"mode": mode, "notes": notes or None, "cut": n or None, "cut_t": cut_time(video, n) if n else None,
