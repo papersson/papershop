@@ -398,7 +398,10 @@ item: the loop is proven by the user's own notes.
   brought to a fixed loudness so the thresholds hold at any voice level. The dip is the band
   subtracted and its compressed copy added back, so a pause keeps the dry signal: a static EQ dip
   would thin every effect in its pause, where effects belong, and ffmpeg's crossover filter hung
-  in front of a sidechain. A narration alone, or with footage, is the plain sum it always was.
+  in front of a sidechain. Every sub-bus, the key among them, is padded to the video's length: a
+  sidechain stops where its key does, and after a narration shorter than the video the ducked music
+  went silent and the effects lost their whole presence band (found by an end-to-end test). A
+  narration alone, or with footage, is the plain sum it always was.
 - **Sound is measured, and the user listens once.** The same builders wrote an audio checker: sync
   against the beat sheet, ducking, per-word masking in 1-4 kHz, loudness, and a guard that failed a
   loud effect over a spoken word. `studio audio-check` measures these on stems the kit renders

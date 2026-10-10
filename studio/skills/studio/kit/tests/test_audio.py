@@ -306,3 +306,56 @@ def test_a_mix_with_music_and_effects_reaches_the_target(tmp_path):
     v, t, _, _ = processed(tmp_path)
     r = audio.finish(v, timeline=t)
     assert abs(r["lufs"] - (-16.0)) < 0.5 and r["true_peak_dbtp"] <= -1.45
+
+
+def test_music_and_effects_go_on_after_a_narration_shorter_than_the_video(tmp_path):
+    """A sidechain stopped at the end of its key: the ducked music ended with the narration file and
+    the effects after it lost their whole 1-4 kHz band."""
+    np = pytest.importorskip("numpy")
+    sf = pytest.importorskip("soundfile")
+    v = tmp_path / "v"
+    (v / "audio").mkdir(parents=True)
+    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 0}}))
+    speech(v / "audio" / "narration.wav", seconds=6)
+    noise = (np.random.default_rng(0).standard_normal(8 * 48_000) * 0.05).astype(np.float32)
+    sf.write(v / "n.wav", noise, 48_000, subtype="FLOAT")
+    t = {"duration": 8.0, "tracks": {"audio": [{"file": "audio/narration.wav", "start": 0.0, "role": "narration"},
+                                               {"file": "n.wav", "start": 0.0, "role": "music"},
+                                               {"file": "n.wav", "start": 0.0, "role": "sfx"}]}}
+    late = np.zeros(8 * 48_000, bool)
+    late[int(6.5 * 48_000):] = True
+    for role in ("music", "sfx"):
+        f = audio.stem(v, t, role)
+        y = sf.read(f, always_2d=True)[0][:, 0]
+        assert np.abs(y[int(7.9 * 48_000):]).max() > 0.01, role                 # still sounding at the end
+        got, dry = levels(f, late, late, 1000, 4000)[0], levels(v / "n.wav", late, late, 1000, 4000)[0]
+        assert abs(got - dry) < 0.5, role                                        # the band intact once the voice is done
+    # a narration entry cut short with `out` is the same case
+    t["tracks"]["audio"][0].update({"in": 0.0, "out": 3.0})
+    y = sf.read(audio.stem(v, t, "music"), always_2d=True)[0][:, 0]
+    assert np.abs(y[int(7.9 * 48_000):]).max() > 0.01
+
+
+def test_a_change_to_the_processing_re_mixes_through_the_mix_version(tmp_path, monkeypatch):
+    v, t, _, _ = processed(tmp_path)
+    files = audio.sources(v, t)
+    p = audio.processing(v, files)
+    before = audio.inputs(t, files, p)
+    monkeypatch.setattr(audio, "MIX_VERSION", audio.MIX_VERSION + 1)
+    assert audio.inputs(t, files, p) != before
+    alone = timeline()
+    (tmp_path / "n").mkdir()
+    vv = video(tmp_path / "n")
+    files = audio.sources(vv, alone)
+    assert audio.inputs(alone, files, audio.processing(vv, files)) == audio.inputs(alone, files)   # a narration alone: as ever
+
+
+def test_a_mix_that_cannot_be_built_says_so_in_a_catchable_way(tmp_path):
+    pytest.importorskip("numpy")
+    v = video(tmp_path)
+    (v / "audio" / "sfx.json").write_text(json.dumps([{"t": "reveal:gone", "type": "pop"}]))
+    t = timeline(dict(tl.SFX))
+    (v / "timeline.json").write_text(json.dumps({**t, "cues": {}}))
+    with pytest.raises(audio.MixUnavailable, match="no time for 'reveal:gone'"):
+        audio.revision(v)
+    assert issubclass(audio.MixUnavailable, SystemExit)

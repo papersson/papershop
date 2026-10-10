@@ -26,10 +26,10 @@
 The sub-buses' processing (video.json "sound", SOUND for the defaults), all of it deterministic
 ffmpeg filters, and none of it on the narration, which stays dry:
   presence  effects and music lose about 3 dB of their 1-4 kHz band (where a word's consonants
-            are) while the narration speaks: the band is split off with a Linkwitz-Riley crossover
-            (whose bands sum back flat) and compressed with the narration as its key, so an effect
-            in a pause keeps its whole presence. A static EQ dip would also thin every effect in
-            its pause, which is where effects belong.
+            are) while the narration speaks: the band (a biquad bandpass) is subtracted and a copy of it
+            compressed with the narration as its key is added back, so while the narration is silent
+            the two cancel and an effect in a pause keeps its whole presence. A static EQ dip would
+            also thin every effect in its pause, which is where effects belong.
   duck      music ducks under speech, 8 to 9 dB, with a sidechain compressor keyed by the
             narration (20 ms attack, so a word's first syllable is clear; 500 ms release, so the bed
             does not pump between words; a 2:1 ratio, so it moves little with the voice's level).
@@ -37,7 +37,10 @@ ffmpeg filters, and none of it on the narration, which stays dry:
             79 ms, decaying, added to the dry signal), so they sound like one place and not like
             files pasted over the voice. `room` scales the reflections; 0 or false turns it off.
   The key is the narration brought to KEY_LUFS, so the thresholds hold whatever level it was
-  synthesised at. Footage sound is left as it is: it carries its own room, and it is the voice.
+  synthesised at, and padded with silence to the video's length, like every sub-bus: a sidechain
+  stops where its key ends, which cut the music off and took the effects' presence band out
+  entirely after a narration shorter than the video. MIX_VERSION is in the stamp of every processed
+  mix, so a change to these constants re-mixes and re-finishes what was made with the old ones. Footage sound is left as it is: it carries its own room, and it is the voice.
 """
 import hashlib
 import json
@@ -100,12 +103,17 @@ def require_voice(video, timeline, files=None):
         raise SystemExit(f"no narration in {video / 'audio'}{why}: run `studio narrate` first")
 
 
+class MixUnavailable(SystemExit):
+    """The mix can't be built from the current sources (an effect's cue gone, say): a SystemExit with
+    its reason, which a caller that only asks about the sound (a listening check) can catch."""
+
+
 def inputs(timeline, files, processing=None):
     """A stamp of everything the bus is made from: the entries, the length, each file's size and time,
     and the sub-buses' processing when there is any (a narration alone stamps as it always did)."""
     h = hashlib.sha1(json.dumps([timeline["tracks"]["audio"], timeline["duration"]], sort_keys=True).encode())
     if processing:
-        h.update(json.dumps(processing, sort_keys=True).encode())
+        h.update(json.dumps({**processing, "mix": MIX_VERSION}, sort_keys=True).encode())
     for _, f in files:
         st = f.stat()
         h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
@@ -115,8 +123,13 @@ def inputs(timeline, files, processing=None):
 def revision(video, timeline=None):
     """The soundtrack's stamp as it is now (inputs, with the processing): what a listening judged."""
     timeline = timeline or tl.load(video)
-    files = sources(video, timeline)
-    return inputs(timeline, files, processing(video, files))
+    try:
+        files = sources(video, timeline)
+        return inputs(timeline, files, processing(video, files))
+    except MixUnavailable:
+        raise
+    except SystemExit as e:
+        raise MixUnavailable(e.code) from e
 
 
 # --- stage 2: each entry's chain ------------------------------------------------------------------
@@ -149,6 +162,7 @@ def chain(e):
 # --- stage 3: the bus -----------------------------------------------------------------------------
 
 SOUND = {"room": 1.0, "duck": True, "presence": True}
+MIX_VERSION = 1          # raise when the processing below changes what a mix sounds like
 KEY_LUFS = -20.0
 FORMAT = f"aformat=sample_fmts=fltp:sample_rates={RATE}"
 # Measured with steady tones under a recorded voice brought to KEY_LUFS: while it speaks the music
@@ -216,7 +230,8 @@ def graph(files, dur, p, solo=None, gain=None):
         for i in idx:
             filters.append(f"[{i}:a]{','.join(chain(used[i][0])) or 'anull'}[a{i}]")
         joined = "".join(f"[a{i}]" for i in idx)
-        filters.append(f"{joined}{f'amix=inputs={len(idx)}:normalize=0:duration=longest,' if len(idx) > 1 else ''}{FORMAT}[{r}]")
+        filters.append(f"{joined}{f'amix=inputs={len(idx)}:normalize=0:duration=longest,' if len(idx) > 1 else ''}{FORMAT},"
+                       f"apad=whole_dur={dur:.3f}[{r}]")
         label[r] = f"[{r}]"
     k = iter(f"[k{j}]" for j in range(n_keys))
     if n_keys:
