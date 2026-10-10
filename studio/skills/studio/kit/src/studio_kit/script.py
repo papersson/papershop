@@ -7,6 +7,14 @@ scene clip sN.
 A "*Screen:*" line says what the picture shows. It may name the sentences it belongs to
 ("s2_03: … s2_05–s2_07: …"); text before the first id, or a note without ids, belongs to the
 paragraph above it. Boards and checks read these as ScreenNote(start, end, text).
+
+Markers in narration are never spoken or captioned. Each follows a complete sentence:
+  [pause 2]  [predict 3]  [beat]   a hold after the sentence (a prediction hold is thinking time
+                                   before a reveal; a beat is narration.json timing.beat)
+  [key]  [aside]  [recap]          the sentence's role: a key sentence gets a long pause after it and
+                                   is said a little slower, an aside or recap a little quicker
+A role marker at the very start of a paragraph applies to all its sentences. A sentence carries at
+most one hold and one role.
 """
 import re
 import math
@@ -28,6 +36,7 @@ class Sentence:
     line: int
     pause: float | None = None
     prediction: bool = False
+    role: str | None = None     # "key", "aside" or "recap", from a marker
 
 
 @dataclass
@@ -64,20 +73,31 @@ def screen_notes(note, line, paragraph_ids):
     return out
 
 
+ROLES = ("key", "aside", "recap")
+
+
 def paragraph(text, line, beat):
-    """Remove only timing directives, preserving the old splitter for marker-free scripts."""
+    """[(sentence, hold seconds or None, prediction, role or None)], with the markers removed and
+    the old splitter kept for marker-free scripts."""
+    lead = re.match(r"\[(key|aside|recap)\]\s*", text)
+    whole = lead[1] if lead else None
+    text = text[lead.end():] if lead else text
     clean, events, cursor = "", [], 0
-    for m in re.finditer(r"\[(?:pause|predict|beat)[^\]\n]*(?:\]|$)", text):
+    for m in re.finditer(r"\[(?:pause|predict|beat|key|aside|recap)[^\]\n]*(?:\]|$)", text):
         clean += text[cursor:m.start()]
-        token = re.fullmatch(r"\[(beat|pause|predict)(?: ([0-9]+(?:\.[0-9]+)?))?\]", m.group())
-        if not token or (token[1] != "beat" and token[2] is None) or (token[1] == "beat" and token[2]):
-            raise SystemExit(f"SCRIPT.md:{line}: invalid pause marker {m.group()!r}")
-        seconds = beat if token[1] == "beat" else float(token[2])
-        if not math.isfinite(seconds) or seconds < 0:
-            raise SystemExit(f"SCRIPT.md:{line}: pause must be a finite nonnegative number")
+        token = re.fullmatch(r"\[(beat|pause|predict|key|aside|recap)(?: ([0-9]+(?:\.[0-9]+)?))?\]", m.group())
+        timed = token and token[1] in ("pause", "predict")
+        if not token or (timed and token[2] is None) or (not timed and token[2]):
+            raise SystemExit(f"SCRIPT.md:{line}: invalid marker {m.group()!r}")
         if not clean.rstrip().endswith((".", "?", "!", '."', '?"', '!"')):
-            raise SystemExit(f"SCRIPT.md:{line}: a pause must follow a complete sentence")
-        events.append((len(clean), seconds, token[1] == "predict"))
+            raise SystemExit(f"SCRIPT.md:{line}: a marker must follow a complete sentence")
+        if token[1] in ROLES:
+            events.append((len(clean), "role", token[1]))
+        else:
+            seconds = beat if token[1] == "beat" else float(token[2])
+            if not math.isfinite(seconds) or seconds < 0:
+                raise SystemExit(f"SCRIPT.md:{line}: pause must be a finite nonnegative number")
+            events.append((len(clean), "hold", (seconds, token[1] == "predict")))
         cursor = m.end()
     clean += text[cursor:]
     boundaries = list(re.finditer(r'(?<=[.!?])\s+(?=[A-Z"])', clean))
@@ -86,15 +106,19 @@ def paragraph(text, line, beat):
     out = []
     for i, (start, end) in enumerate(zip(starts, ends)):
         end_event = starts[i + 1] if i + 1 < len(starts) else len(clean) + 1
-        found = [(seconds, prediction) for pos, seconds, prediction in events if start < pos < end_event]
-        if len(found) > 1:
+        found = [(kind, value) for pos, kind, value in events if start < pos < end_event]
+        holds = [v for k, v in found if k == "hold"]
+        roles = [v for k, v in found if k == "role"]
+        if len(holds) > 1:
             raise SystemExit(f"SCRIPT.md:{line}: more than one pause on a sentence")
+        if len(roles) > 1:
+            raise SystemExit(f"SCRIPT.md:{line}: more than one role on a sentence")
         sentence = clean[start:end].strip()
         if sentence:
-            out.append((sentence, *(found[0] if found else (None, False))))
+            out.append((sentence, *(holds[0] if holds else (None, False)), roles[0] if roles else whole))
     # A marker is a sentence boundary even before a lowercase continuation; make ambiguity explicit.
     if any(clean[pos:].strip() and not re.match(r'^[A-Z"]', clean[pos:].strip()) for pos, _, _ in events):
-        raise SystemExit(f"SCRIPT.md:{line}: start a new sentence or paragraph after a pause")
+        raise SystemExit(f"SCRIPT.md:{line}: start a new sentence or paragraph after a marker")
     return out
 
 
@@ -116,9 +140,9 @@ def read(video, beat=0.5):
             chapters.append(chapter)
             pi = 0
         elif line.startswith("> ") and chapter:
-            for cap, pause, prediction in paragraph(line[2:].strip(), lineno, beat):
+            for cap, pause, prediction, role in paragraph(line[2:].strip(), lineno, beat):
                 chapter.sentences.append(Sentence(f"{chapter.id}_{len(chapter.sentences)+1:02d}", cap, pi,
-                                                  lineno, pause, prediction))
+                                                  lineno, pause, prediction, role))
             pi += 1
         elif line.startswith("*Screen:*") and chapter:
             above = [s.id for s in chapter.sentences if s.paragraph == pi - 1]
@@ -126,6 +150,33 @@ def read(video, beat=0.5):
     if not chapters or any(not c.sentences for c in chapters):
         raise SystemExit("SCRIPT.md needs a '## Script' section with narrated '### 1. Title' chapters")
     return chapters
+
+
+def vocabulary(video):
+    """The terms the "**Vocabulary.**" ledger names, lowercased: a table's first column, or a list
+    split at commas, semicolons, slashes and bullets, with parentheses and definitions after a colon
+    dropped. Only plain terms of one to four words count, so prose in the ledger is skipped."""
+    text = (Path(video) / "SCRIPT.md").read_text(encoding="utf-8")
+    m = re.search(r"\*\*Vocabulary\.\*\*(.*?)(?=^\s*- \*\*|^#|\n\s*\n(?!\s*[-|]))", text, re.S | re.M)
+    if not m:
+        return []
+    body = m[1]
+    rows = [r for r in body.splitlines() if r.strip().startswith("|")]
+    if rows:
+        pieces = [r.strip().strip("|").split("|")[0] for r in rows]
+        pieces = [p for p in pieces if not set(p.strip()) <= set("-: ")][1:]    # header, separator
+    else:
+        pieces = []
+        for ln in re.sub(r"\([^)]*\)", "", body).splitlines():
+            if re.match(r"\s*- ", ln) and ":" in ln:     # "- term: its definition"
+                ln = ln.split(":")[0]
+            pieces += [part.split(":")[0] for part in re.split(r"[;,]|\s/\s|^\s*-\s", ln)]
+    out = []
+    for p in pieces:
+        term = p.strip().strip(".\"'“”*` ").lower()
+        if re.fullmatch(r"[a-z][a-z0-9'-]*(?: [a-z0-9'-]+){0,3}", term) and len(term) >= 3 and term not in out:
+            out.append(term)
+    return out
 
 
 def load(video):

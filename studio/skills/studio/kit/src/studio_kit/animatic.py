@@ -1,7 +1,8 @@
 """The animatic: the video's stills (or boards) held to the narration, with its audio, before anything
 is animated. It is the first time the whole piece plays at its real length, so pacing problems show
 up while they are cheap: a chapter that runs long, a stretch where the picture never changes while
-the voice talks, a sentence with nothing on screen.
+the voice talks, a sentence with nothing on screen, a delivery with no pauses that let an idea land
+(delivery.py).
 
 Each sentence's still holds from that sentence's start until the next sentence starts (the first
 still of a chapter also covers the chapter's lead-in). The animatic is a cut of kind "animatic":
@@ -12,7 +13,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import audio, proc, render, settings
+from . import audio, delivery, proc, render, settings
 from . import timeline as tl
 
 SCALE = 0.5               # animatic stills: 960×540 from a 1080p layout
@@ -84,6 +85,7 @@ def pacing(video, timeline, cut_dir, stills, segs, boards=False):
         "longest_unchanged": {"at": round(longest[0], 1), "seconds": round(longest[1], 1)},
         "unchanged_runs": [{"at": round(a, 1), "seconds": round(b, 1)} for a, b in runs if b >= STILL_RUN],
         "no_picture": [k for k, v in cov.items() if v is None and clip_of[k] in on_board],
+        "delivery": delivery.from_timeline(timeline),
     }
     return report
 
@@ -152,6 +154,8 @@ def describe(report):
         lines.append(f"pictures held {STILL_RUN:.0f}s or more: " + ", ".join(f"{r['seconds']:.0f}s at {r['at']:.0f}s" for r in report["unchanged_runs"]))
     if report["no_picture"]:
         lines.append(f"sentences with no board and no screen note: {', '.join(report['no_picture'][:10])}")
+    if report.get("delivery"):
+        lines += ["delivery: " + line if not line.startswith("warn") else line for line in delivery.describe(report["delivery"])]
     return lines
 
 

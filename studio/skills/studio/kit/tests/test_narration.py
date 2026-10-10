@@ -42,7 +42,8 @@ def test_script_splits_chapters_paragraphs_and_sentences(tmp_path):
 
 
 def test_layout_places_gaps_holds_and_chapter_edges(tmp_path):
-    S = nr.Settings(video(tmp_path, {"holds": {"s1_02": 1.0}, "tail": 2.0}))
+    """The flat layout (timing.pause false): the voice's gap in a paragraph, PARAGRAPH_GAP between."""
+    S = nr.Settings(video(tmp_path, {"holds": {"s1_02": 1.0}, "tail": 2.0, "timing": {"pause": False}}))
     chapters = sc.load(tmp_path)
     t = nr.layout(S, chapters, {k: 1.0 for _, _, ss in chapters for k, _, _ in ss}, gaps={"s1_01": 0.25})
     s1, s2 = t["segments"]

@@ -86,7 +86,7 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
         nr = json.loads((TEMPLATES / "narration.json").read_text())
         if genre == "explainer" and level == "intro":
             nr["kokoro"]["speed"] = 0.95
-            nr["timing"] = {"beat": 0.5, "chapter_hold": 2.0, "chapter_gap": 1.2}
+            nr["timing"] = {"beat": 0.5, "chapter_hold": 2.0, "chapter_gap": 1.2, **nr.get("timing", {})}
         (video / "narration.json").write_text(json.dumps(nr, indent=1) + "\n")
         script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
         (video / "SCRIPT.md").write_text(script)
