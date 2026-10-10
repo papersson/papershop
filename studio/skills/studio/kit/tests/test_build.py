@@ -218,7 +218,10 @@ def test_an_old_timeline_is_lifted_into_its_sources_once(tmp_path, capsys):
     (tmp_path / "timeline.json").write_text(json.dumps(OLD))
     (tmp_path / "cues.json").write_text(json.dumps({"mine": 1.0}))           # an existing source wins
     t = tl.build(tmp_path)
-    assert "migrated into audio/timings.json" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "migrated into audio/timings.json" in out
+    # the effects lost their cues: nothing said to run studio sfx again
+    assert f"to have them follow their cues again, run `studio sfx {tmp_path.resolve()} CUES`" in out
     assert read(tmp_path / "cues.json") == {"mine": 1.0}
     assert read(tmp_path / "audio" / "tracks.json") == [{**OLD["tracks"]["audio"][1], "role": "music"},
                                                        {**OLD["tracks"]["audio"][2], "role": "sfx"}]

@@ -74,6 +74,7 @@ import hashlib
 import json
 import math
 import re
+import shlex
 import shutil
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -829,6 +830,10 @@ def migrate(video, old):
                                     "words": [w for s in tracks["narration"] for w in s.get("words", [])]})
     if lifted:
         print("timeline: migrated into " + ", ".join(lifted))
+    if "audio/tracks.json" in lifted and not (a / "sfx.json").exists() and \
+            any(e.get("role") == "sfx" for e in _read(a / "tracks.json")):
+        print("timeline: the old effects are a fixed track in audio/tracks.json now, at their old times; to have them "
+              f"follow their cues again, run `studio sfx {shlex.quote(str(Path(video).resolve()))} CUES` with their cues")
 
 
 def _sentences(x):
