@@ -96,8 +96,10 @@ role's sub-bus as it sits in the mix, at the master's level):
   and music there by under 6 dB, wideband and in its own band (masked), or when its loudest 10 ms
   is more than 30 dB under the voice's level (too quiet: an effect alone in a pause still has to be
   heard at the volume the listener set for the voice).
-- **loud**: an effect's loudest 10 ms more than 6 dB over the voice's peaks (its 99th-percentile
-  10 ms level); kit recordings are trimmed to their synth voice, so the defaults at gain 0 pass.
+- **loud**: an effect's loudest 10 ms (K-weighted) more than 13.5 dB over the voice's integrated
+  loudness; the effects follow the narration's loudness and kit recordings are trimmed to their synth
+  voice, so the defaults at gain 0 pass at any narration level. With no narration, loud and audible
+  measure against the music; with neither, a row says they were not measured.
 - **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
 - **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
   within 10 dB.

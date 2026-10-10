@@ -469,8 +469,13 @@ flat voice and an unchecked colour legend as the next gaps.
   rendered file at its own frame rate, from frame `first` exactly (a seek half a frame early),
   through the same decoder and change measure as the sampled signal, and adds the share of the stage
   that changed. Its helpers are the tags' vocabulary: where motion starts and ends, the frame of peak
-  speed, and cuts. A cut is at least 60% of the stage changing in one frame: on 109 rendered clips the
-  widest fades change 48% a frame, so a cut between two scenes on one background reads as motion.
+  speed, and cuts. A cut is a one-frame spike: at least 60% of the stage changes into a frame and less
+  into the frames either side. The kit's own fades and wipes change at most 48% of the stage a frame
+  on 109 rendered clips, but a flat full-stage fade, a flash or a fast pan changes all of it frame
+  after frame, and read as runs of cuts until the spike became the rule; a run of full-frame change
+  is motion, and so is a cut between two scenes on one background. Where motion starts and ends also
+  counts a frame where a small element visibly changes (0.05% of the stage over the window's
+  median), so a 40 px label fading in has a start.
   The sampled signal keeps ffmpeg's fps filter, which picks a frame from within each tenth of a
   second (at 30 fps the second of three, not the first), so the pacing check and the motion review
   report what they did.
@@ -508,12 +513,19 @@ flat voice and an unchecked colour legend as the next gaps.
   cut between two scenes on one background changes too little to read as a cut, so `cut` also
   accepts a change exactly at a clip seam. Reading the cut frame by frame exposed a decoder bug: with
   an audio track, two seeks in three returned the frame before (fixed with `-fps_mode passthrough`).
+  A miss reports where the mark really is, up to a second away, and the picture is read at the frame
+  the cut's own timeline put the event on, saying so when the sources have moved it since.
 - **Recordings at their synth's level.** Kenney's sounds are mastered near -1 dBFS, so a kit confirm
   at gain 0 came out 12.9 dB over the voice. Each kit sound's `trim_db` (from -15.9 to +8.7 dB) brings
-  its K-weighted loudest 10 ms to its synth voice's, and it is in the digest. The `loud` row compares
-  an effect's loudest 10 ms with the voice's peaks (the 99th-percentile 10 ms level), not its mean:
-  against the mean, the synth thump alone sat 11 dB over a Kokoro voice, and no threshold could pass
-  every default and still catch +10 dB.
+  its K-weighted loudest 10 ms to its synth voice's, and it is in the digest. The mix set effects at a
+  fixed -8 dB and the finish raised everything to its target, so a voice synthesised 8 dB quieter made
+  every effect 8 dB louder against it; the effects track now follows the narration's integrated
+  loudness against Kokoro's -25.6 LUFS, and the `loud` row compares an effect's K-weighted loudest
+  10 ms with the voice's integrated loudness. Against that fixed relation the synth voices at gain 0
+  sit from -3.5 dB (key-tick) to +12.2 dB (thump), so the line is 13.5 dB: every default passes at any
+  narration level, and +10 dB warns from confirm (+5) up. A first version compared with the voice's
+  99th-percentile 10 ms level, which moved with the voice's dynamics and left the thump 1.2 dB from
+  the line. With no narration the effects are measured against the music.
 - **A sheet to look at, timecodes to listen at.** The kit cannot hear, so audio-check draws the
   soundtrack (waveform, spectrogram, sentence bands, one marker per effect, red where a row flagged
   it; close-ups of the hero effects with the frame grid) with ffmpeg alone, and each motion-review
@@ -524,10 +536,13 @@ flat voice and an unchecked colour legend as the next gaps.
   at 190-212 wpm while talking, and studio's Kokoro voice was already in that band; what differed was
   the pauses. A real seven-minute studio narration had a pause median of 0.52 s with its p90 only
   1.12 times that, against 0.67-0.75 s and 1.4-2.5 times. The pause after a sentence now comes from
-  its role, read from the script: 0.4 s within a paragraph, 0.9 s at its end, 1.6 s after a
+  its role, read from the script: 0.4 s within a paragraph, 0.7 s at its end, 1.6 s after a
   question, 2 s after `[key]`, then the chapter hold and gap; `[key]`, `[aside]`, `[recap]` and a
-  term's first use also set the speed (one per Kokoro call in paragraph mode). Paragraph ends stay
-  under the 1.2 s first proposed, which would have pushed the median well above the references.
+  term's first use also set the speed (one per Kokoro call in paragraph mode). Paragraph ends sit at
+  0.7 s, measured the way the references were (pauses of at least 0.5 s), so the median lands in their
+  band; the 1.2 s first proposed would have pushed it well above. `timing.pause: false` restores the
+  old layout and speeds exactly, and the sentence splitter no longer breaks after common
+  abbreviations (Dr., vs., e.g.).
   narrate and the animatic report the delivery and warn when it is flat, on rules calibrated so the
   references pass (a literal two-minute rule would have flagged them), and the estimate now lands
   within 1% of the real total, against 3.6% before.
@@ -536,5 +551,7 @@ flat voice and an unchecked colour legend as the next gaps.
   a machine-readable record of what a colour means, so a video declares `legend` in video.json,
   elements carry `means` (or the meaning's words in their name), and the engines' boxes report each
   element's resolved fill and stroke. It warns rather than fails, because tags and names are
-  heuristic; neutrals, blends mid-transition and tints never count, so a fade or a dimmed guide is
-  not a misuse.
+  heuristic; neutrals, blends mid-transition and tints never count, so a fade or a guide dimmed
+  below half opacity is not a misuse. The kit tags its own accent states, so a legend that follows
+  style.md passes the kit's components; editing the legend re-keys live clips, and elements below
+  half opacity are not counted.

@@ -54,7 +54,8 @@ or the current selection, coral for failure, grey for idle. Tag what a meaning's
 (`means`); `studio check` warns when a colour stands for two meanings, a meaning changes colour, or a
 reserved colour appears on anything else, and the look sheet draws the legend. A colour used for two
 things was the most common frame-review finding; in one video two colours swapped roles between
-chapters.
+chapters. The kit's own accent states follow these roles and are tagged `kit`; tag a component with
+`means` when the legend gives its colour another meaning.
 
 ## Line weight
 
@@ -151,7 +152,7 @@ timestamps, which the scenes cue from.
 Delivery varies with meaning. Three reference explainers speak at about 190–212 wpm and pause where
 an idea ends: a median near 0.7 s, the longest at key moments. Studio's voice spoke in that band but
 left about 0.5 s after every sentence, and read flat. The pause after a sentence now comes from its
-role (0.4 s within a paragraph, 0.9 s at its end, 1.6 s after a question, 2 s after `[key]`, then
+role (0.4 s within a paragraph, 0.7 s at its end, 1.6 s after a question, 2 s after `[key]`, then
 the chapter hold and gap), so write one idea per paragraph and mark the few sentences that matter.
 
 Names and terms are said right. A learner heard "uh reads one" for "A reads one", and "id" said as
@@ -181,8 +182,8 @@ default, and "no music" stays the plain default.
   thump and low-hit for things landing or set down; whoosh, slide-in, slide-out and paper-slide for
   moves; chime for a milestone; glitch for something wrong; riser and swell for a build. The sound
   kit adds question, page-turn, stack, dice and toggle.
-- **Recordings first, synths as the fallback.** Synthesised beeps were the weak point of agent-made
-  soundtracks. The sound kit holds about 150 curated CC0 recordings (Kenney's packs), each with a
+- **Recordings when an effect matters, synths as the quick default.** Synthesised beeps were the
+  weak point of agent-made soundtracks. The sound kit holds about 150 curated CC0 recordings (Kenney's packs), each with a
   type; a cue plays one with `"sound": "kit"` (its type's default) or `"kit:ID"` (one the lab
   offered). A recording lands on its cue at its transient peak, not its first sample, since a
   recording has a lead-in; the peak was measured once and sits in `soundkit.json`. `studio sfx`
@@ -199,8 +200,10 @@ default, and "no music" stays the plain default.
   2). A whoosh on a slide's first frame is off by half the slide: put it on the cue where the slide
   is fastest, or tag it `appear`.
 - **Start every effect at gain 0.** Kit recordings are trimmed to the level of their synth voice, so
-  gain 0 sits where the synth would; adjust from there. audio-check warns an effect more than 6 dB
-  over the voice's peaks.
+  gain 0 sits where the synth would, and the effects follow the narration's loudness, so a quiet or
+  loud voice keeps them in place; adjust from there. audio-check warns an effect more than 13.5 dB over
+  the voice's loudness (its loudest 10 ms against the voice's integrated loudness; the loudest default,
+  thump, sits at +12).
 - **One room, a clear voice.** The mix puts effects and music in one small shared room (a few early
   reflections), dips their 1-4 kHz band about 3 dB while the narration speaks, and ducks music 8 to
   9 dB under speech; the narration stays dry. video.json `sound` turns each off (`room` also scales
