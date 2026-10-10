@@ -42,6 +42,27 @@ def test_band_guard_flags_an_element_that_reaches_the_band(tmp_path):
     assert ok[0]["ok"] and not bad[0]["ok"] and "'label'" in bad[0]["detail"]
 
 
+def test_the_band_hides_what_a_moved_camera_pushes_under_it(tmp_path):
+    """A deliberate push-in failed band ('panel' reaches y=943) though the opaque band hides it; a box
+    with no camera still fails, and so does a camera's under a frosted band, which shows it."""
+    pushed = {"name": "retry code", "x": 100, "y": 600, "w": 900, "h": 343, "camera": True}
+    stray = {"name": "label", "x": 1200, "y": 900, "w": 200, "h": 40}
+    rows = check.band_guard(tmp_path, boxes=boxes(tmp_path, [pushed, stray]))
+    assert rows[0]["detail"] == "'label' reaches y=940 (band starts at 920)"
+    frosted = {**LAYOUT, "band": {"height": 160, "style": "frosted"}}
+    assert "'retry code'" in check.band_guard(tmp_path, boxes=(frosted, boxes(tmp_path, [pushed])[1]))[0]["detail"]
+    # the band's pixels: the pushed box's (and its edge's) are left out, a pixel beyond them is counted
+    W, h = 1920, 160
+    bare = bytearray(W * h * 3)
+    scene = bytearray(bare)
+    for x in range(98, 1004):
+        scene[(10 * W + x) * 3] = 255           # row 10 of the band (y=930): under the box, edges included
+    assert check.scene_in_band(bytes(scene), bytes(bare), LAYOUT) == 906
+    assert check.scene_in_band(bytes(scene), bytes(bare), LAYOUT, [pushed]) == 0
+    scene[(10 * W + 1500) * 3] = 255
+    assert check.scene_in_band(bytes(scene), bytes(bare), LAYOUT, [pushed]) == 1
+
+
 def test_bounds_flags_elements_off_the_frame_and_wide_captions(tmp_path):
     rows = check.bounds(tmp_path, boxes=boxes(tmp_path, [
         {"name": "runaway", "x": 1900, "y": 100, "w": 100, "h": 20},

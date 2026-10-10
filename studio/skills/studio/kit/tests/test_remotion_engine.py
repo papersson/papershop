@@ -108,6 +108,40 @@ def test_a_clipped_close_up_reports_what_its_clip_shows(camera_video):
     assert check.bounds(camera_video, engine=e, boxes=(e.layout(), [f]))[0]["ok"]
 
 
+PUSH_INTO_BAND = """
+import React from 'react';
+import {Camera, CodePanel, Rect} from '@studio';
+
+const SOURCE = {text: 'one\\ntwo\\nthree\\nfour\\nfive\\nsix\\n', sha256: 'synthetic'};
+// s1: a push-in that takes a named code panel under the band. s2: a shape put in the band, no camera.
+export const S1: React.FC = () => <Camera keys={[[0, {cx: 0, cy: 0, zoom: 2.5}]]}>
+	<CodePanel name="retry code" at={[0, 0]} w={8} source={SOURCE} />
+</Camera>;
+export const S2: React.FC = () => <Rect at={[0, -4.2]} w={2} h={1} fill="#F2A93B" name="stray" />;
+"""
+
+
+@needs_engine
+def test_the_band_hides_a_push_in_and_a_code_panel_goes_by_its_name(tmp_path):
+    """A push-in under the opaque band failed both band checks, and the box was reported as 'panel',
+    not the CodePanel's name; a shape put in the band with no camera still fails both."""
+    from studio_kit import check
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "remotion"}))
+    (tmp_path / "scenes" / "kit.tsx").unlink()
+    (tmp_path / "scenes" / "s1.tsx").write_text(PUSH_INTO_BAND)
+    (tmp_path / "scenes" / "s2.tsx").write_text("export {S2} from './s1';\n")
+    (tmp_path / "scenes" / "index.ts").write_text("import {S1, S2} from './s1';\nexport default {s1: S1, s2: S2} as Record<string, import('react').FC>;\n")
+    e = Engine(tmp_path)
+    lay, frames = boxes = check._boxes(tmp_path, 1, e)
+    panel = next(b for f in frames for b in f["boxes"] if b["name"] == "retry code")
+    assert panel["camera"] is True and panel["y"] + panel["h"] > lay["height"] - lay["band"]["height"]
+    guard = {r["clip"]: r for r in check.band_guard(tmp_path, engine=e, boxes=boxes)}
+    assert guard["s1"]["ok"] and not guard["s2"]["ok"] and guard["s2"]["detail"].startswith("'stray' reaches")
+    pixels = {r["clip"]: r for r in check.band_pixels_check(tmp_path, samples=1, engine=e) if r["check"] == "band"}
+    assert pixels["s1"]["ok"] and not pixels["s2"]["ok"], pixels
+
+
 def runs(line):
     """(bright, length) runs along a row or column of RGB pixels: TRAY_EDGE against the panel."""
     out = []

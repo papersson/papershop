@@ -56,12 +56,12 @@ export const Card: React.FC<{at: XY; w: number; lines: string[]; lit?: number[];
 	);
 };
 
-/** A framed region with a small title in its top-left corner. */
-export const Panel: React.FC<{at: XY; w: number; h: number; opacity?: number; title?: string; stroke?: string}> = ({
-	at, w, h, opacity = 1, title, stroke = TRAY_EDGE,
+/** A framed region with a small title in its top-left corner. Its box is named `name`, else after its title. */
+export const Panel: React.FC<{at: XY; w: number; h: number; opacity?: number; title?: string; stroke?: string; name?: string}> = ({
+	at, w, h, opacity = 1, title, stroke = TRAY_EDGE, name,
 }) => (opacity > 0 ? (
 	<>
-		<Rect at={at} w={w} h={h} radius={0.16} stroke={stroke} strokeWidth={2} fill={PANEL} opacity={opacity} name={title ? `panel ${title}` : 'panel'} />
+		<Rect at={at} w={w} h={h} radius={0.16} stroke={stroke} strokeWidth={2} fill={PANEL} opacity={opacity} name={name ?? (title ? `panel ${title}` : 'panel')} />
 		{title && <Txt at={[at[0] - w / 2 + 0.3, at[1] + h / 2 - 0.32]} anchor="left" size={16} color={stroke === TRAY_EDGE ? MUTED : stroke} opacity={opacity}>{title}</Txt>}
 	</>
 ) : null);

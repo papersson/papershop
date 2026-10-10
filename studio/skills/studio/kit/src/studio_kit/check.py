@@ -5,7 +5,8 @@
   bounds       every named element lies inside the frame, and captions inside the caption band
   band         no scene element enters the caption band: at sampled times the scene alone (layers
                no-band) and the bare background are compared over the band's pixels, and every
-               named element's box is checked against the band
+               named element's box is checked against the band. Under a camera that has moved, what
+               an opaque band covers is the camera's crop, as the frame edge is bounds' (see hidden_by_band)
   contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
   overlap      no two text elements cover each other (more than 30% of the smaller one's box) at a sample
   inframe      the element being narrated stays in frame (in_frame): at each sentence's sample, a named
@@ -228,15 +229,28 @@ def in_frame(video, samples=3, engine=None, boxes=None):
     return rows
 
 
+CAMERA_EDGE = 4        # px round a camera box whose pixels are still its own (its stroke, antialiasing)
+
+
+def hidden_by_band(b, lay):
+    """Whether the band may cover box `b`: it is under a camera that has moved (a push-in, a pan) and
+    the band is opaque. The camera crops the scene at the band as at the frame's edges, and the band
+    hides what it crops, so nothing shows through or reads as a caption; in_frame still warns when
+    the element being narrated is pushed under it. A frosted band shows what is under it: no box is
+    hidden there."""
+    return bool(b.get("camera")) and lay["band"].get("style", "opaque") == "opaque"
+
+
 def band_guard(video, samples=3, engine=None, boxes=None):
-    """Named scene elements must end above the band."""
+    """Named scene elements must end above the band, unless the band hides them (hidden_by_band)."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)
     band = lay["height"] - lay["band"]["height"]
     rows = []
     for f in frames:
         bad = [f"{b['name']!r} reaches y={b['y'] + b['h']:.0f} (band starts at {band})"
-               for b in f["boxes"] if b["name"] != "caption" and b["y"] + b["h"] > band + SLACK and b["y"] < band + lay["band"]["height"]]
+               for b in f["boxes"] if b["name"] != "caption" and b["y"] + b["h"] > band + SLACK and b["y"] < band + lay["band"]["height"]
+               and not hidden_by_band(b, lay)]
         rows.append({"check": "band", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad)})
     return rows
 
@@ -273,15 +287,35 @@ def brightest(pixels):
     return best
 
 
-def band_pixels_check(video, samples=3, engine=None, clips=None):
+def scene_in_band(scene, bare, lay, hidden=()):
+    """How many band pixels differ between the scene alone and the bare background, leaving out those
+    inside a box in `hidden` (boxes the band hides, with CAMERA_EDGE round them)."""
+    W, top, e = lay["width"], lay["height"] - lay["band"]["height"], CAMERA_EDGE
+    n = 0
+    for i in range(0, min(len(scene), len(bare)), 3):
+        if scene[i:i + 3] != bare[i:i + 3]:
+            x, y = (i // 3) % W, (i // 3) // W + top
+            n += not any(b["x"] - e <= x < b["x"] + b["w"] + e and b["y"] - e <= y < b["y"] + b["h"] + e for b in hidden)
+    return n
+
+
+def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
     """The scene alone against the bare background, over the band's pixels: any difference is
-    scene content in the band. Then the caption contrast against what is under the band."""
+    scene content in the band, except inside a box the band hides (hidden_by_band). Then the caption
+    contrast against what is under the band."""
     engine = engine or Engine(video)
     t, lay = tl.load(video), engine.layout()
     times = sample_times(t, samples, clips)
     rows = []
     if not times:
         return rows
+    hidden = {}
+
+    def hidden_at(r):           # the boxes are measured only once some sample has scene in the band
+        if not hidden:
+            hidden.update({(f["clip"], round(f["t"], 3)): [b for b in f["boxes"] if hidden_by_band(b, lay)]
+                           for f in (boxes or _boxes(video, samples, engine, clips))[1]})
+        return hidden.get((r["clip"], round(r["t"], 3)), ())
     with tempfile.TemporaryDirectory() as tmp:
         reqs = []
         for i, r in enumerate(times):
@@ -291,9 +325,10 @@ def band_pixels_check(video, samples=3, engine=None, clips=None):
         for i, r in enumerate(times):
             scene = _band_pixels(Path(tmp) / f"{i}-no-band.png", lay)
             bare = _band_pixels(Path(tmp) / f"{i}-background.png", lay)
-            diff = sum(1 for a, b in zip(scene, bare) if a != b)
+            diff = scene_in_band(scene, bare, lay)
+            diff = diff and scene_in_band(scene, bare, lay, hidden_at(r))
             rows.append({"check": "band", "clip": r["clip"], "t": r["t"], "ok": diff == 0,
-                         "detail": "" if diff == 0 else f"{diff // 3} pixels of scene content in the band"})
+                         "detail": "" if diff == 0 else f"{diff} pixels of scene content in the band"})
             under = brightest(_band_pixels(Path(tmp) / f"{i}-no-captions.png", lay))
             ratio = contrast_ratio(CAPTION_COLOUR, under)
             rows.append({"check": "contrast", "clip": r["clip"], "t": r["t"], "ok": ratio >= MIN_CONTRAST,
@@ -393,6 +428,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         rows += length(video, engine, clips)
     if "determinism" in only:
         rows += determinism(video, samples, engine, clips)
+    boxes = None
     if only & {"bounds", "band", "legible", "overlap", "inframe"}:
         boxes = _boxes(video, samples, engine, clips)
         if "inframe" in only:
@@ -407,7 +443,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
         if "band" in only:
             rows += band_guard(video, samples, engine, boxes)
     if only & {"band", "contrast"}:
-        pix = band_pixels_check(video, samples, engine, clips)
+        pix = band_pixels_check(video, samples, engine, clips, boxes)
         rows += [r for r in pix if r["check"] in only]
     if genre(video) == "footage" and only & {"filler", "cuts", "levels", "sync", "segments"}:
         from . import footage

@@ -134,7 +134,10 @@ Stage camera moves and content changes; don't run them together (`style.md`). Th
 them: "push-in", "pull back", "pan", "frame on". `studio check`'s `inframe` warns when an element
 the sentence names is cut by the frame, the header or the band at the sentence's end. `bounds` leaves
 alone an element under a camera that has moved (a push-in or pan crops on purpose; the engines mark its
-box `camera`), and still fails one placed past the frame's edge with the camera at rest. It never
+box `camera`), and still fails one placed past the frame's edge with the camera at rest. `band` does
+the same at an opaque band, which hides what the camera pushes under it: such a box, and its pixels
+in the band, are left out; a box or shape put in the band with the camera at rest fails, and under a
+frosted band (which shows what is under it) a camera's box fails too. `bounds` never
 fails a shape given no name of its own (a Remotion `Rect` without `name`, reported as `rect`, marked
 `named: false`), as live reports no unnamed shape; text is named by its key (live) or its words
 (Remotion), and is checked.

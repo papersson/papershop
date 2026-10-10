@@ -109,7 +109,8 @@ the same result.
   (436.5 → 436 against 437), which put a chapter boundary a frame off between kit and engine.
 - **band** (named boxes against the band, and the scene alone against the bare background over the
   band's pixels) and **bounds** catch an element entering the caption band or leaving the frame;
-  proven by putting one in each on a scratch scene.
+  proven by putting one in each on a scratch scene. Under a camera that has moved, both leave the
+  crop alone: a push-in failed band though the opaque band hid what it pushed under it.
 - **contrast** reads the brightest pixel under the band against the caption colour (16:1 on the
   opaque band).
 - **legible** fails text under 18 px tall; **provenance** fails a scene that uses an asset with no
