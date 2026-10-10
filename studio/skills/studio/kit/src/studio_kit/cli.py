@@ -102,6 +102,7 @@ COMMANDS = {
         A("--net", action="store_true", help="also check the hosts downloads come from"),
         A("--extra", action="append", default=[], choices=["audio", "align", "kokoro"], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
         A("--engine", action="append", default=[], choices=["motion-canvas", "live"], help="with --fetch: also install this engine (Remotion always is)"),
+        A("--sounds", action="store_true", help="with --fetch: also fetch the sound kit (recorded CC0 effects), verified, into the cache"),
     ], "doctor:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),
@@ -151,10 +152,13 @@ COMMANDS = {
         A("url"), W("video"), A("--name"), A("--size", default="1440x900"),
         A("--wait", type=int, default=4000, help="virtual milliseconds to let the page settle"),
     ], "assets:main_capture"),
-    "asset": ("add a file to assets/ with its provenance, or list them", [
-        A("action", choices=["add", "list"]), W("video"), A("file", nargs="?"),
+    "asset": ("add a file to assets/ with its provenance, copy in a sound kit sound, or list them", [
+        A("action", choices=["add", "library", "restore", "list"]), W("video"),
+        A("file", nargs="?", help="add: the file; library: a sound kit id, or PACK:MEMBER"),
         A("--kind", default="supplied", choices=["capture", "generated", "supplied"]),
-        A("--source", help="a URL, a prompt and tool, or a person"), A("--license", default=""), A("--name"),
+        A("--source", help="a URL, a prompt and tool, or a person"), A("--license", default=""),
+        A("--name", help="the file's name in assets/ (library: the sound's id, in assets/sounds/)"),
+        A("--credits", action="store_true", help="list: the CREDITS block for the page or description"),
     ], "assets:main_asset"),
     "init": ("pin the kit a video is made with, so a plugin update can't change how it renders", [
         W("video"), A("--update", action="store_true", help="replace the pinned copy's sources with the plugin's current ones"),

@@ -101,7 +101,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 
 | Command | Purpose |
 |---|---|
-| `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--net]` | Environment, package/model and network diagnostics |
+| `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--sounds] [--net]` | Environment, package/model and network diagnostics; `--fetch --sounds` fetches the sound kit (CC0 recordings, pinned by sha256) into `$STUDIO_HOME/cache/`, and a row says whether it is there and verified (with VIDEO: whether its library sounds are present) |
 | `new NAME [--source REPO] [--drive …] [--level …] [--tone plain\|comic] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
@@ -133,7 +133,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `publish VIDEO` | Local final master, compressed web copy, poster and page; upload separately |
 | `clean VIDEO [--dry-run] [--videos]` | Stale caches/previews; MP4 deletion is explicit and never overrides protection |
 | `commit VIDEO MESSAGE` | Scoped source checkpoint; video.json `git.sign` is true, false or null/inherit |
-| `capture URL VIDEO` · `asset add|list VIDEO` | Assets with provenance |
+| `capture URL VIDEO` · `asset add|list VIDEO` · `asset library VIDEO SOUND [--name ID]` · `asset restore VIDEO` · `asset list VIDEO --credits` | Assets with provenance; `library` copies a sound kit sound (an id, or `PACK:MEMBER`) into `assets/sounds/ID.ogg` with its pack, licence, creator and sha256, `restore` copies back the ones a clone lacks (Git leaves sound out), `--credits` prints the CREDITS block for the description (`references/publishing.md`) |
 | `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing, and optional effects (24 voices, `sfx.py`) on cue or beat names or anchors (each mix places them on the current timeline); the lab plays each voice's candidates |
 | `music VIDEO --bed [--key Am] [--bpm 72] [--seconds S]` · `music VIDEO --remove` | An optional generated bed (slow chords, a soft pulse) as a music track the mix ducks, with its beat grid; only when the user asks for music |
 | `audio-check VIDEO [--cut N]` | The soundtrack measured: effect sync against the beat sheet, ducking, masking per word, the pauses guard (fails) and loudness, into `out/audio-check.json` (`references/publishing.md`) |

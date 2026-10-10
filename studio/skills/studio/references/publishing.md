@@ -127,6 +127,13 @@ The page is the video, its chapters and one feedback button. In learner drive it
 picture, ±1 s). Notes go to the artifact's database, collection `feedback`. There is no captions
 toggle: captions are burned in.
 
+Recorded sounds are credited. A video that uses sounds from the sound kit (`studio asset library`)
+gets a credit line on the page under the chapters ("Sound effects: Impact Sounds by Kenney
+(www.kenney.nl) (CC0 1.0)"), beside the voice's; `studio asset list VIDEO --credits` prints the
+CREDITS block, one line per pack with its homepage and the sounds used, for a description or a post.
+CC0 does not require credit; the studio gives it anyway, and the provenance rows say where each
+sound came from.
+
 **With the Artifact tool:** publish `out/page/index.html` with
 `files: {"video.mp4": "out/page/video.mp4", "poster.jpg": "out/page/poster.jpg"}` (the web encode,
 already under the upload limit; `out/master.mp4` is the 1080p master, for the user to open locally),
@@ -168,7 +175,9 @@ before resuming production and run the installed `studio init VIDEO --update`.
 media (video, audio, recordings and GIFs, in any letter case), cut previews, caches, out/, package
 folders, secrets (`.env*`, keys) and the images in review bundles (copies of a cut's frames) are
 ignored; source/evidence/review records, boards, captures
-and paid narration responses remain checkpointable. `studio commit VIDEO "message"` uses a private
+and paid narration responses remain checkpointable. Library sounds in `assets/sounds/` are sound,
+so ignored too; their provenance rows are committed, and `studio asset restore VIDEO` copies them
+back from the sound kit by their recorded sha256 (`studio doctor VIDEO` says when they are missing). `studio commit VIDEO "message"` uses a private
 index and stages every file in the video's folder that its .gitignore admits, adding the kit's
 rules to an older .gitignore first, and preserves unrelated staged work. A new file over 20 MB is
 left out with a note, whatever its type; `git add` it once to track it on purpose. `video.json.git.sign` is null/inherit by default, true

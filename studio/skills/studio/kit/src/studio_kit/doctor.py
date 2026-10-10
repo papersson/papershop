@@ -197,6 +197,36 @@ def install_spacy_model():
                          ". No GitHub fallback was attempted.")
 
 
+def check_sounds(offline=None):
+    """The sound kit's row: optional, so a kit not fetched is a warning; `offline` is why a fetch
+    asked for just now was skipped."""
+    from . import soundkit
+    state, detail = soundkit.check()
+    if state == "ok":
+        return OK, "sound kit", detail, ""
+    return WARN, "sound kit", detail + (f"; skipped the fetch: {offline}" if offline else ""), soundkit.repair()
+
+
+def check_library(video):
+    """A video's library sounds: each in assets/ with the digest its row recorded (Git leaves sound
+    out, so a fresh clone has rows and no files). None when the video uses none."""
+    from .fetch import sha256_of
+    root = Path(video) / "assets"
+    table = root / "provenance.json"
+    rows = [r for r in json.loads(table.read_text()) if r["kind"] == "library"] if table.exists() else []
+    if not rows:
+        return None
+    missing = [r["file"] for r in rows if not (root / r["file"]).is_file()]
+    changed = [r["file"] for r in rows if r["file"] not in missing and sha256_of(root / r["file"]) != r["sha256"]]
+    if changed:
+        return FAIL, "library sounds", "not the recorded file: " + ", ".join(changed), \
+            f"remove them and run `{ROOT / 'bin/studio'} asset restore {video}`"
+    if missing:
+        return FAIL, "library sounds", f"{len(missing)} of {len(rows)} missing (Git leaves sound out): " + ", ".join(missing[:4]), \
+            f"{ROOT / 'bin/studio'} asset restore {video} (after `doctor --fetch --sounds` if the kit is not fetched)"
+    return OK, "library sounds", f"{len(rows)} in assets/sounds, verified", ""
+
+
 def checks(net=False):
     rows = [
         (OK, "python", f"{sys.version_info.major}.{sys.version_info.minor}", "")
@@ -218,11 +248,27 @@ def checks(net=False):
     return rows
 
 
+def fetch_sounds():
+    """Fetch the sound kit; the reason when the network can't reach it (a skip, not a failure). A
+    download that does not match its pinned digest stops here, loudly."""
+    from . import soundkit
+    from .fetch import Offline
+    try:
+        soundkit.fetch_kit()
+    except Offline as e:
+        print(f"skip: sound kit: {e}")
+        return str(e).split(";")[0]
+    return None
+
+
 def main(args):
+    offline = fetch_sounds() if args.fetch and args.sounds else None
     if args.fetch:
         fetch(engines=tuple(dict.fromkeys(("remotion", *args.engine))), extras=args.extra)
     extras = tuple(dict.fromkeys([*args.extra, *(required(args.video) if args.video else EXTRAS)]))
-    rows = checks(net=args.net) + extra_checks(extras)
+    rows = checks(net=args.net) + extra_checks(extras) + [check_sounds(offline)]
+    if args.video and (library := check_library(args.video)):
+        rows.append(library)
     if args.video:
         print("video requires: " + ", ".join(required(args.video)))
     if not args.video and not args.extra:

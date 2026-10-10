@@ -182,7 +182,8 @@ def build(video, skip_gate=False):
     shutil.copyfile(out / "web.mp4", page / "video.mp4")
     proc.ffmpeg("-ss", f"{poster_time(t, cfg.get('poster')):.2f}", "-i", src,
                 "-frames:v", "1", "-vf", "scale=1280:-2", "-q:v", "4", page / "poster.jpg")
-    (page / "index.html").write_text(page_html(t, cfg, rec["cut"]), encoding="utf-8")
+    from .assets import page_credits
+    (page / "index.html").write_text(page_html(t, cfg, rec["cut"], page_credits(video)), encoding="utf-8")
     size = (page / "video.mp4").stat().st_size / 1e6
     print(f"cut {rec['cut']} (final) → {page}/index.html, video {size:.1f} MB")
     from .review_state import listening
@@ -203,12 +204,13 @@ def chapters_html(t):
     return "\n".join(out)
 
 
-def page_html(t, cfg, cut):
+def page_html(t, cfg, cut, credits=()):
+    """The page; `credits` are lines under the chapters beside the voice's (library sounds' packs)."""
     title = cfg.get("title", "Video")
     author = cfg.get("drive", "author") == "author"
     sentences = json.dumps([[round(s["start"], 2), s["id"], s["caption"]] for s in t["tracks"]["narration"]])
     chapters = json.dumps([[c["id"], c["title"]] for c in t["tracks"]["scene"]])
-    credit = t.get("voice", {}).get("credit")
+    credit = "".join(f'<p class="credit">{html.escape(c)}</p>' for c in [t.get("voice", {}).get("credit"), *credits] if c)
     version = json.dumps(f"{cfg.get('version', 'v1')} (cut {cut})")
     button = "Annotate" if author else "Lost me here"
     ask = ("What is wrong here, and what would be better?" if author
@@ -236,7 +238,7 @@ def page_html(t, cfg, cut):
     <span id="clock" class="len">0:00 / {mmss(t['duration'])}</span>
     <button id="full" class="btn" type="button">Full screen</button></div>
   <nav class="chapters" aria-label="Chapters">{chapters_html(t)}</nav>
-  {f'<p class="credit">{html.escape(credit)}</p>' if credit else ""}
+  {credit}
   <div class="bar"><span id="status" class="status" role="status"></span>
     <button id="lost" class="btn lost" type="button" hidden>{button}</button></div>
   <section id="panel" class="panel" hidden aria-label="{button}">

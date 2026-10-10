@@ -1,0 +1,61 @@
+{
+ "version": 1,
+ "packs": {
+  "kenney-impact-sounds": {
+   "title": "Impact Sounds",
+   "version": "1.0",
+   "url": "https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip",
+   "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+   "bytes": 800850,
+   "license": "CC0-1.0",
+   "creator": "Kenney (www.kenney.nl)",
+   "homepage": "https://kenney.nl/assets/impact-sounds",
+   "unpack": ["Audio/*.ogg", "License.txt"]
+  },
+  "kenney-interface-sounds": {
+   "title": "Interface Sounds",
+   "version": "1.0",
+   "url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+   "sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+   "bytes": 834536,
+   "license": "CC0-1.0",
+   "creator": "Kenney (www.kenney.nl)",
+   "homepage": "https://kenney.nl/assets/interface-sounds",
+   "unpack": ["Audio/*.ogg", "License.txt"]
+  },
+  "kenney-ui-audio": {
+   "title": "UI Audio",
+   "version": "",
+   "url": "https://kenney.nl/media/pages/assets/ui-audio/490d233f68-1677590494/kenney_ui-audio.zip",
+   "sha256": "946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6",
+   "bytes": 411949,
+   "license": "CC0-1.0",
+   "creator": "Kenney (www.kenney.nl)",
+   "homepage": "https://kenney.nl/assets/ui-audio",
+   "unpack": ["Audio/*.ogg", "License.txt"]
+  },
+  "kenney-rpg-audio": {
+   "title": "RPG Audio",
+   "version": "",
+   "url": "https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip",
+   "sha256": "6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b",
+   "bytes": 964837,
+   "license": "CC0-1.0",
+   "creator": "Kenney (www.kenney.nl)",
+   "homepage": "https://kenney.nl/assets/rpg-audio",
+   "unpack": ["Audio/*.ogg", "License.txt"]
+  },
+  "kenney-casino-audio": {
+   "title": "Casino Audio",
+   "version": "1.1",
+   "url": "https://kenney.nl/media/pages/assets/casino-audio/2472606a04-1721639069/kenney_casino-audio.zip",
+   "sha256": "f36250766ac5bc378c13708ddf12a23a8e54a3251f8d482c7536e51b5dbafa18",
+   "bytes": 876839,
+   "license": "CC0-1.0",
+   "creator": "Kenney (www.kenney.nl)",
+   "homepage": "https://kenney.nl/assets/casino-audio",
+   "unpack": ["Audio/*.ogg", "License.txt"]
+  }
+ },
+ "sounds": []
+}
