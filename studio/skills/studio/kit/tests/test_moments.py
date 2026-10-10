@@ -179,6 +179,24 @@ def test_sheets_take_several_strips_and_a_windows_file_in_one_engine_call(tmp_pa
         sheets.windows([["s1", "soon"]])
 
 
+def test_strips_come_beside_the_sheets_and_crops(tmp_path, monkeypatch):
+    """With --strip, sheets wrote the strips alone, so frame review packaged no contact sheets or crops."""
+    import json
+    from studio_kit import cli, sheets
+    (tmp_path / "video.json").write_text("{}")
+    (tmp_path / "timeline.json").write_text(json.dumps(fixture()))
+    made = []
+    monkeypatch.setattr(sheets, "Engine", lambda video: None)
+    monkeypatch.setattr(sheets.tl, "build", lambda video: None)
+    monkeypatch.setattr(sheets.cuts, "latest", lambda video, kind: 1)
+    monkeypatch.setattr(sheets, "strips", lambda video, out, wanted, engine: made.append("strips") or [])
+    monkeypatch.setattr(sheets, "chapter_sheets", lambda video, out, cut: made.append("chapters") or ["s1"])
+    monkeypatch.setattr(sheets, "phone_sheet", lambda video, out, engine: made.append("phone") or out / "phone.png")
+    monkeypatch.setattr(sheets, "crops", lambda video, out, below, ids, engine: made.append("crops") or [])
+    sheets.main(cli.build_parser().parse_args(["sheets", str(tmp_path), str(tmp_path / "out"), "--strip", "s1", "3.0"]))
+    assert made == ["strips", "chapters", "phone", "crops"]
+
+
 @pytest.mark.parametrize("text,error", [
     ('[{"clip":"s1","t":1,', "is not JSON"), ('{"clip":"s1","t":1}', "must hold a JSON list"), (None, "No such file"),
     ('[{"clip":"s1","t":1,"frames":0}]', "strip window"), ('[{"clip":"s1","t":1,"fps":0}]', "strip window"),

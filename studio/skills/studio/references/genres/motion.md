@@ -54,8 +54,8 @@ idea, and hundreds of them produced reels that rhyme. So:
 ## The critique loop, in the agent
 
 Before showing a cut, render the stills, `studio sheets VIDEO out/sheets` (a contact sheet, a
-360 px phone sheet), and, around anything fast, `studio sheets VIDEO out --strip CLIP T` (12
-consecutive frames, to catch pops and overlaps). Be a harsh motion director, not a proud author.
+360 px phone sheet), adding `--strip CLIP T` around anything fast (12 consecutive frames beside the
+sheets, to catch pops and overlaps). Be a harsh motion director, not a proud author.
 Score 1–10 on: hook in the first two seconds, readability at phone size, motion quality (springs,
 no dead frames), variety, composition, sound sync. List the three worst problems with timestamps and
 fix them; repeat until every score is 8 or more, at most three rounds. Hunt specifically for: text

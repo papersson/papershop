@@ -3,7 +3,8 @@
   chapters/sN.png   one contact sheet per chapter: a frame near the end of every sentence
   phone.png         a sample of the whole video at 360 px wide, how it reads on a phone
   strip_CLIP_T.png  with --strip CLIP T (repeatable): 12 consecutive frames around T, to catch pops
-                    and overlaps; --windows FILE gives a JSON list of {clip, t, frames?, fps?}
+                    and overlaps; --windows FILE gives a JSON list of {clip, t, frames?, fps?}. Strips
+                    come beside the sheets and crops, which frame review packages from the same folder
   crops/            full-resolution crops of every small label (under --below px tall), with
                     crops/index.json giving each one's sentences, text and rendered size at 1080p;
                     a label that looks the same in several sentences of a chapter is cropped once,
@@ -207,8 +208,10 @@ def main(args):
     wanted = windows(args.strip, args.windows)
     if wanted:
         print("\n".join(map(str, strips(video, out, wanted, engine))))
-        return 0
     if not cuts.latest(video, cuts.SCENE_STILLS):
+        if wanted:          # strips render from the sources; the sheets need a cut's stills
+            print("strips only: no cut of the scenes yet for the contact sheets and crops (`studio cut VIDEO`)")
+            return 0
         raise SystemExit("no cut of the scenes yet: run `studio cut VIDEO` first")
     made = chapter_sheets(video, out, args.cut)
     print(f"chapter sheets: {', '.join(made)}")
