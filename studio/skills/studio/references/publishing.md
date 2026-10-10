@@ -67,7 +67,8 @@ it ended, read from the findings with the verdict line as a cross-check: `passed
 findings still open at the cap). A bundle takes one result, so a reviewer is not re-rolled. That last one is open,
 never passed: report it to the user, who either has them fixed and records acceptance with
 `studio review-status VIDEO motion waived --reason …`, or asks for more rounds by raising
-`motion_rounds`. A third round is refused with that choice spelled out.
+`motion_rounds`. A third round is refused: with must-fix findings open the refusal spells out that
+choice; after a clean end or a waiver it says the review is settled and nothing more is needed.
 
 An ended review stands for its lineage: later small edits (frame-review fixes, desk notes) are
 judged by the frame review and the user, not by another motion round. It stops standing when the

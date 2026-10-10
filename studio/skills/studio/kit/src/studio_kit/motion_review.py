@@ -44,8 +44,8 @@ from pathlib import Path
 
 from . import cuts, motion, proc, settings
 from . import timeline as tl
-from .env import ROOT
-from .review_state import changed_since, check_cap, cut_time, next_round, read, record, revision, stands, start_round
+from .env import ROOT, engine_dir
+from .review_state import changed_since, check_cap, cut_time, next_round, quoted, read, record, revision, stands, start_round
 from .reviews import KINDS
 from .workspace import atomic_json
 
@@ -57,6 +57,11 @@ SETTLE = 5                  # frames after a move ends, at least, so its settle 
 MOVE_MAX_FRAMES = 24        # a long move's window stops here
 SHEET_WIDTH = 320           # pixels a frame is wide on a sheet
 SHEET_COLS = 12
+# The frame labels' font, named outright: drawtext with no fontfile asks fontconfig, which printed
+# "Fontconfig error: Cannot load default config file" once a sheet where it has no config. The first
+# that exists: the Remotion engine's own mono font, then a system one.
+LABEL_FONTS = (engine_dir("remotion") / "node_modules" / "@fontsource" / "ibm-plex-mono" / "files" / "ibm-plex-mono-latin-500-normal.woff",
+               Path("/System/Library/Fonts/Menlo.ttc"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"))
 
 
 def bundle_root(video):
@@ -83,6 +88,16 @@ def source(video, n, rec, t, clip):
     return (f, 0) if f else None
 
 
+def label_font():
+    """drawtext's fontfile option for the first of LABEL_FONTS that exists, or "". The path is escaped
+    twice: for the option's value, then for the filter graph."""
+    found = next((f for f in LABEL_FONTS if f.is_file()), None)
+    if not found:
+        return ""
+    value = re.sub(r"([\\':])", r"\\\1", str(found))
+    return "fontfile=" + re.sub(r"([\\'\[\],;])", r"\\\1", value) + ":"
+
+
 def sheet(path, frames, offset, contact, fps, out, width=SHEET_WIDTH):
     """Video frames `frames` (ascending; `offset` added gives their numbers in `path`) tiled into one
     strip, each labelled with its frame number and the contact outlined: a seek to half a frame
@@ -91,7 +106,7 @@ def sheet(path, frames, offset, contact, fps, out, width=SHEET_WIDTH):
     lo, cols = frames[0], min(SHEET_COLS, len(frames))
     pick = "+".join(f"eq(n\\,{f - lo})" for f in frames)
     mark = f"drawbox=x=0:y=0:w=iw:h=ih:color=red:t=ih/40:enable='eq(n,{contact - lo})'," if contact in frames else ""
-    label = f"drawtext=text='%{{eif\\:n+{lo}\\:d}}':x=8:y=8:fontsize=h/9:fontcolor=white:box=1:boxcolor=black@0.6,"
+    label = f"drawtext={label_font()}text='%{{eif\\:n+{lo}\\:d}}':x=8:y=8:fontsize=h/9:fontcolor=white:box=1:boxcolor=black@0.6,"
     for text in (label, ""):
         try:
             proc.ffmpeg("-ss", f"{max(0.0, (lo + offset - 0.5) / fps):.4f}", "-i", str(path), "-vf",
@@ -362,12 +377,14 @@ def previous(video, current):
 
 
 def comic_questions():
-    """comic.md's "Motion review: comic questions" section, read when the bundle is made."""
+    """The questions of comic.md's "Motion review: comic questions" section, read when the bundle is
+    made: from its first numbered question on, so the note to builders above them stays out of the prompt."""
     from .script import sections
     part = sections((ROOT / "references" / "styles" / "comic.md").read_text()).get("Motion review: comic questions")
-    if not part:
-        raise SystemExit("references/styles/comic.md has no '## Motion review: comic questions' section")
-    return part
+    first = re.search(r"^1\. ", part or "", re.M)
+    if not first:
+        raise SystemExit("references/styles/comic.md has no '## Motion review: comic questions' section with numbered questions")
+    return part[first.start():].strip()
 
 
 def look_sheet(video, bundle):
@@ -401,7 +418,7 @@ def prompt(cfg, judged, prior, dropped=(), sheet_status="current"):
     if sheet_status in LOOK_NOTES:
         text += "\n\n" + LOOK_NOTES[sheet_status] + "\n"
     if cfg.get("tone") == "comic":
-        text += ("\n\nThis video's tone is comic. " + comic_questions().split("\n", 1)[1].strip() +
+        text += ("\n\nThis video's tone is comic. Answer these for the cut under review:\n\n" + comic_questions() +
                  "\n\nScore every gag on a line of its own inside the findings block: GAG | window name | n/5 | the "
                  "reason in one line. A gag scoring 2 or less is also a MUST FIX: cut or rebuild it.\n")
     if dropped:
@@ -533,7 +550,7 @@ def imported(video, n, bundle, manifest, result, cfg, cap, stale, changed):
     if status == "findings" and ended:
         print(f"motion: OPEN at the cap (round {number} of {cap}): {counts}{stale_note}. Report to the main session: the "
               "must-fix findings stay open; the rest are known issues on the cut. The main session decides: fix them and "
-              "record the user's acceptance with studio review-status VIDEO motion waived --reason …, or, if the user "
+              f"record the user's acceptance with studio review-status {quoted(video)} motion waived --reason …, or, if the user "
               f"asks, raise video.json motion_rounds; {bundle / 'findings.json'}")
         return 1
     if status == "findings":

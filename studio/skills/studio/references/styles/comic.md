@@ -99,8 +99,8 @@ polishing gags without end.
 
 ## Motion review: comic questions
 
-This section is written to be included in the motion review prompt when `tone` is `comic`. Ask, for
-the cut under review:
+When `tone` is `comic`, `studio review-motion` puts the numbered questions below into the reviewer's
+prompt, from question 1 on (this note stays out), for the cut under review:
 
 1. **Is it funny?** Score each gag 1–5 with a one-line reason (timing, setup, the pause, the take,
    the sound). A gag scoring 2 or less is cut or rebuilt, not polished.

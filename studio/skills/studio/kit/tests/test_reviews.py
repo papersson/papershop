@@ -142,7 +142,27 @@ def test_an_older_cuts_frame_review_is_recorded_stale_and_publish_says_what_chan
     review_state.require(tmp_path, "frames")
     args.result.write_text(f"FRAMES: FIX\nREVISION: {current}\n")
     review_state.main_frames(args)
-    with pytest.raises(SystemExit, match="missing, stale or unresolved"):     # current, with findings: nothing changed
+    with pytest.raises(SystemExit, match="the frames review of cut 2 is unresolved: its status is findings"):
+        review_state.require(tmp_path, "frames")       # current, with findings: nothing changed
+
+
+def test_the_frames_gate_says_whether_its_review_is_missing_stale_or_unresolved(tmp_path):
+    """It said "missing, stale or unresolved" without saying which, nor what changed."""
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"frame_review": True}))
+    v = str(tmp_path.resolve())
+    with pytest.raises(SystemExit, match=f"^no frames review is recorded; .*review-status {v} frames waived"):
+        review_state.require(tmp_path, "frames")
+    review_state.main_status(cli.build_parser().parse_args(["review-status", str(tmp_path), "frames", "waived",
+                                                            "--reason", "the user accepts it unreviewed"]))
+    review_state.require(tmp_path, "frames")
+    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, a label reworded\n")
+    with pytest.raises(SystemExit, match=r"^the frames review \(waived\) is stale: s2 changed since it was recorded"):
+        review_state.require(tmp_path, "frames")
+    rec = review_state.read(tmp_path, "frames")
+    del rec["review_keys"]                       # a waiver recorded before receipts kept the clips' keys
+    review_state.atomic_json(tmp_path / "research" / "reviews" / "frames.json", rec)
+    with pytest.raises(SystemExit, match=r"stale: what the frames show \(the receipt names no cut, so not which clips\)"):
         review_state.require(tmp_path, "frames")
 
 

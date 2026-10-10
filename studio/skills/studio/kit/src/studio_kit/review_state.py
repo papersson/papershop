@@ -10,6 +10,7 @@ research/reviews/rounds.jsonl logs the revision each round reviewed, which the r
 import hashlib
 import json
 import re
+import shlex
 import shutil
 import time
 from pathlib import Path
@@ -200,14 +201,21 @@ def next_round(video, kind, revision, unit=None, cut=None):
     return seen.index(unit) + 1 if unit in seen else len(seen) + 1
 
 
+def quoted(video):
+    """The video's path as a command line takes it, for a message's commands."""
+    return shlex.quote(str(Path(video).resolve()))
+
+
 def check_cap(video, kind, number, revision, cfg, unit=None, cut=None):
     """Refuse a new round of `kind` past its cap (counted as rounds() counts, so a typed round number
     neither spends nor saves one), with the kind's own reason and way forward."""
     cap = kind.rounds.cap(cfg) if kind.rounds.cap else None
     seen, since = rounds(video, kind, revision, cut)
     if cap is not None and (unit or revision) not in seen and len(seen) >= cap:
-        where = f"its {since['stage']} mark ({since['at']})" if since else "the first round"
-        raise SystemExit(kind.rounds.past_cap.format(number=number, cap=cap, count=len(seen), where=where))
+        fill = {"number": number, "cap": cap, "count": len(seen), "video": quoted(video),
+                "where": f"its {since['stage']} mark ({since['at']})" if since else "the first round"}
+        past = kind.rounds.past_cap
+        raise SystemExit(past(**fill, last=read(video, kind.roles[0])) if callable(past) else past.format(**fill))
 
 
 def start_round(video, kind, number, revision, cfg, unit=None, cut=None):
@@ -234,6 +242,31 @@ def changed_since(video, cut):
     current = review_keys(video, timeline.load(video))
     clips = [c for c in {**then, **current} if then.get(c) != current.get(c)]
     return ", ".join(clips) if clips else "SCRIPT.md's Script or Evidence"
+
+
+def what_changed(video, rec, kind):
+    """What changed since a receipt was recorded, in a few words, as far as it can tell: the clips
+    since the cut it judged, or since the waiver that recorded the review keys; else the material
+    its kind hashes."""
+    if rec.get("cut") is not None:
+        return changed_since(video, rec["cut"])
+    if kind.scope == "frames" and rec.get("review_keys") and (Path(video) / "timeline.json").exists():
+        from . import timeline
+        then, current = rec["review_keys"], review_keys(video, timeline.load(video))
+        clips = [c for c in {**then, **current} if then.get(c) != current.get(c)]
+        return ", ".join(clips) if clips else "SCRIPT.md's Script or Evidence, or data/"
+    return {"script": "the learner, the charter or SCRIPT.md's teaching sections", "sound": "the mix",
+            "frames": "what the frames show (the receipt names no cut, so not which clips)"}[kind.scope]
+
+
+def unsettled(video, role, kind, rec, current):
+    """Why a receipt does not settle the gate: missing, stale (with what changed) or unresolved."""
+    if not rec:
+        return f"no {role} review is recorded"
+    of = f" of cut {rec['cut']}" if rec.get("cut") is not None else ""
+    if rec.get("revision") != current:
+        return f"the {role} review{of} ({rec.get('status')}) is stale: {what_changed(video, rec, kind)} changed since it was recorded"
+    return f"the {role} review{of} is unresolved: its status is {rec.get('status')}, and the gate takes {' or '.join(kind.settled)}"
 
 
 def lineage_gone(video, rec, kind, current):
@@ -267,26 +300,27 @@ def require(video, role):
     rec, current = read(video, role), revision(video, kind)
     if rec.get("status") in kind.settled and stands(video, rec, kind, current):
         return
+    v = quoted(video)
     if kind.name == "motion" and not rec and settings.load(video).get("teaching_contract"):
         raise SystemExit("publish now needs a motion review for an explainer (new in this kit: Stage 11, Polish, in "
-                         "references/explainer.md): run studio review-motion VIDEO and have the main session's reviewer "
+                         f"references/explainer.md): run studio review-motion {v} and have the main session's reviewer "
                          "judge it; for a video made before this requirement, with the user's agreement, record "
-                         "studio review-status VIDEO motion waived --reason \"…\"")
+                         f"studio review-status {v} motion waived --reason \"…\"")
     gone = rec and kind.stands == "lineage" and lineage_gone(video, rec, kind, current)
     if gone:
-        raise SystemExit(f"the {role} review no longer stands: {gone}. Mark a structural revision (studio stage VIDEO "
+        raise SystemExit(f"the {role} review no longer stands: {gone}. Mark a structural revision (studio stage {v} "
                          "revision --kind structural --summary …), which starts a new count, make a fresh cut and "
                          f"{kind.remedy.format(role=role)}; or record an authorized waiver with studio review-status")
     if kind.name == "motion" and rec.get("stopped") == "cap":
         raise SystemExit(f"the motion review of cut {rec.get('cut')} stopped at its cap with must-fix findings open "
                          f"({rec.get('detail') or 'no detail'}): fix them and record the user's acceptance with studio review-status "
-                         "VIDEO motion waived --reason …, or, if the user asks, raise video.json motion_rounds")
+                         f"{v} motion waived --reason …, or, if the user asks, raise video.json motion_rounds")
     if kind.freshness == "record-stale" and rec.get("cut") is not None and rec.get("revision") != current:
         raise SystemExit(f"the {role} review judged cut {rec['cut']}, and {changed_since(video, rec['cut'])} changed since: "
                          f"make a fresh cut and {kind.remedy.format(role=role)}, or record an authorized waiver with "
                          "studio review-status")
-    raise SystemExit(f"current {role} review missing, stale or unresolved; {kind.remedy.format(role=role)}"
-                     "; an authorized waiver can be recorded with studio review-status")
+    raise SystemExit(f"{unsettled(video, role, kind, rec, current)}; {kind.remedy.format(role=role)}"
+                     f"; an authorized waiver can be recorded with studio review-status {v} {role} waived --reason …")
 
 
 def main_status(args):
@@ -298,6 +332,9 @@ def main_status(args):
         raise SystemExit(f"{role}: review-status records {' or '.join(kind.records)}"
                          + ("; a reviewer's pass comes from its own review" if args.status == "passed" else ""))
     extra = motion_waiver(args.video, args.reason or "") if kind.name == "motion" else {}
+    if kind.scope == "frames" and (Path(args.video) / "timeline.json").exists():
+        from . import timeline      # what the frames showed, so a stale receipt can say which clips changed
+        extra["review_keys"] = review_keys(args.video, timeline.load(args.video))
     record(args.video, role, revision(args.video, kind), args.status, args.reason or "", **extra)
     print(f"{role}: {args.status}" + (f" (cut {extra['cut']}, its {extra['accepted']} known issue(s) accepted)"
                                        if extra.get("accepted") else ""))
@@ -329,7 +366,7 @@ def motion_waiver(video, reason):
                              "run studio review-motion, or record the user's own reason for the waiver")
         if not notes:
             raise SystemExit("name the desk notes that stand in for the motion review by their ids in --reason "
-                             "(studio notes VIDEO lists them)")
+                             f"(studio notes {quoted(video)} lists them)")
     n = cuts.latest(video, cuts.RENDERED)
     issues = (cuts.records(video).get(n) or {}).get("known_issues") or []
     return {"mode": mode, "notes": notes or None, "cut": n or None, "cut_t": cut_time(video, n) if n else None,

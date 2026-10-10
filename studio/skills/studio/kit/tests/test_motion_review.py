@@ -256,7 +256,7 @@ def test_the_stop_rule_ends_at_a_round_without_must_fix_and_leaves_known_issues(
     assert findings["findings"][0] == {"severity": "must-fix", "window": "drop", "t": 1.0, "frame": 30,
                                        "text": "the token pops in. Fix: ease it"}
     assert "known_issues" not in json.loads((video / "cuts" / "cut1" / "cut.json").read_text())
-    with pytest.raises(SystemExit, match="missing, stale or unresolved"):
+    with pytest.raises(SystemExit, match="the motion review of cut 1 is unresolved: its status is findings"):
         review_state.require(video, "motion")
     with pytest.raises(SystemExit, match="has had its motion review"):        # its result is kept
         prepare(video, 1)
@@ -286,8 +286,12 @@ def test_the_stop_rule_ends_at_a_round_without_must_fix_and_leaves_known_issues(
     edit(video, "s3", what="a frame-review fix")            # a small later edit doesn't reopen a review that ended
     review_state.require(video, "motion")
     make_cut(video, 3)
-    with pytest.raises(SystemExit, match=r"round 3 would pass motion_rounds \(2\).*known issues.*waived.*explicitly asks"):
+    with pytest.raises(SystemExit) as refused:     # it read as if something were still open
         prepare(video, 3)
+    said = str(refused.value)
+    assert said.startswith("the motion review is settled and nothing more is needed: it ended by its rule with 2 "
+                           "should-fix or nit finding(s) left, recorded on cut 2 as known issues")
+    assert "motion_rounds (2) allows no round 3" in said and "raise" not in said and "waived" not in said
     (video / "video.json").write_text(json.dumps({"teaching_contract": True, "motion_rounds": 3}))
     prepare(video, 3)
 
@@ -329,8 +333,10 @@ def test_a_recut_of_an_unchanged_revision_spends_a_round(video, tmp_path):
         assert json.loads((bundle_of(video, n) / "manifest.json").read_text())["round"] == n
         respond(video, n, "MUST FIX | drop | 1.0 s | frame 30 | pop\nMOTION: FIX", tmp_path)
     make_cut(video, 3)
-    with pytest.raises(SystemExit, match="would pass motion_rounds"):
+    with pytest.raises(SystemExit, match=r"would pass motion_rounds.*cut 2\) stopped at the cap with 1 must-fix finding\(s\) "
+                                         r"open.*raise video.json motion_rounds") as refused:
         prepare(video, 3)
+    assert f"studio review-status {video.resolve()} motion waived" in str(refused.value)     # not a VIDEO placeholder
 
 
 def test_only_a_structural_mark_over_a_changed_picture_starts_a_new_count(video, tmp_path):
@@ -387,6 +393,8 @@ def test_a_comic_bundle_reads_the_comic_questions_from_the_style_file(video, tmp
     prompt = (bundle_of(video, 1) / "prompt.md").read_text()
     assert "This video's tone is comic." in prompt and "**Is it funny?**" in prompt and "GAG | window name | n/5" in prompt
     assert "## Motion review" not in prompt
+    assert "This video's tone is comic. Answer these for the cut under review:\n\n1. **Is it funny?**" in prompt
+    assert "written to be included" not in prompt          # comic.md's note to builders stays in comic.md
     respond(video, 1, "```findings\nGAG | drop | 4/5 | the pause sells it\n```\nMOTION: PASS", tmp_path)
     assert json.loads((bundle_of(video, 1) / "findings.json").read_text())["gags"] == [
         {"window": "drop", "score": 4, "text": "the pause sells it"}]
@@ -484,3 +492,15 @@ def test_the_bundle_carries_the_look_sheet_and_says_when_it_is_missing_or_stale(
     b = bundle_of(video, 3)
     assert json.loads((b / "manifest.json").read_text())["look"]["status"] == "stale"
     assert "the look sheet is stale" in (b / "prompt.md").read_text()
+
+
+@pytest.mark.skipif(not any(f.is_file() for f in motion_review.LABEL_FONTS), reason="none of the label fonts is here")
+def test_frame_labels_name_their_font_so_fontconfig_says_nothing(tmp_path, monkeypatch, capfd):
+    """drawtext asked fontconfig for a font, which printed "Fontconfig error: Cannot load default
+    config file" about a dozen times a review where it had no config."""
+    import subprocess
+    clip = tmp_path / "clip.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=s=320x180:r=30:d=1", "-pix_fmt", "yuv420p", str(clip)], check=True)
+    monkeypatch.setenv("FONTCONFIG_FILE", str(tmp_path / "no-fonts.conf"))
+    assert motion_review.sheet(clip, [3, 4, 5, 6], 0, 4, 30, tmp_path / "sheet.png") is True
+    assert "Fontconfig" not in capfd.readouterr().err and (tmp_path / "sheet.png").exists()

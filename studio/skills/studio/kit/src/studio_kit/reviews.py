@@ -60,8 +60,29 @@ class Rounds:
     cap: object = None          # video.json -> the rounds allowed, or None for no cap
     resets_on: tuple = ()       # kinds of stage mark (stage.py's --kind; "fork", fork's first mark) that
                                 # start the count again, when the material changed across the mark
-    past_cap: str = ""          # why a round past the cap is refused, and what to do instead; filled
-                                # with {number}, {cap}, {count} and {where} (the mark the count runs from)
+    past_cap: object = ""       # why a round past the cap is refused, and what to do instead: a string
+                                # filled with {number}, {cap}, {count}, {where} (the mark the count runs
+                                # from) and {video} (its path, quoted), or a function of those and `last`,
+                                # the kind's receipt
+
+
+def motion_past_cap(number, cap, count, where, video, last):
+    """A motion round past the cap. A review that ended clean (passed, known issues on the cut) or was
+    waived is settled and nothing more is needed; only must-fix findings still open leave a choice."""
+    new_count = (f"A structural revision (studio stage {video} revision --kind structural --summary …) starts a new "
+                 "count and a new review")
+    counted = f"{count} cuts of this lineage have been motion-reviewed since {where}"
+    if last.get("status") == "findings":
+        return (f"a motion review round {number} would pass motion_rounds ({cap}): {counted}, and the last (cut "
+                f"{last.get('cut', '?')}) stopped at the cap with {last.get('must_fix', 'some')} must-fix finding(s) open. "
+                f"To proceed: fix them and record the user's acceptance with studio review-status {video} motion waived "
+                "--reason …; or, only if the user explicitly asks for more rounds, raise video.json motion_rounds. " + new_count)
+    how = {"passed": "passed with nothing left",
+           "known-issues": f"ended by its rule with {last.get('left', 'some')} should-fix or nit finding(s) left, recorded "
+                           f"on cut {last.get('cut', '?')} as known issues",
+           "waived": "was waived"}.get(last.get("status"), "ended")
+    return (f"the motion review is settled and nothing more is needed: it {how}. {counted}, and "
+            f"motion_rounds ({cap}) allows no round {number}. " + new_count)
 
 
 def verdict(prefix, passing):
@@ -110,7 +131,7 @@ KINDS = {
                    "run studio review VIDEO ROUND --only {role}", Rounds(cap=script_cap, resets_on=("structural", "fork"), past_cap=(
                        "round {number} is past max_rounds ({cap}): this revision of the script has had {count} review rounds "
                        "since {where}. Lock the script with every open finding logged, or ask the learner to raise the cap. "
-                       "A structural rewrite (a new chapter or a changed arc, marked with studio stage VIDEO revision --kind "
+                       "A structural rewrite (a new chapter or a changed arc, marked with studio stage {video} revision --kind "
                        "structural --summary …) starts a new count; a mark over an unchanged script does not"))),
     "frames": Kind("frames", ("frames",), "frames",
                    verdict(lambda line: line.startswith("FRAMES:"), "FRAMES: PASS"),
@@ -120,14 +141,7 @@ KINDS = {
     # local wording fix. A structural revision changes the picture widely enough to start a new count.
     "motion": Kind("motion", ("motion",), "frames", loose_verdict("MOTION"),
                    "run studio review-motion and return its findings",
-                   Rounds(cap=motion_cap, resets_on=("structural", "fork"), past_cap=(
-                       "a motion review round {number} would pass motion_rounds ({cap}): {count} cuts of this lineage "
-                       "have been motion-reviewed since {where}. The stop rule ends a motion review at a round with no "
-                       "must-fix findings or at the cap, and the last round's should-fix findings are on its cut as "
-                       "known issues. To proceed: accept those known issues; fix any must-fix finding still open and "
-                       "record the user's acceptance with studio review-status VIDEO motion waived --reason …; or, only "
-                       "if the user explicitly asks for more rounds, raise video.json motion_rounds. A structural "
-                       "revision (studio stage VIDEO revision --kind structural --summary …) starts a new count")),
+                   Rounds(cap=motion_cap, resets_on=("structural", "fork"), past_cap=motion_past_cap),
                    freshness="record-stale", settled=("passed", "known-issues", "waived"), stands="lineage"),
     "listen": Kind("listen", ("listen",), "sound", None,
                    "ask the user to listen once to the finished mix (out/master.mp4, or the desk's latest cut) and record "

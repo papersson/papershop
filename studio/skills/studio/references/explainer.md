@@ -287,7 +287,7 @@ substantially (a new chapter, or half the chapters or more). The last round's sh
 findings are recorded on the cut as known issues (later cuts carry them, and the desk shows them
 under the cut) until a later review ends, so nobody raises them again. Fix must-fix findings, make a
 fresh cut and run the next round; do not chase should-fix findings round after round. A third round
-is refused. At the cap with must-fix findings open, the receipt stays open and the main session
+is refused; after a review that ended clean the refusal says it is settled, and nothing more is due. At the cap with must-fix findings open, the receipt stays open and the main session
 reports it to the user: they fix them and record their acceptance with `studio review-status VIDEO
 motion waived --reason …`, or, only if the user asks, raise `motion_rounds`. Once the review has
 ended, it stands while the picture stays mostly the same: later small edits (frame-review fixes,
