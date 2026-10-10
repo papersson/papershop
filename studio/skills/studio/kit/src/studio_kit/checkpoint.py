@@ -28,7 +28,10 @@ def _any_case(ext):
     return "*." + "".join(f"[{c}{c.upper()}]" if c.isalpha() else c for c in ext)
 
 
-GITIGNORE = "\n".join([".cache/", "out/", "cuts/*/*", "!cuts/*/cut.json", *map(_any_case, MEDIA), *SECRETS,
+# A review bundle's stills and sheets are copies of a cut's frames; its manifest, prompt and result stay.
+BUNDLE_IMAGES = [f"research/*_review/**/{_any_case(ext)}" for ext in ("png", "jpg", "jpeg", "webp")]
+
+GITIGNORE = "\n".join([".cache/", "out/", "cuts/*/*", "!cuts/*/cut.json", *map(_any_case, MEDIA), *SECRETS, *BUNDLE_IMAGES,
                        "node_modules/", ".venv/", ".studio/work/", "__pycache__/", ".DS_Store"]) + "\n"
 
 

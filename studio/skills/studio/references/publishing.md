@@ -166,7 +166,8 @@ before resuming production and run the installed `studio init VIDEO --update`.
 
 `studio new` initializes Git for a standalone folder or reuses its enclosing repository. Generated
 media (video, audio, recordings and GIFs, in any letter case), cut previews, caches, out/, package
-folders and secrets (`.env*`, keys) are ignored; source/evidence/review records, boards, captures
+folders, secrets (`.env*`, keys) and the images in review bundles (copies of a cut's frames) are
+ignored; source/evidence/review records, boards, captures
 and paid narration responses remain checkpointable. `studio commit VIDEO "message"` uses a private
 index and stages every file in the video's folder that its .gitignore admits, adding the kit's
 rules to an older .gitignore first, and preserves unrelated staged work. A new file over 20 MB is
