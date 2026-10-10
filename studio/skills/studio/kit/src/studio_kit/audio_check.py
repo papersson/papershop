@@ -8,8 +8,8 @@ out/audio-check.json and printed a line a row; the exit status is 1 when a row f
   sync      each effect placed on a named event (a cue name or an anchor in audio/sfx.json): its onset in
             the effects stem against the event's frame, warning past SYNC_FRAMES (a build that lands on
             its cue, a riser or a swell, is timed by its end). With a cut's video, the nearest start or
-            end of picture motion around the event is noted too, not judged: a contact is a start for a
-            pop and an end for a landing, and the beat sheet already gives both one frame.
+            end of picture motion, or cut, around the event is noted too, not judged: a contact is a
+            start for a pop and an end for a landing, and the beat sheet already gives both one frame.
   ducking   music under speech against the music in the pauses (from 0.7 s after a sentence, once the
             duck has let go, in pauses of at least 1 s), warning under DUCK_MIN dB
   masking   per spoken word, the effects and music in 1-4 kHz against the narration in that band,
@@ -172,26 +172,17 @@ def _onset(y, t0, lands):
 
 
 def _picture(video, timeline, frame, cut):
-    """(the nearest frame where picture motion starts or ends, "starts" or "ends") around `frame` in a
-    cut's video; "throughout" when it moves through the whole window; None when nothing moves."""
-    from . import motion, proc
-    fps = timeline["fps"]
-    first = max(0, frame - PICTURE_WINDOW)
-    count = 2 * PICTURE_WINDOW + 1
-    w, h = motion.PACING_SIZE
-    crop = motion._crop(tl.layout(video))
-    raw = proc.ffmpeg("-ss", f"{max(0.0, (first - 0.5) / fps):.4f}", "-i", str(cut), "-frames:v", str(count),   # half a frame early: frame `first` exactly
-                      "-vf", f"scale={w}:{h},crop={w}:{crop}:0:0,format=gray", "-f", "rawvideo", "-",
-                      capture_output=True).stdout
-    frames = [raw[i:i + w * crop] for i in range(0, len(raw) - w * crop + 1, w * crop)]
-    level = motion.MOVE_LEVEL * motion.PACING_FPS / fps
-    # moving[k]: frame first+k+1 differs from frame first+k. Motion starts on the first frame that
-    # differs, and ends on the last one that does.
-    moving = [sum(map(abs, map(int.__sub__, x, y))) / (w * crop) > level for x, y in zip(frames, frames[1:])]
-    edges = [(first + k + 1, "starts") if now else (first + k, "ends")
-             for k, (was, now) in enumerate(zip(moving, moving[1:]), 1) if was != now]
+    """(the nearest frame around `frame` in a cut's video where picture motion starts or ends or the
+    picture cuts, "starts", "ends" or "cut"); "throughout" when it moves through the whole window;
+    None when nothing moves. Motion starts on the first frame that differs and ends on the last one
+    that does (motion.frame_signal and its helpers)."""
+    from . import motion
+    fps, first = timeline["fps"], max(0, frame - PICTURE_WINDOW)
+    signal = motion.frame_signal(cut, tl.layout(video), fps, first, 2 * PICTURE_WINDOW + 1)
+    edges = sorted([(f, "starts") for f in motion.starts(signal, fps)] + [(f, "ends") for f in motion.ends(signal, fps)]
+                   + [(f, "cut") for f in motion.cuts(signal)], key=lambda e: e[0])
     if not edges:
-        return "throughout" if any(moving) else None
+        return "throughout" if motion.moving(signal, fps) else None
     return min(edges, key=lambda e: abs(e[0] - frame))
 
 
@@ -217,7 +208,8 @@ def sync(stems, video, timeline, cut=None):
         off = (heard - frame / fps) * fps
         pic = _picture(video, timeline, frame, cut) if cut else None
         note = "" if not cut else (f"; picture: motion throughout {PICTURE_WINDOW} frames either side" if pic == "throughout"
-                                    else f"; picture: motion {pic[1]} at frame {pic[0]} ({pic[0] - frame:+d})" if pic
+                                    else f"; picture: {'a cut' if pic[1] == 'cut' else 'motion ' + pic[1]} at frame {pic[0]} "
+                                         f"({pic[0] - frame:+d})" if pic
                                     else f"; picture: no motion within {PICTURE_WINDOW} frames")
         row = {"check": "sync", "clip": "audio", "t": round(at, 2), "ok": True, "offset_frames": round(off, 2),
                "detail": f"{what}: sound {off:+.1f} frames" + (" (a build, timed by its end)" if lands == "end" else "") + note}

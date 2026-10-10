@@ -8,6 +8,11 @@
   provenance  every asset a scene refers to is in assets/ with a provenance row
   pacing    after a significant move, the picture holds at least HOLD_MIN before the next one starts
             (pacing_signal, moves)
+
+Picture motion is measured one way: a rendered stage decoded grey at PACING_SIZE, the caption band
+cropped off (_gray), and the change from each frame to the next (_diffs). The pacing check and the
+motion review sample it PACING_FPS a second (pacing_signal, file_signal); audio-check reads it frame by
+frame (frame_signal), in the words a sound marks: where motion starts and ends, its peak, a cut.
 """
 import hashlib
 import json
@@ -129,6 +134,13 @@ AMBIENT_MAX = 0.2
 CHANGED = 8             # grey levels a pixel must change by to count as changed
 LINK_MIN = 0.05
 DIP = 0.35
+# A cut is a full-frame change: at least CUT_SHARE of the stage's pixels change by CHANGED from one frame
+# to the next. Calibrated at PACING_SIZE on 109 rendered clips (Remotion and live) and their cuts: the
+# widest fades and wipes there change at most 0.48 of the stage a frame, and scenes ending on their
+# background change none at a seam; a cut to another background changes nearly all of it. A cut
+# between two scenes on one background changes only where their content differs (a median 0.17 for
+# frames of different scenes), and reads as motion.
+CUT_SHARE = 0.6
 
 
 def rendered_clip(video, t, cid, fmt=None):
@@ -150,23 +162,35 @@ def _gray(args, crop, resample=""):
     return [raw[i:i + w * crop] for i in range(0, len(raw), w * crop)]
 
 
+def _seek(first, fps):
+    """ffmpeg input options that start decoding a file at its frame `first` exactly: half a frame
+    early, so the frame before is never the one decoded first."""
+    return ["-ss", f"{max(0.0, (first - 0.5) / fps):.4f}"]
+
+
 def _crop(lay):
     """Rows of a PACING_SIZE frame above the caption band, even."""
     return int(PACING_SIZE[1] * (lay["height"] - lay["band"]["height"]) / lay["height"]) // 2 * 2
 
 
-def _changes(times, frames, crop):
-    """[(time, change, link)]: the mean absolute grey-level change from each sample to the next, and
-    the share of its changed pixels that touch the previous change's (1 when either changed none)."""
+def _diffs(frames, crop):
+    """[(change, link, share)] from each frame to the next: the mean absolute grey-level change, the
+    share of its changed pixels that touch the previous change's (1 when either changed none), and the
+    share of the stage's pixels that changed (by more than CHANGED)."""
     size = PACING_SIZE[0] * crop
     out, before = [], frozenset()
-    for a, b, x, y in zip(times, times[1:], frames, frames[1:]):
+    for x, y in zip(frames, frames[1:]):
         diff = list(map(abs, map(int.__sub__, x, y)))
         mask = frozenset(i for i, v in enumerate(diff) if v > CHANGED)
         link = len(mask & before) / min(len(mask), len(before)) if mask and before else 1.0
-        out.append((round((a + b) / 2, 3), sum(diff) / size, round(link, 3)))
+        out.append((sum(diff) / size, round(link, 3), round(len(mask) / size, 4)))
         before = mask
     return out
+
+
+def _changes(times, frames, crop):
+    """[(time, change, link, share)]: _diffs from each sample to the next, at the time between them."""
+    return [(round((a + b) / 2, 3), *d) for a, b, d in zip(times, times[1:], _diffs(frames, crop))]
 
 
 def file_signal(path, t, lay, first, count):
@@ -175,15 +199,15 @@ def file_signal(path, t, lay, first, count):
     it) or its clip render (first 0), so a motion review finds the moves of the cut it judges."""
     crop, step = _crop(lay), max(1, round(t["fps"] / PACING_FPS))
     times = [k / t["fps"] for k in range(0, count, step)]
-    frames = _gray(["-ss", f"{max(0.0, (first - 0.5) / t['fps']):.4f}", "-t", f"{count / t['fps']:.4f}", "-i", str(path)],
+    frames = _gray([*_seek(first, t["fps"]), "-t", f"{count / t['fps']:.4f}", "-i", str(path)],
                    crop, f"fps={t['fps'] / step:g},")[:len(times)]
     return _changes(times[:len(frames)], frames, crop)
 
 
 def pacing_signal(video, engine=None, clips=None, stills=True):
-    """{clip: [(time, change)] or None}: each clip's stage (the caption band cropped off) sampled at
-    PACING_FPS, and the mean absolute grey-level change from each sample to the next, at the time
-    between them (clip seconds). The frames come from the clip's rendered video when a cut has one
+    """{clip: [(time, change, link, share)] or None}: each clip's stage (the caption band cropped off)
+    sampled at PACING_FPS, and the change from each sample to the next (_diffs), at the time between
+    them (clip seconds). The frames come from the clip's rendered video when a cut has one
     for the current scenes (decoding costs about 0.2 s a clip); otherwise, with stills, the engine
     renders every sample (about 70 ms each in the live engine), and without, the clip is None."""
     engine, t = engine or Engine(video), tl.load(video)
@@ -213,7 +237,7 @@ def pacing_signal(video, engine=None, clips=None, stills=True):
 
 
 def moves(signal, level=MOVE_LEVEL, significant=SIGNIFICANT, dt=1 / PACING_FPS):
-    """The significant moves in a clip's signal [(time, change, link?)]: [(start, end, change)]. A move
+    """The significant moves in a clip's signal [(time, change, link?, ...)]: [(start, end, change)]. A move
     is a run of samples changing at least `level` over the ambient level, split where its change jumps
     to other pixels or dips between two peaks; it is significant when its change adds up to
     `significant`. Moves split from one run follow each other with no hold."""
@@ -237,6 +261,54 @@ def moves(signal, level=MOVE_LEVEL, significant=SIGNIFICANT, dt=1 / PACING_FPS):
         return [run]
     found = [(signal[r[0]][0] - dt / 2, signal[r[-1]][0] + dt / 2, sum(d[i] for i in r)) for run in runs for r in split(run)]
     return [(round(a, 3), round(b, 3), round(c, 2)) for a, b, c in found if c >= significant]
+
+
+# --- frame by frame: what a sound marks -------------------------------------------------------------
+
+def frame_signal(path, lay, fps, first, count):
+    """[(frame, change, link, share)] for frames first+1 .. first+count-1 of a rendered file: the change
+    into each from the frame before it (_diffs), on the stage the pacing signal samples but at the
+    file's own frame rate, decoded from its frame `first` exactly. The helpers below read it."""
+    crop = _crop(lay)
+    frames = _gray([*_seek(first, fps), "-i", str(path), "-frames:v", str(count)], crop)
+    return [(first + k, *d) for k, d in enumerate(_diffs(frames, crop), 1)]
+
+
+def moving(signal, fps):
+    """The frames of a frame signal that move: they change by more than MOVE_LEVEL, a 0.1 s sample's
+    level, shared out over the frames of a sample at `fps`, and are not cuts."""
+    level = MOVE_LEVEL * PACING_FPS / fps
+    return [f for f, change, _, share in signal if change > level and share < CUT_SHARE]
+
+
+def starts(signal, fps):
+    """The frames where motion starts: the first frame that differs after one that does not. Motion
+    under way at the window's start has no start in it."""
+    on = set(moving(signal, fps))
+    return [f for f, *_ in signal[1:] if f in on and f - 1 not in on]
+
+
+def ends(signal, fps):
+    """The frames where motion ends: the last frame that differs before one that does not (where a
+    moving thing lands). Motion still under way at the window's end has no end in it."""
+    on = set(moving(signal, fps))
+    return [f for f, *_ in signal[:-1] if f in on and f + 1 not in on]
+
+
+def peak(signal, fps):
+    """The moving frame that changes most (the peak of a move's speed), or None when nothing moves."""
+    on = set(moving(signal, fps))
+    return max((r for r in signal if r[0] in on), key=lambda r: r[1], default=(None,))[0]
+
+
+def cuts(signal):
+    """The frames that are cuts: at least CUT_SHARE of the stage changes into them."""
+    return [f for f, _, _, share in signal if share >= CUT_SHARE]
+
+
+def is_cut(signal, frame):
+    """Whether `frame` is a cut in a frame signal."""
+    return frame in cuts(signal)
 
 
 def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):

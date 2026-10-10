@@ -169,3 +169,15 @@ def test_a_piece_with_no_narration_has_nothing_to_guard(tmp_path):
     t["tracks"]["audio"] = t["tracks"]["audio"][1:]
     (v / "timeline.json").write_text(json.dumps(t))
     assert audio_check.guard(v) == []
+
+
+def test_the_picture_note_names_a_cut(tmp_path):
+    from test_motion import gray_clip, picture
+    v = narrated(tmp_path)
+    (v / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT))
+    movie = tmp_path / "cut.mp4"
+    gray_clip(movie, picture())
+    assert audio_check._picture(v, {"fps": 30}, 47, movie) == (45, "cut")
+    assert audio_check._picture(v, {"fps": 30}, 15, movie) == (10, "starts")
+    assert audio_check._picture(v, {"fps": 30}, 22, movie) == (20, "ends")
+    assert audio_check._picture(v, {"fps": 30}, 80, movie) is None

@@ -137,3 +137,91 @@ def test_two_boxes_landing_on_consecutive_samples_are_two_moves(tmp_path):
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(0.5, 0.6), "-pix_fmt", "yuv420p", str(f)], check=True)
     signal = motion.file_signal(f, t, {"width": 1920, "height": 1080, "band": {"height": 160}}, 0, 60)
     assert [(a, b) for a, b, _ in motion.moves(signal)] == [(0.4, 0.5), (0.5, 0.6)]
+
+
+LAY = {"width": 1920, "height": 1080, "band": {"height": 160}}
+
+
+def old_signal(path, fps, first, count, seek=True):
+    """The pacing signal as the kit measured it before frame_signal shared its decoder, written out
+    whole: the reference the pacing check and the motion review must still match."""
+    step, crop = max(1, round(fps / 10)), 92
+    seek = ["-ss", f"{max(0.0, (first - 0.5) / fps):.4f}", "-t", f"{count / fps:.4f}"] if seek else []
+    raw = subprocess.run(["ffmpeg", "-v", "error", *seek, "-i", str(path), "-vf",
+                          f"fps={fps / step:g},scale=192:108,crop=192:{crop}:0:0,format=gray", "-f", "rawvideo", "-"],
+                         capture_output=True, check=True).stdout
+    times = [k / fps for k in range(0, count, step)]
+    frames = [raw[i:i + 192 * crop] for i in range(0, len(raw), 192 * crop)][:len(times)]
+    out, before = [], frozenset()
+    for a, b, x, y in zip(times, times[1:], frames, frames[1:]):
+        diff = list(map(abs, map(int.__sub__, x, y)))
+        mask = frozenset(i for i, v in enumerate(diff) if v > 8)
+        link = len(mask & before) / min(len(mask), len(before)) if mask and before else 1.0
+        out.append((round((a + b) / 2, 3), sum(diff) / (192 * crop), round(link, 3)))
+        before = mask
+    return out
+
+
+def test_the_pacing_check_and_the_motion_review_measure_what_they_did(tmp_path):
+    """Both read the sampled signal (pacing_signal from a clip render, file_signal from a cut's video
+    or clip, at any frame), which now shares its decoder and change measure with frame_signal."""
+    t = make_video(tmp_path)
+    cache = tmp_path / ".cache" / "clips"
+    cache.mkdir(parents=True)
+    f = cache / f"s1-draft-{render.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(0.5, 0.8, 4), "-pix_fmt", "yuv420p", str(f)], check=True)
+    for first, count in ((0, 60), (7, 60), (31, 80)):
+        assert [s[:3] for s in motion.file_signal(f, t, LAY, first, count)] == old_signal(f, 30, first, count)
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
+    got = motion.pacing_signal(tmp_path, StageEngine({}), clips={"s1"}, stills=False)["s1"]
+    assert [s[:3] for s in got] == old_signal(f, 30, 0, 60, seek=False) and len(got) == 19
+
+
+def gray_clip(path, frames, w=384, h=216, fps=30):
+    """A clip of raw grey frames (bytes of w*h each), losslessly encoded."""
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{w}x{h}", "-r", str(fps),
+                    "-i", "-", "-c:v", "libx264", "-qp", "0", "-pix_fmt", "yuv420p", str(path)],
+                   input=b"".join(frames), check=True)
+
+
+def picture(w=384, h=216):
+    """90 frames above the caption band: a box easing right over frames 10-20 (fastest into 15), a cut
+    to a grey stage at 45, and a panel over half the stage fading in over frames 60-65."""
+    def frame(bg, boxes):
+        rows = [bytearray([bg]) * w for _ in range(h)]
+        for x, y, bw, bh, v in boxes:
+            for r in rows[y:y + bh]:
+                r[x:x + bw] = bytes([v]) * bw
+        return bytes(b"".join(rows))
+    speeds = [4, 8, 12, 16, 20, 24, 20, 16, 12, 8, 4]
+    x = [20] * 10 + [20 + sum(speeds[:k + 1]) for k in range(11)]
+    out = [frame(0, [(p, 40, 40, 40, 255)]) for p in x] + [frame(0, [(x[-1], 40, 40, 40, 255)])] * 24
+    out += [frame(128, [(300, 100, 40, 40, 255)])] * 15
+    out += [frame(128, [(300, 100, 40, 40, 255), (0, 0, 200, 184, 128 + 20 * k)]) for k in range(1, 7)]
+    return out + [out[-1]] * 24
+
+
+def test_the_frame_signal_starts_on_the_frame_asked_for(tmp_path):
+    """Half a frame early, a seek lands on frame `first` itself: a window reads what the whole file does
+    (but the link of its first change, which has no change before it in the window)."""
+    f = tmp_path / "p.mp4"
+    gray_clip(f, picture())
+    whole = motion.frame_signal(f, LAY, 30, 0, 90)
+    assert [r[0] for r in whole] == list(range(1, 90))
+    unlinked = lambda s: [(frame, change, share) for frame, change, _, share in s]
+    for first in (9, 14, 44, 59):
+        assert unlinked(motion.frame_signal(f, LAY, 30, first, 12)) == unlinked(whole[first:first + 11])
+
+
+def test_the_frame_signal_names_where_motion_starts_peaks_ends_and_cuts(tmp_path):
+    f = tmp_path / "p.mp4"
+    gray_clip(f, picture())
+    s = motion.frame_signal(f, LAY, 30, 0, 90)
+    assert motion.starts(s, 30) == [10, 60] and motion.ends(s, 30) == [20, 65]
+    assert motion.cuts(s) == [45] and motion.is_cut(s, 45) and not motion.is_cut(s, 60)
+    assert 45 not in motion.moving(s, 30)                   # a cut is not motion
+    assert max(r[3] for r in s if r[0] != 45) < 0.6 < s[44][3]    # the fade over half the stage is no cut
+    assert motion.peak(motion.frame_signal(f, LAY, 30, 5, 25), 30) == 15
+    assert motion.peak(motion.frame_signal(f, LAY, 30, 25, 15), 30) is None
+    window = motion.frame_signal(f, LAY, 30, 12, 6)          # motion under way across the whole window
+    assert motion.starts(window, 30) == motion.ends(window, 30) == [] and len(motion.moving(window, 30)) == 5

@@ -460,3 +460,15 @@ part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its 
   from the verified zip into `assets/sounds/` with a provenance row (pack, member, licence,
   creator, sha256), so it renders without the cache and its page credits the packs. Git leaves the
   sound out, and `studio asset restore` copies it back by its recorded digest.
+- **Picture motion is measured once.** The pacing check and the motion review sampled a rendered
+  stage ten times a second, and audio-check's sync decoded the cut's frames with its own ffmpeg
+  pipeline, threshold and edge logic. The sound tags coming next (`cut`, `move`, `land`, `appear`)
+  are judged against the picture frame by frame, so `motion.frame_signal` reads a window of a
+  rendered file at its own frame rate, from frame `first` exactly (a seek half a frame early),
+  through the same decoder and change measure as the sampled signal, and adds the share of the stage
+  that changed. Its helpers are the tags' vocabulary: where motion starts and ends, the frame of peak
+  speed, and cuts. A cut is at least 60% of the stage changing in one frame: on 109 rendered clips the
+  widest fades change 48% a frame, so a cut between two scenes on one background reads as motion.
+  The sampled signal keeps ffmpeg's fps filter, which picks a frame from within each tenth of a
+  second (at 30 fps the second of three, not the first), so the pacing check and the motion review
+  report what they did.
