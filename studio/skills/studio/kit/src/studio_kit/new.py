@@ -20,7 +20,7 @@ from .timeline import DEFAULT_LAYOUT
 
 TEMPLATES = ROOT / "templates"
 from .checkpoint import GITIGNORE
-from . import checkpoint, preferences
+from . import checkpoint, preferences, reviews
 from .stage import LEVEL_BUDGET as LEVEL_BUDGETS
 
 
@@ -184,12 +184,14 @@ def main_variant(args):
 
 # What a fork leaves behind. Anywhere: repositories, caches and package folders. At these paths:
 # outputs, and what is the source's alone (its stage log, pending requests, handoff, the builder's
-# scratch, its review rounds) or names its cuts (the desk's notes, frame-review bundles). Cuts stay
-# behind whole: publish, sheets, frame review and the next cut read the stills and video beside a
-# record, so a record without them is a broken cut.
+# scratch, its review rounds) or names its cuts (the desk's notes, frame and motion review bundles and
+# receipts, which judged a cut of the source). Cuts stay behind whole: publish, sheets, frame review
+# and the next cut read the stills and video beside a record, so a record without them is a broken
+# cut. A script review's receipt comes along: it judged the script, which comes along too.
 FORK_SKIP_NAMES = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
 FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/motion_review", "research/timing.jsonl",
-                   "research/requests.md", "research/handoff.md", "research/reviews/rounds.jsonl", ".studio/work"}
+                   "research/requests.md", "research/handoff.md", "research/reviews/rounds.jsonl", ".studio/work",
+                   *(f"research/reviews/{role}.json" for k in reviews.KINDS.values() if k.scope == "frames" for role in k.roles)}
 
 
 def fork(source, name, directory=None, title=None):

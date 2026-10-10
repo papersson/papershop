@@ -129,7 +129,8 @@ def test_a_fork_copies_the_sources_and_starts_a_history_of_its_own(tmp_path, mon
     kept = ["audio/narration.mp3", "assets/talk.mov", "boards/boards.json", "captions.json", "research/reviews/student.json",
             "research/narrative.md", ".studio/kit/src/studio_kit/cli.py", ".studio/bin/studio"]
     left = ["cuts/cut1/cut.json", "cuts/cut1/video.mp4", "review/notes.jsonl", "research/requests.md",
-            "research/handoff.md", "research/frame_review/cut1-abc/stills/s1.jpg", ".cache/studio/owner.json", "out/page/index.html",
+            "research/handoff.md", "research/frame_review/cut1-abc/stills/s1.jpg", "research/reviews/motion.json",
+            "research/reviews/frames.json", ".cache/studio/owner.json", "out/page/index.html",
             ".studio/engines/live/node_modules/x/index.js", ".studio/kit/.venv/bin/python", ".studio/work/scratch.txt"]
     for rel in kept + left:
         (src / rel).parent.mkdir(parents=True, exist_ok=True)

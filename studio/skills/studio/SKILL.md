@@ -105,7 +105,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `new NAME [--source REPO] [--drive …] [--level …] [--tone plain\|comic] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
-| `fork SOURCE NAME [--title T]` | The same video taken elsewhere (another version or direction): its sources copied with a history of its own, no cuts, notes, requests or caches. `variant` is for another audience and a new script |
+| `fork SOURCE NAME [--title T]` | The same video taken elsewhere (another version or direction): its sources copied with a history of its own, no cuts, notes, requests, caches or the frame and motion receipts that judged those cuts. `variant` is for another audience and a new script |
 | `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue; `acquire --recover` prints the handoff |
 | `handoff VIDEO [--notes TEXT \| --notes-file FILE]` | `research/handoff.md`: a brief a fresh builder resumes from (state, reviews in flight, requests, next commands, builder notes) |
 | `stage VIDEO NAME [--kind local|structural] [--summary TEXT]` · `stage VIDEO --report` · `stage VIDEO --check` | Timing and revision refactoring log; `--check` reads the current stage without marking and exits 3 at a background hard stop |

@@ -178,3 +178,25 @@ def test_the_brief_asks_for_a_listening_when_the_mix_has_music(video):
     review_state.record(video, "listen", "an older mix", "passed", "fine")
     text = handoff.assemble(video)
     assert "listen: stale" in text and "Make a fresh cut" not in text and "earlier one" in text.split("## Next")[1]
+
+
+def test_a_forks_brief_says_which_receipts_came_from_the_source(tmp_path, monkeypatch):
+    """A fork's brief listed the source's copied receipts under "Reviews in flight" as its own, with the
+    source folder's absolute paths. A fork leaves cut receipts behind now; one an older fork copied, or
+    a script receipt gone stale, is from the source video, its path relative to the fork."""
+    from studio_kit import new, review_state
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    src, _ = new.create("first")
+    result = src / "research" / "motion_review" / "cut5-abc" / "result.md"
+    result.parent.mkdir(parents=True)
+    result.write_text("MOTION: PASS\n")
+    review_state.record(src, "motion", "r1", "known-issues", str(result), cut=5, cut_t=time.time(), round=2, left=2, stopped="clean")
+    review_state.record(src, "student", "old", "passed", str(src / "research" / "reviews" / "r1_student.md"))
+    v = new.fork(src, "second")
+    assert not (v / "research" / "reviews" / "motion.json").exists()
+    shutil.copyfile(src / "research" / "reviews" / "motion.json", v / "research" / "reviews" / "motion.json")   # an older fork's copy
+    text = handoff.assemble(v)
+    assert "- motion: from the source video, stale: judged its cut 5 (../first/research/motion_review/cut5-abc/result.md)" in text
+    assert "- student: from the source video, stale: judged it before the fork (../first/research/reviews/r1_student.md)" in text
+    assert str(src) not in text
+
