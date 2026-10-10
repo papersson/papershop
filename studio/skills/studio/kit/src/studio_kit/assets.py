@@ -20,7 +20,9 @@ enough to copy it again: `studio asset restore` does, from the kit, refusing a d
 import hashlib
 import json
 import os
+import re
 import shutil
+import tempfile
 import time
 from pathlib import Path
 
@@ -28,6 +30,36 @@ from . import proc
 from .env import resolve_browser
 
 KINDS = ("capture", "generated", "supplied", "library")
+STEM = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")        # a library sound's id: a file stem, nothing more
+LIBRARY_FILE = re.compile(r"sounds/[A-Za-z0-9][A-Za-z0-9._-]*\.[a-z0-9]+")
+
+
+def plain(name, what="--name"):
+    """`name` when it is a plain file name, which can only land in assets/: no folder separator, no
+    `..`, nothing absolute."""
+    if not name or name in (".", "..") or any(c in name for c in "/\\\0"):
+        raise SystemExit(f"{what} {name!r} must be a plain file name, without folders or ..")
+    return name
+
+
+def library_path(video, file):
+    """assets/FILE for a library row's FILE, which must be sounds/STEM.EXT: a hand-edited
+    provenance.json can't send a copy outside assets/sounds/."""
+    if not LIBRARY_FILE.fullmatch(file) or ".." in file:
+        raise SystemExit(f"assets/provenance.json: library file {file!r} is not sounds/NAME.EXT; fix the row")
+    return dir_of(video) / file
+
+
+def _write(path, data):
+    """`data` at `path` through a temporary file of its own, so two writers never share one."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".part")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    finally:
+        Path(tmp).unlink(missing_ok=True)
 
 
 def dir_of(video):
@@ -56,7 +88,7 @@ def add(video, src, kind, source, license="", name=None):
     src = Path(src).expanduser()
     if not src.is_file():
         raise SystemExit(f"{src} is not a file")
-    dst = dir_of(video) / (name or src.name)
+    dst = dir_of(video) / plain(name or src.name, "--name" if name else "the file's name")
     shutil.copyfile(src, dst)
     return record(video, dst.name, kind, source, license)
 
@@ -83,8 +115,10 @@ def add_library(video, name, sid=None):
     if entry and sha != entry["sha256"]:
         raise SystemExit(f"{pid}:{member} has sha256 {sha}, the sound kit says {entry['sha256']}; not copied")
     sid = sid or (entry["id"] if entry else Path(member).stem)
+    if not STEM.fullmatch(plain(sid)):
+        raise SystemExit(f"--name {sid!r} must be a file stem: letters, digits, '.', '_' or '-', starting with a letter or digit")
     file = f"sounds/{sid}{Path(member).suffix.lower()}"
-    dst = dir_of(video) / file
+    dst = library_path(video, file)
     if dst.exists() and hashlib.sha256(dst.read_bytes()).hexdigest() != sha:
         raise SystemExit(f"assets/{file} exists and is not {pid}:{member}; pick another --name or remove it")
     params = {"pack": pid, "member": member, "title": pack["title"], "version": pack["version"],
@@ -93,10 +127,7 @@ def add_library(video, name, sid=None):
     old = next((r for r in read(video) if r["file"] == file), None)
     if dst.exists() and old and old["kind"] == "library" and old["sha256"] == sha and old["params"] == params:
         return old
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dst.with_name(f".{dst.name}.part")
-    tmp.write_bytes(data)
-    os.replace(tmp, dst)
+    _write(dst, data)
     return record(video, file, "library", f"{pid}:{member}", pack["license"], params)
 
 
@@ -106,15 +137,16 @@ def restore(video):
     from . import soundkit
     done = []
     for r in read(video):
-        path = dir_of(video) / r["file"]
-        if r["kind"] != "library" or path.exists():
+        if r["kind"] != "library":
+            continue
+        path = library_path(video, r["file"])
+        if path.exists():
             continue
         data, _ = soundkit.read_member(r["params"]["pack"], r["params"]["member"])
         if hashlib.sha256(data).hexdigest() != r["sha256"]:
             raise SystemExit(f"assets/{r['file']}: the kit's {r['source']} is not the recorded file "
                              f"(sha256 {r['sha256'][:12]}); the video was made with another kit")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+        _write(path, data)
         done.append(r["file"])
     return done
 
@@ -161,7 +193,7 @@ def capture(video, url, name=None, size=(1440, 900), wait_ms=4000):
     browser, source = resolve_browser()
     if not browser:
         raise SystemExit("no browser: run `studio doctor --fetch`")
-    slug = name or "".join(c if c.isalnum() else "-" for c in url.split("://")[-1])[:40].strip("-")
+    slug = plain(name) if name else "".join(c if c.isalnum() else "-" for c in url.split("://")[-1])[:40].strip("-")
     out = dir_of(video) / f"{slug}.png"
     shell = Path(browser).name.startswith("chrome-headless-shell")
     cmd = [browser, "--headless" if shell else "--headless=new", "--disable-gpu", "--hide-scrollbars",

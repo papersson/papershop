@@ -4,17 +4,18 @@ soundkit.json sits beside this module, so `studio init` pins it with the kit and
 library never moves. It lists:
 
   packs   {id: {title, version, url, sha256, bytes, license, creator, homepage, unpack}}: a zip,
-          pinned by digest and size, CC0 only, and `unpack` the glob patterns of the members that
-          are unpacked (the audio and its licence; never the shortcuts a pack also ships)
+          pinned by digest and size, CC0 only, and `unpack` the glob patterns of the members a
+          sound may be (the audio; never the shortcuts a pack also ships)
   sounds  [{id, pack, member, type, default?, sha256, facts?}]: the curated sounds, one a line, each a
           member of a pack with its own digest, a type (what it is for; one sound of each type is its
           default) and measured facts (`measure`: its length and contact in samples at sfx.RATE, peak,
           attack, brightness, floor and events), which the sfx kit provider places it by, and
           its trim_db (`trim`): the gain that brings it to the level of the synth voice of its type
 
-`studio doctor --fetch --sounds` downloads and unpacks every pack into $STUDIO_HOME/cache/sounds/,
-verified; a video never reads the cache when it renders: `studio asset library` copies a sound into
-the video with its provenance, read from the verified zip itself.
+`studio doctor --fetch --sounds` downloads every pack into $STUDIO_HOME/cache/sounds/, verified, and
+leaves it zipped: a sound is read from the verified zip by its member name, so nothing edited in the
+cache and no archive's paths reach a video. A video never reads the cache when it renders: `studio
+asset library` copies a sound into the video with its provenance, read from the verified zip itself.
 """
 import io
 import json
@@ -89,8 +90,8 @@ def problems(manifest):
             out.append(f"{where}: sha256 must be 64 lower-case hex digits")
         if s["pack"] not in packs:
             out.append(f"{where}: no pack {s['pack']}")
-        elif not unpacked_member(packs[s["pack"]], s["member"]):
-            out.append(f"{where}: {s['member']} is not a member the pack unpacks")
+        elif not allowed_member(packs[s["pack"]], s["member"]):
+            out.append(f"{where}: {s['member']} is not one of the pack's sounds (a relative name matching its unpack patterns)")
         if not isinstance(s.get("facts", {}), dict):
             out.append(f"{where}: facts must be an object")
         elif not _contact_ok(s.get("facts", {})):
@@ -128,48 +129,42 @@ def load(path=None):
     return m
 
 
-def unpacked_member(pack, member):
-    return any(fnmatch.fnmatchcase(member, pat) for pat in pack["unpack"])
-
-
-def _stem(pid, pack):
-    return fetch.cache_root() / "sounds" / f"{pid}-{pack['sha256'][:12]}"
+def allowed_member(pack, member):
+    """Whether `member` is one of the pack's sounds: a relative name with no `..`, matching `unpack`."""
+    parts = member.replace("\\", "/").split("/")
+    return (not member.startswith(("/", "\\")) and ":" not in member and ".." not in parts
+            and any(fnmatch.fnmatchcase(member, pat) for pat in pack["unpack"]))
 
 
 def archive(pid, pack):
     """Where a pack's zip is cached: named by its digest, so manifests of two kits never collide."""
-    return _stem(pid, pack).with_suffix(".zip")
-
-
-def folder(pid, pack):
-    """Where a pack is unpacked; its .unpacked marker holds the digest of the zip it came from."""
-    return _stem(pid, pack)
+    return fetch.cache_root() / "sounds" / f"{pid}-{pack['sha256'][:12]}.zip"
 
 
 def state(pid, pack):
-    """'ok', 'missing' (never fetched), 'changed' (the cached zip is not the pinned one) or
-    'packed' (the zip is verified but not unpacked)."""
+    """'ok', 'missing' (never fetched) or 'changed' (the cached zip is not the pinned one)."""
     z = archive(pid, pack)
     if not z.exists():
         return "missing"
-    if not fetch.verified(z, pack["sha256"]):
-        return "changed"
-    marker = folder(pid, pack) / ".unpacked"
-    return "ok" if marker.is_file() and marker.read_text().strip() == pack["sha256"] else "packed"
+    return "ok" if fetch.verified(z, pack["sha256"]) else "changed"
 
 
 def fetch_kit(manifest=None, progress=sys.stderr):
-    """Download and unpack every pack, verified. Raises fetch.Offline when a host can't be reached."""
+    """Download every pack, verified. Raises fetch.Offline when a host can't be reached."""
     manifest = manifest or load()
     fetch.cache_root(create=True)
     for pid, pack in manifest["packs"].items():
         if state(pid, pack) == "ok":
             continue
         z = fetch.fetch(pack["url"], archive(pid, pack), pack["sha256"], pack["bytes"], progress=progress)
-        d = folder(pid, pack)
-        files = fetch.unpack(z, d, pack["unpack"])
-        (d / ".unpacked").write_text(pack["sha256"] + "\n")
-        print(f"sound kit: {pack['title']}: {len(files)} files in {d}", file=progress or sys.stdout)
+        print(f"sound kit: {pack['title']}: {z}", file=progress or sys.stdout)
+
+
+def hosts(manifest=None):
+    """The hosts the sound kit downloads from, as URLs of their roots."""
+    from urllib.parse import urlsplit
+    return list(dict.fromkeys(f"{u.scheme}://{u.netloc}/" for u in
+                              (urlsplit(p["url"]) for p in (manifest or load())["packs"].values())))
 
 
 def check(manifest=None):
@@ -213,7 +208,7 @@ def read_member(pid, member, manifest=None):
     pack = manifest["packs"].get(pid)
     if pack is None:
         raise SystemExit(f"no pack {pid!r} in the sound kit (packs: {', '.join(manifest['packs'])})")
-    if not unpacked_member(pack, member):
+    if not allowed_member(pack, member):
         raise SystemExit(f"{member} is not one of {pid}'s sounds (members matching {', '.join(pack['unpack'])})")
     z = archive(pid, pack)
     if not fetch.verified(z, pack["sha256"]):
@@ -253,17 +248,23 @@ def resample(y, rate, to):
     return out[:-(-n * up // down)].astype(np.float32)
 
 
-def decode(data, to=None):
+def decode(data, to=None, fallback=True):
     """A recording's bytes (an .ogg, a .wav) as (mono float32 samples at `to`, default sfx.RATE, and the
     largest absolute sample before resampling). Stereo is folded to mono by its mean. soundfile reads
-    Ogg Vorbis (libsndfile does); a format it can't read goes through ffmpeg at `to`."""
+    Ogg Vorbis (libsndfile does); a format it can't read goes through ffmpeg at `to`, unless not
+    `fallback`: ffmpeg's resampler is not this one, and moved a contact by up to 7.4 ms, so a kit sound,
+    whose facts were measured through soundfile, refuses it."""
     import numpy as np
     import soundfile as sf
     from .sfx import RATE
     to = to or RATE
     try:
         y, rate = sf.read(io.BytesIO(data), dtype="float32", always_2d=True)
-    except (RuntimeError, sf.LibsndfileError):
+    except (RuntimeError, sf.LibsndfileError) as e:
+        if not fallback:
+            raise SystemExit(f"soundfile could not read this recording ({e}); the kit's sounds are measured as soundfile "
+                             "decodes them, so it plays none through another decoder: run `studio doctor --fetch --extra "
+                             "audio` for a soundfile with Ogg Vorbis") from None
         from . import proc
         pcm = proc.ffmpeg("-i", "-", "-f", "f32le", "-ac", "1", "-ar", to, "-", input=data, capture_output=True).stdout
         y, rate = np.frombuffer(pcm, dtype=np.float32)[:, None], to

@@ -63,7 +63,9 @@ def test_the_committed_manifest_is_valid_cc0_and_pinned_by_digest():
     (lambda m: m["packs"].update({"Bad Id": m["packs"]["test-pack"]}), "lower-case words"),
     (lambda m: m["sounds"].append(dict(m["sounds"][0])), "used twice"),
     (lambda m: m["sounds"][0].update(pack="nope"), "no pack nope"),
-    (lambda m: m["sounds"][0].update(member="Kenney.url"), "not a member the pack unpacks"),
+    (lambda m: m["sounds"][0].update(member="Kenney.url"), "not one of the pack's sounds"),
+    (lambda m: m["sounds"][0].update(member="Audio/../../x.ogg"), "not one of the pack's sounds"),
+    (lambda m: m["sounds"][0].update(member="/Audio/x.ogg"), "not one of the pack's sounds"),
     (lambda m: m["sounds"][0].pop("type"), "needs id, pack, member, type, sha256"),
     (lambda m: m.update(version=2), "version must be 1"),
 ])
@@ -80,18 +82,37 @@ def test_an_invalid_manifest_stops_loading(kit, tmp_path):
         soundkit.load(bad)
 
 
-def test_fetching_the_kit_verifies_unpacks_the_whitelist_and_skips_next_time(kit, tmp_path):
+def test_fetching_the_kit_verifies_keeps_it_zipped_and_skips_next_time(kit, tmp_path):
     assert soundkit.check()[0] == "missing"
     soundkit.fetch_kit(progress=io.StringIO())
     pid, pack = next(iter(kit["packs"].items()))
-    d = soundkit.folder(pid, pack)
-    assert (d / "Audio/thud.ogg").read_bytes() == b"OggS thud" and not (d / "Kenney.url").exists()
-    assert soundkit.check()[0] == "ok" and pack["sha256"][:12] in d.name
+    z = soundkit.archive(pid, pack)
+    assert soundkit.check()[0] == "ok" and pack["sha256"][:12] in z.name
+    assert sorted(p.name for p in z.parent.iterdir()) == [z.name]           # nothing unpacked beside it
+    assert soundkit.read_member(pid, "Audio/thud.ogg")[0] == b"OggS thud"
     assert (tmp_path / "cache" / ".gitignore").exists()
     (tmp_path / "remote" / "pack.zip").unlink()                  # a second fetch needs no network
     soundkit.fetch_kit(progress=io.StringIO())
     soundkit.archive(pid, pack).write_bytes(b"tampered")
     assert soundkit.state(pid, pack) == "changed" and soundkit.check()[0] == "missing"
+
+
+def test_concurrent_kit_fetches_do_not_collide(kit):
+    """Two `doctor --fetch --sounds` at once: 3 of 4 crashed unpacking onto one shared .part name."""
+    import threading
+    errors = []
+
+    def one():
+        try:
+            soundkit.fetch_kit(progress=None)
+        except BaseException as e:            # noqa: BLE001
+            errors.append(e)
+    threads = [threading.Thread(target=one) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == [] and soundkit.check()[0] == "ok"
 
 
 def test_doctor_reports_the_kit_and_its_repair(kit):
@@ -181,3 +202,75 @@ def test_a_fork_takes_its_library_sounds_along(kit, tmp_path):
     assets.add_library(v, "thud")
     f = new.fork(v, "f", directory=tmp_path / "fork")
     assert (f / "assets/sounds/thud.ogg").read_bytes() == b"OggS thud" and assets.read(f)[0]["kind"] == "library"
+
+
+@pytest.mark.parametrize("name", ["../../x", "/tmp/x", "a/b", "..", ".hidden", "a\\b"])
+def test_a_library_name_cannot_leave_assets(kit, tmp_path, name):
+    """`asset library --name ../../x` wrote outside assets/."""
+    v = video(tmp_path)
+    soundkit.fetch_kit(progress=io.StringIO())
+    with pytest.raises(SystemExit, match="--name"):
+        assets.add_library(v, "thud", name)
+    assert not (v / "assets" / "sounds").exists() and not (tmp_path / "x.ogg").exists()
+
+
+def test_other_asset_names_and_hand_edited_rows_stay_inside_assets(kit, tmp_path):
+    v = video(tmp_path)
+    src = tmp_path / "logo.png"
+    src.write_bytes(b"png")
+    with pytest.raises(SystemExit, match="plain file name"):
+        assets.add(v, src, "supplied", "me", name="../logo.png")
+    soundkit.fetch_kit(progress=io.StringIO())
+    assets.add_library(v, "thud")
+    table = v / "assets" / "provenance.json"
+    rows = json.loads(table.read_text())
+    rows[0]["file"] = "../../escaped.ogg"
+    table.write_text(json.dumps(rows))
+    with pytest.raises(SystemExit, match="not sounds/NAME.EXT"):
+        assets.restore(v)
+    assert doctor.check_library(v)[:3] == (doctor.FAIL, "library sounds", "rows outside assets/sounds/: ../../escaped.ogg")
+    assert not (tmp_path / "escaped.ogg").exists()
+
+
+def test_the_library_row_lists_every_missing_sound_it_counts(kit, tmp_path):
+    """The row said "5 of 5 missing" and named only 4."""
+    v = video(tmp_path)
+    soundkit.fetch_kit(progress=io.StringIO())
+    for i in range(6):
+        assets.add_library(v, "thud", f"t{i}")
+    for f in (v / "assets" / "sounds").iterdir():
+        f.unlink()
+    detail = doctor.check_library(v)[2]
+    assert detail.startswith("6 of 6 missing") and detail.endswith("sounds/t3.ogg and 2 more")
+
+
+def doctor_args(**kw):
+    return Namespace(**{"fetch": True, "sounds": True, "engine": [], "extra": [], "video": None, "net": False, **kw})
+
+
+@pytest.mark.parametrize("kw, remotion, installs", [
+    ({}, doctor.OK, False),                               # the sound kit alone
+    ({"engine": ["live"]}, doctor.OK, True), ({"extra": ["align"]}, doctor.OK, True),
+    ({}, doctor.FAIL, True),                              # Remotion not installed yet
+    ({"sounds": False}, doctor.OK, True),                 # --fetch alone, as before
+])
+def test_fetch_with_sounds_leaves_installed_engines_alone(kit, monkeypatch, kw, remotion, installs):
+    """`doctor --fetch --sounds` ran npm ci, which wiped and downloaded the browser again."""
+    calls = []
+    monkeypatch.setattr(doctor, "check_engine", lambda name: (remotion, f"engine {name}", "", ""))
+    monkeypatch.setattr(doctor, "fetch", lambda **k: calls.append(k))
+    monkeypatch.setattr(doctor, "checks", lambda net=False: [])
+    monkeypatch.setattr(doctor, "extra_checks", lambda extras=(): [])
+    doctor.main(doctor_args(**kw))
+    assert bool(calls) == installs
+
+
+def test_doctor_net_checks_the_sound_kits_host(monkeypatch):
+    seen = []
+    monkeypatch.setattr(doctor, "check_host", lambda url: seen.append(url) or (doctor.OK, f"host {url}", "reachable", ""))
+    for name in ("check_tool", "check_engine"):
+        monkeypatch.setattr(doctor, name, lambda *a, **k: (doctor.OK, "x", "", ""))
+    monkeypatch.setattr(doctor, "check_browser", lambda: (doctor.OK, "browser", "", ""))
+    monkeypatch.setattr(doctor, "check_launch", lambda: (doctor.OK, "launch", "", ""))
+    doctor.checks(net=True)
+    assert "https://kenney.nl/" in seen and set(doctor.HOSTS) <= set(seen)

@@ -102,7 +102,7 @@ COMMANDS = {
         A("--net", action="store_true", help="also check the hosts downloads come from"),
         A("--extra", action="append", default=[], choices=["audio", "align", "kokoro"], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
         A("--engine", action="append", default=[], choices=["motion-canvas", "live"], help="with --fetch: also install this engine (Remotion always is)"),
-        A("--sounds", action="store_true", help="with --fetch: also fetch the sound kit (recorded CC0 effects), verified, into the cache"),
+        A("--sounds", action="store_true", help="with --fetch: fetch the sound kit (recorded CC0 effects), verified, into the cache; the engines too only with --engine or --extra, or when Remotion is not installed"),
     ], "doctor:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),

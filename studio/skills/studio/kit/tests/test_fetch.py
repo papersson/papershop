@@ -3,7 +3,6 @@ import http.server
 import io
 import socket
 import threading
-import zipfile
 
 import pytest
 
@@ -96,46 +95,57 @@ def test_over_http_with_a_progress_line(tmp_path):
         server.shutdown()
 
 
-def make_zip(path, members, links=()):
-    with zipfile.ZipFile(path, "w") as z:
-        for name, data in members.items():
-            z.writestr(name, data)
-        for name in links:
-            info = zipfile.ZipInfo(name)
-            info.external_attr = (0o120777 << 16)
-            z.writestr(info, "/etc/passwd")
-    return path
+class Flood(http.server.BaseHTTPRequestHandler):
+    """Sends far more than any pin expects: with no Content-Length (path /endless), or announcing it."""
+    protocol_version = "HTTP/1.0"
+
+    def do_GET(self):
+        self.send_response(200)
+        if self.path != "/endless":
+            self.send_header("Content-Length", str(50 * 2**20))
+        self.end_headers()
+        try:
+            for _ in range(800):                      # 50 MB, unless the client hangs up first
+                self.wfile.write(b"\0" * 65536)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def log_message(self, *a):
+        pass
 
 
-def test_unpack_takes_only_the_whitelisted_members(tmp_path):
-    z = make_zip(tmp_path / "p.zip", {"Audio/a.ogg": b"a", "Audio/b.ogg": b"b", "Kenney.url": b"[InternetShortcut]",
-                                      "License.txt": b"CC0"})
-    got = fetch.unpack(z, tmp_path / "out", ["Audio/*.ogg", "License.txt"])
-    assert sorted(got) == ["Audio/a.ogg", "Audio/b.ogg", "License.txt"]
-    assert (tmp_path / "out/Audio/a.ogg").read_bytes() == b"a" and not (tmp_path / "out/Kenney.url").exists()
-    flat = fetch.unpack(z, tmp_path / "flat", ["Audio/*"], flatten=True)
-    assert sorted(p.name for p in flat.values()) == ["a.ogg", "b.ogg"] and (tmp_path / "flat/a.ogg").exists()
+def test_a_download_past_its_pinned_size_stops_and_is_deleted(tmp_path):
+    """No cap during the download let a host fill the disk before the digest was checked."""
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Flood)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}"
+        with pytest.raises(fetch.FetchError, match="over the 100000 expected"):
+            fetch.fetch(f"{base}/endless", tmp_path / "p.zip", "0" * 64, size=100_000, progress=None)
+        with pytest.raises(fetch.FetchError, match="52428800 bytes or more"):
+            fetch.fetch(f"{base}/announced", tmp_path / "p.zip", "0" * 64, size=100_000, progress=None)
+        assert list(tmp_path.iterdir()) == []
+    finally:
+        server.shutdown()
 
 
-@pytest.mark.parametrize("bad, why", [("../escape.ogg", "leaves the folder"), ("Audio/../../x.ogg", "leaves the folder"),
-                                      ("/abs.ogg", "absolute"), ("C:/win.ogg", "absolute"), ("..\\back.ogg", "leaves the folder")])
-def test_unpack_refuses_an_archive_with_an_unsafe_name(tmp_path, bad, why):
-    z = make_zip(tmp_path / "p.zip", {"Audio/a.ogg": b"a", bad: b"evil"})
-    with pytest.raises(fetch.FetchError, match=why):
-        fetch.unpack(z, tmp_path / "out", ["*"])
-    assert not (tmp_path / "out").exists()                  # checked before anything is written
+def test_concurrent_fetches_of_one_file_each_write_their_own(tmp_path):
+    """Two `doctor --fetch --sounds` at once crashed on a shared temporary name."""
+    data = bytes(range(256)) * 20_000
+    url = served(tmp_path, "pack.zip", data)
+    dest, errors = tmp_path / "cache" / "pack.zip", []
 
-
-def test_unpack_refuses_a_symbolic_link(tmp_path):
-    z = make_zip(tmp_path / "p.zip", {"Audio/a.ogg": b"a"}, links=["Audio/link.ogg"])
-    with pytest.raises(fetch.FetchError, match="symbolic link"):
-        fetch.unpack(z, tmp_path / "out", ["Audio/*.ogg"])
-
-
-def test_flattening_two_members_to_one_name_is_refused(tmp_path):
-    z = make_zip(tmp_path / "p.zip", {"a/x.ogg": b"1", "b/x.ogg": b"2"})
-    with pytest.raises(fetch.FetchError, match="same name"):
-        fetch.unpack(z, tmp_path / "out", ["*"], flatten=True)
+    def one():
+        try:
+            fetch.fetch(url, dest, digest(data), size=len(data), progress=None)
+        except BaseException as e:            # noqa: BLE001 (a thread's failure is the test's)
+            errors.append(e)
+    threads = [threading.Thread(target=one) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == [] and dest.read_bytes() == data and [p.name for p in dest.parent.iterdir()] == ["pack.zip"]
 
 
 def test_the_cache_lives_under_studio_home_and_ignores_itself(tmp_path, monkeypatch):

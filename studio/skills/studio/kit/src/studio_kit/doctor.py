@@ -207,24 +207,39 @@ def check_sounds(offline=None):
     return WARN, "sound kit", detail + (f"; skipped the fetch: {offline}" if offline else ""), soundkit.repair()
 
 
+def _some(files, n=4):
+    return ", ".join(files[:n]) + (f" and {len(files) - n} more" if len(files) > n else "")
+
+
 def check_library(video):
     """A video's library sounds: each in assets/ with the digest its row recorded (Git leaves sound
     out, so a fresh clone has rows and no files). None when the video uses none."""
+    from .assets import LIBRARY_FILE
     from .fetch import sha256_of
     root = Path(video) / "assets"
     table = root / "provenance.json"
     rows = [r for r in json.loads(table.read_text()) if r["kind"] == "library"] if table.exists() else []
     if not rows:
         return None
+    bad = [r["file"] for r in rows if not LIBRARY_FILE.fullmatch(r["file"]) or ".." in r["file"]]
+    if bad:
+        return FAIL, "library sounds", "rows outside assets/sounds/: " + _some(bad), "fix those rows in assets/provenance.json"
     missing = [r["file"] for r in rows if not (root / r["file"]).is_file()]
     changed = [r["file"] for r in rows if r["file"] not in missing and sha256_of(root / r["file"]) != r["sha256"]]
     if changed:
-        return FAIL, "library sounds", "not the recorded file: " + ", ".join(changed), \
+        return FAIL, "library sounds", f"{len(changed)} of {len(rows)} not the recorded file: " + _some(changed), \
             f"remove them and run `{ROOT / 'bin/studio'} asset restore {video}`"
     if missing:
-        return FAIL, "library sounds", f"{len(missing)} of {len(rows)} missing (Git leaves sound out): " + ", ".join(missing[:4]), \
+        return FAIL, "library sounds", f"{len(missing)} of {len(rows)} missing (Git leaves sound out): " + _some(missing), \
             f"{ROOT / 'bin/studio'} asset restore {video} (after `doctor --fetch --sounds` if the kit is not fetched)"
     return OK, "library sounds", f"{len(rows)} in assets/sounds, verified", ""
+
+
+def check_sound_host(url):
+    """A host the sound kit downloads from, with the sound kit's own remedy."""
+    level, name, detail, fix = check_host(url)
+    return level, name, detail, fix and ("allowlist it, or run `doctor --fetch --sounds` on a machine that can "
+                                         "reach it and copy $STUDIO_HOME/cache/sounds/ over")
 
 
 def checks(net=False):
@@ -244,7 +259,8 @@ def checks(net=False):
         check_launch(),
     ]
     if net:
-        rows += [check_host(u) for u in HOSTS]
+        from .soundkit import hosts
+        rows += [check_host(u) for u in HOSTS] + [check_sound_host(u) for u in hosts()]
     return rows
 
 
@@ -261,9 +277,16 @@ def fetch_sounds():
     return None
 
 
+def installs_engines(args):
+    """Whether --fetch installs the engines (and extras): always, unless it was asked for the sound
+    kit alone, with --sounds and no --engine or --extra, while Remotion is installed already (npm ci
+    would wipe and download its packages and browser again for nothing)."""
+    return not args.sounds or bool(args.engine or args.extra) or check_engine("remotion")[0] != OK
+
+
 def main(args):
     offline = fetch_sounds() if args.fetch and args.sounds else None
-    if args.fetch:
+    if args.fetch and installs_engines(args):
         fetch(engines=tuple(dict.fromkeys(("remotion", *args.engine))), extras=args.extra)
     extras = tuple(dict.fromkeys([*args.extra, *(required(args.video) if args.video else EXTRAS)]))
     rows = checks(net=args.net) + extra_checks(extras) + [check_sounds(offline)]
