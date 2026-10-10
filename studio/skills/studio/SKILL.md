@@ -128,6 +128,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `glossary [--term T]` | The motion glossary: the words a note can use for motion and the helper behind each (`references/desk.md`) |
 | `still VIDEO CLIP T --out PNG` · `boxes VIDEO CLIP T` | Inspect a frame or named-element bounds |
 | `check VIDEO [--only …] [--all] [--format F]` · `sheets VIDEO OUTDIR [--strip CLIP T]… [--windows FILE]` | Incremental render checks (pacing, a 0.5 s hold after each move, warns from the cut's clips; `--only pacing` samples stills where no clip is rendered), contact sheets and label crops; strips of consecutive frames around each `--strip` time (repeatable) or each `{clip, t, frames?, fps?}` of a JSON windows file |
+| `look-sheet VIDEO [--format F]` | The model sheet: every element in each state (theme colours and roles, type sizes, the band, boxes, arrows, tokens, cards, close-up), drawn by the video's engine (live or Remotion) into `out/look/`, plus the video's own from `scenes/look.js`/`look.tsx`; `look.json` records it for the motion review |
 | `audio VIDEO [--lufs -14]` · `export VIDEO --formats 16:9,9:16,1:1` | Finish the whole mix to its loudness and true-peak ceiling (publish and export do it too); multiple formats |
 | `publish VIDEO` | Local final master, compressed web copy, poster and page; upload separately |
 | `clean VIDEO [--dry-run] [--videos]` | Stale caches/previews; MP4 deletion is explicit and never overrides protection |

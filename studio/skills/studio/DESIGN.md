@@ -77,6 +77,12 @@ and real imagery were the biggest single improvement. The banned-defaults list c
 why "one prompt" motion design looks alike. Two rounds of static mockups each saved a full build,
 hence the look gate.
 
+The look gate gained a model sheet (`studio look-sheet`): drawn by the video's own engine before
+scenes, every element in each state, so a drawing that drifts from it is a finding rather than a taste
+call. Camera moves became one declaration of keys with proportional zoom, so any frame of a push-in
+renders alone, and framing reserves a header strip as it reserves the caption band. Outer contours are
+heavier than inner detail.
+
 ## The environment
 
 `bin/studio` enters the plugin's own flake (Python, uv, Node 22, ffmpeg, sox), caching the
@@ -112,6 +118,9 @@ the same result.
 - **grid** and **palette** (pixel art), and **filler, cuts, levels, sync, segments** (footage).
 - A check that samples sentence times checked nothing for a video with no narration, so clips
   without narration are sampled evenly.
+- **inframe** warns when an element the sentence names (by its box's label) is cut by the frame, the
+  header or the band at the sentence's end; proven on scratch scenes that push in past a named box in
+  live and Remotion. It is a warning because names are a heuristic.
 
 ## Genres
 

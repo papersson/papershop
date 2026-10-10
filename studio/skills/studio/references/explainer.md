@@ -21,7 +21,7 @@ This table is the one list of the explainer's stages; SKILL.md and the build pro
 | 6 Narration | audio, timeline with word times | voice-check scores under 0.8 inspected | builder |
 | 7 Boards | boards/boards.json, a boards cut | every sentence has a board or a screen note on screen | builder (user in interactive mode) |
 | 8 Animatic | an animatic cut and its pacing report | runtime, unchanged stretches and empty sentences read and addressed | builder (user in interactive mode) |
-| 9 The look | a stills-only cut | the user's pick, unless a house style already settles it | user |
+| 9 The look | the look sheet (`studio look-sheet`) and a stills-only cut | the user's pick, unless a house style already settles it | user |
 | 10 Scenes and cuts | cuts, chapter by chapter: the blocking (layout, moves timed on events) | `studio check` passes, pacing included; craft pass on changed chapters | builder; the user reviews cuts |
 | 11 Polish | secondary motion, anticipation, effects on events; a motion review receipt | the motion review stops by its rule: a round with no must-fix findings, or `motion_rounds` rounds (2) | fresh reviewer, the main session dispatching; in interactive mode the user's desk notes instead, if the user prefers |
 | 12 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
@@ -213,6 +213,11 @@ rebuild later. It needs real narration (Kokoro is quick), so narrate before boar
 
 ## Stage 9: The look
 
+Run `studio look-sheet VIDEO` first: the model sheet, in the video's engine, theme and layout. Add
+this video's own elements (its protagonist and each of its states) to `scenes/look.js` or
+`scenes/look.tsx` from the template, exporting each drawing so scenes import it, and re-run. Scenes
+draw what is on the sheet; the motion review checks drawings are on sheet.
+
 Make real static scenes for the main picture and a close-up; `studio cut --stills-only` records
 these without displacing playable cuts. Get the user's choice before animation unless already
 settled/authorized. Existing house style can supply a direction rather than requiring alternatives.
@@ -221,7 +226,10 @@ settled/authorized. Existing house style can supply a direction rather than requ
 
 This stage is the blocking: what is where, and when each move happens. Polish (secondary motion,
 anticipation, effects) is the next stage, planned from the start rather than added at the end, so
-build the moves plainly here and leave room for it.
+build the moves plainly here and leave room for it. Move the camera with keys (`c.camAt` in live,
+`<Camera keys>` in Remotion; `engines.md`), staged apart from content changes; a layout `header` is
+kept clear the way the band is. `studio check` warns (inframe) when an element the sentence names is
+cut by the frame, header or band.
 
 One scene per chapter, built in order and cut as each is done: unbuilt chapters show their boards,
 so every cut plays the whole video. In interactive mode, show the first finished chapter on the desk
