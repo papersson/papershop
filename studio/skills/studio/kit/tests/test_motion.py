@@ -72,7 +72,35 @@ class StageEngine:
 def test_moves_are_runs_of_change_big_enough_to_read():
     sig = [(0.05, 0.0), (0.15, 0.5), (0.25, 0.4), (0.35, 0.05), (0.45, 0.13), (0.55, 0.0), (0.65, 3.0), (0.75, 0.11)]
     assert motion.moves(sig) == [(0.1, 0.3, 0.9), (0.6, 0.7, 3.0)]      # 0.13 alone is ambient, 0.11 under the level
-    assert motion.moves([(0.05, 0.3), (0.15, 0.3), (0.25, 0.3)]) == [(0.0, 0.3, 0.9)]
+    quiet = [(round(0.05 + i / 10, 2), 0.0) for i in range(10)]
+    assert motion.moves([(0.05, 0.3), (0.15, 0.3), (0.25, 0.3)] + quiet[3:]) == [(0.0, 0.3, 0.9)]
+
+
+def at(values, links=None):
+    return [(round(0.05 + i / 10, 2), v, 1.0 if links is None else links[i]) for i, v in enumerate(values)]
+
+
+def test_back_to_back_moves_split_with_no_hold_between_them():
+    """A move ending as the next begins leaves no quiet sample: the run splits where the change moves to
+    other pixels, or where it dips between two peaks, and the hold between them is 0 s."""
+    pad = [0.0] * 8
+    elsewhere = at(pad + [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0] + pad, [1.0] * 12 + [0.0] + [1.0] * 11)
+    assert motion.moves(elsewhere) == [(0.8, 1.2, 4.0), (1.2, 1.6, 4.0)]
+    in_place = at(pad + [0.3, 0.9, 0.6, 0.15, 0.5, 0.9, 0.4] + pad)           # two eased moves of one box
+    assert motion.moves(in_place) == [(0.8, 1.2, 1.95), (1.2, 1.5, 1.8)]
+    one = at(pad + [0.2, 0.6, 1.0, 0.7, 0.5, 0.6, 0.3] + pad)                  # a bump is not a dip
+    assert len(motion.moves(one)) == 1
+
+
+def test_ambient_motion_does_not_join_the_moves():
+    """A wobble that never stops changes about 0.15 grey levels a sample; the moves stand out over it."""
+    wobble = [0.15 + 0.05 * ((i * 7) % 3 - 1) for i in range(60)]
+    for i, v in zip(range(10, 14), (0.6, 1.2, 0.9, 0.3)):
+        wobble[i] += v
+    for i, v in zip(range(30, 34), (0.6, 1.2, 0.9, 0.3)):
+        wobble[i] += v
+    found = motion.moves(at(wobble))
+    assert [(a, b) for a, b, _ in found] == [(1.0, 1.4), (3.0, 3.4)]
 
 
 def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
@@ -100,3 +128,12 @@ def test_pacing_samples_stills_where_no_clip_is_rendered(tmp_path):
     rows = motion.pacing(tmp_path, eng, clips={"s1"})
     assert eng.asked == 20 and [r.get("severity") for r in rows] == ["warning"]    # 2 s at 10 a second
     assert rows[0]["detail"].startswith("0.2 s hold")
+
+
+def test_two_boxes_landing_on_consecutive_samples_are_two_moves(tmp_path):
+    """Measured on rendered frames: box B lands the sample after box A, elsewhere on the stage."""
+    t = make_video(tmp_path)
+    f = tmp_path / "clip.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(0.5, 0.6), "-pix_fmt", "yuv420p", str(f)], check=True)
+    signal = motion.file_signal(f, t, {"width": 1920, "height": 1080, "band": {"height": 160}}, 0, 60)
+    assert [(a, b) for a, b, _ in motion.moves(signal)] == [(0.4, 0.5), (0.5, 0.6)]

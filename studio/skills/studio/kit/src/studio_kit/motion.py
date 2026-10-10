@@ -12,6 +12,7 @@
 import hashlib
 import json
 import re
+import statistics
 import tempfile
 from pathlib import Path
 
@@ -117,6 +118,17 @@ HOLD_MIN = 0.5          # seconds a significant move holds before the next one s
 # tag fading out or an edge lighting up stays under it.
 MOVE_LEVEL = 0.12
 SIGNIFICANT = 0.8
+# Ambient life that never stops (a wobble, a breathing glow) would join every move into one: the
+# ambient level is the median change within AMBIENT_WINDOW seconds either side, at most AMBIENT_MAX (more
+# is a long move, not background), and a sample is movement when it exceeds that level by MOVE_LEVEL.
+AMBIENT_WINDOW = 4.0
+AMBIENT_MAX = 0.2
+# Back-to-back moves leave no quiet sample between them. A run splits where what changes moves to other
+# pixels (under LINK_MIN of a sample's changed pixels touch the previous sample's: one thing stopped,
+# another started), or where it dips below DIP of the peaks either side (one eased move ended, the next began).
+CHANGED = 8             # grey levels a pixel must change by to count as changed
+LINK_MIN = 0.05
+DIP = 0.35
 
 
 def rendered_clip(video, t, cid, fmt=None):
@@ -144,10 +156,17 @@ def _crop(lay):
 
 
 def _changes(times, frames, crop):
-    """[(time, change)]: the mean absolute grey-level change from each sample to the next."""
+    """[(time, change, link)]: the mean absolute grey-level change from each sample to the next, and
+    the share of its changed pixels that touch the previous change's (1 when either changed none)."""
     size = PACING_SIZE[0] * crop
-    return [(round((a + b) / 2, 3), sum(map(abs, map(int.__sub__, x, y))) / size)
-            for a, b, x, y in zip(times, times[1:], frames, frames[1:])]
+    out, before = [], frozenset()
+    for a, b, x, y in zip(times, times[1:], frames, frames[1:]):
+        diff = list(map(abs, map(int.__sub__, x, y)))
+        mask = frozenset(i for i, v in enumerate(diff) if v > CHANGED)
+        link = len(mask & before) / min(len(mask), len(before)) if mask and before else 1.0
+        out.append((round((a + b) / 2, 3), sum(diff) / size, round(link, 3)))
+        before = mask
+    return out
 
 
 def file_signal(path, t, lay, first, count):
@@ -194,17 +213,30 @@ def pacing_signal(video, engine=None, clips=None, stills=True):
 
 
 def moves(signal, level=MOVE_LEVEL, significant=SIGNIFICANT, dt=1 / PACING_FPS):
-    """The significant moves in a clip's signal: [(start, end, change)], a move being a run of samples
-    changing at least `level` whose total change is at least `significant`."""
+    """The significant moves in a clip's signal [(time, change, link?)]: [(start, end, change)]. A move
+    is a run of samples changing at least `level` over the ambient level, split where its change jumps
+    to other pixels or dips between two peaks; it is significant when its change adds up to
+    `significant`. Moves split from one run follow each other with no hold."""
+    d = [x[1] for x in signal]
+    k = round(AMBIENT_WINDOW / dt)
+    over = [v - min(AMBIENT_MAX, statistics.median(d[max(0, i - k):i + k + 1])) for i, v in enumerate(d)]
     runs = []
-    for at, d in signal:
-        if d < level:
+    for i, v in enumerate(over):
+        if v < level:
             continue
-        if runs and at - dt / 2 <= runs[-1][1] + 1e-6:
-            runs[-1][1:] = [at + dt / 2, runs[-1][2] + d]
+        if runs and runs[-1][-1] == i - 1 and (signal[i][2] if len(signal[i]) > 2 else 1.0) >= LINK_MIN:
+            runs[-1].append(i)
         else:
-            runs.append([at - dt / 2, at + dt / 2, d])
-    return [(round(a, 3), round(b, 3), round(c, 2)) for a, b, c in runs if c >= significant]
+            runs.append([i])
+
+    def split(run):
+        for j in range(1, len(run) - 1):
+            a, b, c = over[run[j - 1]], over[run[j]], over[run[j + 1]]
+            if b <= a and b <= c and b < DIP * min(max(over[i] for i in run[:j]), max(over[i] for i in run[j + 1:])):
+                return [run[:j + 1]] + split(run[j + 1:])
+        return [run]
+    found = [(signal[r[0]][0] - dt / 2, signal[r[-1]][0] + dt / 2, sum(d[i] for i in r)) for run in runs for r in split(run)]
+    return [(round(a, 3), round(b, 3), round(c, 2)) for a, b, c in found if c >= significant]
 
 
 def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
