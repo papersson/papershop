@@ -52,7 +52,9 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 		const me = T.tracks.scene.find((s) => s.id === clip);
 		if (!me) throw new Error(`no clip ${clip} in timeline.json`);
 		const dur = me.end - me.start;
-		const {at, end, word, phrase, cue} = clipTimes(T, clip, me.start);
+		// Clip times count from the clip's first frame and t is a whole frame / fps, as in the other engines.
+		const {at, end, word, phrase, cue} = clipTimes(T, clip, frameOf(me.start, T.fps) / T.fps);
+		const frameT = () => Math.round(useThread().fixed * T.fps) / T.fps;
 		view.fill(BG);
 		if (layers === 'background') {
 			yield* waitFor(dur);
@@ -92,13 +94,13 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 		const ticks: ((t: number) => void)[] = [];
 		ctx.every = (fn) => {
 			ticks.push(fn);
-			fn(useThread().time());
+			fn(frameT());
 		};
 		// Runs every registered per-frame update, then lets the frame render: each update is a function of
 		// the clip time, so any frame is the same however it is reached.
 		yield (function* () {
 			for (;;) {
-				const t = useThread().time();
+				const t = frameT();
 				for (const f of ticks) f(t);
 				yield;
 			}

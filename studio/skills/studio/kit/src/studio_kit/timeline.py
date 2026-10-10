@@ -99,21 +99,31 @@ def _norm(w):
     return re.sub(r"[^\w]", "", w.lower())
 
 
+def _words_at(words, phrase):
+    """The index in `words` where the phrase's words begin, compared without case or punctuation."""
+    want, got = [w for w in map(_norm, phrase.split()) if w], [_norm(w) for w in words]
+    return next((i for i in range(len(got) - len(want) + 1) if want and got[i:i + len(want)] == want), None)
+
+
 def phrase_start(entry, phrase):
-    """When a narration entry reaches `phrase`, in timeline seconds. The phrase's words are matched
-    against the spoken words (`words`); when a spoken rule rewrote them (an acronym read as letters),
-    the phrase's place in the written caption gives the time, proportionally. The Remotion kit's
-    `phrase()` follows the same rule. Raises KeyError when the caption doesn't contain the phrase."""
-    want = [w for w in map(_norm, phrase.split()) if w]
-    got = [_norm(w["w"]) for w in entry.get("words", [])]
-    for i in range(len(got) - len(want) + 1):
-        if want and got[i:i + len(want)] == want:
-            return entry["words"][i]["start"]
-    k = entry.get("caption", entry.get("text", "")).find(phrase)
+    """When a narration entry reaches `phrase`, in timeline seconds: the start of the spoken word it
+    begins on (`words`, compared without case or punctuation); else, when there are none (an estimate)
+    or a spoken rule rewrote them (an acronym read as letters), its caption word's share of the
+    sentence's time, as _word_times shares it; else, for a part of a word, its exact place in the
+    caption. The engines' phraseStart follows the same rule. Raises KeyError when the caption doesn't
+    contain the phrase."""
+    i = _words_at([w["w"] for w in entry.get("words", [])], phrase)
+    if i is not None:
+        return entry["words"][i]["start"]
+    cap = entry.get("caption", entry.get("text", ""))
+    words, span = cap.split(), entry["end"] - entry["start"]
+    i = _words_at(words, phrase)
+    if i is not None:
+        return entry["start"] + span * len(" ".join(words[:i] + [""])) / max(1, len(" ".join(words)))
+    k = cap.find(phrase)
     if k < 0:
         raise KeyError(f"{entry.get('id')}: no phrase {phrase!r}")
-    cap = entry.get("caption", entry.get("text", ""))
-    return entry["start"] + (k / max(1, len(cap))) * (entry["end"] - entry["start"])
+    return entry["start"] + (k / max(1, len(cap))) * span
 
 
 def timing(video, timeline=None):
@@ -242,10 +252,9 @@ def _phrase_word(s, phrase):
     """The caption word a phrase starts on in sentence s, or None: its words matched, else (a spoken
     rule rewrote them, a part of a word) its place in the caption."""
     cap = s.get("caption", s.get("text", ""))
-    want, got = [w for w in map(_norm, phrase.split()) if w], [_norm(w) for w in cap.split()]
-    for i in range(len(got) - len(want) + 1):
-        if want and got[i:i + len(want)] == want:
-            return i
+    i = _words_at(cap.split(), phrase)
+    if i is not None:
+        return i
     k = cap.find(phrase)
     if k < 0:
         return None
@@ -281,7 +290,7 @@ def resolve_event(timeline, spec):
     at = _at(spec)
     if at in ("start", "end"):
         t = s[at]
-    elif at == "phrase":
+    elif at == "phrase":    # as a scene's phrase() gives it; it finds what _event_sentence found, so never raises
         t = phrase_start(s, spec["phrase"])
     else:
         times, k = _word_times(s, s["caption"].split()), first + spec["word"]
@@ -309,7 +318,7 @@ def _resolve_cues(cues, t):
             raise SystemExit(f"cues.json: {k} {problem} (the contract at the top of timeline.py)")
         try:
             out[k] = event_time(t, v)
-        except ValueError as e:
+        except (ValueError, KeyError) as e:
             raise SystemExit(f"cues.json: the cue {k!r} has no time: {e}; anchor it again or remove it")
     return out
 
@@ -861,6 +870,6 @@ def main(args):
         rows = events(args.video, t)
         print(f"{len(rows)} events (cues.json and holds), on the {t['fps']} fps grid:" if rows else "no events: cues.json is the beat sheet")
         for r in rows:
-            where = f"{r['clip']} {r['t']:7.3f} s" if r["clip"] else "after the end"
+            where = f"{r['clip']} {r['t']:7.3f} s" if r["clip"] else "before the start" if r["time"] < 0 else "after the end"
             print(f"  {r['time']:8.3f} s  frame {r['frame']:<6} {where:16} {r['name']:24} {r['anchor']}")
     return 0

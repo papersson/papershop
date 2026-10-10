@@ -4,7 +4,7 @@
 
 /** @typedef {{w: string, start: number, end: number}} Word */
 /** @typedef {{id: string, clip?: string, start: number, end: number, caption?: string, text?: string, words?: Word[]}} Sentence */
-/** @typedef {{tracks: {narration: Sentence[]}, cues?: Record<string, number>}} Timings */
+/** @typedef {{fps?: number, tracks: {narration: Sentence[]}, cues?: Record<string, number>}} Timings */
 
 /**
  * The frame a time falls on, rounding halves up like the kit's timeline.half_up (Python's round()
@@ -15,27 +15,39 @@ export const frameOf = (t, fps) => Math.floor(t * fps + 0.5)
 
 const norm = w => w.toLowerCase().replace(/[^\p{L}\p{N}_]/gu, '')
 
+/** Where a phrase's words begin in `words`, compared without case or punctuation, or -1. @type {(words: string[], phrase: string) => number} */
+const wordsAt = (words, phrase) => {
+  const want = phrase.split(/\s+/).map(norm).filter(Boolean), got = words.map(norm)
+  for (let i = 0; want.length && i + want.length <= got.length; i++) if (want.every((w, j) => got[i + j] === w)) return i
+  return -1
+}
+
 /**
- * When a narration entry reaches a phrase, in timeline seconds: its words matched in the spoken
- * words, or, where a spoken rule rewrote them, its place in the caption. Same rule as
- * timeline.phrase_start.
+ * When a narration entry reaches a phrase, in timeline seconds: the start of the spoken word it
+ * begins on (compared without case or punctuation); else, with no spoken words (an estimate) or ones
+ * a spoken rule rewrote, its caption word's share of the sentence's time; else, for a part of a word,
+ * its exact place in the caption. Same rule as timeline.phrase_start.
  * @param {Sentence} s @param {string} phrase @returns {number}
  */
 export function phraseStart(s, phrase) {
-  const want = phrase.split(/\s+/).map(norm).filter(Boolean)
-  const got = (s.words ?? []).map(w => norm(w.w))
-  for (let i = 0; want.length && i + want.length <= got.length; i++) {
-    if (want.every((w, j) => got[i + j] === w)) return /** @type {Word[]} */ (s.words)[i].start
-  }
+  const spoken = s.words ?? []
+  let i = wordsAt(spoken.map(w => w.w), phrase)
+  if (i >= 0) return spoken[i].start
   const cap = s.caption ?? s.text ?? ''
+  const words = cap.split(/\s+/).filter(Boolean)
+  i = wordsAt(words, phrase)
+  if (i >= 0) return s.start + (s.end - s.start) * [...words.slice(0, i), ''].join(' ').length / Math.max(1, words.join(' ').length)
   const k = cap.indexOf(phrase)
   if (k < 0) throw new Error(`sentence ${s.id} has no phrase "${phrase}"`)
   return s.start + (k / Math.max(1, cap.length)) * (s.end - s.start)
 }
 
 /**
- * A clip's narration times, in clip seconds from `start` (the clip's first frame, or its start on
- * the timeline). Sentence ids may be short ("03" is "<clip>_03"); every time takes an offset.
+ * A clip's narration times, in clip seconds from `start`, the clip's first frame (frameOf(clip start)
+ * / fps, as every engine passes it). Sentence ids may be short ("03" is "<clip>_03"); every time takes
+ * an offset. A cue is on the frame grid (the kit builds it there), so cue() returns its clip frame
+ * / fps exactly: an engine's t is its clip frame / fps, and `t >= cue('x')` holds from the cue's own
+ * frame (subtracting the start in seconds left float noise that made it a frame late).
  * @param {Timings} T @param {string} clip @param {number} start
  */
 export function clipTimes(T, clip, start) {
@@ -62,7 +74,8 @@ export function clipTimes(T, clip, start) {
     /** A timeline cue. @type {(name: string, off?: number) => number} */
     cue: (name, off = 0) => {
       if (!(name in (T.cues ?? {}))) throw new Error(`no cue ${name} in timeline.json`)
-      return /** @type {Record<string, number>} */ (T.cues)[name] - start + off
+      const at = /** @type {Record<string, number>} */ (T.cues)[name] - start
+      return (T.fps ? Math.round(at * T.fps) / T.fps : at) + off
     },
     /** The clip's sentences, their times in clip seconds. */
     get sentences() {

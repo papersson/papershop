@@ -616,3 +616,16 @@ def test_an_anchored_cue_counts_only_for_the_clips_that_read_it(tmp_path):
     (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "goes quiet", "offset": 0.2},
                                              "unread": {"sentence": "s2_01", "at": "end", "offset": 10}}))
     assert keys(tl.build(v)) == after            # past the end, read by no scene
+
+
+def test_every_anchor_error_names_its_cue_and_says_why(tmp_path):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "GOES  quiet"}}))
+    assert tl.build(v)["cues"]["quiet"] > 0                       # another case and spacing, on an estimate
+    t = tl.load(v)
+    with pytest.raises(SystemExit, match=r"no time for cue .*'at': 'middle'.*: at must be one of"):
+        sfx.resolve_time({"sentence": "s1_01", "at": "middle"}, t)
+    with pytest.raises(SystemExit, match="no sentence says 'never said' any more"):
+        sfx.check([{"t": {"phrase": "never said"}, "type": "click"}], t)
+    assert sfx.unresolved([{"t": {"phrase": "never said"}}], t) == [{"phrase": "never said"}]

@@ -66,7 +66,7 @@ def _time(t, timeline):
     if isinstance(t, dict):         # an anchor, as cues.json takes one: the same time a scene's cue gets
         try:
             return tl.event_time(timeline, t)
-        except ValueError:
+        except (ValueError, KeyError):
             return None
     if t in timeline.get("cues", {}):
         return timeline["cues"][t]
@@ -80,6 +80,11 @@ def _time(t, timeline):
 
 
 def resolve_time(t, timeline):
+    if isinstance(t, dict):         # an anchor: say why it has no time
+        try:
+            return tl.event_time(timeline, t)
+        except (ValueError, KeyError) as e:
+            raise SystemExit(f"no time for cue {t!r}: {e}")
     at = _time(t, timeline)
     if at is None:
         raise SystemExit(f"no time for cue {t!r}")

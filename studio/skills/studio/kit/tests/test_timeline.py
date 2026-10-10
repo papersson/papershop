@@ -160,7 +160,8 @@ def test_the_engines_shared_phrase_start_and_frame_rounding_agree_with_the_kits(
                 "text": spoken, "words": words},
                {"id": "s1_03", "start": 3.25, "end": 7.9, "caption": "A co-op's 3.5 nodes: the café, the quorum.", "words": []},
                {"id": "s1_04", "start": 1.0, "end": 2.0, "text": "No caption, no words here."}]
-    phrases = ["is longer", "Longer than", "MTBF", "naive", "naïve or", "caf", "café", "co-op's", "3.5 nodes", "the", "quorum.", "here", "absent", ""]
+    phrases = ["is longer", "Longer than", "MTBF", "naive", "naïve or", "caf", "café", "co-op's", "3.5 nodes", "the", "quorum.", "here", "absent", "",
+               "THE CAFÉ", "the  quorum", "Nodes", "mttr Is"]       # case and spacing, with and without spoken words
     times = [[14.55, 30], [23.557, 30], [0.0, 30], [1 / 60, 30], [74.475, 30], [2.5, 1], [12.345, 25], [436.5 / 30, 30]]
     script = tmp_path / "parity.mjs"
     script.write_text(PARITY % json.dumps((engine_dir("shared") / "timing.js").as_uri()))
@@ -226,3 +227,38 @@ def test_the_timeline_command_lists_the_events(tmp_path, capsys):
     assert "3 events" in out[1]
     assert out[2].split() == ["0.533", "s", "frame", "16", "s1", "0.533", "s", "go", "s1_01", "start", "+0.04", "s"]
     assert out[3].split()[-3:] == ["reveal:s1_01", "hold", "end"] and out[4].split()[:4] == ["2.700", "s", "frame", "81"]
+
+
+def test_a_phrase_in_another_case_or_spacing_resolves_on_an_estimate():
+    """An estimate has no spoken words; the caption's words, compared as the spoken ones are, give the
+    time (a phrase in another case once fell through to an exact search and crashed the build)."""
+    cap = "The ball hits the floor, then hits the floor again."
+    t = {"fps": 30, "tracks": {"narration": [{"id": "s1_01", "start": 1.0, "end": 4.0, "caption": cap, "words": []}]}}
+    on_grid = lambda x: round(tl.half_up(x * 30) / 30, 6)
+    hits = on_grid(1.0 + 3.0 * cap.index("hits") / len(cap))
+    assert tl.event_time(t, {"sentence": "s1_01", "phrase": "Hits the floor"}) == hits == tl.event_time(t, {"sentence": "s1_01", "phrase": "hits  the FLOOR"})
+    assert tl.event_time(t, {"sentence": "s1_01", "phrase": "Floor again"}) == on_grid(1.0 + 3.0 * cap.index("floor again") / len(cap))
+    assert tl.phrase_start(t["tracks"]["narration"][0], "HITS") == 1.0 + 3.0 * cap.index("hits") / len(cap)
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is not installed")
+def test_a_switch_at_a_cue_happens_on_the_cues_own_frame(tmp_path):
+    """Every engine's t is its clip frame / fps and its clip start the first frame / fps; cue() must give
+    the cue's clip frame / fps exactly, or `t >= cue('x')` comes a frame late (it did 354 times in 897)."""
+    script = tmp_path / "cue.mjs"
+    script.write_text(f"import {{ clipTimes, frameOf }} from {json.dumps((engine_dir('shared') / 'timing.js').as_uri())}\n" """
+const fps = 30, cues = JSON.parse(process.argv[2]), late = []
+for (const clipStart of [0, 3.217, 10.5, 61.0333]) {
+  const first = frameOf(clipStart, fps)
+  for (const [f, cue] of cues) {
+    if (f <= first) continue
+    const c = clipTimes({ fps, tracks: { narration: [] }, cues: { x: cue } }, 'c', first / fps)
+    const lf = f - first
+    if (!(lf / fps >= c.cue('x')) || (lf - 1) / fps >= c.cue('x')) late.push([clipStart, f])
+  }
+}
+console.log(JSON.stringify(late))
+""")
+    cues = [[f, tl.frame_time(f / 30, 30)] for f in range(1, 2400)]
+    late = json.loads(subprocess.run(["node", str(script), json.dumps(cues)], capture_output=True, text=True, check=True).stdout)
+    assert late == []
