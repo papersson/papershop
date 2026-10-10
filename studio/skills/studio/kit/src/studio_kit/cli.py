@@ -173,8 +173,13 @@ COMMANDS = {
     ], "footage:main_ingest"),
     "edit": ("keep an edit list of footage segments and build the timeline from it", [W("video"), A("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
     "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), A("file")], "beats:main"),
-    "sfx": ("synthesised effects from a cues file, on the timeline", [W("video"), A("cues", help="JSON list of {t, type, gain}")], "sfx:main"),
-    "sound-lab": ("a page to choose effect candidates by listening", [V("video")], "sfx:main_lab"),
+    "sfx": ("effects from a cues file, on the timeline: synth voices, or sound kit recordings landing on their peak", [
+        W("video"), A("cues", help='JSON list of {"t": seconds | cue or beat name | anchor, "type": "click", '
+                                   '"sound": "synth:NAME" | "kit:ID" | "kit" (the type\'s default recording), "gain": dB, '
+                                   '"params": {freq, decay, length} (synths only)}; sound is optional (the type\'s synth '
+                                   'voice); a kit sound is copied into assets/sounds/'),
+    ], "sfx:main"),
+    "sound-lab": ("a page to choose effects by listening: each type's synth candidates and kit recordings", [V("video")], "sfx:main_lab"),
     "audio-check": ("measure the soundtrack: effect sync, ducking, masking, the pauses guard and loudness, into out/audio-check.json", [
         W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
     ], "audio_check:main"),

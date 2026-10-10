@@ -166,13 +166,22 @@ default, and "no music" stays the plain default.
 - **Effects belong in pauses.** A loud effect decays before the next word; a quiet one under speech
   stays below -24 dBFS at the master's level. `studio check` fails on a louder one under a spoken
   word, so `publish` stops on it: the finish limits peaks, it does not unmask a word.
-- **One voice per kind of event, chosen by listening.** The kit has 24 neutral voices (`studio sfx`
-  and the docstrings in `sfx.py`): click, soft-tick, tap, key-tick and counter-tick for steps and
-  typing; pop, pop-small, pop-large and shimmer for things appearing; confirm and error for a
-  result; snap, card-flip, drop, thump and low-hit for things landing or set down; whoosh, slide-in,
-  slide-out and paper-slide for moves; chime for a milestone; glitch for something wrong; riser and
-  swell for a build, which end on their cue (every other voice starts on it). `studio sound-lab`
-  plays three candidates of each alone and in a pause of the narration.
+- **One sound per kind of event, chosen by listening.** The types (`studio sfx` and the docstrings in
+  `sfx.py`): click, soft-tick, tap, key-tick and counter-tick for steps and typing; pop, pop-small,
+  pop-large and shimmer for things appearing; confirm and error for a result; snap, card-flip, drop,
+  thump and low-hit for things landing or set down; whoosh, slide-in, slide-out and paper-slide for
+  moves; chime for a milestone; glitch for something wrong; riser and swell for a build. The sound
+  kit adds question, page-turn, stack, dice and toggle.
+- **Recordings first, synths as the fallback.** Synthesised beeps were the weak point of agent-made
+  soundtracks. The sound kit holds about 150 curated CC0 recordings (Kenney's packs), each with a
+  type; a cue plays one with `"sound": "kit"` (its type's default) or `"kit:ID"` (one the lab
+  offered). A recording lands on its cue at its transient peak, not its first sample, since a
+  recording has a lead-in; the peak was measured once and sits in `soundkit.json`. `studio sfx`
+  copies each one into `assets/sounds/` with its provenance, and the page credits the packs. A cue
+  with a type and no `sound` keeps the synth voice of that name (a synth build, riser or swell,
+  ends on its cue, every other voice starts on it), so recordings are opt-in cue by cue. `studio
+  sound-lab` plays each type's synth candidates and kit recordings alone and in a pause of the
+  narration; the kit was curated by measurement, so listen before choosing.
 - **Time picture and sound from one event** (Motion, above): an effect names the cue the scene's
   move uses, and `studio audio-check` reports each one's offset from its frame (a warning past one).
 - **One room, a clear voice.** The mix puts effects and music in one small shared room (a few early

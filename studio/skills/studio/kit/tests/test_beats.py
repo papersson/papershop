@@ -46,9 +46,10 @@ def test_effects_are_placed_on_cue_names_and_are_deterministic(tmp_path):
         sfx.voice("laser")
 
 
-def test_sound_lab_page_offers_every_candidate(tmp_path):
+def test_sound_lab_page_offers_every_candidate(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_CACHE", str(tmp_path / "cache"))        # the kit not fetched: synth voices only
     make_video(tmp_path)
     page = sfx.lab(tmp_path).read_text()
     assert page.count('type="radio"') == sum(len(v) for v in sfx.CANDIDATES.values())
     assert 'id="copy"' in page and '<meta charset="utf-8">' in page
-    assert (tmp_path / "out" / "sound-lab" / "click2_alone.wav").exists()
+    assert (tmp_path / "out" / "sound-lab" / "synth-click-2_alone.wav").exists()

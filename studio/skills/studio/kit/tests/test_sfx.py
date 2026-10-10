@@ -43,8 +43,9 @@ def test_a_build_ends_on_its_cue_and_a_hit_starts_on_it():
     assert np.abs(early[int(0.2 * sfx.RATE) + 10:]).max() == 0 and np.abs(early[:100]).max() > 0
 
 
-def test_the_sound_lab_lists_every_voice_with_what_it_is_for(tmp_path):
+def test_the_sound_lab_lists_every_voice_with_what_it_is_for(tmp_path, monkeypatch):
     from studio_kit import timeline as tl
+    monkeypatch.setenv("STUDIO_CACHE", str(tmp_path / "cache"))        # the kit not fetched: synth voices only
     (tmp_path / "timeline.json").write_text(json.dumps({"duration": 4.0, "tracks": {"narration": [], "scene": []}}))
     page = sfx.lab(tmp_path).read_text()
     assert page.count('type="radio"') == 3 * len(sfx.KINDS)
@@ -130,8 +131,8 @@ def test_one_resolver_makes_every_sound():
     assert sfx.resolve("click", {"freq": 1200}).digest == s.digest == sfx.resolve("synth:click", {"freq": 1200}).digest
     assert s.digest != sfx.resolve("click").digest != sfx.resolve("pop").digest
     assert sfx.resolve({"type": "click", "sound": "synth:pop"}).id == "synth:pop"      # the sound, over the type
-    with pytest.raises(SystemExit, match="unknown effect 'kit:door': no sound provider 'kit'"):
-        sfx.check([{"t": 1.0, "type": "click", "sound": "kit:door"}], MIXED)
+    with pytest.raises(SystemExit, match="unknown effect 'tape:door': no sound provider 'tape'"):
+        sfx.check([{"t": 1.0, "type": "click", "sound": "tape:door"}], MIXED)
     with pytest.raises(SystemExit, match="unknown effect 'laser'"):
         sfx.check([{"t": 1.0, "type": "laser"}], MIXED)
     with pytest.raises(SystemExit, match=r"effect at 1\.0: length must be"):

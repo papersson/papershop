@@ -127,9 +127,10 @@ The page is the video, its chapters and one feedback button. In learner drive it
 picture, ±1 s). Notes go to the artifact's database, collection `feedback`. There is no captions
 toggle: captions are burned in.
 
-Recorded sounds are credited. A video that uses sounds from the sound kit (`studio asset library`)
-gets a credit line on the page under the chapters ("Sound effects: Impact Sounds by Kenney
-(www.kenney.nl) (CC0 1.0)"), beside the voice's; `studio asset list VIDEO --credits` prints the
+Recorded sounds are credited. A video that uses sounds from the sound kit (a cue's `"sound": "kit"`
+or `"kit:ID"`, which `studio sfx` copies in, or `studio asset library`) gets a credit line on the
+page under the chapters ("Sound effects: Impact Sounds by Kenney (www.kenney.nl) (CC0 1.0)"),
+beside the voice's; `studio asset list VIDEO --credits` prints the
 CREDITS block, one line per pack with its homepage and the sounds used, for a description or a post.
 CC0 does not require credit; the studio gives it anyway, and the provenance rows say where each
 sound came from.
