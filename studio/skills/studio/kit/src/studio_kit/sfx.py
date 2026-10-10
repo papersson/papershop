@@ -3,8 +3,10 @@
 CUES.json is a list of {"t": seconds, "type": "click", "gain": 0}; `t` may also be a cue or beat
 name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline, or an anchor as cues.json
 takes one (timeline.event_time). Naming the cue a scene waits on gives picture and sound one time on
-the frame grid. The voices are small numpy synths (a click, a pop, a thump and a whoosh), so effects
-are code like everything else and land on the measured beat. `studio sfx` checks the cues and keeps
+the frame grid. The voices are small numpy synths (VOICES: click, pop, thump, whoosh and twenty
+neutral ones for an explainer's moves, each with a line on what it is for), so effects are code like
+everything else and land on the measured beat. A cue's params are the voice's freq, decay and
+length. A build (riser, swell) ends on its cue; every other voice starts on it. `studio sfx` checks the cues and keeps
 them as audio/sfx.json; every mix renders them against the timeline it mixes (`rendered`, into
 audio/sfx.wav, again only when a resolved time or a voice changed), so a re-narration moves an
 effect with its cue. The timeline mixes it at -8 dB under the narration.
@@ -14,6 +16,7 @@ type, each played alone and in context (after a sentence of the narration, in it
 page with a radio group per type and a "Copy choices" export, so the choice is made by listening.
 """
 import hashlib
+import html
 import json
 import math
 from pathlib import Path
@@ -23,8 +26,19 @@ from .workspace import atomic_json
 
 RATE = 48_000
 SEED = 42
-KINDS = ("click", "pop", "thump", "whoosh")
 NEEDS = "sfx needs numpy and soundfile: run `studio doctor --fetch --extra audio`"
+
+# name -> (synth, default length in seconds, where its cue falls: "start", or "end" for a build that
+# lands on the cue). Each synth takes the times t of its samples and the cue's params (freq, decay,
+# length, as each voice reads them) and returns samples within [-1, 1].
+VOICES = {}
+
+
+def _voice(name, length, lands="start"):
+    def put(fn):
+        VOICES[name] = (fn, length, lands)
+        return fn
+    return put
 
 
 def _noise(n):
@@ -38,26 +52,248 @@ def _noise(n):
     return out
 
 
-def voice(kind, **p):
-    """One effect as a float array at RATE."""
+def _smooth(x, k):
+    """A moving average over k samples: noise softened to a hiss, or a hiss to a rumble."""
     import numpy as np
-    if kind == "click":
-        f, d = p.get("freq", 1800), p.get("decay", 90)
-        t = np.arange(int(0.05 * RATE)) / RATE
-        return np.sin(2 * math.pi * f * t) * np.exp(-t * d) * 0.5
-    if kind == "pop":
-        f, d = p.get("freq", 600), p.get("decay", 30)
-        t = np.arange(int(0.15 * RATE)) / RATE
-        return np.sin(2 * math.pi * (f + 900 * t) * t) * np.exp(-t * d) * 0.4
-    if kind == "thump":
-        f, d = p.get("freq", 90), p.get("decay", 9)
-        t = np.arange(int(0.5 * RATE)) / RATE
-        return np.sin(2 * math.pi * (f - 60 * t) * t) * np.exp(-t * d) * 0.9
-    if kind == "whoosh":
-        n = int(p.get("length", 0.35) * RATE)
-        t = np.arange(n) / RATE
-        return _noise(n) * np.sin(math.pi * np.minimum(1, t / (n / RATE))) * 0.25
-    raise SystemExit(f"unknown effect {kind!r}: click, pop, thump or whoosh")
+    return np.convolve(x, np.ones(k) / k, mode="same")
+
+
+def _sin(f, t):
+    import numpy as np
+    return np.sin(2 * math.pi * f * t)
+
+
+def _chirp(f0, f1, t):
+    """A sine gliding from f0 to f1 over t's span (the phase is the integral of the frequency)."""
+    import numpy as np
+    span = max(t[-1], 1e-9) if len(t) else 1.0
+    return np.sin(2 * math.pi * (f0 * t + (f1 - f0) * t * t / (2 * span)))
+
+
+def _fade(t, out=0.01):
+    """1, falling to 0 over the last `out` seconds, so a voice never ends on a click."""
+    import numpy as np
+    end = t[-1] if len(t) else 0.0
+    return np.clip((end - t) / out, 0, 1)
+
+
+@_voice("click", 0.05)
+def _click(t, p):
+    """A UI click: a step, a selection, a value set."""
+    import numpy as np
+    return _sin(p.get("freq", 1800), t) * np.exp(-t * p.get("decay", 90)) * 0.5
+
+
+@_voice("pop", 0.15)
+def _pop(t, p):
+    """Something appearing: a node, a label, a bubble."""
+    import numpy as np
+    return np.sin(2 * math.pi * (p.get("freq", 600) + 900 * t) * t) * np.exp(-t * p.get("decay", 30)) * 0.4
+
+
+@_voice("thump", 0.5)
+def _thump(t, p):
+    """A heavy landing: a box set down, a conclusion arriving."""
+    import numpy as np
+    return np.sin(2 * math.pi * (p.get("freq", 90) - 60 * t) * t) * np.exp(-t * p.get("decay", 9)) * 0.9
+
+
+@_voice("whoosh", 0.35)
+def _whoosh(t, p):
+    """A fast move across the frame: a transition, a camera swing."""
+    import numpy as np
+    return _noise(len(t)) * np.sin(math.pi * np.minimum(1, t / (len(t) / RATE))) * 0.25
+
+
+@_voice("soft-tick", 0.03)
+def _soft_tick(t, p):
+    """A cursor stepping through a list, item by item: quieter and shorter than a click."""
+    import numpy as np
+    return _sin(p.get("freq", 3000), t) * np.exp(-t * p.get("decay", 160)) * 0.25
+
+
+@_voice("tap", 0.06)
+def _tap(t, p):
+    """A finger on a button or a card picked out: a soft, low knock."""
+    import numpy as np
+    f = p.get("freq", 900)
+    return _chirp(1.4 * f, 0.8 * f, t) * np.exp(-t * p.get("decay", 70)) * 0.45
+
+
+@_voice("confirm", 0.3)
+def _confirm(t, p):
+    """A check that passes, a right answer: two rising tones a fifth apart."""
+    import numpy as np
+    f, d = p.get("freq", 880), p.get("decay", 18)
+    first, second = t < 0.12, t >= 0.12
+    tone = np.where(first, _sin(f, t) * np.exp(-t * d), _sin(1.5 * f, t) * np.exp(-(t - 0.12) * d) * second)
+    return tone * _fade(t) * 0.3
+
+
+@_voice("error", 0.3)
+def _error(t, p):
+    """A wrong turn or a failing test, without alarm: two soft low buzzes."""
+    import numpy as np
+    f = p.get("freq", 220)
+    buzz = _sin(f, t) + _sin(3 * f, t) / 3 + _sin(5 * f, t) / 5
+    gate = ((t % 0.15) < 0.11) * np.exp(-(t % 0.15) * p.get("decay", 12))
+    return buzz * gate * _fade(t) * 0.25
+
+
+@_voice("slide-in", 0.3)
+def _slide_in(t, p):
+    """A panel or label entering from the side: a rising glide with a hiss under it."""
+    import numpy as np
+    f, span = p.get("freq", 300), max(t[-1], 1e-9)
+    env = np.sin(0.5 * math.pi * t / span) ** 2 * _fade(t, 0.03)
+    return (_chirp(f, 3 * f, t) * 0.6 + _smooth(_noise(len(t)), 6) * 0.8) * env * 0.3
+
+
+@_voice("slide-out", 0.3)
+def _slide_out(t, p):
+    """A panel or label leaving: the slide-in's glide falling away."""
+    import numpy as np
+    f, span = p.get("freq", 300), max(t[-1], 1e-9)
+    env = np.cos(0.5 * math.pi * t / span) ** 2 * np.clip(t / 0.01, 0, 1)
+    return (_chirp(3 * f, f, t) * 0.6 + _smooth(_noise(len(t)), 6) * 0.8) * env * 0.3
+
+
+@_voice("riser", 0.8, lands="end")
+def _riser(t, p):
+    """A short build toward a reveal: rising pitch and hiss that end on the cue."""
+    import numpy as np
+    f, span = p.get("freq", 200), max(t[-1], 1e-9)
+    env = (t / span) ** 2 * _fade(t, 0.015)
+    return (_chirp(f, 6 * f, t) * 0.5 + _smooth(_noise(len(t)), 3) * 0.5) * env * 0.35
+
+
+@_voice("drop", 0.6)
+def _drop(t, p):
+    """Something falling into place, or a number falling: a pitch that drops and settles."""
+    import numpy as np
+    f = p.get("freq", 400)
+    return _chirp(f, f / 6, t) * np.exp(-t * p.get("decay", 5)) * _fade(t) * 0.6
+
+
+@_voice("snap", 0.04)
+def _snap(t, p):
+    """A piece snapping into place, a node attaching: a dry, bright crack."""
+    import numpy as np
+    d = p.get("decay", 250)
+    return (np.diff(_noise(len(t) + 1)) * 0.5 + _sin(p.get("freq", 2500), t) * 0.5) * np.exp(-t * d) * 0.5
+
+
+@_voice("card-flip", 0.12)
+def _card_flip(t, p):
+    """A card turning over to show its other side: two quick papery ticks."""
+    import numpy as np
+    n = np.diff(_noise(len(t) + 1)) * 0.5
+    d = p.get("decay", 180)
+    second = t >= 0.045
+    return n * (np.exp(-t * d) + np.exp(-(t - 0.045) * d) * second * 0.8) * 0.3
+
+
+@_voice("paper-slide", 0.4)
+def _paper_slide(t, p):
+    """A sheet or panel sliding across the desk: a soft hiss, gentler than a whoosh."""
+    import numpy as np
+    span = max(t[-1], 1e-9)
+    return _smooth(_noise(len(t)), 4) * np.sin(math.pi * t / span) * 0.35
+
+
+@_voice("pop-small", 0.08)
+def _pop_small(t, p):
+    """A small thing appearing, one of many (dots, list items): a light pop."""
+    import numpy as np
+    return np.sin(2 * math.pi * (p.get("freq", 900) + 1400 * t) * t) * np.exp(-t * p.get("decay", 55)) * 0.3
+
+
+@_voice("pop-large", 0.25)
+def _pop_large(t, p):
+    """A big thing appearing, the one that matters: a round, lower pop."""
+    import numpy as np
+    return np.sin(2 * math.pi * (p.get("freq", 300) + 500 * t) * t) * np.exp(-t * p.get("decay", 18)) * _fade(t) * 0.5
+
+
+@_voice("chime", 1.0)
+def _chime(t, p):
+    """A milestone, a chapter's end, a result worth remembering: a small bell."""
+    import numpy as np
+    f, d = p.get("freq", 1046), p.get("decay", 4)
+    bell = sum(g * _sin(f * r, t) * np.exp(-t * d * k) for r, g, k in ((1, 1.0, 1), (2.76, 0.5, 1.6), (5.4, 0.25, 2.4)))
+    return bell * np.clip(t / 0.002, 0, 1) * _fade(t) * 0.25
+
+
+@_voice("low-hit", 0.6)
+def _low_hit(t, p):
+    """A key fact set down, weight without a bang: a soft low hit, rounder than a thump."""
+    import numpy as np
+    f = p.get("freq", 55)
+    body = _sin(f, t) + 0.4 * _sin(2 * f, t)
+    return body * np.clip(t / 0.005, 0, 1) * np.exp(-t * p.get("decay", 6)) * _fade(t) * 0.55
+
+
+@_voice("swell", 1.2, lands="end")
+def _swell(t, p):
+    """A gentle build into a summary or a big picture: a soft chord that swells to the cue."""
+    import numpy as np
+    f, span = p.get("freq", 220), max(t[-1], 1e-9)
+    chord = _sin(f, t) + 0.6 * _sin(1.5 * f, t) + 0.4 * _sin(2 * f, t)
+    return chord * np.sin(0.5 * math.pi * t / span) ** 2 * _fade(t, 0.04) * 0.15
+
+
+@_voice("glitch", 0.15)
+def _glitch(t, p):
+    """A bug, a corrupted value, something not quite right: a subtle digital stutter."""
+    import numpy as np
+    f = p.get("freq", 1200)
+    steps = (1.0, 0.0, 1.6, 0.7, 0.0, 2.3, 1.2, 0.0, 0.5, 1.9)       # a fixed pattern, so it is the same every time
+    k = np.minimum((t / 0.015).astype(int), len(steps) - 1)
+    ratio = np.array(steps)[k]
+    return np.sign(_sin(f * np.maximum(ratio, 0.01), t)) * (ratio > 0) * _fade(t) * 0.07
+
+
+@_voice("shimmer", 0.8)
+def _shimmer(t, p):
+    """Something new and bright appearing, a highlight: high partials with a soft tremolo."""
+    import numpy as np
+    f, d = p.get("freq", 2093), p.get("decay", 4)
+    tones = sum(_sin(f * r, t) * (1 + 0.5 * _sin(7 + 2 * i, t)) for i, r in enumerate((1, 1.26, 1.5, 2)))
+    return tones / 6 * np.clip(t / 0.02, 0, 1) * np.exp(-t * d) * _fade(t) * 0.3
+
+
+@_voice("key-tick", 0.025)
+def _key_tick(t, p):
+    """A keystroke as text types out on screen: a tiny clack, one per character or word."""
+    import numpy as np
+    return (np.diff(_noise(len(t) + 1)) * 0.4 + _sin(p.get("freq", 4000), t) * 0.3) * np.exp(-t * p.get("decay", 300)) * 0.4
+
+
+@_voice("counter-tick", 0.03)
+def _counter_tick(t, p):
+    """A number counting up or down, one tick per step: a clean, pitched tick."""
+    import numpy as np
+    f = p.get("freq", 2200)
+    return (_sin(f, t) + 0.3 * _sin(2 * f, t)) * np.exp(-t * p.get("decay", 200)) * 0.25
+
+
+KINDS = tuple(VOICES)
+
+
+def voice(kind, **p):
+    """One effect as a float array at RATE, `length` seconds long (the voice's default unless given)."""
+    import numpy as np
+    if kind not in VOICES:
+        raise SystemExit(f"unknown effect {kind!r}: {', '.join(KINDS)}")
+    fn, length, _ = VOICES[kind]
+    t = np.arange(int(p.get("length", length) * RATE)) / RATE
+    return fn(t, p)
+
+
+def offset(kind, samples):
+    """Where an effect starts relative to its cue, in samples: 0, or back by its length for a build
+    that lands on the cue (a riser, a swell)."""
+    return -samples if VOICES[kind][2] == "end" else 0
 
 
 def _time(t, timeline):
@@ -100,11 +336,16 @@ def render(cues, timeline):
     """The effects on one float track, unclipped: the timeline's -8 dB comes later, in the mix, so an
     effect over full scale here is not over it there, and the master's limiter takes what still is."""
     import numpy as np
-    placed = [(resolve_time(c["t"], timeline), voice(c["type"], **c.get("params", {})), 10 ** (c.get("gain", 0) / 20)) for c in cues]
-    end = max(t * RATE + len(v) for t, v, _ in placed) if placed else RATE
+    placed = []
+    for c in cues:
+        v = voice(c["type"], **c.get("params", {}))
+        i = int(resolve_time(c["t"], timeline) * RATE) + offset(c["type"], len(v))
+        if i < 0:                       # a build longer than the time before its cue: its start is cut
+            v, i = v[-i:], 0
+        placed.append((i, v, 10 ** (c.get("gain", 0) / 20)))
+    end = max(i + len(v) for i, v, _ in placed) if placed else RATE
     buf = np.zeros(int(max(end, timeline["duration"] * RATE)) + RATE, dtype=np.float32)
-    for t, v, g in placed:
-        i = int(t * RATE)
+    for i, v, g in placed:
         buf[i:i + len(v)] += (v * g).astype(np.float32)
     return buf
 
@@ -168,11 +409,32 @@ def main(args):
 
 # --- the sound lab ---------------------------------------------------------------------------------
 
+# Three candidates per voice: its default and two neighbours, by pitch where it has one, else by length.
 CANDIDATES = {
     "click": [{"freq": 1200}, {"freq": 1800}, {"freq": 2600, "decay": 140}],
     "pop": [{"freq": 400}, {"freq": 600}, {"freq": 900, "decay": 45}],
     "thump": [{"freq": 60}, {"freq": 90}, {"freq": 120, "decay": 14}],
     "whoosh": [{"length": 0.25}, {"length": 0.35}, {"length": 0.6}],
+    "soft-tick": [{"freq": 2400}, {}, {"freq": 3800}],
+    "tap": [{"freq": 700}, {}, {"freq": 1200}],
+    "confirm": [{"freq": 660}, {}, {"freq": 1046}],
+    "error": [{"freq": 165}, {}, {"freq": 294}],
+    "slide-in": [{"length": 0.2}, {}, {"length": 0.45}],
+    "slide-out": [{"length": 0.2}, {}, {"length": 0.45}],
+    "riser": [{"length": 0.5}, {}, {"length": 1.2}],
+    "drop": [{"freq": 300}, {}, {"freq": 600}],
+    "snap": [{"freq": 1800}, {}, {"freq": 3400}],
+    "card-flip": [{"decay": 120}, {}, {"decay": 260}],
+    "paper-slide": [{"length": 0.25}, {}, {"length": 0.6}],
+    "pop-small": [{"freq": 700}, {}, {"freq": 1200}],
+    "pop-large": [{"freq": 220}, {}, {"freq": 420}],
+    "chime": [{"freq": 784}, {}, {"freq": 1568}],
+    "low-hit": [{"freq": 45}, {}, {"freq": 70}],
+    "swell": [{"length": 0.8}, {}, {"length": 1.8}],
+    "glitch": [{"freq": 800}, {}, {"freq": 1800}],
+    "shimmer": [{"freq": 1568}, {}, {"freq": 2637}],
+    "key-tick": [{"freq": 3000}, {}, {"freq": 5000}],
+    "counter-tick": [{"freq": 1600}, {}, {"freq": 3000}],
 }
 
 
@@ -187,8 +449,8 @@ def lab(video):
     rows = []
     for kind, variants in CANDIDATES.items():
         for i, p in enumerate(variants, 1):
-            alone = np.zeros(int(1.0 * RATE) + RATE // 2, dtype=np.float32)
             v = voice(kind, **p).astype(np.float32)
+            alone = np.zeros(max(int(1.5 * RATE), len(v) + RATE), dtype=np.float32)
             alone[RATE // 4:RATE // 4 + len(v)] = v
             write_wav(out / f"{kind}{i}_alone.wav", alone)
             rows.append({"kind": kind, "n": i, "params": p, "alone": f"{kind}{i}_alone.wav"})
@@ -197,15 +459,15 @@ def lab(video):
         s = t["tracks"]["narration"][0]
         for r in rows:
             v = voice(r["kind"], **r["params"]).astype(np.float32)
-            n = int((s["end"] + 1.2) * RATE)
+            n = int((s["end"] + 1.2) * RATE) + len(v)
             buf = np.zeros(n + RATE, dtype=np.float32)
             from . import proc
             pcm = proc.ffmpeg("-i", narr, "-t", f"{s['end'] + 0.3:.2f}", "-f", "f32le", "-ac", "1", "-ar", RATE, "-",
                               capture_output=True).stdout
             voice_pcm = np.frombuffer(pcm, dtype=np.float32)
             buf[:len(voice_pcm)] = voice_pcm[:len(buf)]
-            i = int((s["end"] + 0.3) * RATE)
-            buf[i:i + len(v)] += v * 0.7
+            i = max(0, int((s["end"] + 0.3) * RATE) + offset(r["kind"], len(v)))
+            buf[i:i + len(v)] += v[:len(buf) - i] * 0.7
             name = f"{r['kind']}{r['n']}_context.wav"
             write_wav(out / name, buf)
             r["context"] = name
@@ -223,14 +485,15 @@ def lab_html(rows, t):
             f'<audio controls preload="none" src="{r["alone"]}"></audio>'
             + (f'<audio controls preload="none" src="{r["context"]}"></audio>' if r.get("context") else "")
             + "</label>" for r in rows if r["kind"] == k)
-        blocks.append(f"<fieldset><legend>{k}</legend>{items}</fieldset>")
+        about = html.escape((VOICES[k][0].__doc__ or "").strip()) if k in VOICES else ""
+        blocks.append(f"<fieldset><legend>{k}</legend>" + (f'<p class="about">{about}</p>' if about else "") + f"{items}</fieldset>")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sound lab</title><style>
 :root{{--bg:#0b0e12;--ink:#e6ebf0;--muted:#8c97a4;--line:#232b34;--accent:#8fd3ff}}
 @media (prefers-color-scheme:light){{:root{{--bg:#f5f6f7;--ink:#151a20;--muted:#5b6672;--line:#dde2e7;--accent:#0a6fa8}}}}
 body{{margin:0;padding:24px 16px;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif;max-width:900px;margin-inline:auto}}
 fieldset{{border:1px solid var(--line);border-radius:8px;margin:16px 0;padding:8px 16px}}legend{{padding:0 8px;color:var(--muted)}}
-.c{{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:6px 0}}code{{color:var(--muted);font-size:12px}}audio{{height:32px}}
+.about{{margin:4px 0 8px;color:var(--muted);font-size:14px}}.c{{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:6px 0}}code{{color:var(--muted);font-size:12px}}audio{{height:32px}}
 button{{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer}}
 pre{{background:none;border:1px solid var(--line);padding:12px;border-radius:8px;white-space:pre-wrap}}
 </style></head><body><h1>Sound lab</h1>
