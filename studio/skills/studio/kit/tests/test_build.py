@@ -95,7 +95,7 @@ def test_an_old_effects_render_plays_when_numpy_is_missing(tmp_path, monkeypatch
 
     def no_numpy(*a):
         raise ImportError("numpy")
-    monkeypatch.setattr(sfx, "render", no_numpy)
+    monkeypatch.setattr(sfx, "_mix", no_numpy)          # placing needs no numpy; mixing does
     assert sfx.rendered(v, tl.build(v)) == v / "audio" / "sfx.wav"
     assert "effects not re-placed" in capsys.readouterr().out and not (v / ".cache" / "sound" / "sfx.key").exists()
     (v / "audio" / "sfx.wav").unlink()

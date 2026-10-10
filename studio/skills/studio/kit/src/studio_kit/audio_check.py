@@ -202,13 +202,12 @@ def sync(stems, video, timeline, cut=None):
     if "sfx" not in stems.roles or not f.exists():
         return []
     fps, rows = timeline["fps"], []
-    for c in json.loads(f.read_text()):
+    for p in sfx.place(json.loads(f.read_text()), timeline):
+        c, at, lands = p.cue, p.time, p.sound.lands
         name = c["t"] if isinstance(c["t"], str) and c["t"] in timeline.get("cues", {}) else None
         if name is None and not isinstance(c["t"], dict):
             continue                                       # seconds or a beat: no event to be in sync with
-        at = timeline["cues"][name] if name else tl.event_time(timeline, c["t"])
-        frame = tl.half_up(at * fps)
-        lands = sfx.VOICES[c["type"]][2]
+        frame = tl.half_up(at * fps)                       # the event's frame, where the sound's contact belongs
         heard = _onset(stems["sfx"], frame / fps, lands)
         what = f"{c['type']} on {name or tl.describe_anchor(c['t'])} (frame {frame})"
         if heard is None:

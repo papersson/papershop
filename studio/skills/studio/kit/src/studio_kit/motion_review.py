@@ -146,9 +146,9 @@ def effects(video, cut, t):
     p = Path(video) / "audio" / "sfx.json"
     if not p.exists():
         return [], "none"
-    from .sfx import _time
-    placed = [{**c, "time": _time(c["t"], t)} for c in json.loads(p.read_text())]
-    return [e for e in placed if e["time"] is not None], "the current sources (this cut kept none)"
+    from .sfx import place
+    placed = place(json.loads(p.read_text()), t, strict=False)
+    return [{**e.cue, "time": e.time} for e in placed if e.time is not None], "the current sources (this cut kept none)"
 
 
 def _clip_at(t, frame):

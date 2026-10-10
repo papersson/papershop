@@ -435,3 +435,17 @@ passes end on time and survive a restart.
   a calm explainer. `tone: comic` in video.json is set only when the user asks for a comic, cartoon
   or silly video, and only then is `references/styles/comic.md` read; "fun", "delightful" or
   "engaging" ask for the plain polish done well. Two evals hold that line.
+
+## Sound from recordings (0.10.0)
+
+One long session's builders and a public "sound layer" both found the synthesised beeps the weakest
+part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its cue by its transient.
+
+- **One resolver, one placement.** An effect's sound was a synth's name, read straight from the
+  voice table, and the render, the cut's snapshot, the motion review and audio-check's sync each
+  worked out its time. Now `sfx.resolve` makes any cue's sound (its optional `sound` id, else its
+  type) into one record: samples, rate, the contact sample where the cue lands, where that is (start,
+  end for a build, peak for a recording) and a digest; the synths are its first provider. `sfx.place`
+  puts every cue on a timeline once, and all four read it. The track's cache key is the placements'
+  digests, times and gains, so an edit elsewhere in the kit no longer re-renders every video's
+  effects.

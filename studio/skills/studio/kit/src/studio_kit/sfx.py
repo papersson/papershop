@@ -1,15 +1,28 @@
-"""`studio sfx VIDEO CUES.json`: synthesised effects placed on the timeline, and `studio sound-lab`.
+"""`studio sfx VIDEO CUES.json`: effects placed on the timeline, and `studio sound-lab`.
 
-CUES.json is a list of {"t": seconds, "type": "click", "gain": 0}; `t` may also be a cue or beat
-name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline, or an anchor as cues.json
-takes one (timeline.event_time). Naming the cue a scene waits on gives picture and sound one time on
-the frame grid. The voices are small numpy synths (VOICES: click, pop, thump, whoosh and twenty
-neutral ones for an explainer's moves, each with a line on what it is for), so effects are code like
-everything else and land on the measured beat. A cue's params are the voice's freq, decay and
-length. A build (riser, swell) ends on its cue; every other voice starts on it. `studio sfx` checks the cues and keeps
-them as audio/sfx.json; every mix renders them against the timeline it mixes (`rendered`, into
-audio/sfx.wav, again only when a resolved time or a voice changed), so a re-narration moves an
-effect with its cue. The timeline mixes it at -8 dB under the narration.
+CUES.json is a list of cues:
+
+  {"t": 1.5 | "reveal" | {anchor},   when: seconds, a cue or beat name, or an anchor
+   "type": "click",                  the category, which today is also the synth voice's name
+   "sound": "synth:click",           optional: one specific sound, as provider:name
+   "gain": 0,                        dB, optional
+   "params": {"freq": 1800}}         optional: what the sound's provider reads (a synth's freq, decay, length)
+
+`t` may be a cue or beat name ("reveal:s1_03", "beat_3", "downbeat_1", "hit_2") from the timeline,
+or an anchor as cues.json takes one (timeline.event_time). Naming the cue a scene waits on gives
+picture and sound one time on the frame grid.
+
+An effect's sound comes from one resolver (`resolve`): the cue's `sound` id, else its type as a
+synth's name, is made by a provider into a Sound, which says where in it the cue lands (`contact`)
+and carries a digest for cache keys. The synths are the only provider today: small numpy voices
+(VOICES: click, pop, thump, whoosh and twenty neutral ones for an explainer's moves, each with a line
+on what it is for), so effects are code like everything else and land on the measured beat. A build
+(riser, swell) ends on its cue; every other voice starts on it. Where each effect sits on a timeline
+is one function too (`place`), which the render, the motion review's windows, the cut's snapshot and
+audio-check's sync all read. `studio sfx` checks the cues and keeps them as audio/sfx.json; every mix
+renders them against the timeline it mixes (`rendered`, into audio/sfx.wav, again only when a
+placement changed), so a re-narration moves an effect with its cue. The timeline mixes it at -8 dB
+under the narration.
 
 Sound effects are off by default and belong in pauses. The sound lab renders candidates for each
 type, each played alone and in context (after a sentence of the narration, in its pause), on one
@@ -19,7 +32,10 @@ import hashlib
 import html
 import json
 import math
+from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
+from typing import Callable
 
 from . import timeline as tl
 from .workspace import atomic_json
@@ -28,10 +44,12 @@ RATE = 48_000
 SEED = 42
 NEEDS = "sfx needs numpy and soundfile: run `studio doctor --fetch --extra audio`"
 
-# name -> (synth, default length in seconds, where its cue falls: "start", or "end" for a build that
-# lands on the cue). Each synth takes the times t of its samples and the cue's params (freq, decay,
-# length, as each voice reads them) and returns samples within [-1, 1].
+# The synth provider's table (only Synth reads it): name -> (synth, default length in seconds, where
+# its cue falls: "start", or "end" for a build that lands on the cue). Each synth takes the times t of
+# its samples and the cue's params (freq, decay, length, as each voice reads them) and returns
+# samples within [-1, 1].
 VOICES = {}
+SYNTH_VERSION = 1       # in every synth's digest: bump it when a voice's sound changes, to re-render
 
 
 def _voice(name, length, lands="start"):
@@ -297,22 +315,93 @@ def params_problem(p):
 
 
 def voice(kind, **p):
-    """One effect as a float array at RATE, `length` seconds long (the voice's default unless given)."""
-    import numpy as np
-    if kind not in VOICES:
-        raise SystemExit(f"unknown effect {kind!r}: {', '.join(KINDS)}")
-    if params_problem(p):
-        raise SystemExit(f"effect {kind}: {params_problem(p)}")
-    fn, length, _ = VOICES[kind]
-    t = np.arange(int(p.get("length", length) * RATE)) / RATE
-    return fn(t, p)
+    """One synth's samples as a float array at RATE, `length` seconds long (the voice's default
+    unless given)."""
+    return resolve(kind, p).samples
 
 
-def offset(kind, samples):
-    """Where an effect starts relative to its cue, in samples: 0, or back by its length for a build
-    that lands on the cue (a riser, a swell)."""
-    return -samples if VOICES[kind][2] == "end" else 0
+# --- sounds: what an effect is made of -------------------------------------------------------------
 
+@dataclass(frozen=True)
+class Sound:
+    """One effect's sound, resolved. Its samples (float, mono, at `rate`) are made on first use, so
+    placing effects (a snapshot, sync's event times) needs no numpy."""
+    id: str             # provider:name
+    lands: str          # where its cue falls: "start", "end" (a build) or "peak" (a recording's transient)
+    contact: int        # the sample within the sound that lands on the cue
+    length: int         # in samples
+    digest: str         # provider, name, params and version: what the track's cache key is made of
+    make: Callable = field(repr=False, compare=False)
+    rate: int = RATE
+
+    @cached_property
+    def samples(self):
+        return self.make()
+
+
+def _digest(*parts):
+    return hashlib.sha1(json.dumps(parts, sort_keys=True).encode()).hexdigest()[:16]
+
+
+class Synth:
+    """The synth provider: VOICES by name. A provider names its sounds, says what one is for, why
+    params can't be made, makes a Sound, and offers the lab its candidates; a kit of recordings or a
+    file in the video's assets is another class with these five methods, registered in PROVIDERS."""
+    name = "synth"
+
+    def names(self):
+        return KINDS
+
+    def about(self, name):
+        return (VOICES[name][0].__doc__ or "").strip()
+
+    def problem(self, name, params):
+        return params_problem(params)
+
+    def sound(self, name, params):
+        n = int(params.get("length", VOICES[name][1]) * RATE)      # its length, known before it is made
+
+        def make():
+            import numpy as np
+            return VOICES[name][0](np.arange(n) / RATE, params)
+        lands = VOICES[name][2]
+        return Sound(f"synth:{name}", lands, n if lands == "end" else 0, n,
+                     _digest(self.name, name, params, SYNTH_VERSION), make)
+
+    def candidates(self):
+        return {k: [(k, p) for p in CANDIDATES[k]] for k in KINDS}
+
+
+PROVIDERS = {"synth": Synth()}
+
+
+def source(ref):
+    """(provider, name) for a cue or a sound name: the cue's `sound` ("provider:name"), else its
+    type, a synth's name."""
+    if isinstance(ref, dict):
+        ref = ref.get("sound", ref.get("type"))
+    kind, name = ref.split(":", 1) if isinstance(ref, str) and ":" in ref else ("", ref)     # a path may hold a colon
+    p = PROVIDERS.get(kind or "synth")
+    if p is None:
+        raise SystemExit(f"unknown effect {ref!r}: no sound provider {kind!r} ({', '.join(PROVIDERS)})")
+    if name not in p.names():
+        raise SystemExit(f"unknown effect {ref!r}: {', '.join(p.names())}")
+    return p, name
+
+
+def resolve(ref, params=None, at=None):
+    """The Sound for a cue (its `sound` or type, and its params) or for a sound name and `params`.
+    Stops on an unknown sound or params its provider can't make, naming the effect `at` a time when
+    given."""
+    p, name = source(ref)
+    params = (ref.get("params", {}) if isinstance(ref, dict) else {}) if params is None else params
+    why = p.problem(name, params)
+    if why:
+        raise SystemExit(f"effect {name if at is None else f'at {at!r}'}: {why}")
+    return p.sound(name, params)
+
+
+# --- placing effects on a timeline -----------------------------------------------------------------
 
 def _time(t, timeline):
     if isinstance(t, (int, float)):
@@ -350,22 +439,50 @@ def unresolved(cues, timeline):
     return [c["t"] for c in cues if _time(c["t"], timeline) is None]
 
 
+@dataclass(frozen=True)
+class Placement:
+    """One effect on a timeline, in samples at RATE: its sound spans start to end and its contact
+    lands on the cue's time. A build longer than the time before its cue is cut at 0, so its start
+    is later than end minus its length. A cue with no time here has None for all four."""
+    cue: dict
+    time: float | None
+    start: int | None
+    end: int | None
+    contact: int | None
+    gain: float         # dB
+    sound: Sound
+
+
+def place(cues, timeline, strict=True):
+    """Every cue placed on this timeline. `strict` stops on a time the timeline doesn't have (a
+    render needs every one); otherwise that cue is placed nowhere (a snapshot lists it)."""
+    out = []
+    for c in cues:
+        s = resolve(c)
+        at = resolve_time(c["t"], timeline) if strict else _time(c["t"], timeline)
+        if at is None:
+            out.append(Placement(c, None, None, None, None, c.get("gain", 0), s))
+            continue
+        contact = int(at * RATE)
+        first = contact - s.contact
+        out.append(Placement(c, at, max(0, first), first + s.length, contact, c.get("gain", 0), s))
+    return out
+
+
+def _mix(placed, duration):
+    import numpy as np
+    end = max(p.end for p in placed) if placed else RATE
+    buf = np.zeros(int(max(end, duration * RATE)) + RATE, dtype=np.float32)
+    for p in placed:
+        v = p.sound.samples[p.start - (p.contact - p.sound.contact):]       # less a cut build's head
+        buf[p.start:p.start + len(v)] += (v * 10 ** (p.gain / 20)).astype(np.float32)
+    return buf
+
+
 def render(cues, timeline):
     """The effects on one float track, unclipped: the timeline's -8 dB comes later, in the mix, so an
     effect over full scale here is not over it there, and the master's limiter takes what still is."""
-    import numpy as np
-    placed = []
-    for c in cues:
-        v = voice(c["type"], **c.get("params", {}))
-        i = int(resolve_time(c["t"], timeline) * RATE) + offset(c["type"], len(v))
-        if i < 0:                       # a build longer than the time before its cue: its start is cut
-            v, i = v[-i:], 0
-        placed.append((i, v, 10 ** (c.get("gain", 0) / 20)))
-    end = max(i + len(v) for i, v, _ in placed) if placed else RATE
-    buf = np.zeros(int(max(end, timeline["duration"] * RATE)) + RATE, dtype=np.float32)
-    for i, v, g in placed:
-        buf[i:i + len(v)] += (v * g).astype(np.float32)
-    return buf
+    return _mix(place(cues, timeline), timeline["duration"])
 
 
 def write_wav(path, buf, subtype="PCM_24"):
@@ -374,35 +491,41 @@ def write_wav(path, buf, subtype="PCM_24"):
 
 
 def check(cues, timeline):
-    """Stop on an effect with no time in this timeline, an unknown type, a gain that isn't a number or
-    params a voice can't render (params_problem)."""
+    """Stop on an effect with no time in this timeline, a sound the resolver can't make (an unknown
+    type or sound, params its provider can't render) or a gain that isn't a number."""
     for c in cues:
         resolve_time(c["t"], timeline)
-        if c.get("type") not in KINDS:
-            raise SystemExit(f"unknown effect {c.get('type')!r}: {', '.join(KINDS)}")
+        resolve(c, at=c["t"])
         if not isinstance(c.get("gain", 0), (int, float)):
             raise SystemExit(f"effect at {c['t']!r}: gain must be dB")
-        if params_problem(c.get("params", {})):
-            raise SystemExit(f"effect at {c['t']!r}: {params_problem(c.get('params', {}))}")
+
+
+TRACK_VERSION = 1       # in the track's key: bump it when placing or mixing changes how the track sounds
+
+
+def key(placed, duration):
+    """The rendered track's identity: each effect's sound digest, time and gain, and the track's
+    length. Not this file's bytes, so an edit elsewhere in the kit keeps the render."""
+    return _digest(TRACK_VERSION, duration, [[p.sound.digest, p.time, p.gain] for p in placed])
 
 
 def rendered(video, timeline):
-    """audio/sfx.wav for this timeline: audio/sfx.json's cues resolved against it and rendered,
-    again only when a resolved time, a voice or this synth changed (the key is kept beside the
-    mix cache)."""
+    """audio/sfx.wav for this timeline: audio/sfx.json's cues placed on it and rendered, again only
+    when the key changed (kept beside the mix cache). A re-render rewrites the file, so the mix's
+    stamp of it (audio.inputs: its size and time) moves with it."""
     video = Path(video)
     cues = json.loads((video / "audio" / "sfx.json").read_text())
     if unresolved(cues, timeline):
         raise SystemExit(f"audio/sfx.json: no time for {', '.join(map(repr, unresolved(cues, timeline)))} in the "
                          "timeline (a re-narration drops a reveal: cue whose hold is gone); `studio sfx VIDEO CUES` "
                          "with times that exist")
-    placed = [{**c, "t": resolve_time(c["t"], timeline)} for c in cues]
-    key = hashlib.sha1(json.dumps(placed, sort_keys=True).encode() + Path(__file__).read_bytes()).hexdigest()[:16]
+    placed = place(cues, timeline)
+    k = key(placed, timeline["duration"])
     out, kept = video / "audio" / "sfx.wav", video / ".cache" / "sound" / "sfx.key"
-    if out.exists() and kept.exists() and kept.read_text() == key:
+    if out.exists() and kept.exists() and kept.read_text() == k:
         return out
     try:
-        write_wav(out, render(placed, timeline), "FLOAT")
+        write_wav(out, _mix(placed, timeline["duration"]), "FLOAT")
     except ImportError:
         if not out.exists():
             raise SystemExit(NEEDS)
@@ -410,7 +533,7 @@ def rendered(video, timeline):
         print(f"warn: audio/sfx.wav kept as rendered, effects not re-placed ({NEEDS})")
         return out
     kept.parent.mkdir(parents=True, exist_ok=True)
-    kept.write_text(key)
+    kept.write_text(k)
     return out
 
 
@@ -460,7 +583,8 @@ CANDIDATES = {
 
 
 def lab(video):
-    """out/sound-lab/index.html: candidates for every effect type, alone and in a pause of the narration."""
+    """out/sound-lab/index.html: every provider's candidates for each effect type, alone and in a pause
+    of the narration."""
     import numpy as np
     video = Path(video)
     out = video / "out" / "sound-lab"
@@ -468,18 +592,21 @@ def lab(video):
     t = tl.load(video)
     narr = video / "audio" / "narration.mp3"
     rows = []
-    for kind, variants in CANDIDATES.items():
-        for i, p in enumerate(variants, 1):
-            v = voice(kind, **p).astype(np.float32)
-            alone = np.zeros(max(int(1.5 * RATE), len(v) + RATE), dtype=np.float32)
-            alone[RATE // 4:RATE // 4 + len(v)] = v
-            write_wav(out / f"{kind}{i}_alone.wav", alone)
-            rows.append({"kind": kind, "n": i, "params": p, "alone": f"{kind}{i}_alone.wav"})
+    for provider in PROVIDERS.values():
+        for kind, options in provider.candidates().items():
+            for i, (name, p) in enumerate(options, 1):
+                sound = resolve(f"{provider.name}:{name}", p)
+                v = sound.samples.astype(np.float32)
+                alone = np.zeros(max(int(1.5 * RATE), len(v) + RATE), dtype=np.float32)
+                alone[RATE // 4:RATE // 4 + len(v)] = v
+                write_wav(out / f"{kind}{i}_alone.wav", alone)
+                rows.append({"kind": kind, "n": i, "params": p, "alone": f"{kind}{i}_alone.wav", "sound": sound,
+                             "about": provider.about(name)})
     if narr.exists() and t["tracks"]["narration"]:
         # In context: the first sentence's ending and its pause, with the effect placed 0.3 s after it.
         s = t["tracks"]["narration"][0]
         for r in rows:
-            v = voice(r["kind"], **r["params"]).astype(np.float32)
+            v = r["sound"].samples.astype(np.float32)
             n = int((s["end"] + 1.2) * RATE) + len(v)
             buf = np.zeros(n + RATE, dtype=np.float32)
             from . import proc
@@ -487,7 +614,7 @@ def lab(video):
                               capture_output=True).stdout
             voice_pcm = np.frombuffer(pcm, dtype=np.float32)
             buf[:len(voice_pcm)] = voice_pcm[:len(buf)]
-            i = max(0, int((s["end"] + 0.3) * RATE) + offset(r["kind"], len(v)))
+            i = max(0, int((s["end"] + 0.3) * RATE) - r["sound"].contact)        # its contact 0.3 s into the pause
             buf[i:i + len(v)] += v[:len(buf) - i] * 0.7
             name = f"{r['kind']}{r['n']}_context.wav"
             write_wav(out / name, buf)
@@ -506,7 +633,7 @@ def lab_html(rows, t):
             f'<audio controls preload="none" src="{r["alone"]}"></audio>'
             + (f'<audio controls preload="none" src="{r["context"]}"></audio>' if r.get("context") else "")
             + "</label>" for r in rows if r["kind"] == k)
-        about = html.escape((VOICES[k][0].__doc__ or "").strip()) if k in VOICES else ""
+        about = html.escape(next(r["about"] for r in rows if r["kind"] == k))
         blocks.append(f"<fieldset><legend>{k}</legend>" + (f'<p class="about">{about}</p>' if about else "") + f"{items}</fieldset>")
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sound lab</title><style>

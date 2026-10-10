@@ -358,8 +358,9 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     atomic_json(d / "timeline.json", timeline)
     atomic_json(d / "layout.json", tl.layout(video))       # what a motion review of this cut reads, as it was
     if (video / "audio" / "sfx.json").exists():
-        from .sfx import _time
-        atomic_json(d / "sfx.json", [{**c, "time": _time(c["t"], timeline)} for c in json.loads((video / "audio" / "sfx.json").read_text())])
+        from .sfx import place
+        atomic_json(d / "sfx.json", [{**p.cue, "time": p.time}
+                                     for p in place(json.loads((video / "audio" / "sfx.json").read_text()), timeline, strict=False)])
     if script_path.exists():
         shutil.copyfile(script_path, d / "SCRIPT.md")
     from .review_state import fingerprint, review_keys
