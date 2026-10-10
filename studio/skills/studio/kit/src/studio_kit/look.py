@@ -3,14 +3,16 @@
 Every visual element the scenes will use, in each of its states, rendered by the video's own engine
 in its theme and layout: boxes (idle, lit, failed), arrows (idle, active, muted), the token's glyph
 states, cards, highlights, labels at each type size, the caption band with a sample caption, and the
-theme's colours with their roles (and, on Remotion, the map, the close-up and the code components).
+theme's colours with their roles (and, on Remotion, the map, the close-up and the code components),
+and the video's colour legend (video.json legend, which `studio check` holds the scenes to) when it
+declares one.
 The builder adds the video's own elements in scenes/look.js (live) or scenes/look.tsx (Remotion);
 templates/live/scenes/example-look.js and templates/scenes/example-look.tsx show how.
 
 Output: out/look/look-<n>.png, one per page, and out/look/look.json, the record a review bundle
 includes (`latest`). Another format's sheet goes to out/look/<format>/. The record's key covers the
-engine's source, the layout and the video's look file, so a stale sheet is told apart from a
-current one. Live and Remotion only.
+engine's source, the layout, the legend and the video's look file, so a stale sheet is told apart
+from a current one. Live and Remotion only.
 """
 import hashlib
 import json
@@ -52,10 +54,14 @@ def look_files(video):
 
 
 def key(video, engine, fmt=None):
-    """A hash of what the sheet is drawn from: the engine and its source, the layout, and the video's
-    look file with the scene files it imports."""
+    """A hash of what the sheet is drawn from: the engine and its source, the layout, the colour
+    legend, and the video's look file with the scene files it imports."""
+    from . import settings
     h = hashlib.sha256(engine.encode())
     h.update(json.dumps(tl.layout(video, fmt), sort_keys=True).encode())
+    legend = settings.raw(video).get("legend")
+    if legend:
+        h.update(json.dumps(legend, sort_keys=True).encode())
     roots = [engine_dir(engine) / "src", engine_dir("shared")]
     for f in sorted(p for root in roots for p in root.rglob("*") if p.is_file() and "node_modules" not in p.parts):
         h.update(f.name.encode() + f.read_bytes())

@@ -18,11 +18,13 @@
 //   at(id, off)      start of a sentence ("03" means "<clip>_03"); end(id, off) its end
 //   word(id, i, off) the i-th spoken word; phrase(id, text, off) when the voice says that phrase
 //   cue(name, off)   a timeline cue; P(t0, d, ease) progress of a movement; kit: the helpers
+//   legend           the video's colour legend (video.json legend) as meaning -> CSS colour: draw a
+//                    meaning with {stroke: c.legend.request, means: 'request'} and the legend check sees it
 //   clip, index, chapters, timeline, layout, asset(file)
 
 import { Stage } from './stage.js'
 import * as kit from './kit.js'
-import { PAGES } from './look.js'
+import { PAGES, LEGEND_PAGE } from './look.js'
 import { captionLines, clipTimes, frameOf } from '../../shared/timing.js'
 
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
@@ -52,7 +54,7 @@ async function exists(url) {
 
 export async function boot({ svg, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
-  let T, L, scenes, overlay, boards, notes, version = 0
+  let T, L, scenes, overlay, boards, notes, legend, version = 0
 
   async function load() {
     version += 1
@@ -60,6 +62,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     L = layoutUrl ? await json(layoutUrl, DEFAULT_LAYOUT) : DEFAULT_LAYOUT
     boards = await json(base + 'boards/boards.json', {})
     notes = await json(base + 'boards/notes.json', {})
+    legend = (await json(base + 'video.json', {})).legend ?? {}
     scenes = {}
     for (const c of T.tracks.scene) {
       const url = `${base}scenes/${c.id}.js?v=${version}`
@@ -79,6 +82,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     const H = bandTop(), header = L.header?.height ?? 0
     return {
       S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: [0, header, L.width, H - header], layout: L,
+      legend: Object.fromEntries(Object.entries(legend).map(([m, v]) => [m, String(v).startsWith('#') ? v : `var(--${v})`])),
       // S.cam centres the whole frame; a key's point goes to the middle of the view instead.
       camAt: (keys, e) => {
         const k = kit.camAt(t, keys, e)
@@ -187,25 +191,28 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     return draw(c.id, f - frameOf(c.start, T.fps), layers)
   }
 
-  // The look sheet: the built-in pages (look.js), then the video's own from scenes/look.js, which exports
-  // `default function look(c)` and optionally `pages`, its pages' titles (c.page is the page's index).
+  // The look sheet: the built-in pages (look.js), the colour legend's when video.json declares one, then
+  // the video's own from scenes/look.js, which exports `default function look(c)` and optionally `pages`,
+  // its pages' titles (c.page is the page's index).
   let own = null
+  const builtIn = () => (Object.keys(legend).length ? [...PAGES, LEGEND_PAGE] : PAGES)
   /** The look sheet's page titles; loads scenes/look.js afresh. */
   async function lookPages() {
     const file = `${base}scenes/look.js`
     own = (await exists(file)) ? await importScene('look.js', `${file}?v=${version}.${Date.now()}`) : null
     if (own && typeof own.default !== 'function') throw new Error('scenes/look.js must export default function look(c)')
-    return [...PAGES.map(p => p.title), ...(own ? own.pages ?? ["the video's own elements"] : [])]
+    return [...builtIn().map(p => p.title), ...(own ? own.pages ?? ["the video's own elements"] : [])]
   }
 
   /** Draw look-sheet page n (0-based) with the band showing `caption` (lines); {error} when it throws. */
   function look(n, caption = [], titles = []) {
     stage.begin()
     stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'back' })
-    const c = { ...frameContext(0), dur: 0, C: kit.C, page: n - PAGES.length }
+    const pages = builtIn()
+    const c = { ...frameContext(0), dur: 0, C: kit.C, page: n - pages.length, declared: legend }
     let error = null
     try {
-      if (n < PAGES.length) PAGES[n].draw(c)
+      if (n < pages.length) pages[n].draw(c)
       else own.default(c)
     } catch (e) {
       error = `look page ${n + 1}: ${e && e.stack ? e.stack : e}`

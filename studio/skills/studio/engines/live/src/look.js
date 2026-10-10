@@ -3,10 +3,11 @@
 // drawn with the conventions a scene should copy: a box's outline (sw 3) is heavier than the
 // dividers inside it (sw 1.5), an idle arrow is dim, an active one ice, a muted one faded; amber is a
 // number to watch, ice the thing being explained, coral failure. The video's own elements come after
-// these, from scenes/look.js (templates/live/scenes/example-look.js).
+// these, from scenes/look.js (templates/live/scenes/example-look.js). A video that declares a colour
+// legend (video.json legend) gets a page of it after the built-in ones.
 //
 // A page draws one still from its context, as a scene does at t = 0: S, W, H (the stage above the
-// band), unit, header, view, kit, C.
+// band), unit, header, view, kit, C, legend (meaning -> CSS colour) and declared (video.json's legend).
 
 const ROLES = [
   ['bg', 'background'], ['band', 'caption band'], ['bg2', 'panel, close-up'], ['tray', 'box fill'],
@@ -96,6 +97,22 @@ function closeUp(c) {
   S.text('closeup:record:t', p.x + p.w / 2, p.y + p.h / 2, 'the record this chapter is about', { size: 30, anchor: 'middle', fill: 'var(--cold)', mono: true, op: p.inner })
   S.text('closeup:detail', p.x + p.w / 2, p.y + p.h / 2 + 130, 'a detail only this close-up needs', { size: 22, anchor: 'middle', fill: 'var(--dim)', mono: true, op: p.inner })
 }
+
+/** The video's colour legend: each meaning in its colour, as a swatch and a label, with the colour's name. */
+function legendPage(c) {
+  const { S, W, H, header, unit, legend, declared } = c
+  const entries = Object.entries(legend), top = header + unit * 0.9
+  const step = Math.min(84, (H - top - unit * 0.4) / Math.max(1, entries.length))
+  entries.forEach(([meaning, colour], i) => {
+    const x = W * 0.08, y = top + i * step, size = Math.min(30, step * 0.5)
+    const name = String(declared[meaning]), hex = name.startsWith('#') ? '' : `  ${css(name)}`
+    S.rect(`legend:${i}`, x, y - step * 0.32, step * 0.64, step * 0.64, { fill: colour, stroke: 'var(--line)', sw: 1.5, r: 6, box: `legend swatch ${meaning}`, means: meaning })
+    S.text(`legend:${i}:t`, x + step, y, meaning, { size, weight: 600, fill: colour, box: `legend ${meaning}`, means: meaning })
+    S.text(`legend:${i}:c`, x + step + Math.min(W * 0.3, 420), y, `${name}${hex}`, { size: Math.max(18, size * 0.75), fill: 'var(--dim)', mono: true, box: `legend colour ${meaning}` })
+  })
+}
+
+export const LEGEND_PAGE = { title: 'colour legend', draw: legendPage }
 
 export const PAGES = [
   { title: 'colour and type', draw: palette },

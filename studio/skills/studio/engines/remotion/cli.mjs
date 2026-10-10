@@ -106,6 +106,7 @@ async function getBundle(video, entry = 'entry.tsx') {
 		opt.layout ? path.resolve(opt.layout) : path.join(video, 'layout.json')]) {
 		hashTree(h, p);
 	}
+	if (entry !== 'entry.tsx') hashTree(h, path.join(video, 'video.json'));     // the look sheet draws its colour legend
 	hashListing(h, path.join(video, 'assets'));
 	const key = h.digest('hex').slice(0, 16);
 	// One folder per layout (format), so exporting several formats doesn't discard each other's bundles.
@@ -132,6 +133,7 @@ async function getBundle(video, entry = 'entry.tsx') {
 					'@boards': boardFile(video, 'boards.json'),
 					'@board-notes': boardFile(video, 'notes.json'),
 					'@look': lookFile(video),
+					'@video-config': existsSync(path.join(video, 'video.json')) ? path.join(video, 'video.json') : path.join(ENGINE, 'src', 'empty.json'),
 				},
 				// Scene files live outside the engine, so resolve their imports from the engine's packages.
 				modules: [path.join(ENGINE, 'node_modules'), 'node_modules'],

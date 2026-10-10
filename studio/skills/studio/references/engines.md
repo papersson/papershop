@@ -153,17 +153,46 @@ The video's own elements come after, from `scenes/look.js` (live: `export defaul
 optionally `export const pages = [titles]`, `c.page` the page drawn) or `scenes/look.tsx` (Remotion: a
 default export mapping each page's title to a component). Copy `templates/live/scenes/example-look.js`
 or `templates/scenes/example-look.tsx`; export each element from it so the scenes import the same
-drawing. A page is drawn at t = 0 with no sentence times. On Remotion the sheet is a bundle of its
+drawing. A page is drawn at t = 0 with no sentence times. A video with a colour legend (below) gets a
+`colour legend` page after the built-in ones: each meaning in its colour, with the colour's name. On Remotion the sheet is a bundle of its
 own (`src/look-entry.tsx`), so a mistake in `scenes/look.tsx` fails `look-sheet` and nothing else;
 on live a look file that fails to load is named in the error.
 
 Output: `out/look/look-<n>.png` and `out/look/look.json` (engine, format, the page titles and files,
-whether a look file was drawn, and a key over the engine and its source, the layout, the look file
-and the scene files it imports), or `out/look/<format>/` for another format. `look.latest(video)`
+whether a look file was drawn, and a key over the engine and its source, the layout, the colour
+legend, the look file and the scene files it imports), or `out/look/<format>/` for another format. `look.latest(video)`
 returns that record with `stale` set when any of those changed since or video.json names another
 engine. `studio review-motion` copies the pages into its bundle (`look/`) and the reviewer judges "on
 sheet" against them; a missing or stale sheet is flagged in the bundle's manifest (`look.status`) and
 in the prompt, which asks for a SHOULD FIX line naming it.
+
+## The colour legend (live and Remotion)
+
+A video that gives colours meanings declares them in video.json, meaning to colour, each colour a
+theme name of the video's engine (live: `hot`, `warm`, `cold`, `bad`, `good`, `log`, `key`, ...;
+Remotion: `amber`, `ice`, `coral`, ...) or `#rrggbb`:
+
+```json
+"legend": {"request": "warm", "error": "bad", "focus": "hot"}
+```
+
+Tag each element drawn in a meaning's colour with that meaning. Live: any drawing call takes
+`means` (`S.rect(k, x, y, w, h, {stroke: c.legend.request, means: 'request', box: 'request'})`;
+`c.legend` maps each meaning to its CSS colour). Remotion: `Txt`, `Rect`, `Box`, `Token` and
+`GhostCard` take `means="request"`; `MapView litMeans` tags a lit box and `CloseUp means` the
+minimap's filled one. An element whose name contains the meaning's words (`box request`) needs no
+tag. Only named elements are seen (live text by its key, a shape with `box`).
+
+The engines' boxes (`studio boxes`) report each named element's `fill` and `stroke` as the browser
+resolves them (`rgb(…)`; on Remotion a text's colour, a box's background and border) and its
+`means`. `studio check` runs `legend` at its sample times, on the boxes the other checks gather, and
+warns when one colour stands for two meanings, when one meaning is drawn in two colours, and when a
+colour the legend reserves is on an element tagged with another meaning or none. Only accent colours
+count: neutrals (ink, dim, faint, the panels, outlines and lines) are never reserved, and a blend
+mid-transition or a tint (alpha under 0.5) is no colour. Each chapter's elements are kept per clip
+key, so a check of the changed chapters still compares the whole video. With no legend the check is
+silent, except for one line when elements carry `means` tags. A legend colour that is no theme colour
+fails. Motion Canvas boxes carry no colours, so there only the legend itself is checked.
 
 ## Motion Canvas scenes
 

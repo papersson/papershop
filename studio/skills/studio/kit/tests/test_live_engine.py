@@ -176,3 +176,26 @@ def test_a_broken_look_file_is_named(tmp_path):
     with pytest.raises(EngineError, match=r"scenes/look\.js: .*Unexpected end of input"):
         Engine(tmp_path).look(tmp_path / "out", [])
     assert Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}])           # the chapters still draw
+
+
+@needs_engine
+def test_boxes_carry_colours_and_meanings_and_the_look_sheet_draws_the_legend(tmp_path):
+    """The legend check's inputs, from a real browser: each element's resolved colours and its `means`
+    tag, the legend on the scene's context, and a legend page on the look sheet."""
+    live_video(tmp_path, """
+export default function draw(c) {
+  const { S, kit: { C } } = c
+  S.rect('card', 200, 300, 400, 160, { fill: C.bg2, stroke: c.legend.step, box: 'card', means: 'step' })
+  S.text('title', 400, 200, 'Keys', { fill: C.cold })
+}
+""")
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": {"step": "hot", "focus": "cold"}}))
+    (f,) = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}])
+    by = {b["name"]: b for b in f["boxes"]}
+    assert (by["card"]["fill"], by["card"]["stroke"], by["card"]["means"]) == ("rgb(21, 27, 34)", "rgb(242, 169, 59)", "step")
+    assert by["title"]["fill"] == "rgb(143, 211, 255)" and "means" not in by["title"]
+    from studio_kit import check
+    (w,) = [r["detail"] for r in check.run(tmp_path, only=["legend"]) if r.get("severity") == "warning"]
+    assert w.startswith("cold, which the legend keeps for focus, is on 'title' at s1")
+    pages = Engine(tmp_path).look(tmp_path / "out", [])["pages"]
+    assert [p["title"] for p in pages][-1] == "colour legend"

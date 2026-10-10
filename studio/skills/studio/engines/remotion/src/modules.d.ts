@@ -19,6 +19,10 @@ declare module '@layout' {
 	const layout: unknown;
 	export default layout;
 }
+declare module '@video-config' {
+	const config: unknown;
+	export default config;
+}
 declare module '@look' {
 	const pages: Record<string, import('react').FC>;
 	export default pages;

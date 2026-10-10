@@ -1,11 +1,13 @@
 import React, {useLayoutEffect, useState} from 'react';
 import {AbsoluteFill, continueRender, delayRender, useCurrentFrame} from 'remotion';
 import layout from '@layout';
+import videoConfig from '@video-config';
 import {Rect, Txt, pt, useStage, StageContext, type XY} from './stage';
 import {Box, Card, Link, Term} from './blocks';
 import {Chip} from './components';
 import {CloseUp, GhostCard, MapView, Token, type MapNode, type TokenState} from './map';
 import {CodePanel, RowTable, Terminal, legibleSize} from './explain';
+import * as THEME from './theme';
 import {AMBER, BAND, BG, CORAL, DIM, FAINT, ICE, INK, MUTED, PANEL, SANS, TRAY_EDGE, TRAY_FILL} from './theme';
 import {CaptionBand, FONTS} from './Frame';
 import type {Layout} from './types';
@@ -15,7 +17,8 @@ import type {Layout} from './types';
  * with the kit's own components in the video's theme and layout, one page per frame of the
  * `studio-look` composition. Every element is shown in each of its states; the video's own elements
  * follow from scenes/look.tsx (templates/scenes/example-look.tsx), whose default export maps a page
- * title to a component drawn on the stage.
+ * title to a component drawn on the stage. A video that declares a colour legend (video.json legend)
+ * gets a page of it after the built-in ones.
  */
 
 const ROLES: [string, string, string][] = [
@@ -148,13 +151,45 @@ const Code: React.FC = () => {
 	);
 };
 
-/** The built-in pages, in order; the video's own come after them. */
+// The colour legend, meaning -> a theme colour's name (ice, AMBER, tray_fill) or #rrggbb.
+const LEGEND = Object.entries((videoConfig as {legend?: Record<string, string>}).legend ?? {});
+const themeColour = (v: string) => (v.startsWith('#') ? v : String((THEME as Record<string, unknown>)[v.toUpperCase().replace(/-/g, '_')] ?? v));
+
+/** Each meaning in its colour, as a swatch and a label, with the colour's name. */
+const Legend: React.FC = () => {
+	const s = useStage();
+	const sw = s.width / s.unit;
+	const narrow = s.width < s.height;
+	const left = -sw / 2 + 0.5;
+	const top = 4 - (s.header ?? 0) / s.unit - 0.9;
+	const step = Math.min(0.75, (top + 3.6) / Math.max(1, LEGEND.length));
+	return (
+		<>
+			{LEGEND.map(([meaning, name], i) => {
+				const hex = themeColour(name);
+				const y = top - i * step;
+				return (
+					<React.Fragment key={meaning}>
+						<Rect at={[left + 0.22, y]} w={0.44} h={0.44} radius={0.06} fill={hex} stroke={DIM} strokeWidth={1.5} name={`legend swatch ${meaning}`} means={meaning} />
+						<Txt at={[left + 0.7, y + (narrow ? 0.1 : 0)]} anchor="left" size={narrow ? 18 : 20} weight={600} font="sans" color={hex} name={`legend ${meaning}`} means={meaning}>{meaning}</Txt>
+						<Txt at={narrow ? [left + 0.7, y - 0.2] : [left + 0.7 + Math.min(5, sw * 0.3), y]} anchor="left" size={narrow ? 14 : 16} color={MUTED} name={`legend colour ${meaning}`}>
+							{name.startsWith('#') ? name : `${name}  ${hex}`}
+						</Txt>
+					</React.Fragment>
+				);
+			})}
+		</>
+	);
+};
+
+/** The built-in pages, in order (the legend's only when the video declares one); the video's own come after them. */
 export const LOOK_PAGES: {title: string; Page: React.FC}[] = [
 	{title: 'colour and type', Page: Palette},
 	{title: 'elements and states', Page: Elements},
 	{title: 'map', Page: MapPage},
 	{title: 'close-up', Page: Close},
 	{title: 'code', Page: Code},
+	...(LEGEND.length ? [{title: 'colour legend', Page: Legend}] : []),
 ];
 
 /** One page of the look sheet per frame: the built-in pages, then `own` (scenes/look.tsx); the band shows `caption`. */

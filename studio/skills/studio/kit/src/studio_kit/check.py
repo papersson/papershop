@@ -16,6 +16,8 @@
                from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
                samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
                hold is a warning, not a failure
+  legend       with a colour legend in video.json: no colour stands for two meanings, no meaning is drawn
+               in two colours, and a colour the legend reserves is on nothing else (legend.py). Warnings
   pauses       with effects (audio/sfx.json, or an audio entry with role sfx) and a narration: no effect peaks over -24 dBFS, at the master's level,
                during a spoken word (audio_check.guard; `studio audio-check` measures the rest of the sound)
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
@@ -340,7 +342,7 @@ def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
 MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), "
-        "inframe (the narrated element stays in frame), "
+        "inframe (the narrated element stays in frame), legend (one colour, one meaning; with video.json legend), "
         "provenance (assets used are recorded), dead and loop (motion)")
 
 
@@ -424,9 +426,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     default = only is None
     extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
-    always = ("legible", "overlap", "pacing", "inframe") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    always = ("legible", "overlap", "pacing", "inframe", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -472,6 +474,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
             rows += bounds(video, samples, engine, boxes)
         if "band" in only:
             rows += band_guard(video, samples, engine, boxes)
+    if "legend" in only:      # video-wide: the other chapters' elements come from its cache
+        from . import legend
+        rows += legend.check(video, samples, engine, boxes, clips, fmt, keys)
     if only & {"band", "contrast"}:
         pix = band_pixels_check(video, samples, engine, clips, boxes)
         rows += [r for r in pix if r["check"] in only]

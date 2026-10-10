@@ -45,6 +45,9 @@ keys without a default are simply absent when unset (callers use .get).
                      timeline's base when there are no narration timings
   clips              [{"id", "title", "seconds"}]: such a piece in chapters, back to back, one
                      scene each; replaces duration (both may stay only if they agree)
+  legend             {meaning: colour}: the video's colour legend, each colour a theme name of its
+                     engine or #rrggbb; `studio check` (legend.py) holds the scenes to it and the
+                     look sheet draws it
   sound              {"room": 1.0, "duck": true, "presence": true}: the mix's processing of effects
                      and music (audio.py): room scales their shared room's reflections (0 or false:
                      off, up to 2), duck lowers music under the narration, presence dips their 1-4 kHz
