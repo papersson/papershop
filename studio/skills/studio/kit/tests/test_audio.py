@@ -186,3 +186,123 @@ def test_a_loud_effect_is_not_clipped_before_its_gain(tmp_path):
     assert abs(peak - 0.9 * 10 ** (6 / 20)) < 0.1                        # the thump's peak, times its gain
     audio.mix(v, t, tmp_path / "bus.wav")
     assert abs(audio.measure(tmp_path / "bus.wav")[1] - (20 * np.log10(peak) - 8)) < 1.0
+
+
+# --- the sub-buses' processing ---------------------------------------------------------------------
+
+def speech(path, seconds=10, on=1.5, off=1.5):
+    """A voice stand-in: noise bursts `on` seconds long with `off`-second pauses between them."""
+    np = pytest.importorskip("numpy")
+    sf = pytest.importorskip("soundfile")
+    t = np.arange(int(seconds * 48_000)) / 48_000
+    noise = np.convolve(np.random.default_rng(1).standard_normal(len(t)), np.ones(8) / 8, mode="same")
+    sf.write(path, (0.3 * noise * ((t % (on + off)) < on)).astype(np.float32), 48_000)
+    return t, (t % (on + off) > 0.3) & (t % (on + off) < on), (t % (on + off) > on + 0.8)
+
+
+def levels(f, speaking, pause, lo, hi):
+    """(dB in the band while speaking, in the pauses) of a file's first channel."""
+    np = pytest.importorskip("numpy")
+    sf = pytest.importorskip("soundfile")
+    y = sf.read(f, always_2d=True)[0][:, 0]
+    y = np.pad(y, (0, max(0, len(speaking) - len(y))))[:len(speaking)]
+    spectrum = np.fft.rfft(y)
+    freq = np.fft.rfftfreq(len(y), 1 / 48_000)
+    spectrum[(freq < lo) | (freq > hi)] = 0
+    band = np.fft.irfft(spectrum, len(y))
+    return tuple(10 * np.log10(np.mean(band[m] ** 2)) for m in (speaking, pause))
+
+
+def processed(tmp_path, sound=None):
+    """A narrated video with a two-tone bed (music) and the same tones as an effects track."""
+    v = tmp_path / "v"
+    (v / "audio").mkdir(parents=True)
+    (v / "video.json").write_text(json.dumps({"title": "x", **({"sound": sound} if sound is not None else {})}))
+    _, speaking, pause = speech(v / "audio" / "narration.wav")
+    for name in ("bed.wav", "fx.wav"):
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=300:duration=10:sample_rate=48000",
+                        "-f", "lavfi", "-i", "sine=frequency=2000:duration=10:sample_rate=48000", "-filter_complex",
+                        "amix=inputs=2:normalize=0", str(v / name)], check=True)
+    t = {"duration": 10.0, "tracks": {"audio": [{"file": "audio/narration.wav", "start": 0.0, "role": "narration"},
+                                                {"file": "bed.wav", "start": 0.0, "role": "music"},
+                                                {"file": "fx.wav", "start": 0.0, "role": "sfx"}]}}
+    return v, t, speaking, pause
+
+
+def test_music_ducks_under_speech_and_comes_back_in_the_pauses(tmp_path):
+    v, t, speaking, pause = processed(tmp_path, {"room": 0})
+    low_speaking, low_pause = levels(audio.stem(v, t, "music"), speaking, pause, 100, 600)
+    dry = levels(v / "bed.wav", speaking, pause, 100, 600)
+    assert 6 < (low_pause - dry[1]) - (low_speaking - dry[0]) < 13       # about 9 dB under speech
+    assert abs(low_pause - dry[1]) < 1.0                                 # and back in the pauses
+
+
+def test_effects_lose_presence_only_while_the_narration_speaks(tmp_path):
+    v, t, speaking, pause = processed(tmp_path, {"room": 0})
+    f = audio.stem(v, t, "sfx")
+    mid, low = levels(f, speaking, pause, 1500, 2500), levels(f, speaking, pause, 100, 600)
+    dry_mid, dry_low = levels(v / "fx.wav", speaking, pause, 1500, 2500), levels(v / "fx.wav", speaking, pause, 100, 600)
+    assert 1.5 < (mid[1] - dry_mid[1]) - (mid[0] - dry_mid[0]) < 6        # the 1-4 kHz band dips under speech
+    assert abs(mid[1] - dry_mid[1]) < 1.0 and abs(low[0] - dry_low[0]) < 1.0   # not in the pauses, not below the band
+    assert abs(levels(audio.stem(v, t, "narration"), speaking, pause, 100, 20_000)[0]
+               - levels(v / "audio" / "narration.wav", speaking, pause, 100, 20_000)[0]) < 0.1   # the voice stays dry
+
+
+def test_the_processing_applies_only_where_its_roles_are(tmp_path, monkeypatch):
+    graphs = []
+    real = audio.proc.ffmpeg
+    monkeypatch.setattr(audio.proc, "ffmpeg", lambda *a, **k: graphs.append(" ".join(map(str, a))) or real(*a, **k))
+    v = video(tmp_path)
+    alone = timeline()
+    assert audio.processing(v, audio.sources(v, alone)) == {}
+    files = audio.sources(v, alone)
+    assert audio.inputs(alone, files, audio.processing(v, files)) == audio.inputs(alone, files)   # a narration's stamp is as it was
+    audio.mix(v, alone, tmp_path / "a.wav")
+    footage = timeline({"file": "audio/narration.wav", "start": 0.0, "role": "footage"})
+    audio.mix(v, footage, tmp_path / "b.wav")
+    assert not any(k in g for g in graphs for k in ("sidechaincompress", "aecho", "bandpass"))
+    tone(v / "bed.wav", db=-20, freq=440)
+    music = {"duration": 6.0, "tracks": {"audio": [{"file": "bed.wav", "start": 0.0, "role": "music"}]}}
+    assert audio.processing(v, audio.sources(v, music)) == {"room": 1.0, "presence": False, "duck": False}  # no voice, no key
+    graphs.clear()
+    audio.mix(v, music, tmp_path / "c.wav")
+    assert "aecho" in graphs[-1] and "sidechaincompress" not in graphs[-1]
+    graphs.clear()
+    audio.mix(v, timeline({"file": "bed.wav", "start": 0.0, "role": "music"}), tmp_path / "d.wav")
+    assert graphs[-1].count("sidechaincompress") == 2 and "aecho" in graphs[-1]
+
+
+def test_a_narration_alone_masters_as_before(tmp_path):
+    """The master's loudness and peak with no effects or music: what the plain sum gave."""
+    v = video(tmp_path)
+    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 2.0}}))     # nothing for it to act on
+    plain = tmp_path / "plain.wav"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(v / "audio" / "narration.wav"), "-af", "apad=whole_dur=6",
+                    "-c:a", "pcm_f32le", str(plain)], check=True)
+    r = audio.finish(v, timeline=timeline())
+    alone = audio.master(plain, tmp_path / "m.wav")
+    assert abs(r["lufs"] - alone["lufs"]) < 0.05 and abs(r["true_peak_dbtp"] - alone["true_peak_dbtp"]) < 0.05
+
+
+def test_the_sound_settings_enter_the_mix_and_its_stamp(tmp_path, monkeypatch):
+    v, t, _, _ = processed(tmp_path)
+    files = audio.sources(v, t)
+    on = audio.inputs(t, files, audio.processing(v, files))
+    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": False, "duck": False}}))
+    p = audio.processing(v, files)
+    assert p == {"room": 0.0, "presence": True, "duck": False} and audio.inputs(t, files, p) != on
+    _, g = audio.graph(files, 10.0, p, gain=0.0)
+    assert "aecho" not in g and g.count("sidechaincompress") == 2        # presence on the music and the effects
+    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 0.5}}))
+    _, g = audio.graph(files, 10.0, audio.processing(v, files), gain=0.0)
+    assert audio.room(0.5) in g and "0.0600" in audio.room(0.5)
+    for bad in ({"room": 3}, {"room": "big"}, {"duck": "yes"}, {"reverb": 1}):
+        (v / "video.json").write_text(json.dumps({"title": "x", "sound": bad}))
+        with pytest.raises(SystemExit, match="video.json sound"):
+            audio.processing(v, files)
+
+
+def test_a_mix_with_music_and_effects_reaches_the_target(tmp_path):
+    v, t, _, _ = processed(tmp_path)
+    r = audio.finish(v, timeline=t)
+    assert abs(r["lufs"] - (-16.0)) < 0.5 and r["true_peak_dbtp"] <= -1.45
