@@ -16,6 +16,7 @@ takes), time is seconds into the video. A moment that belongs to a sentence also
 The cut's stills, the checks and the sheets take their frames from here, so a new kind is one more
 function and every consumer can ask for it.
 """
+import hashlib
 import re
 
 from . import timeline as tl
@@ -66,8 +67,17 @@ def spread(t, clips=None):
     return out
 
 
-def _clip_at(t, time):
-    return next((c for c in t["tracks"]["scene"] if c["start"] <= time < c["end"]), None)
+def _clip_at(t, frame):
+    """The clip a frame of the video belongs to, by the frames each clip renders (timeline.frames)."""
+    fps = t["fps"]
+    return next((c for c in t["tracks"]["scene"] if tl.half_up(c["start"] * fps) <= frame < tl.half_up(c["end"] * fps)), None)
+
+
+def event_id(name):
+    """A still's id for an event: ev_<name>, its unsafe characters replaced and then a hash of the
+    name added, so two names never share an id whatever order the cues come in."""
+    safe = re.sub(r"[^\w.-]+", "-", name)
+    return "ev_" + safe + ("" if safe == name else "-" + hashlib.sha1(name.encode()).hexdigest()[:6])
 
 
 def _local(t, c, frame):
@@ -78,19 +88,15 @@ def _local(t, c, frame):
 def events(t, clips=None):
     """One moment EVENT_AFTER frames after every named cue (not the reveal: holds), inside the clip
     that frame falls in; a cue past the video's end has none."""
-    out, seen = [], set()
+    out = []
     for name, at in t.get("cues", {}).items():
         if name.startswith("reveal:"):
             continue
         frame = tl.half_up(at * t["fps"]) + EVENT_AFTER
-        c = _clip_at(t, frame / t["fps"])
+        c = _clip_at(t, frame)
         if c is None or (clips is not None and c["id"] not in clips):
             continue
-        mid = "ev_" + re.sub(r"[^\w.-]+", "-", name)
-        while mid in seen:
-            mid += "_"
-        seen.add(mid)
-        out.append(_moment(c, _local(t, c, frame), "event", mid, name, event=name))
+        out.append(_moment(c, _local(t, c, frame), "event", event_id(name), name, event=name))
     return out
 
 
@@ -102,7 +108,7 @@ def pauses(t, clips=None):
         if not p or p["end"] - p["start"] <= PAUSE_MIN:
             continue
         frame = tl.half_up((p["start"] + p["end"]) / 2 * t["fps"])
-        c = _clip_at(t, frame / t["fps"])
+        c = _clip_at(t, frame)
         if c is None or (clips is not None and c["id"] not in clips):
             continue
         out.append(_moment(c, _local(t, c, frame), "pause", f"pause_{s['id']}", f"pause after {s['id']}", after=s["id"]))

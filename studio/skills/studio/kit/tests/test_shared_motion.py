@@ -99,10 +99,28 @@ def test_every_engine_kit_offers_the_helpers(tmp_path):
     """The live kit as scenes import it; Remotion's and Motion Canvas's kits re-export the same."""
     script = tmp_path / "kit.mjs"
     script.write_text(f"import * as k from {json.dumps((engine_dir('live') / 'src' / 'kit.js').as_uri())}\n"
-                      "console.log(JSON.stringify([k.keyed(1.5, [[1, 0], [2, 1, 'float']]), typeof k.follow, typeof k.settle, typeof k.wobble, typeof k.ease.snap]))")
+                      "console.log(JSON.stringify([k.keyed(1.5, [[1, 0], [2, 1, 'float']]), typeof k.follow, typeof k.settle, typeof k.wobble, "
+                      "typeof k.ease.snap, k.rng(7)() === k.rng(7)()]))")
     out = json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
-    assert out[0] == pytest.approx(0.5) and out[1:] == ["function"] * 4
+    assert out[0] == pytest.approx(0.5) and out[1:5] == ["function"] * 4 and out[5] is True      # rng: comic.md scatters with it
     for f in (engine_dir("remotion") / "src" / "kit" / "time.ts", engine_dir("motion-canvas") / "src" / "base.ts"):
         text = f.read_text()
         assert all(f" {name}," in text or f" {name}}}" in text or f"function {name}" in text
                    for name in ("ease", "keyed", "follow", "settle", "wobble")), f
+
+
+@pytest.mark.parametrize("k,d", [(120, 0), (0, 14), (120, -3), ("NaN", 14)])
+def test_follow_refuses_a_spring_that_never_settles(tmp_path, k, d):
+    """d = 0 made follow weigh an endless past (it hung); a negative d gave garbage."""
+    script = tmp_path / "f.mjs"
+    script.write_text(f"import {{ follow }} from {json.dumps((engine_dir('shared') / 'motion.js').as_uri())}\n"
+                      f"follow(1, s => s, 0.1, {k}, {d})")
+    run = subprocess.run(["node", str(script)], capture_output=True, text=True, timeout=20)
+    assert run.returncode != 0 and "follow needs a stiffness k and a damping d above 0" in run.stderr
+
+
+def test_follow_with_little_damping_weighs_at_most_ten_seconds(tmp_path):
+    script = tmp_path / "f.mjs"
+    script.write_text(f"import {{ follow }} from {json.dumps((engine_dir('shared') / 'motion.js').as_uri())}\n"
+                      "let n = 0; follow(20, s => (n++, 1), 0.1, 120, 0.001); console.log(n)")
+    assert int(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True, timeout=20).stdout) <= 10 * 120 + 2

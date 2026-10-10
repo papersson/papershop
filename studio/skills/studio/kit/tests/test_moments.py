@@ -217,11 +217,24 @@ def test_events_and_long_pauses_get_stills_of_their_own():
     assert extra == [("event", "ev_drop", "s1", 2.4, "drop"),                # two frames after frame 70
                      ("pause", "pause_s1_03", "s1", 4.7, "pause after s1_03"),
                      ("event", "ev_edge", "s1", 7.967, "edge"),               # still inside s1 (ends at 8.0)
-                     ("event", "ev_a-b-c", "s3", 0.367, "a b/c")]             # s3 starts on frame 381; no reveal:, nothing past the end
+                     ("event", "ev_a-b-c-fa4fb7", "s3", 0.367, "a b/c")]             # s3 starts on frame 381; no reveal:, nothing past the end
     assert [m["time"] for m in ms] == sorted(m["time"] for m in ms)
     assert not any("sentence" in m for m in ms if m["kind"] in ("event", "pause"))    # per-sentence views skip them
     assert [m["id"] for m in moments.stills(t, extra=False)] == [m["id"] for m in moments.stills(fixture())]
-    assert [m["id"] for m in moments.stills(t, {"s3"}) if m["kind"] == "event"] == ["ev_a-b-c"]
+    assert [m["id"] for m in moments.stills(t, {"s3"}) if m["kind"] == "event"] == ["ev_a-b-c-fa4fb7"]
     reqs = {r["id"]: r for r in render.still_requests(t, Path("/stills"))}
     assert reqs["ev_drop"]["at"] == round(70 / 30 - render.EVENT_LEAD, 3) and reqs["pause_s1_03"]["at"] == 4.25
     assert reqs["ev_drop"]["out"] == "/stills/ev_drop.jpg" and reqs["ev_drop"]["kind"] == "event"
+
+
+def test_an_event_or_pause_still_falls_in_the_clip_that_renders_its_frame():
+    """s1 ends at 2.01 s, which rounds to frame 60: frame 60 is s2's first, though 60 / 30 < 2.01."""
+    t = fixture()
+    t["tracks"]["scene"][0]["end"] = t["tracks"]["scene"][1]["start"] = 2.01
+    t["tracks"]["narration"] = [{**t["tracks"]["narration"][0], "start": 0.4, "end": 1.0, "pause": {"start": 1.0, "end": 3.0}}]
+    t["cues"] = {"x": round(58 / 30, 6), "a b": 1.0, "a-b": 1.0}
+    ms = {m["id"]: m for m in moments.events(t) + moments.pauses(t)}
+    assert (ms["ev_x"]["clip"], ms["ev_x"]["t"]) == ("s2", 0.0) and (ms["pause_s1_01"]["clip"], ms["pause_s1_01"]["t"]) == ("s2", 0.0)
+    swapped = {**t, "cues": {"a-b": 1.0, "a b": 1.0, "x": t["cues"]["x"]}}
+    assert sorted(m["id"] for m in moments.events(swapped)) == sorted(m["id"] for m in moments.events(t))   # ids don't hang on order
+    assert len({m["id"] for m in moments.events(t)}) == 3

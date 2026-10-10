@@ -64,7 +64,8 @@ export const Terminal: React.FC<Area & {runs: CapturedRun[]; progress?: number; 
     ...outputLines(r.stdout).map(text => ({text, color: INK})),
     ...outputLines(r.stderr).map(text => ({text, color: r.exit ? CORAL : MUTED}))]);
   const shown = lines.slice(0, Math.floor(lines.length * clamp(progress))).slice(-maxLines);
-  const s = useStage(), sz = legibleSize(s, size, Math.max(0, ...shown.map(l => columns(l.text))), w - 0.6), lh = sz * 0.031;
+  // sized for every line of the runs, not the ones shown, so the text keeps one size as it plays and scrolls
+  const s = useStage(), sz = legibleSize(s, size, Math.max(0, ...lines.map(l => columns(l.text))), w - 0.6), lh = sz * 0.031;
   return <><Panel at={at} w={w} h={Math.max(1, shown.length) * lh + 0.6} opacity={opacity}/>
     {shown.map((line, i) => <Txt key={i} at={[at[0] - w / 2 + 0.3, at[1] + (shown.length - 1) * lh / 2 - i * lh]}
       size={sz} anchor="left" color={line.color} opacity={opacity} name={`${name} row ${i}`}>{line.text}</Txt>)}

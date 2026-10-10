@@ -154,6 +154,7 @@ export function keyed(t, keys, e = inOut) {
 }
 
 const FOLLOW_STEP = 1 / 120  // seconds between the samples of the source follow weighs
+const FOLLOW_SPAN = 10       // seconds of the source's past it weighs at most (a barely damped spring rings longer)
 
 /**
  * Secondary motion: a value that trails fn(t) by `lag` seconds through a damped spring (stiffness k,
@@ -163,8 +164,9 @@ const FOLLOW_STEP = 1 / 120  // seconds between the samples of the source follow
  * @template {Value} V @param {number} t @param {(t: number) => V} fn @param {number} [lag] @param {number} [k] @param {number} [d] @returns {V}
  */
 export function follow(t, fn, lag = 0.1, k = 120, d = 14) {
+  if (!(k > 0 && d > 0)) throw new Error(`follow needs a stiffness k and a damping d above 0 (got k=${k}, d=${d})`)
   const decay = Math.min(d / 2, Math.sqrt(k))              // how fast the spring's response dies away
-  const n = Math.ceil(Math.log(1e4) / decay / FOLLOW_STEP)  // until it is below 1/10000
+  const n = Math.ceil(Math.min(FOLLOW_SPAN, Math.log(1e4) / decay) / FOLLOW_STEP)   // until it is below 1/10000
   const at = t - lag, now = /** @type {any} */ (fn(at))
   // Summed as differences from the source's value at t - lag, so a still source is followed exactly.
   let acc = Array.isArray(now) ? now.map(() => 0) : 0
