@@ -249,7 +249,7 @@ def test_each_effect_is_heard_or_warned(tmp_path, case, effect, bed, warns):
     if bed is not None:
         noise_bed(v, bed)
     t = tl.load(v)
-    (row,) = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
+    (row,) = rows_of(audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t), "audible")
     assert row["check"] == "audible" and row["t"] == 2.0 and row["ok"]
     if warns is None:
         assert "severity" not in row and row["lift_db"] >= audio_check.AUDIBLE_LIFT and row["under_voice_db"] < 5, row
@@ -268,3 +268,142 @@ def test_the_report_carries_the_audibility_thresholds(tmp_path, monkeypatch):
     report = json.loads((v / "out" / "audio-check.json").read_text())
     assert report["thresholds"]["audible_lift_db"] == audio_check.AUDIBLE_LIFT
     assert [r["check"] for r in report["rows"]].count("audible") == 1
+
+
+# --- picture tags, the loud audit, the sheet and the listening timecodes ------------------------------
+
+def tagged_at(movie, frame, visual, fps=30, seams=()):
+    from studio_kit import motion
+    sig = motion.frame_signal(movie, tl.DEFAULT_LAYOUT, fps, max(0, frame - audio_check.PICTURE_WINDOW),
+                              2 * audio_check.PICTURE_WINDOW + 1)
+    return audio_check._judged(sig, frame, visual, fps, list(seams))
+
+
+@pytest.mark.parametrize("frame, visual, mark, ok", [
+    (15, "move", 15, True),         # the box is fastest into frame 15
+    (11, "move", 15, False),        # four frames early: past the three a move allows
+    (10, "appear", 10, True),
+    (12, "appear", 10, True),       # two frames: an ease's first frames change by little
+    (7, "appear", 10, False),
+    (21, "land", 20, True),
+    (47, "cut", 45, False),         # two frames from the cut: a cut allows one
+    (46, "cut", 45, True),
+])
+def test_a_tagged_effect_is_judged_against_its_picture(tmp_path, frame, visual, mark, ok):
+    from test_motion import gray_clip, picture
+    movie = tmp_path / "cut.mp4"
+    gray_clip(movie, picture())
+    got = tagged_at(movie, frame, visual)
+    assert (got["picture_frame"], got["picture_offset_frames"], got["picture_ok"]) == (mark, mark - frame, ok), got
+    assert ("within" in got["picture"]) == ok
+
+
+def test_a_cut_on_one_background_counts_at_a_clip_seam_only(tmp_path):
+    """Two scenes on one background change only where their content differs (well under CUT_SHARE),
+    which reads as motion starting: a `cut` tag takes it where the timeline has a seam, and nowhere else."""
+    from test_motion import gray_clip
+    w, h = 384, 216
+
+    def frame(x):
+        rows = [bytearray(w) for _ in range(h)]
+        for r in rows[60:100]:
+            r[x:x + 40] = bytes([255]) * 40
+        return bytes(b"".join(rows))
+    movie = tmp_path / "seam.mp4"
+    gray_clip(movie, [frame(20)] * 45 + [frame(300)] * 45)
+    on_seam = tagged_at(movie, 45, "cut", seams=[45])
+    assert on_seam["picture_ok"] and on_seam["picture_frame"] == 45 and "one background" in on_seam["picture"]
+    off_seam = tagged_at(movie, 45, "cut")
+    assert not off_seam["picture_ok"] and "no cut within" in off_seam["picture"]
+
+
+def test_sync_judges_a_tagged_effect_and_notes_an_untagged_one(tmp_path):
+    from test_motion import gray_clip, picture
+    v = narrated(tmp_path)
+    (v / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT))
+    movie = tmp_path / "cut.mp4"
+    gray_clip(movie, picture())
+    cues = [{"t": "hit", "type": "thump", "visual": "land"}, {"t": "late", "type": "pop"}, {"t": 1.0, "type": "pop", "visual": "appear"},
+            {"t": 2.5, "type": "click"}]
+    (v / "audio" / "sfx.json").write_text(json.dumps(cues))
+    y = np.zeros(4 * 48_000, "float32")
+    for at in (0.7, 1.0, 1.5):
+        y[int(at * 48_000):int(at * 48_000) + 400] = 0.5
+    timeline = {"fps": 30, "duration": 4.0, "cues": {"hit": 0.7, "late": 1.5}, "beats": {},
+                "tracks": {"scene": [{"id": "a", "start": 0.0, "end": 1.5}, {"id": "b", "start": 1.5, "end": 4.0}]}}
+    rows = audio_check.sync(Stem(y), v, timeline, movie)
+    assert [r["effect"] for r in rows] == ["fx1", "fx2", "fx3"]          # fx4 is at seconds and untagged: no row
+    land, untagged, appear = rows
+    assert (land["picture_frame"], land["picture_offset_frames"], land["picture_ok"]) == (20, -1, True)
+    assert "picture (land): motion ends at frame 20 (-1), within 2" in land["detail"] and "severity" not in land
+    assert "picture: a cut at frame 45" in untagged["detail"] and "picture_ok" not in untagged
+    assert appear["picture_ok"] is False and appear["severity"] == "warning" and "picture_frame" not in appear
+    assert "picture (appear): no motion start within 12 frames, so the picture does not show something appearing" in appear["detail"]
+    rows = audio_check.sync(Stem(y), v, timeline)                       # no cut: a tag is not judged
+    assert "picture (land) not judged: no rendered cut" in rows[0]["detail"] and "severity" not in rows[0]
+
+
+def test_sfx_takes_only_a_known_visual_tag():
+    from studio_kit import sfx
+    t = {"fps": 30, "duration": 4.0, "cues": {"hit": 1.0}, "beats": {}}
+    sfx.check([{"t": "hit", "type": "pop", "visual": "appear"}], t)
+    with pytest.raises(SystemExit, match="visual must be one of cut"):
+        sfx.check([{"t": "hit", "type": "pop", "visual": "pop"}], t)
+
+
+@pytest.mark.parametrize("effect, gain, loud", [("thump", 0, False), ("pop", 0, False), ("click", 10, True), ("thump", 10, True)])
+def test_the_loud_audit_warns_an_effect_well_over_the_voice(tmp_path, effect, gain, loud):
+    """The synth voices at gain 0, which the kit's trims match, pass, the loudest (thump) too; +10 dB warns.
+    (This narration's peaks sit 3.7 dB over its mean, a Kokoro voice's 6.8 dB, so here a +10 dB confirm
+    stays under the line that it crosses over Kokoro.)"""
+    v = narrated(tmp_path, [{"t": "hit", "type": effect, "gain": gain}])
+    t = tl.load(v)
+    rows = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
+    (row,) = rows_of(rows, "loud")
+    assert (row.get("severity") == "warning") == loud, row
+    if loud:
+        assert row["effect"] == "fx1" and row["over_voice_peaks_db"] > audio_check.LOUD_OVER
+    else:
+        assert row["detail"].startswith("no effect more than 6 dB over the voice's peaks; the loudest, fx1")
+
+
+def test_the_heroes_and_the_listening_timecodes():
+    found = [{"id": "fx1", "type": "pop", "t": 2.0, "event": True, "flags": [], "over": -4.0},
+             {"id": "fx2", "type": "thump", "t": 5.0, "visual": "land", "event": True, "flags": ["PICTURE"], "over": 2.0},
+             {"id": "fx3", "type": "click", "t": 8.0, "event": False, "flags": [], "over": 3.5},
+             {"id": "fx4", "type": "chime", "t": 9.6, "visual": "appear", "event": True, "flags": [], "over": -9.0}]
+    assert [e["id"] for e in audio_check.heroes(found)] == ["fx3", "fx2", "fx4"]       # the tagged two and the loudest
+    rows = [{"check": "sync", "effect": "fx2", "visual": "land", "t": 5.0, "picture_ok": False, "picture_offset_frames": 4},
+            {"check": "sync", "effect": "fx4", "visual": "appear", "t": 9.6, "picture_ok": True, "picture_offset_frames": 1},
+            {"check": "masking", "detail": "", "closest": {"word": "two", "t": 3.5, "margin_db": 7.2}}]
+    timeline = {"tracks": {"audio": [{"file": "bed.wav", "start": 0.0, "role": "music"}]}}
+    got = audio_check.listening(found, rows, timeline)
+    assert [m["at"] for m in got] == ["0:00.0", "0:03.5", "0:05.0", "0:08.0", "0:09.6"]
+    by = {m["at"]: m["reasons"] for m in got}
+    assert by["0:05.0"] == ["fx2 (land) is the tagged effect furthest from its picture: +4 frames", "hero effect fx2 thump (land) (PICTURE)"]
+    assert by["0:08.0"][0] == "the loudest effect, fx3 click: +3.5 dB against the voice's peaks"
+    assert by["0:00.0"] == ["the music's first entry"] and by["0:03.5"][0].startswith("the closest masking margin")
+    assert audio_check.timecode(75.25) == "1:15.2"
+
+
+def test_audio_check_draws_the_sheet_and_offers_timecodes_for_this_mix(tmp_path, monkeypatch, capsys):
+    from studio_kit import sound_sheet
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop", "visual": "appear"}, {"t": 5.0, "type": "click"}], bed_gain=-12)
+    monkeypatch.setattr(tl, "build", lambda *a, **k: None)
+    audio_check.main(SimpleNamespace(video=v, cut=None))
+    report = json.loads((v / "out" / "audio-check.json").read_text())
+    assert report["heroes"] == ["fx2", "fx1"]          # the tagged one and the loudest, loudest first
+    assert report["sheets"] == ["out/audio-sheet.png", "out/audio-sheet/fx2.png", "out/audio-sheet/fx1.png"]
+    for f in report["sheets"]:
+        info = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0", str(v / f)],
+                              capture_output=True, text=True, check=True).stdout.strip()
+        assert info.split(",")[1] == str(sound_sheet.height())
+    assert [e["id"] for e in report["effects"]] == ["fx1", "fx2"] and report["effects"][0]["visual"] == "appear"
+    assert report["soundtrack"] == audio.revision(v) and report["listen"] == audio_check.moments(v)
+    assert any("hero effect fx1 pop (appear)" in why for m in report["listen"] for why in m["reasons"])
+    out = capsys.readouterr().out
+    assert "sound sheet: out/audio-sheet.png" in out and "listen at:\n  0:0" in out
+    assert audio_check.listen_hint(v).startswith("at 0:0")
+    (v / "video.json").write_text(json.dumps({"title": "x", "genre": "motion", "sound": {"room": 0}}))     # another mix
+    assert audio_check.moments(v) is None and audio_check.listen_hint(v, '"$VIDEO"') == \
+        'run `studio audio-check "$VIDEO"` first for the timecodes to listen at'

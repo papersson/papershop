@@ -176,11 +176,13 @@ COMMANDS = {
     "sfx": ("effects from a cues file, on the timeline: synth voices, or sound kit recordings landing on their peak", [
         W("video"), A("cues", help='JSON list of {"t": seconds | cue or beat name | anchor, "type": "click", '
                                    '"sound": "synth:NAME" | "kit:ID" | "kit" (the type\'s default recording), "gain": dB, '
-                                   '"params": {freq, decay, length} (synths only)}; sound is optional (the type\'s synth '
-                                   'voice); a kit sound is copied into assets/sounds/'),
+                                   '"params": {freq, decay, length} (synths only), "visual": "cut" | "move" | "land" | '
+                                   '"appear" (what the picture does on its frame, which audio-check judges)}; sound is '
+                                   'optional (the type\'s synth voice); a kit sound is copied into assets/sounds/ and '
+                                   'plays at its trim'),
     ], "sfx:main"),
     "sound-lab": ("a page to choose effects by listening: each type's synth candidates and kit recordings", [V("video")], "sfx:main_lab"),
-    "audio-check": ("measure the soundtrack: effect sync (a recording by its peak), each effect heard, ducking, masking, the pauses guard and loudness, into out/audio-check.json", [
+    "audio-check": ("measure the soundtrack: effect sync (a recording by its peak) and each tagged effect's picture, each effect heard and none too loud, ducking, masking, the pauses guard and loudness, into out/audio-check.json; draw the sound sheet (out/audio-sheet.png) and choose the timecodes to listen at", [
         W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
     ], "audio_check:main"),
     "music": ("an optional generated bed (quiet chords and a soft pulse) as a music track the mix ducks, with its beat grid", [
@@ -235,6 +237,8 @@ COMMANDS = {
                       help="a script reviewer, frames (alias frame), motion, or listen (the user listened to the finished mix)"),
         A("status", choices=reviews.RECORDS, help="unavailable or waived for a reviewer; passed or waived for listen"),
         A("--reason", help="the user's authorization for a waiver; what they heard, for a listening"),
+        A("--at", help="listen: the timecodes listened at, comma-separated (m:ss.s or seconds); default: the ones "
+                       "studio audio-check chose for this mix"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
         W("video"), A("clip"), A("t", type=float), A("--out", required=True),

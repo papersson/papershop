@@ -203,6 +203,31 @@ def test_the_listening_check_is_due_for_a_mix_with_music_and_stales_with_it(tmp_
             review_state.main_status(cli.build_parser().parse_args(["review-status", str(v), role, status]))
 
 
+def test_a_listening_records_the_timecodes_it_was_at(tmp_path, capsys):
+    from studio_kit import audio
+    v = sounding(tmp_path)
+    status = lambda *extra: review_state.main_status(cli.build_parser().parse_args(      # noqa: E731
+        ["review-status", str(v), "listen", "passed", "--reason", "fine", *extra]))
+    status()
+    assert "timecodes" not in review_state.read(v, "listen")              # no audio-check yet: recorded all the same
+    offered = [{"t": 1.2, "at": "0:01.2", "reasons": ["hero effect fx1 pop"]}, {"t": 4.0, "at": "0:04.0", "reasons": ["the music's first entry"]}]
+    (v / "out").mkdir()
+    (v / "out" / "audio-check.json").write_text(json.dumps({"soundtrack": audio.revision(v), "listen": offered}))
+    status()
+    rec = review_state.read(v, "listen")
+    assert rec["timecodes"] == offered and rec["revision"] == audio.revision(v) and "listen: passed, at 0:01.2, 0:04.0" in capsys.readouterr().out
+    status("--at", "0:04, 5.5")
+    assert review_state.read(v, "listen")["timecodes"] == [offered[1], {"t": 5.5, "at": "0:05.5", "reasons": []}]
+    with pytest.raises(SystemExit, match="not a timecode"):
+        status("--at", "the end")
+    (v / "out" / "audio-check.json").write_text(json.dumps({"soundtrack": "another mix", "listen": offered}))
+    status()
+    assert "timecodes" not in review_state.read(v, "listen")              # chosen for another mix: not these
+    with pytest.raises(SystemExit, match="--at names the timecodes of a listening"):
+        review_state.main_status(cli.build_parser().parse_args(["review-status", str(v), "frames", "waived", "--reason", "ok",
+                                                                "--at", "0:01"]))
+
+
 def test_a_mix_that_cannot_be_built_is_reported_not_raised(tmp_path, monkeypatch):
     from studio_kit import audio
     v = sounding(tmp_path)

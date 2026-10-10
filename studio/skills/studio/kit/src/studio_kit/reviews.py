@@ -27,7 +27,10 @@ review_state.require are read from here.
 
 The listening check is not a reviewer: the kit measures sound (audio-check) and cannot hear it, so
 the user listens once to the finished mix and the builder records it (review-status VIDEO listen
-passed or waived). Its revision is the soundtrack's stamp (audio.revision), so it goes stale when the
+passed or waived). audio-check chooses about five timecodes for that listen, each with its reason
+(audio_check.listening), and publish's warning and the handoff's step name them; the receipt keeps
+the timecodes listened at (--at, else the ones chosen for that mix), and one recorded with none
+still stands. Its revision is the soundtrack's stamp (audio.revision), so it goes stale when the
 mix changes. Nothing requires it: publish warns when a video with effects or music has none standing
 (review_state.listening), and the handoff lists it as a next step.
 """
@@ -144,8 +147,9 @@ KINDS = {
                    Rounds(cap=motion_cap, resets_on=("structural", "fork"), past_cap=motion_past_cap),
                    freshness="record-stale", settled=("passed", "known-issues", "waived"), stands="lineage"),
     "listen": Kind("listen", ("listen",), "sound", None,
-                   "ask the user to listen once to the finished mix (out/master.mp4, or the desk's latest cut) and record "
-                   "it with studio review-status {video} listen passed --reason \"…\" (or waived)",
+                   "ask the user to listen once to the finished mix (out/master.mp4, or the desk's latest cut) at the "
+                   "timecodes studio audio-check chose, and record it with studio review-status {video} listen passed "
+                   "--reason \"…\" (or waived)",
                    records=("passed", "waived")),
 }
 

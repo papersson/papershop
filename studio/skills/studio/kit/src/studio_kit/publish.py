@@ -189,7 +189,8 @@ def build(video, skip_gate=False):
     from .review_state import listening
     due = listening(video, t)
     if due:      # a warning, not a stop: the kit measures sound (audio-check) and cannot hear it
-        print(f"warn: {due}: ask the user to listen once to out/master.mp4, then record it with "
+        from .audio_check import listen_hint
+        print(f"warn: {due}: ask the user to listen once to out/master.mp4, {listen_hint(video)}, then record it with "
               f"`studio review-status {video} listen passed --reason \"…\"` (or waived)")
     return page
 

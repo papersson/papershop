@@ -331,18 +331,52 @@ def main_status(args):
     if args.status not in kind.records:
         raise SystemExit(f"{role}: review-status records {' or '.join(kind.records)}"
                          + ("; a reviewer's pass comes from its own review" if args.status == "passed" else ""))
+    at = getattr(args, "at", None)
+    if at and kind.name != "listen":
+        raise SystemExit("--at names the timecodes of a listening: review-status VIDEO listen passed --at …")
     extra = motion_waiver(args.video, args.reason or "") if kind.name == "motion" else {}
+    if kind.name == "listen":
+        extra |= listened(args.video, at)
     if kind.scope == "frames" and (Path(args.video) / "timeline.json").exists():
         from . import timeline      # what the frames showed, so a stale receipt can say which clips changed
         extra["review_keys"] = review_keys(args.video, timeline.load(args.video))
     record(args.video, role, revision(args.video, kind), args.status, args.reason or "", **extra)
     print(f"{role}: {args.status}" + (f" (cut {extra['cut']}, its {extra['accepted']} known issue(s) accepted)"
-                                       if extra.get("accepted") else ""))
+                                       if extra.get("accepted") else "")
+          + (f", at {', '.join(m['at'] for m in extra['timecodes'])}" if extra.get("timecodes") else ""))
+
+
+def _seconds(text):
+    """Seconds from a timecode as the listening shows it (m:ss.s) or as seconds."""
+    m, _, sec = text.strip().rpartition(":")
+    try:
+        return (int(m) * 60 if m else 0) + float(sec)
+    except ValueError:
+        raise SystemExit(f"--at: {text.strip()!r} is not a timecode (m:ss.s, or seconds)") from None
+
+
+def listened(video, at=None):
+    """What a listening receipt records beyond its reason: {timecodes: [{t, at, reasons}]}, the moments
+    listened at. `at`, comma-separated timecodes, names them (each takes its reasons from the moment
+    audio-check chose within half a second of it, if any); without it, the moments audio-check chose
+    for this mix (audio_check.moments), which the listening step asked for. None when there are none:
+    a listening with no timecodes is still recorded."""
+    from .audio_check import moments, timecode
+    offered = moments(video) or []
+    if not at:
+        return {"timecodes": offered or None}
+    out = []
+    for part in filter(str.strip, at.split(",")):
+        t = _seconds(part)
+        m = min(offered, key=lambda m: abs(m["t"] - t), default=None)
+        out.append(m if m and abs(m["t"] - t) <= 0.5 else {"t": round(t, 2), "at": timecode(t), "reasons": []})
+    return {"timecodes": out or None}
 
 
 def listening(video, timeline):
     """Why the user's listening check is due, or None: a soundtrack with effects or music and no
-    listening recorded for this mix. A narration alone does not need one."""
+    listening recorded for this mix. A narration alone does not need one. Where to listen is
+    audio_check.listen_hint's."""
     from . import timeline as tl
     if not {tl.audio_role(e) for e in timeline["tracks"]["audio"]} & {"sfx", "music"}:
         return None

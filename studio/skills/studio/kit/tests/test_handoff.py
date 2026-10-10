@@ -175,6 +175,12 @@ def test_the_brief_asks_for_a_listening_when_the_mix_has_music(video):
     nxt = handoff.assemble(video).split("## Next")[1]
     assert "ask the user to listen once to the finished mix (nobody has listened to this mix" in nxt
     assert 'studio review-status "$VIDEO" listen passed' in nxt
+    assert 'run `studio audio-check "$VIDEO"` first for the timecodes to listen at' in nxt
+    from studio_kit import audio
+    (video / "out").mkdir(exist_ok=True)
+    (video / "out" / "audio-check.json").write_text(json.dumps({"soundtrack": audio.revision(video), "listen": [
+        {"t": 1.2, "at": "0:01.2", "reasons": ["hero effect fx1 pop (appear)", "the loudest effect"]}]}))
+    assert "at 0:01.2 (hero effect fx1 pop (appear)), then `studio review-status" in handoff.assemble(video).split("## Next")[1]
     review_state.record(video, "listen", "an older mix", "passed", "fine")
     text = handoff.assemble(video)
     assert "listen: stale" in text and "Make a fresh cut" not in text and "earlier one" in text.split("## Next")[1]

@@ -169,8 +169,10 @@ def assemble(video, notes=None, now=None, notes_at=None):
         from .review_state import listening
         due = listening(video, tl.load(video))
         if due:
+            from .audio_check import listen_hint
             steps.append(f"Before publishing, ask the user to listen once to the finished mix ({due}: the kit measures "
-                         f"sound and cannot hear it), then `studio review-status {v} listen passed --reason \"…\"` (or waived)")
+                         f"sound and cannot hear it), {one_line(listen_hint(video, v))}, then "
+                         f"`studio review-status {v} listen passed --reason \"…\"` (or waived)")
     steps.append(f"Mark the stage you resume: `studio stage {v} NAME`"
                  + (f" (the log's latest is {one_line(s['stage'])})" if s["stage"] else ""))
     out += ["", "## Next", ""] + [f"{i}. {step}" for i, step in enumerate(steps, 1)]

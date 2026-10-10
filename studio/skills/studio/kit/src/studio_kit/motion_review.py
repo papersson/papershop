@@ -14,10 +14,13 @@ revision, and a result for a cut older than the sources is recorded as stale (re
 research/motion_review/cut<N>-<rev12>/
   manifest.json   cut, revision, round and cap, the events with no window and why, where things are
   windows.json    [{name, kind: event|move, clip, clips, time, contact_frame, contact_index, frames,
-                    times, fps, sheet, narration: {sentence, said, word?, pause?},
-                    sfx: [{type, cue, time, frame}]}]
+                    times, fps, sheet, sound_sheet?, narration: {sentence, said, word?, pause?},
+                    sfx: [{effect, type, cue, time, frame, visual?}]}]
   sheets/         one strip per window, its frames left to right, each labelled with its frame
-                  number, the contact outlined
+                  number, the contact outlined; and for a window with effects, NAME-sound.png, the
+                  cut's own sound over the window (sound_sheet.py): a marker per effect labelled with
+                  its id and visual tag, the frame grid along the bottom, so the reviewer judges a
+                  tag against the frames beside it
   SCRIPT.md       the cut's Script section
   previous.json   the last round's findings, when there is one (the prompt asks about regressions)
   look/           the look sheet's pages (look.latest), what "on sheet" is judged against; the manifest's
@@ -140,15 +143,16 @@ def _narration(t, at):
 def effects(video, cut, t):
     """(the effects with their times on the cut's timeline, where they came from): the snapshot the
     cut kept (cuts/cutN/sfx.json), else audio/sfx.json resolved against the cut's timeline."""
+    from .sfx import effect_id, place
     kept = cut / "sfx.json"
     if kept.exists():
-        return [e for e in json.loads(kept.read_text()) if e.get("time") is not None], "the cut"
+        return [{**e, "effect": effect_id(i)} for i, e in enumerate(json.loads(kept.read_text())) if e.get("time") is not None], "the cut"
     p = Path(video) / "audio" / "sfx.json"
     if not p.exists():
         return [], "none"
-    from .sfx import place
     placed = place(json.loads(p.read_text()), t, strict=False)
-    return [{**e.cue, "time": e.time} for e in placed if e.time is not None], "the current sources (this cut kept none)"
+    return ([{**e.cue, "time": e.time, "effect": effect_id(i)} for i, e in enumerate(placed) if e.time is not None],
+            "the current sources (this cut kept none)")
 
 
 def _clip_at(t, frame):
@@ -167,8 +171,9 @@ def _window(t, name, kind, contact, count, lead, bounds, sfx):
             "time": round(contact / fps, 3), "contact_frame": contact, "contact_index": frames.index(contact),
             "frames": frames, "times": times, "fps": round(fps / step, 3), "sheet": f"sheets/{name}.png",
             "narration": _narration(t, contact / fps),
-            "sfx": [{"type": e.get("type"), "cue": e["t"] if isinstance(e["t"], str) else None, "time": round(e["time"], 3),
-                     "frame": tl.half_up(e["time"] * fps)} for e in sfx if times[0] - 1e-6 <= e["time"] <= times[-1] + 1e-6]}
+            "sfx": [{"effect": e.get("effect"), "type": e.get("type"), "cue": e["t"] if isinstance(e["t"], str) else None,
+                     "time": round(e["time"], 3), "frame": tl.half_up(e["time"] * fps), **({"visual": e["visual"]} if e.get("visual") else {})}
+                    for e in sfx if times[0] - 1e-6 <= e["time"] <= times[-1] + 1e-6]}
 
 
 def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
@@ -216,6 +221,35 @@ def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
             frames = min(MOVE_MAX_FRAMES, max(WINDOW_FRAMES, LEAD + math.ceil((hi - lo) / _step(t)) + SETTLE))
             out.append(_window(t, unique(f"move_{c['id']}_{a:.1f}"), "move", lo, frames, LEAD, bounds(lo), sfx))
     return sorted(out, key=lambda w: (w["frames"][0], w["name"])), dropped
+
+
+def sound_sheets(video, n, found, t, bundle, movie):
+    """A sound sheet for each window with effects (sheets/NAME-sound.png, its path set on the window as
+    sound_sheet), from the cut's own video.mp4, whose sound is the cut's: the window's span with a
+    frame either side, its effects marked with their ids and tags, and the flags and picture marks of
+    the audio-check made of this cut (out/audio-check.json, when its cut is this one). None without the cut's video
+    (clip renders carry no sound) or when it has no sound track. Returns the windows given one."""
+    from . import sound_sheet
+    if not movie.exists() or not any(w["sfx"] for w in found) or not proc.ffprobe(movie, "-show_streams", "-select_streams", "a")["streams"]:
+        return []
+    report = Path(video) / "out" / "audio-check.json"
+    report = json.loads(report.read_text()) if report.exists() else {}
+    measured = {e["id"]: e for e in report.get("effects", [])} if report.get("cut") == n else {}
+    sentences = [{"id": s["id"], "start": s["start"], "end": s["end"]} for s in t["tracks"].get("narration", [])]
+    done = []
+    for w in found:
+        if not w["sfx"]:
+            continue
+        marks = [{"id": e["effect"] or "fx", "type": e["type"], "t": e["time"], "flags": measured.get(e["effect"], {}).get("flags", []),
+                  **({"visual": e["visual"]} if e.get("visual") else {}),
+                  **({"picture_frame": measured[e["effect"]]["picture_frame"]} if "picture_frame" in measured.get(e["effect"], {}) else {})}
+                 for e in w["sfx"]]
+        name = w["sheet"].replace(".png", "-sound.png")
+        sound_sheet.draw(movie, bundle / name, w["times"][0] - 1 / t["fps"], w["times"][-1] + 1 / t["fps"], marks, sentences,
+                         fps=t["fps"], width=1200, title=f"{w['name']}  frames {w['frames'][0]}-{w['frames'][-1]}  (the cut sound)")
+        w["sound_sheet"] = name
+        done.append(w["name"])
+    return done
 
 
 # --- the reviewer's response ------------------------------------------------------------------------
@@ -413,8 +447,19 @@ LOOK_NOTES = {
 }
 
 
-def prompt(cfg, judged, prior, dropped=(), sheet_status="current"):
+SOUND_NOTE = ("Windows with sound effects also have a sound sheet (windows.json's sound_sheet, in sheets/): the cut's own sound "
+              "over the window's time, its waveform and spectrogram, a marker per effect labelled with its id and, in "
+              "brackets, its visual tag, and the video's frame numbers along the bottom. An effect's visual tag in "
+              "windows.json says what the picture should do on that effect's frame: cut (the shot changes), move (a move "
+              "at its fastest), land (a move ends: the thing comes to rest) or appear (something starts to show). For "
+              "each tagged effect, judge whether the frames do that on the effect's frame; a tag the picture doesn't "
+              "honour, or a marker that sits away from where the picture lands, is a finding naming both frames.")
+
+
+def prompt(cfg, judged, prior, dropped=(), sheet_status="current", sounds=False):
     text = (ROOT / "prompts" / "motion_review.md").read_text()
+    if sounds:
+        text += "\n\n" + SOUND_NOTE + "\n"
     if sheet_status in LOOK_NOTES:
         text += "\n\n" + LOOK_NOTES[sheet_status] + "\n"
     if cfg.get("tone") == "comic":
@@ -477,6 +522,7 @@ def main(args):
         else:                       # a clip render numbers its frames from the clip's first
             f, offset = clip_render(video, rec, w["clip"]), -tl.frames(t, w["clip"])[0]
         labelled = sheet(f, w["frames"], offset, w["contact_frame"], t["fps"], bundle / w["sheet"]) and labelled
+    sounds = sound_sheets(video, n, found, t, bundle, movie)
     atomic_json(bundle / "windows.json", found)
     from .script import sections
     script = cut / "SCRIPT.md" if (cut / "SCRIPT.md").exists() else video / "SCRIPT.md"
@@ -485,10 +531,10 @@ def main(args):
     if prior:
         atomic_json(bundle / "previous.json", prior)
     sheet_of = look_sheet(video, bundle)
-    (bundle / "prompt.md").write_text(prompt(cfg, judged, prior, dropped, sheet_of["status"]))
+    (bundle / "prompt.md").write_text(prompt(cfg, judged, prior, dropped, sheet_of["status"], bool(sounds)))
     atomic_json(manifest, {"cut": n, "revision": judged, "round": number, "cap": cap, "tone": cfg.get("tone"),
                            "windows": "windows.json", "sheets": "sheets/", "labelled": labelled, "script": "SCRIPT.md",
-                           "sfx_from": sfx_from, "dropped": dropped, "look": sheet_of,
+                           "sfx_from": sfx_from, "sound_sheets": len(sounds), "dropped": dropped, "look": sheet_of,
                            "previous": "previous.json" if prior else None, "prompt": "prompt.md"})
     if stale:
         print(f"cut {n} is older than the sources ({changed} changed since): its review will be recorded as stale")

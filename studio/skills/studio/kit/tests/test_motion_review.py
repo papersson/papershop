@@ -187,7 +187,7 @@ def test_the_bundle_holds_a_window_per_event_and_per_uncovered_move_from_the_cut
     assert (drop["kind"], drop["clip"], drop["contact_frame"], drop["contact_index"], drop["fps"]) == ("event", "s1", 30, 3, 15)
     assert drop["frames"] == list(range(24, 48, 2))
     assert drop["narration"] == {"sentence": "s1_01", "said": "One."}
-    assert drop["sfx"] == [{"type": "click", "cue": "drop", "time": 1.0, "frame": 30}]
+    assert drop["sfx"] == [{"effect": "fx1", "type": "click", "cue": "drop", "time": 1.0, "frame": 30}]
     enter = found["enter"]                                          # at s2's first frame, its lead-in from s1
     assert (enter["clip"], enter["clips"], enter["contact_index"], enter["frames"][0]) == ("s2", ["s1", "s2"], 3, 54)
     moves = [w for w in found.values() if w["kind"] == "move"]
@@ -503,3 +503,36 @@ def test_frame_labels_name_their_font_so_fontconfig_says_nothing(tmp_path, monke
     monkeypatch.setenv("FONTCONFIG_FILE", str(tmp_path / "no-fonts.conf"))
     assert motion_review.sheet(clip, [3, 4, 5, 6], 0, 4, 30, tmp_path / "sheet.png") is True
     assert "Fontconfig" not in capfd.readouterr().err and (tmp_path / "sheet.png").exists()
+
+
+def test_a_window_with_effects_carries_the_cuts_sound_and_its_tags(video):
+    """The cut's own sound over each window that has effects, its effects marked with their ids and tags;
+    the prompt asks the reviewer to judge a tag against the frames."""
+    from studio_kit import sound_sheet
+    (video / "audio" / "sfx.json").write_text(json.dumps([{"t": "drop", "type": "thump", "visual": "land"}]))
+    d = make_cut(video, 1)
+    silent = d / "video.mp4"
+    with_sound = d / "with-sound.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(silent), "-f", "lavfi", "-i", "sine=frequency=300:duration=6:sample_rate=48000",
+                    "-c:v", "copy", "-c:a", "aac", "-shortest", str(with_sound)], check=True)
+    with_sound.replace(silent)
+    assert prepare(video, None) == 0
+    b = bundle_of(video, 1)
+    found = {w["name"]: w for w in json.loads((b / "windows.json").read_text())}
+    drop = found["drop"]
+    assert drop["sfx"] == [{"effect": "fx1", "type": "thump", "cue": "drop", "time": 1.0, "frame": 30, "visual": "land"}]
+    assert drop["sound_sheet"] == "sheets/drop-sound.png" and (b / drop["sound_sheet"]).stat().st_size > 0
+    assert all("sound_sheet" not in w for w in found.values() if not w["sfx"])
+    assert json.loads((b / "manifest.json").read_text())["sound_sheets"] == 1
+    assert motion_review.SOUND_NOTE in (b / "prompt.md").read_text()
+    h = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=height", "-of", "csv=p=0", str(b / drop["sound_sheet"])],
+                       capture_output=True, text=True, check=True).stdout.strip()
+    assert int(h) == sound_sheet.height()
+
+
+def test_a_silent_cut_gets_no_sound_sheets(video):
+    make_cut(video, 1)
+    assert prepare(video, None) == 0
+    b = bundle_of(video, 1)
+    assert all("sound_sheet" not in w for w in json.loads((b / "windows.json").read_text()))
+    assert motion_review.SOUND_NOTE not in (b / "prompt.md").read_text()
