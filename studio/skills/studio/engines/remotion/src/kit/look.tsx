@@ -153,16 +153,20 @@ const Code: React.FC = () => {
 
 // The colour legend, meaning -> a theme colour's name (ice, AMBER, tray_fill) or #rrggbb.
 const LEGEND = Object.entries((videoConfig as {legend?: Record<string, string>}).legend ?? {});
-const themeColour = (v: string) => (v.startsWith('#') ? v : String((THEME as Record<string, unknown>)[v.toUpperCase().replace(/-/g, '_')] ?? v));
+function themeColour(v: string): string {
+	if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+	const hex = (THEME as Record<string, unknown>)[v.trim().toUpperCase().replace(/-/g, '_')];
+	if (typeof hex !== 'string' || !hex.startsWith('#')) throw new Error(`video.json legend: ${JSON.stringify(v)} is not a theme colour (kit/theme.ts) or #rrggbb`);
+	return hex;
+}
 
-/** Each meaning in its colour, as a swatch and a label, with the colour's name. */
+/** Each meaning in its colour beside a swatch, its colour's name and value under it. */
 const Legend: React.FC = () => {
 	const s = useStage();
 	const sw = s.width / s.unit;
-	const narrow = s.width < s.height;
 	const left = -sw / 2 + 0.5;
 	const top = 4 - (s.header ?? 0) / s.unit - 0.9;
-	const step = Math.min(0.75, (top + 3.6) / Math.max(1, LEGEND.length));
+	const step = Math.min(0.8, (top + 3.6) / Math.max(1, LEGEND.length));
 	return (
 		<>
 			{LEGEND.map(([meaning, name], i) => {
@@ -171,8 +175,8 @@ const Legend: React.FC = () => {
 				return (
 					<React.Fragment key={meaning}>
 						<Rect at={[left + 0.22, y]} w={0.44} h={0.44} radius={0.06} fill={hex} stroke={DIM} strokeWidth={1.5} name={`legend swatch ${meaning}`} means={meaning} />
-						<Txt at={[left + 0.7, y + (narrow ? 0.1 : 0)]} anchor="left" size={narrow ? 18 : 20} weight={600} font="sans" color={hex} name={`legend ${meaning}`} means={meaning}>{meaning}</Txt>
-						<Txt at={narrow ? [left + 0.7, y - 0.2] : [left + 0.7 + Math.min(5, sw * 0.3), y]} anchor="left" size={narrow ? 14 : 16} color={MUTED} name={`legend colour ${meaning}`}>
+						<Txt at={[left + 0.7, y + 0.11]} anchor="left" size={20} weight={600} font="sans" color={hex} name={`legend ${meaning}`} means={meaning}>{meaning}</Txt>
+						<Txt at={[left + 0.7, y - 0.2]} anchor="left" size={14} color={MUTED} name={`legend colour ${meaning}`}>
 							{name.startsWith('#') ? name : `${name}  ${hex}`}
 						</Txt>
 					</React.Fragment>

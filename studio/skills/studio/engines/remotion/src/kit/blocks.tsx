@@ -1,5 +1,5 @@
 import React from 'react';
-import {Arrow, Rect, Svg, Txt, type XY} from './stage';
+import {Arrow, Rect, Svg, Txt, kitMeans, type XY} from './stage';
 import {CORAL, ICE, INK, MUTED, PANEL, TRAY_EDGE, TRAY_FILL, mix} from './theme';
 import {ramp, spring} from './time';
 
@@ -25,6 +25,7 @@ export const Box: React.FC<{at: XY; w: number; h?: number; text: string; opacity
 	color?: string; sub?: string; name?: string; means?: string}> = ({at, w, h = 0.8, text, opacity = 1, lit = 0, bad = 0, size = 18, color, sub, name, means}) => {
 	if (opacity <= 0) return null;
 	const edge = bad ? CORAL : color ?? mix(TRAY_EDGE, ICE, lit);
+	means = kitMeans(means, bad || (lit && !color));
 	return (
 		<>
 			<Rect at={at} w={w} h={h} radius={0.1} stroke={edge} strokeWidth={2 + lit} fill={TRAY_FILL} opacity={opacity} name={name ?? `box ${text}`} means={means} />
@@ -39,9 +40,9 @@ export const Link: React.FC<{from: XY; to: XY; opacity?: number; color?: string;
 	from, to, opacity = 1, color = MUTED, width = 2, progress = 1, tip = 0.14,
 }) => (opacity > 0 ? <Svg opacity={opacity}><Arrow from={from} to={to} color={color} width={width} progress={progress} tip={tip} /></Svg> : null);
 
-/** A card of text or code lines; `lit` and `bad` per line (0..1). Its height follows the lines. */
+/** A card of text or code lines; `lit` and `bad` per line (0..1). Its height follows the lines. `means` tags the lit and failed lines. */
 export const Card: React.FC<{at: XY; w: number; lines: string[]; lit?: number[]; bad?: number[]; opacity?: number; size?: number;
-	name?: string}> = ({at, w, lines, lit = [], bad = [], opacity = 1, size = 18, name = 'card'}) => {
+	name?: string; means?: string}> = ({at, w, lines, lit = [], bad = [], opacity = 1, size = 18, name = 'card', means}) => {
 	if (opacity <= 0) return null;
 	const lh = size * 0.031;
 	const h = lh * lines.length + 0.5;
@@ -50,7 +51,8 @@ export const Card: React.FC<{at: XY; w: number; lines: string[]; lit?: number[];
 			<Rect at={at} w={w} h={h} radius={0.12} stroke={TRAY_EDGE} strokeWidth={2} fill={TRAY_FILL} opacity={opacity} name={name} />
 			{lines.map((l, i) => (
 				<Txt key={i} at={[at[0] - w / 2 + 0.4, at[1] + h / 2 - 0.25 - lh / 2 - i * lh]} anchor="left" size={size}
-					color={mix(mix(MUTED, ICE, lit[i] ?? 0), CORAL, bad[i] ?? 0)} opacity={opacity} name={`${name} line ${i + 1}`}>{l}</Txt>
+					color={mix(mix(MUTED, ICE, lit[i] ?? 0), CORAL, bad[i] ?? 0)} opacity={opacity} name={`${name} line ${i + 1}`}
+					means={kitMeans(means, lit[i] || bad[i])}>{l}</Txt>
 			))}
 		</>
 	);
@@ -76,16 +78,17 @@ export const Term: React.FC<{at: XY; w: number; text: string; opacity?: number; 
 	) : null
 );
 
-/** A vertical stack of layers (top first); `focus` lights one, by index. */
-export const Stack: React.FC<{at: XY; layers: string[]; focus?: number; opacity?: number; w?: number; h?: number; gap?: number}> = ({
-	at, layers, focus = -1, opacity = 1, w = 5.2, h = 0.8, gap = 0.22,
+/** A vertical stack of layers (top first); `focus` lights one, by index, and `means` tags it. */
+export const Stack: React.FC<{at: XY; layers: string[]; focus?: number; opacity?: number; w?: number; h?: number; gap?: number; means?: string}> = ({
+	at, layers, focus = -1, opacity = 1, w = 5.2, h = 0.8, gap = 0.22, means,
 }) => {
 	if (opacity <= 0) return null;
 	const top = at[1] + ((layers.length - 1) / 2) * (h + gap);
 	return (
 		<>
 			{layers.map((l, i) => (
-				<Box key={l} at={[at[0], top - i * (h + gap)]} w={w} h={h} text={l} opacity={opacity} lit={focus === i ? 1 : 0} name={`layer ${l}`} />
+				<Box key={l} at={[at[0], top - i * (h + gap)]} w={w} h={h} text={l} opacity={opacity} lit={focus === i ? 1 : 0} name={`layer ${l}`}
+					means={focus === i ? means : undefined} />
 			))}
 		</>
 	);

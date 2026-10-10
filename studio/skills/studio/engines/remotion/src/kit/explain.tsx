@@ -1,11 +1,13 @@
 import React from 'react';
-import {Rect, Svg, Txt, pt, toPx, useStage, type Stage, type XY} from './stage';
+import {Rect, Svg, Txt, kitMeans, pt, toPx, useStage, type Stage, type XY} from './stage';
 import {Box, Link, Panel} from './blocks';
 import {AMBER, CORAL, ICE, INK, MUTED, TRAY_EDGE, mix} from './theme';
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
 const outputLines = (text: string) => text === '' ? [] : text.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
-type Area = {at: XY; w: number; opacity?: number; size?: number; name?: string};
+// means: the legend meaning of what a component lights (the current line, a selected cell, a failed
+// row, a focused variable); untagged, the kit's accent states are tagged "kit" (stage.tsx kitMeans).
+type Area = {at: XY; w: number; opacity?: number; size?: number; name?: string; means?: string};
 
 const MIN_TEXT_PX = 18;       // the legible check's floor: a text box at least 18 px tall at 1080p
 const MONO_ADVANCE = 0.6;     // IBM Plex Mono's advance, in ems
@@ -25,7 +27,7 @@ export type SourceFile = {text: string; sha256: string};
 export const CodePanel: React.FC<Area & {
   source: SourceFile; range?: [number, number]; current?: number; plumbing?: number[];
   markers?: Record<number, string>; tokens?: {line: number; text: string; progress: number}[];
-}> = ({at, w, source, range, current, plumbing = [], markers = {}, tokens = [], opacity = 1, size = 20, name = 'code'}) => {
+}> = ({at, w, source, range, current, plumbing = [], markers = {}, tokens = [], opacity = 1, size = 20, name = 'code', means}) => {
   const s = useStage();
   const lines = source.text.replace(/\r\n/g, '\n').split('\n');
   if (lines.at(-1) === '') lines.pop();
@@ -49,9 +51,9 @@ export const CodePanel: React.FC<Area & {
       parts.push(line.slice(offset));
       return <React.Fragment key={n}>
         <Txt at={[at[0] - w / 2 + 0.2, y]} anchor="left" size={sz} color={current === n ? ICE : MUTED}
-          opacity={opacity} name={`${name} line number ${n}`}>{markers[n] ?? String(n)}</Txt>
+          opacity={opacity} name={`${name} line number ${n}`} means={kitMeans(means, current === n)}>{markers[n] ?? String(n)}</Txt>
         <Txt at={[at[0] - w / 2 + 1, y]} anchor="left" size={sz} color={color}
-          opacity={opacity} name={`${name} line ${n}`}>{parts}</Txt>
+          opacity={opacity} name={`${name} line ${n}`} means={kitMeans(means, current === n)}>{parts}</Txt>
       </React.Fragment>;
     })}
   </>;
@@ -59,7 +61,7 @@ export const CodePanel: React.FC<Area & {
 
 export type CapturedRun = {argv: string[]; stdout: string; stderr: string; exit: number | null};
 export const Terminal: React.FC<Area & {runs: CapturedRun[]; progress?: number; maxLines?: number}> =
-({at, w, runs, progress = 1, maxLines = 9, opacity = 1, size = 20, name = 'terminal'}) => {
+({at, w, runs, progress = 1, maxLines = 9, opacity = 1, size = 20, name = 'terminal', means}) => {
   const lines = runs.flatMap(r => [{text: '$ ' + r.argv.join(' '), color: MUTED},
     ...outputLines(r.stdout).map(text => ({text, color: INK})),
     ...outputLines(r.stderr).map(text => ({text, color: r.exit ? CORAL : MUTED}))]);
@@ -68,12 +70,13 @@ export const Terminal: React.FC<Area & {runs: CapturedRun[]; progress?: number; 
   const s = useStage(), sz = legibleSize(s, size, Math.max(0, ...lines.map(l => columns(l.text))), w - 0.6), lh = sz * 0.031;
   return <><Panel at={at} w={w} h={Math.max(1, shown.length) * lh + 0.6} opacity={opacity} name={name}/>
     {shown.map((line, i) => <Txt key={i} at={[at[0] - w / 2 + 0.3, at[1] + (shown.length - 1) * lh / 2 - i * lh]}
-      size={sz} anchor="left" color={line.color} opacity={opacity} name={`${name} row ${i}`}>{line.text}</Txt>)}
+      size={sz} anchor="left" color={line.color} opacity={opacity} name={`${name} row ${i}`}
+      means={kitMeans(means, line.color === CORAL)}>{line.text}</Txt>)}
   </>;
 };
 
 export const RowTable: React.FC<Area & {columns: string[]; rows: Record<string, unknown>[]; highlight?: [number, string]; progress?: number}> =
-({at, w, columns, rows, highlight, progress = 1, opacity = 1, size = 20, name = 'table'}) => {
+({at, w, columns, rows, highlight, progress = 1, opacity = 1, size = 20, name = 'table', means}) => {
   const s = useStage();
   const shown = rows.slice(0, Math.ceil(rows.length * clamp(progress))), cw = w / Math.max(1, columns.length), lh = 0.65;
   const n = shown.length + 1, top = at[1] + n * lh / 2, left = at[0] - w / 2;
@@ -98,9 +101,9 @@ export const RowTable: React.FC<Area & {columns: string[]; rows: Record<string, 
       const pos: XY = [left + (j + 0.5) * cw, at[1] + shown.length * lh / 2 - i * lh];
       const selected = highlight?.[0] === i - 1 && highlight[1] === c;
       return <React.Fragment key={`${i}-${c}`}>
-        {selected && <Rect at={pos} w={cw} h={lh} stroke={ICE} strokeWidth={2} opacity={opacity} name={`${name} selected`}/>}
+        {selected && <Rect at={pos} w={cw} h={lh} stroke={ICE} strokeWidth={2} opacity={opacity} name={`${name} selected`} means={kitMeans(means, true)}/>}
         <Txt at={pos} size={Math.max(18, size)} color={selected ? ICE : i ? INK : MUTED} opacity={opacity}
-          name={`${name} ${i ? `row ${i}` : 'header'} ${c}`}>{typeof row[c] === 'object' ? JSON.stringify(row[c]) : String(row[c] ?? '')}</Txt>
+          name={`${name} ${i ? `row ${i}` : 'header'} ${c}`} means={kitMeans(means, selected)}>{typeof row[c] === 'object' ? JSON.stringify(row[c]) : String(row[c] ?? '')}</Txt>
       </React.Fragment>;
     }))}
   </>;
@@ -114,15 +117,15 @@ export function jsonRows(value: unknown, path: string[] = []): {path: string[]; 
   return [{path, text: JSON.stringify(value) ?? 'null'}];
 }
 export const JsonTree: React.FC<Area & {value: unknown; cursor?: string[]; progress?: number}> =
-({at, w, value, cursor = [], progress = 1, opacity = 1, size = 20, name = 'json'}) => {
+({at, w, value, cursor = [], progress = 1, opacity = 1, size = 20, name = 'json', means}) => {
   const all = jsonRows(value), rows = all.slice(0, Math.ceil(all.length * clamp(progress))), lh = 0.55;
   return <>{rows.map((r, i) => <Txt key={JSON.stringify(r.path)} at={[at[0] - w / 2 + r.path.length * 0.3, at[1] + (all.length - 1) * lh / 2 - i * lh]}
     anchor="left" size={Math.max(18, size)} color={JSON.stringify(r.path) === JSON.stringify(cursor) ? ICE : INK}
-    opacity={opacity} name={`${name} ${r.path.join('.') || 'root'}`}>{(r.path.length ? r.path.at(-1) + ': ' : '') + r.text}</Txt>)}</>;
+    opacity={opacity} name={`${name} ${r.path.join('.') || 'root'}`} means={kitMeans(means, JSON.stringify(r.path) === JSON.stringify(cursor))}>{(r.path.length ? r.path.at(-1) + ': ' : '') + r.text}</Txt>)}</>;
 };
 
 export const ColumnStrips: React.FC<Area & {columns: {name: string; bytes: number; groups?: number[]}[]; h?: number; open?: number}> =
-({at, w, columns, h = 3, open = 0, opacity = 1, size = 20}) => {
+({at, w, columns, h = 3, open = 0, opacity = 1, size = 20, means}) => {
   const total = columns.reduce((sum, c) => sum + Math.max(0, c.bytes), 0);
   let x = at[0] - w / 2;
   return <>{columns.map(c => {
@@ -132,15 +135,15 @@ export const ColumnStrips: React.FC<Area & {columns: {name: string; bytes: numbe
     return <React.Fragment key={c.name}>
       <Txt at={[center, at[1] + h / 2 + 0.35]} size={Math.max(18, size)} opacity={opacity} name={`column ${c.name}`}>{c.name}</Txt>
       {groups.map((bytes, i) => {const gh = h * bytes / denom, cy = y - gh / 2; y -= gh;
-        return <Rect key={i} at={[center + clamp(open) * i * 0.12, cy]} w={width} h={gh} stroke={ICE} opacity={opacity} name={`${c.name} group ${i}`}/>;
+        return <Rect key={i} at={[center + clamp(open) * i * 0.12, cy]} w={width} h={gh} stroke={ICE} opacity={opacity} name={`${c.name} group ${i}`} means={kitMeans(means, true)}/>;
       })}
     </React.Fragment>;
   })}</>;
 };
 
 export const VarCard: React.FC<Area & {label: string; value: string; type: string; focus?: number}> =
-({at, w, label, value, type, focus = 0, opacity = 1, size = 20}) => <>
-  <Box at={at} w={w} h={1.5} text={value} lit={focus} opacity={opacity} size={Math.max(18, size)} name={`variable ${label}`}/>
+({at, w, label, value, type, focus = 0, opacity = 1, size = 20, means}) => <>
+  <Box at={at} w={w} h={1.5} text={value} lit={focus} opacity={opacity} size={Math.max(18, size)} name={`variable ${label}`} means={means}/>
   <Txt at={[at[0] - w / 2 + 0.2, at[1] + 0.52]} anchor="left" size={18} opacity={opacity} name={`${label} type`}>{label + ': ' + type}</Txt>
 </>;
 

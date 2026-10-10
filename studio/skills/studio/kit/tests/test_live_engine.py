@@ -199,3 +199,40 @@ export default function draw(c) {
     assert w.startswith("cold, which the legend keeps for focus, is on 'title' at s1")
     pages = Engine(tmp_path).look(tmp_path / "out", [])["pages"]
     assert [p["title"] for p in pages][-1] == "colour legend"
+
+
+@needs_engine
+def test_a_legend_colour_is_named_in_any_case_and_an_unknown_one_fails(tmp_path):
+    """{"focus": "Hot"} drew nothing (var(--Hot)) and the check passed; a name the theme lacks drew
+    nothing too."""
+    live_video(tmp_path, """
+export default function draw(c) {
+  c.S.rect('picked', 100, 300, 200, 100, { stroke: c.legend.focus, box: 'picked', means: 'focus' })
+}
+""")
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": {"focus": "Hot"}}))
+    (f,) = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}])
+    assert next(b for b in f["boxes"] if b["name"] == "picked")["stroke"] == "rgb(242, 169, 59)"
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": {"focus": "Hto"}}))
+    with pytest.raises(EngineError, match='legend "focus": "Hto" is not a theme colour'):
+        Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}])
+
+
+@needs_engine
+def test_the_close_ups_minimap_is_the_kits_and_the_legend_page_stacks_its_rows(tmp_path):
+    """With focus: cold the default minimap warned; a long meaning ran into the colour column."""
+    from studio_kit import check
+    live_video(tmp_path, """
+export default function draw(c) {
+  c.S.closeUp('cu', c.view, { open: 1, name: 'detail', map: [[0, 0, 100, 50], [150, 0, 100, 50]], of: 0 })
+}
+""")
+    legend = {"focus": "cold", "a much longer meaning name than most": "key"}
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": legend}))
+    assert [r for r in check.run(tmp_path, only=["legend"]) if r.get("severity")] == []
+    for fmt in (None, "9:16"):
+        page = Engine(tmp_path, fmt=fmt).look(tmp_path / "out", [])["pages"][-1]
+        by = {b["name"]: b for b in page["boxes"]}
+        for meaning in legend:
+            a, b = by[f"legend {meaning}"], by[f"legend colour {meaning}"]
+            assert a["y"] + a["h"] <= b["y"] + 1 or a["x"] + a["w"] <= b["x"], (fmt, meaning)

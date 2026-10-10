@@ -31,7 +31,7 @@ export const MapScene: React.FC = () => {
 			</MapView>
 			<CloseUp open={open} from={NODES[1]} name="server" nodes={NODES}>
 				<GhostCard at={[0, 0.3]} w={6} h={1.6}>
-					<Txt at={[0, 0.3]} size={22} color={ICE}>{'{{the record this chapter is about}}'}</Txt>
+					<Txt at={[0, 0.3]} size={22} color={ICE} means="kit">{'{{the record this chapter is about}}'}</Txt>
 				</GhostCard>
 				<Txt at={[0, -1.2]} size={18} color={MUTED}>{'{{a detail only this close-up needs}}'}</Txt>
 			</CloseUp>

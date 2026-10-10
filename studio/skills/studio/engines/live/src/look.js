@@ -98,17 +98,17 @@ function closeUp(c) {
   S.text('closeup:detail', p.x + p.w / 2, p.y + p.h / 2 + 130, 'a detail only this close-up needs', { size: 22, anchor: 'middle', fill: 'var(--dim)', mono: true, op: p.inner })
 }
 
-/** The video's colour legend: each meaning in its colour, as a swatch and a label, with the colour's name. */
+/** The video's colour legend: each meaning in its colour beside a swatch, its colour's name and value under it. */
 function legendPage(c) {
   const { S, W, H, header, unit, legend, declared } = c
   const entries = Object.entries(legend), top = header + unit * 0.9
-  const step = Math.min(84, (H - top - unit * 0.4) / Math.max(1, entries.length))
+  const step = Math.min(96, (H - top - unit * 0.4) / Math.max(1, entries.length))
   entries.forEach(([meaning, colour], i) => {
-    const x = W * 0.08, y = top + i * step, size = Math.min(30, step * 0.5)
-    const name = String(declared[meaning]), hex = name.startsWith('#') ? '' : `  ${css(name)}`
+    const x = W * 0.08, y = top + i * step, size = Math.min(30, step * 0.36)
+    const name = String(declared[meaning]), value = colour.startsWith('var(') ? `  ${css(colour.slice(6, -1))}` : ''
     S.rect(`legend:${i}`, x, y - step * 0.32, step * 0.64, step * 0.64, { fill: colour, stroke: 'var(--line)', sw: 1.5, r: 6, box: `legend swatch ${meaning}`, means: meaning })
-    S.text(`legend:${i}:t`, x + step, y, meaning, { size, weight: 600, fill: colour, box: `legend ${meaning}`, means: meaning })
-    S.text(`legend:${i}:c`, x + step + Math.min(W * 0.3, 420), y, `${name}${hex}`, { size: Math.max(18, size * 0.75), fill: 'var(--dim)', mono: true, box: `legend colour ${meaning}` })
+    S.text(`legend:${i}:t`, x + step, y - size * 0.45, meaning, { size, weight: 600, fill: colour, box: `legend ${meaning}`, means: meaning })
+    S.text(`legend:${i}:c`, x + step, y + size * 0.6, `${name}${value}`, { size: 18, fill: 'var(--dim)', mono: true, box: `legend colour ${meaning}` })
   })
 }
 

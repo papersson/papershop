@@ -9,7 +9,7 @@
 //   node cli.mjs boxes    --video DIR --clip ID --t SEC
 //   node cli.mjs boxesAt  --video DIR --requests JSON
 //   node cli.mjs duration --video DIR --clip ID
-//   node cli.mjs look     --video DIR --out DIR [--caption JSON]   the look sheet: look-<n>.png per page
+//   node cli.mjs look     --video DIR --out DIR [--caption JSON]   the look sheet: look-<n>.png per page, with its boxes
 //
 // A scene that throws fails the call with the clip, the time and the error (the kit's EngineError).
 import { chromium } from 'playwright-core'
@@ -170,7 +170,7 @@ async function look(video, outDir, caption) {
       if (r.error) throw new Error(`look sheet error in ${r.error}`)
       const out = path.join(outDir, `look-${i + 1}.png`)
       writeFileSync(out, await page.screenshot({ type: 'png' }))
-      done.push({ page: i + 1, title: titles[i], out })
+      done.push({ page: i + 1, title: titles[i], out, boxes: (await page.evaluate(() => window.studio.boxes())).boxes })
     }
     return done
   })

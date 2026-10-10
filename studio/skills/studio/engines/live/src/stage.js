@@ -159,8 +159,10 @@ export class Stage {
    * each) without labels, and fills only the one at index `of`, in `accent`. The panel's outline (3)
    * is heavier than the minimap's (1.5). Returns the open panel {x, y, w, h} and `inner`, the opacity
    * the scene draws the contents with; contents may sit outside the panel, nothing clips them.
+   * `means` tags the minimap's filled box with a legend meaning; untagged, the default accent's fill
+   * is tagged "kit", the kit's own accent state, which the legend check leaves alone.
    */
-  closeUp(key, area, { open = 1, from, name = '', map = [], of = -1, accent = 'var(--cold)', pad = 36, layer } = {}) {
+  closeUp(key, area, { open = 1, from, name = '', map = [], of = -1, accent = 'var(--cold)', pad = 36, layer, means } = {}) {
     const [ax, ay, aw, ah] = area
     const x = ax + pad, y = ay + pad, w = aw - 2 * pad, h = ah - 2 * pad
     const inner = Math.min(1, Math.max(0, (open - 0.55) / 0.45))
@@ -175,6 +177,7 @@ export class Stage {
       const mw = Math.min(368, w * 0.2), s = mw / Math.max(1, x1 - x0), ox = x + w - 24 - mw, oy = y + 24
       map.forEach(([mx, my, bw, bh], i) => this.rect(`${key}:mini${i}`, ox + (mx - x0) * s, oy + (my - y0) * s, bw * s, bh * s, {
         stroke: i === of ? accent : 'var(--dim)', fill: i === of ? accent : 'none', sw: 1.5, r: 3, op: inner, box: 'minimap', layer,
+        means: i === of ? means ?? (accent === 'var(--cold)' ? 'kit' : undefined) : undefined,
       }))
     }
     return { x, y, w, h, inner }

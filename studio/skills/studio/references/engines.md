@@ -154,7 +154,7 @@ optionally `export const pages = [titles]`, `c.page` the page drawn) or `scenes/
 default export mapping each page's title to a component). Copy `templates/live/scenes/example-look.js`
 or `templates/scenes/example-look.tsx`; export each element from it so the scenes import the same
 drawing. A page is drawn at t = 0 with no sentence times. A video with a colour legend (below) gets a
-`colour legend` page after the built-in ones: each meaning in its colour, with the colour's name. On Remotion the sheet is a bundle of its
+`colour legend` page after the built-in ones: each meaning in its colour beside a swatch, its colour's name and value under it (live returns each page's boxes too). On Remotion the sheet is a bundle of its
 own (`src/look-entry.tsx`), so a mistake in `scenes/look.tsx` fails `look-sheet` and nothing else;
 on live a look file that fails to load is named in the error.
 
@@ -169,30 +169,46 @@ in the prompt, which asks for a SHOULD FIX line naming it.
 ## The colour legend (live and Remotion)
 
 A video that gives colours meanings declares them in video.json, meaning to colour, each colour a
-theme name of the video's engine (live: `hot`, `warm`, `cold`, `bad`, `good`, `log`, `key`, ...;
-Remotion: `amber`, `ice`, `coral`, ...) or `#rrggbb`:
+theme name of the video's engine, in any case (live: `hot`, `warm`, `cold`, `bad`, `good`, `log`,
+`key`, ...; Remotion: `amber`, `ice`, `coral`, ...) or `#rrggbb`:
 
 ```json
 "legend": {"request": "warm", "error": "bad", "focus": "hot"}
 ```
 
+A name the theme lacks fails: live stills and renders stop with the name, and `studio check` fails
+its `legend` row. Live scenes read the legend as `c.legend` (meaning to CSS colour), so on live the
+legend is part of every clip's key: editing it re-renders the cut's clips and re-runs the checks.
+
 Tag each element drawn in a meaning's colour with that meaning. Live: any drawing call takes
-`means` (`S.rect(k, x, y, w, h, {stroke: c.legend.request, means: 'request', box: 'request'})`;
-`c.legend` maps each meaning to its CSS colour). Remotion: `Txt`, `Rect`, `Box`, `Token` and
-`GhostCard` take `means="request"`; `MapView litMeans` tags a lit box and `CloseUp means` the
+`means` (`S.rect(k, x, y, w, h, {stroke: c.legend.request, means: 'request', box: 'request'})`),
+and so does `closeUp` (for its minimap). Remotion: `Txt`, `Rect`, `Box`, `Card`, `Stack`, `Token`,
+`GhostCard`, `CodePanel`, `Terminal`, `RowTable`, `JsonTree`, `ColumnStrips` and `VarCard` take
+`means="request"` for what they light; `MapView litMeans` tags a lit box and `CloseUp means` the
 minimap's filled one. An element whose name contains the meaning's words (`box request`) needs no
-tag. Only named elements are seen (live text by its key, a shape with `box`).
+tag. Only named elements are seen (live text by its key, a shape with `box`; a Remotion shape with
+no `name` is not).
+
+Untagged, the kit's own accent states (a lit or failed box, a focused layer or variable, a selected
+cell, the current code line, a failed terminal row, a token's state, a ghost, the close-up's
+minimap) are tagged `kit`, and the check leaves them alone: they follow style.md's roles (ice the
+thing explained or selected, coral failure, amber a number to watch), which a legend following
+style.md agrees with. A colour the scene picks for a component (Box `color`, a map's `accent`) is not
+the kit's and is checked. A scene may tag its own use of a colour in its style.md role `kit` too
+(the ice record in `templates/scenes/example-map.tsx`). A legend that moves ice, coral or amber to
+another role should tag the kit components it uses with its own meanings.
 
 The engines' boxes (`studio boxes`) report each named element's `fill` and `stroke` as the browser
 resolves them (`rgb(…)`; on Remotion a text's colour, a box's background and border) and its
 `means`. `studio check` runs `legend` at its sample times, on the boxes the other checks gather, and
 warns when one colour stands for two meanings, when one meaning is drawn in two colours, and when a
 colour the legend reserves is on an element tagged with another meaning or none. Only accent colours
-count: neutrals (ink, dim, faint, the panels, outlines and lines) are never reserved, and a blend
-mid-transition or a tint (alpha under 0.5) is no colour. Each chapter's elements are kept per clip
-key, so a check of the changed chapters still compares the whole video. With no legend the check is
-silent, except for one line when elements carry `means` tags. A legend colour that is no theme colour
-fails. Motion Canvas boxes carry no colours, so there only the legend itself is checked.
+count: neutrals (ink, dim, faint, the panels, outlines and lines) are never reserved, a blend
+mid-transition or a tint (alpha under 0.5) is no colour, and an element dimmed under half opacity is
+a guide, not a use. Each chapter's elements are kept per clip key, so a check of the changed chapters
+still compares the whole video. With no legend the check is silent, except for one line when
+elements carry `means` tags. Motion Canvas boxes carry no colours, so there only the legend itself is
+checked.
 
 ## Motion Canvas scenes
 

@@ -198,3 +198,50 @@ def test_a_broken_look_file_breaks_the_look_sheet_alone(tmp_path):
     assert (tmp_path / "s.png").stat().st_size > 0
     with pytest.raises(EngineError, match=r"look\.tsx"):
         e.look(tmp_path / "out", [])
+
+
+KIT_ACCENTS = """
+import React from 'react';
+import {Box, Card, CloseUp, CodePanel, ColumnStrips, GhostCard, JsonTree, MapView, RowTable, Stack, Terminal, Token, Txt, VarCard, ICE,
+	type MapNode} from '@studio';
+
+const NODES: MapNode[] = [{id: 'a', name: 'client', at: [-5, 3]}, {id: 'b', name: 'server', at: [-2, 3]}];
+export const S1: React.FC = () => <>
+	<Box at={[-6, 1.5]} w={2.4} text="picked" lit={1} />
+	<Box at={[-6, 0.4]} w={2.4} text="broke" bad={1} />
+	<Stack at={[-6, -2]} layers={['app', 'os']} focus={0} w={2.4} />
+	<VarCard at={[-2.5, 1]} w={2.6} label="n" value="3" type="int" focus={1} />
+	<Card at={[-2.5, -1.5]} w={3} lines={['one', 'two']} lit={[1, 0]} bad={[0, 1]} name="card" />
+	<RowTable at={[1.5, 1]} w={3} columns={['k']} rows={[{k: 'a'}]} highlight={[0, 'k']} />
+	<JsonTree at={[1.5, -1.5]} w={3} value={{a: 1}} cursor={['a']} />
+	<CodePanel at={[5.5, 1]} w={4} source={{text: 'x = 1\\ny = 2\\n', sha256: ''}} current={1} />
+	<Terminal at={[5.5, -1.5]} w={4} runs={[{argv: ['run'], stdout: '', stderr: 'boom\\n', exit: 1}]} />
+	<ColumnStrips at={[1.5, -3]} w={3} h={0.6} columns={[{name: 'c', bytes: 4}]} />
+	<Token at={[5.5, -3.2]} state="ok" />
+	<GhostCard at={[-2.5, -3.3]} w={2} h={0.6} />
+	<MapView nodes={NODES} visible={{a: 1, b: 1}} lit={{b: 1}} frame={false} />
+	<Txt at={[3, 3.3]} size={18} color={ICE} name="stray">stray</Txt>
+</>;
+export const S2: React.FC = () => <CloseUp open={1} from={NODES[1]} name="server" nodes={NODES}><Txt at={[0, 0]} size={18}>inside</Txt></CloseUp>;
+"""
+
+
+@needs_engine
+def test_the_kits_own_accent_states_pass_a_legend_that_follows_style_md(tmp_path):
+    """With selection: ice the lit layer, the focused variable, the selected cell, the minimap and the rest
+    warned, and none could be tagged. Now the kit tags its own accent states "kit"; a scene's own ice
+    still warns."""
+    from studio_kit import check
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "remotion",
+                                                     "legend": {"cost": "amber", "selection": "ice", "failure": "coral"}}))
+    (tmp_path / "scenes" / "kit.tsx").unlink()
+    (tmp_path / "scenes" / "s1.tsx").write_text(KIT_ACCENTS)
+    (tmp_path / "scenes" / "s2.tsx").write_text("export {S2} from './s1';\n")
+    (tmp_path / "scenes" / "index.ts").write_text("import {S1, S2} from './s1';\nexport default {s1: S1, s2: S2} as Record<string, import('react').FC>;\n")
+    (f, g) = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}, {"clip": "s2", "t": 1.0}])
+    kit = {b["name"] for b in f["boxes"] + g["boxes"] if b.get("means") == "kit"}
+    assert {"layer app", "variable n", "box broke", "card line 1", "card line 2", "table selected", "table row 1 k", "json a",
+            "code line 1", "terminal row 1", "c group 0", "token", "ghost", "node server", "minimap"} <= kit
+    warned = [r["detail"] for r in check.run(tmp_path, only=["legend"], samples=1) if r.get("severity")]
+    assert len(warned) == 1 and "'stray'" in warned[0] and "kit" not in warned[0]

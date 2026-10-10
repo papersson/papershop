@@ -205,6 +205,10 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
         "beats": timeline.get("beats", {}) if scene_reads_beats(video, clip_id, clip_ids) else {},
         "layout": tl.layout(video, fmt),
     }
+    # The one part of video.json a scene reads as it draws: live scenes get the colour legend as
+    # c.legend. Left out when there is none, so a video without one keeps its keys.
+    if engine == "live" and settings.raw(video).get("legend"):
+        part["legend"] = settings.raw(video)["legend"]
     h.update(json.dumps(part, sort_keys=True).encode())
     return h.hexdigest()[:16]
 

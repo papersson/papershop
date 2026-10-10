@@ -19,7 +19,11 @@ other checks gather) the check knows every named element's colours and meaning, 
       none. A neutral colour (ink, dim, faint, the panels and outlines) is never reserved
 
 Only accent colours count (and those the legend names): a neutral, a blend mid-transition and a tint
-(alpha under 0.5) are never a meaning. Warnings, since names and tags are partly heuristic. A video
+(alpha under 0.5) are never a meaning, and an element dimmed under half opacity is a guide, not a
+use. Only named elements are seen (a Remotion shape given no name is not). The kit's components tag
+their own accent states (a lit box, a selected cell, a failed line, the close-up's minimap) "kit"
+unless the scene passes `means`: those follow style.md's roles, not the video's legend, and are left
+alone. Warnings, since names and tags are partly heuristic. A video
 with no legend is not checked; when its elements carry `means` tags, one line says the legend is
 missing. A legend colour that is no theme colour fails.
 
@@ -38,7 +42,8 @@ THEMES = {"live": ("live", "src/theme.css"), "remotion": ("remotion", "src/kit/t
 ACCENTS = {"live": ("hot", "warm", "cold", "bad", "good", "log", "key"),
            "remotion": ("amber", "ice", "coral"), "motion-canvas": ("amber", "ice", "coral")}
 TINT = 0.5          # alpha below which a colour is a tint, not the colour
-FAINT = 0.05        # opacity below which an element is not shown
+DIMMED = 0.5        # opacity below which an element is dimmed: a guide, not a use of its colour
+KIT = "kit"         # the tag of the kit's own accent states (Remotion stage.tsx kitMeans, live closeUp)
 EXAMPLES = 3        # elements named per warning
 
 
@@ -95,14 +100,14 @@ def declared(video):
 
 
 def seen(frames):
-    """{clip: [{t, name, means?, colours}]}: every shown, named element once per clip (at its first
-    sample) with its colours as hex; every sampled clip has an entry."""
+    """{clip: [{t, name, means?, colours}]}: every named element shown at half opacity or more, once
+    per clip (at its first sample), with its colours as hex; every sampled clip has an entry."""
     out = {}
     for f in frames:
         items = out.setdefault(f["clip"], [])
         have = {(o["name"], o.get("means"), tuple(o["colours"])) for o in items}
         for b in f["boxes"]:
-            if b["name"] == "caption" or b.get("opacity", 1) < FAINT:
+            if b["name"] == "caption" or b.get("named") is False or b.get("opacity", 1) < DIMMED:
                 continue
             colours = sorted({c for c in (hex_of(b.get("fill")), hex_of(b.get("stroke"))) if c})
             key = (b["name"], b.get("means"), tuple(colours))
@@ -140,6 +145,8 @@ def findings(legend, obs, engine):
     misused = {}                                                         # hex -> [examples]
     for clip, items in obs.items():
         for o in items:
+            if o.get("means") == KIT:
+                continue
             m = meaning(o, legend)
             at = {"clip": clip, "t": o["t"], "what": f"{o['name'][:32]!r}" + (f" (means {m})" if m else "") + f" at {clip} t={o['t']}"}
             for c in o["colours"]:
@@ -182,7 +189,7 @@ def check(video, samples=3, engine=None, boxes=None, clips=None, fmt=None, keys=
     legend, problems = declared(video)
     frames = boxes[1] if boxes else []
     if not legend and not problems:
-        tag = next(((f, b) for f in frames for b in f["boxes"] if b.get("means")), None)
+        tag = next(((f, b) for f in frames for b in f["boxes"] if b.get("means") not in (None, KIT)), None)
         return [{"check": "legend", "clip": tag[0]["clip"], "t": tag[0]["t"], "ok": True, "severity": "warning",
                  "detail": f"{tag[1]['name']!r} means {tag[1]['means']!r}, but video.json declares no legend to check it against"}] if tag else []
     from .check import _boxes
@@ -206,7 +213,7 @@ def check(video, samples=3, engine=None, boxes=None, clips=None, fmt=None, keys=
     warned = findings(legend, obs, settings.load(video)["engine"])
     rows += [{"check": "legend", "ok": True, "severity": "warning", **w} for w in warned]
     if not rows:
-        tagged = sum(bool(meaning(o, legend)) for items in obs.values() for o in items)
+        tagged = sum(bool(meaning(o, legend)) and o.get("means") != KIT for items in obs.values() for o in items)
         rows.append({"check": "legend", "clip": "video", "ok": True,
-                     "detail": f"{len(legend)} meanings; {tagged} tagged elements in {len(obs)} chapter{'s' * (len(obs) != 1)} keep to them"})
+                     "detail": f"{len(legend)} meaning{'s' * (len(legend) != 1)}; {tagged} tagged elements in {len(obs)} chapter{'s' * (len(obs) != 1)} keep to them"})
     return rows

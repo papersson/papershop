@@ -47,6 +47,20 @@ async function importScene(name, url) {
   }
 }
 
+/**
+ * video.json's legend as meaning -> CSS colour: a theme name (any case, _ or -) as its var, #rrggbb as
+ * itself. A name the theme lacks throws, so a typo fails every still instead of drawing nothing.
+ */
+function legendColours(legend) {
+  const root = getComputedStyle(document.documentElement)
+  return Object.fromEntries(Object.entries(legend).map(([meaning, v]) => {
+    if (/^#[0-9a-f]{6}$/i.test(String(v))) return [meaning, v]
+    const name = String(v).trim().toLowerCase().replace(/_/g, '-')
+    if (!root.getPropertyValue(`--${name}`).trim()) throw new Error(`video.json legend ${JSON.stringify(meaning)}: ${JSON.stringify(v)} is not a theme colour (src/theme.css) or #rrggbb`)
+    return [meaning, `var(--${name})`]
+  }))
+}
+
 async function exists(url) {
   const r = await fetch(url, { method: 'HEAD', cache: 'no-store' })
   return r.ok
@@ -54,7 +68,7 @@ async function exists(url) {
 
 export async function boot({ svg, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
-  let T, L, scenes, overlay, boards, notes, legend, version = 0
+  let T, L, scenes, overlay, boards, notes, legend, colours, version = 0
 
   async function load() {
     version += 1
@@ -63,6 +77,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     boards = await json(base + 'boards/boards.json', {})
     notes = await json(base + 'boards/notes.json', {})
     legend = (await json(base + 'video.json', {})).legend ?? {}
+    colours = legendColours(legend)
     scenes = {}
     for (const c of T.tracks.scene) {
       const url = `${base}scenes/${c.id}.js?v=${version}`
@@ -82,7 +97,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     const H = bandTop(), header = L.header?.height ?? 0
     return {
       S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: [0, header, L.width, H - header], layout: L,
-      legend: Object.fromEntries(Object.entries(legend).map(([m, v]) => [m, String(v).startsWith('#') ? v : `var(--${v})`])),
+      legend: colours,
       // S.cam centres the whole frame; a key's point goes to the middle of the view instead.
       camAt: (keys, e) => {
         const k = kit.camAt(t, keys, e)

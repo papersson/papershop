@@ -124,3 +124,36 @@ def test_the_check_runs_from_studio_check(tmp_path):
     (w,) = warnings(rows)
     assert "'title' at s1" in w and "s2" not in w
     assert "legend" in check.MORE
+
+
+def test_a_legend_edit_changes_a_live_clips_key_and_the_legend_check_samples_it_again(tmp_path):
+    """Live scenes draw with c.legend, so a cached clip or a cached check from the old legend was stale:
+    `step: hot` to `step: cold` kept the clip key and the check still read the old colour."""
+    from studio_kit import render
+    v = video(tmp_path, {"step": "hot"})
+    t = json.loads((v / "timeline.json").read_text())
+    keys = lambda: {c["id"]: render.clip_key(v, t, c["id"], "check", engine="live") for c in t["tracks"]["scene"]}
+    before = keys()
+    e = FakeEngine({"s1": [box("card", HOT, means="step")]})
+    assert warnings(legend.check(v, engine=e, keys=before)) == [] and set(e.asked) == {"s1", "s2"}
+    (v / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": {"step": "cold"}}))
+    after = keys()
+    assert all(after[c] != before[c] for c in after)
+    e = FakeEngine({"s1": [box("card", COLD, means="step")]})          # the clip as the new legend draws it
+    assert warnings(legend.check(v, engine=e, keys=after)) == [] and set(e.asked) == {"s1", "s2"}
+    # Remotion scenes don't read the legend, and a video without one keeps its keys
+    assert render.clip_key(v, t, "s1", "check", engine="remotion") == render.clip_key(video(tmp_path / "b"), t, "s1", "check", engine="remotion")
+
+
+def test_the_kits_own_accent_states_unnamed_shapes_and_dimmed_elements_are_left_alone(tmp_path):
+    """A lit layer, a selected cell, a minimap tagged "kit" by the kit; a Remotion Rect with no name;
+    and an accent element dimmed under half opacity (a guide) were all flagged."""
+    v = video(tmp_path, {"selection": "cold"})
+    rows = legend.check(v, boxes=frames(("s1", [
+        box("layer app", COLD, means="kit"), box("minimap", COLD, COLD, means="kit"),
+        box("rect", fill=COLD, named=False), box("guide", COLD, opacity=0.3)])))
+    assert warnings(rows) == [] and rows[-1]["detail"].startswith("1 meaning; 0 tagged elements")
+    # the scene's own tag on a kit component is checked as any other
+    rows = legend.check(v, boxes=frames(("s1", [box("layer app", COLD, means="cost")])))
+    assert "is on 'layer app' (means cost)" in warnings(rows)[0]
+    assert legend.check(video(tmp_path / "b"), boxes=frames(("s1", [box("layer app", COLD, means="kit")]))) == []

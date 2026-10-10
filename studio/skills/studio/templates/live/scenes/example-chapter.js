@@ -18,7 +18,7 @@ export default function draw(c) {
   ;['{{one}}', '{{two}}', '{{three}}'].forEach((label, i) => {
     const p = P(stagger(c.phrase('01', '{{a phrase in sentence 1}}'), i, 0.2), 0.5, ease.back)
     const x = W / 2 + (i - 1) * 360
-    S.rect(`box${i}`, x - 140, H * 0.45 + 30 * (1 - p), 280, 140, { fill: C.bg2, stroke: C.hot, op: p, box: `box ${label}` })
+    S.rect(`box${i}`, x - 140, H * 0.45 + 30 * (1 - p), 280, 140, { fill: C.bg2, stroke: C.edge, op: p, box: `box ${label}` })
     S.text(`box${i}:t`, x, H * 0.45 + 70, label, { size: 30, anchor: 'middle', op: p })
   })
 }

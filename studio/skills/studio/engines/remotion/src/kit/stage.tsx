@@ -25,6 +25,16 @@ type Anchor = 'center' | 'left' | 'right';
 const SHIFT: Record<Anchor, string> = {center: '-50%', left: '0%', right: '-100%'};
 
 /**
+ * The tag of an element the kit draws in one of its own accent states (a lit box, a selected cell, a
+ * failed line, a token's glyph), in the accent the kit picks: `means` when the scene gives one, else
+ * "kit" while `on`. The legend check leaves "kit" alone: those states follow style.md's roles (ice the
+ * thing explained or selected, coral failure, amber a number to watch), which are the kit's, not the
+ * video's legend. A colour the scene picks (Box `color`, MapView `accent`) is never tagged "kit"; a
+ * scene may tag its own use of a colour in that style.md role "kit" too (templates/scenes/example-map.tsx).
+ */
+export const kitMeans = (means: string | undefined, on: unknown) => means ?? (on ? 'kit' : undefined);
+
+/**
  * Text at a stage point. `anchor` picks which edge sits on x. `name` labels it for `boxes`;
  * unnamed text is reported by its content. `means` tags it with a meaning from the video's colour
  * legend (video.json legend), for the legend check; Rect takes it too.

@@ -1,6 +1,6 @@
 import React from 'react';
 import {useCurrentFrame, useVideoConfig} from 'remotion';
-import {Arrow, Rect, Svg, Txt, useStage, type Stage, type XY} from './stage';
+import {Arrow, Rect, Svg, Txt, kitMeans, useStage, type Stage, type XY} from './stage';
 import {AMBER, CORAL, ICE, INK, MUTED, PANEL, TRAY_EDGE, TRAY_FILL, mix} from './theme';
 import * as motion from '../../../shared/motion.js';
 import {cameraAt, frameOn as fit} from '../../../shared/camera.js';
@@ -144,7 +144,7 @@ export const MapView: React.FC<{
 				return (
 					<React.Fragment key={n.id}>
 						<Rect at={n.at} w={w} h={h} radius={0.12} stroke={mix(TRAY_EDGE, accent, on)} strokeWidth={2 + on}
-							fill={mix(TRAY_FILL, litFill, on)} opacity={v} name={`node ${n.name}`} means={on > 0 ? litMeans : undefined} />
+							fill={mix(TRAY_FILL, litFill, on)} opacity={v} name={`node ${n.name}`} means={on > 0 ? kitMeans(litMeans, accent === ICE) : undefined} />
 						<Txt at={n.at} size={20} color={INK} opacity={v} name={n.name}>{n.name}</Txt>
 					</React.Fragment>
 				);
@@ -162,8 +162,8 @@ export const Token: React.FC<{at: XY; state?: TokenState; opacity?: number; labe
 	const [glyph, color] = GLYPH[state];
 	return (
 		<>
-			<Rect at={at} w={0.5} h={0.5} radius={0.25} stroke={color} strokeWidth={3} fill={PANEL} opacity={opacity} name="token" means={means} />
-			<Txt at={at} size={18} color={color} opacity={opacity} name={`token ${state}`} means={means}>{glyph}</Txt>
+			<Rect at={at} w={0.5} h={0.5} radius={0.25} stroke={color} strokeWidth={3} fill={PANEL} opacity={opacity} name="token" means={kitMeans(means, state !== 'idle')} />
+			<Txt at={at} size={18} color={color} opacity={opacity} name={`token ${state}`} means={kitMeans(means, state !== 'idle')}>{glyph}</Txt>
 			{label && <Txt at={[at[0], at[1] - 0.5]} size={14} color={MUTED} opacity={opacity}>{label}</Txt>}
 		</>
 	);
@@ -172,7 +172,7 @@ export const Token: React.FC<{at: XY; state?: TokenState; opacity?: number; labe
 /** A proposed change, drawn as a translucent copy of the thing it would replace. `means` tags it (stage.tsx). */
 export const GhostCard: React.FC<{at: XY; w: number; h: number; opacity?: number; means?: string; children?: React.ReactNode}> = ({at, w, h, opacity = 1, means, children}) => (
 	<>
-		<Rect at={at} w={w} h={h} radius={0.1} stroke={ICE} strokeWidth={2} fill="rgba(143, 211, 255, 0.10)" opacity={opacity * 0.9} name="ghost" means={means} />
+		<Rect at={at} w={w} h={h} radius={0.1} stroke={ICE} strokeWidth={2} fill="rgba(143, 211, 255, 0.10)" opacity={opacity * 0.9} name="ghost" means={kitMeans(means, true)} />
 		{children}
 	</>
 );
@@ -225,7 +225,7 @@ export const CloseUp: React.FC<{
 					const on = n.id === from.id;
 					const p: XY = [W / 2 - mini / 2 - 0.15 + n.at[0] * minis, y0 + H / 2 - 0.4 + n.at[1] * minis];
 					return <Rect key={n.id} at={p} w={w * minis} h={h * minis} radius={0.03} stroke={on ? accent : MUTED} strokeWidth={1.5}
-						fill={on ? accent : 'transparent'} name="minimap" means={on ? means : undefined} />;
+						fill={on ? accent : 'transparent'} name="minimap" means={on ? kitMeans(means, accent === ICE) : undefined} />;
 				})}
 			</div>
 		</>
