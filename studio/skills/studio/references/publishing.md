@@ -79,11 +79,34 @@ a waiver whose reason names their notes by id (the receipt keeps the mode and th
 is refused in background mode). A video made before this requirement is told so at publish, with
 the waiver to record if the user agrees.
 
+## Sound: measured, then heard once
+
+The kit cannot judge sound by ear, so it measures it. `studio audio-check VIDEO [--cut N]` writes
+`out/audio-check.json` and a line a row, each ok or a warning, on stems the kit renders itself (each
+role's sub-bus as it sits in the mix, at the master's level):
+
+- **sync**: each effect on a named event (a cue name or anchor in `audio/sfx.json`), its onset
+  against the event's frame; a warning past one frame. With a rendered cut, the nearest start or end
+  of picture motion is noted beside it.
+- **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
+- **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
+  within 10 dB.
+- **pauses** (fails): an effect peaking over -24 dBFS under a spoken word. `studio check` runs this
+  guard whenever there are effects, so publish's full-check gate stops on it.
+- **loudness**: the master against its target and ceiling, and the web copy's true peak.
+
+Then the user listens once. With effects or music, before publishing, ask the user to play the
+finished mix (`out/master.mp4` after `studio audio`, or the desk's latest cut) and record what they
+said: `studio review-status VIDEO listen passed --reason "…"`, or `waived` with their reason. The
+receipt is bound to the soundtrack's stamp, so a new mix makes it stale. Publish warns, not stops,
+when none stands, and the handoff lists it as a next step. A narration alone needs no listening
+unless the user wants one.
+
 ## Publishing
 
 `studio publish VIDEO` first requires the review receipts (script reviews, the frame review where
 required, the motion review for an explainer) and runs the full `studio check` on every chapter as
-its gate (a failure stops it), then renders the final cut (1080p) unless the latest cut is one (only chapters
+its gate (a failure stops it; with effects, it includes the pauses guard), then renders the final cut (1080p) unless the latest cut is one (only chapters
 whose key changed since the last final render re-render) with its whole mix finished to -16 LUFS
 under a -1.5 dBTP ceiling (`studio audio`; a social export takes `--lufs -14`, below), links it as
 `out/master.mp4`, encodes

@@ -115,7 +115,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `review VIDEO ROUND [--only student|expert|editor] [--narrative FILE]` | Isolated, revision-bound script/narrative review; `max_rounds` counts the rounds since the latest structural stage mark |
 | `review-frames VIDEO [--cut N] [--result FILE]` | Package a cut's frames for the main session, or import the reviewer's result (one for a cut older than the sources is recorded as stale, and publish refuses it) |
 | `review-motion VIDEO [--cut N] [--result FILE]` | Package a cut's motion windows (frame strips around every event and uncovered move, from the cut's own frames) for the main session, or import the result as findings; stops at a round with no must-fix findings or after `motion_rounds` (2), recording the rest on the cut as known issues |
-| `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` | Explicit review limitation/authorization; ROLE is a script reviewer, `frames` (alias `frame`) or `motion` |
+| `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` · `review-status VIDEO listen passed|waived --reason TEXT` | Explicit review limitation/authorization; ROLE is a script reviewer, `frames` (alias `frame`) or `motion`. `listen` records the user's one listening to a mix with effects or music (publish warns without one) |
 | `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
 | `timeline VIDEO [--events]` | Rebuild timeline.json from its sources, after editing `cues.json`, `captions.json` or `audio/tracks.json`; `--events` lists the beat sheet: every cue's time, frame, clip and anchor |
@@ -134,7 +134,9 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `clean VIDEO [--dry-run] [--videos]` | Stale caches/previews; MP4 deletion is explicit and never overrides protection |
 | `commit VIDEO MESSAGE` | Scoped source checkpoint; video.json `git.sign` is true, false or null/inherit |
 | `capture URL VIDEO` · `asset add|list VIDEO` | Assets with provenance |
-| `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing, and optional effects on cue or beat names or anchors (each mix places them on the current timeline) |
+| `beats VIDEO TRACK` · `sfx VIDEO CUES` · `sound-lab VIDEO` | Music timing, and optional effects (24 voices, `sfx.py`) on cue or beat names or anchors (each mix places them on the current timeline); the lab plays each voice's candidates |
+| `music VIDEO --bed [--key Am] [--bpm 72] [--seconds S]` · `music VIDEO --remove` | An optional generated bed (slow chords, a soft pulse) as a music track the mix ducks, with its beat grid; only when the user asks for music |
+| `audio-check VIDEO [--cut N]` | The soundtrack measured: effect sync against the beat sheet, ducking, masking per word, the pauses guard (fails) and loudness, into `out/audio-check.json` (`references/publishing.md`) |
 | `ingest FILE VIDEO` · `edit VIDEO EDL` | Transcript-based footage editing |
 | `init VIDEO [--update]` · `import-tutor LESSON VIDEO` | Pin/update a kit or migrate a retired tutor timeline |
 
@@ -152,7 +154,7 @@ beats, `footage/edit.json` edit, video.json `duration` or `clips` for a piece wi
 top of `timeline.py`) that follows its words when the narration moves. Time picture and sound from
 the same event: a scene's `cue(name)` and an sfx entry naming it land on one frame, and every cut
 has a still two frames after each event. Extra audio such as a music bed goes in `audio/tracks.json`
-(`[{"file", "start", "gain"}]`), and captions the kit must not re-chunk in `captions.json`
+(`[{"file", "start", "gain"}]`; `studio music --bed` writes its own entry), and captions the kit must not re-chunk in `captions.json`
 (chunks of `text` or `lines`, fixed at `start`/`end` or anchored to their words; a kit chunk copied
 from timeline.json keeps its anchor, so a locked chunk follows its words when the narration moves); after editing any of them, `studio timeline VIDEO` (or the next cut) rebuilds it.
 `research/` holds reviews, snapshots, timing, pending requests and the handoff. `.studio/work/` is

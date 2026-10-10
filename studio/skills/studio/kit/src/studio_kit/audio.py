@@ -30,7 +30,7 @@ ffmpeg filters, and none of it on the narration, which stays dry:
             (whose bands sum back flat) and compressed with the narration as its key, so an effect
             in a pause keeps its whole presence. A static EQ dip would also thin every effect in
             its pause, which is where effects belong.
-  duck      music ducks under speech, about 9 dB, with a sidechain compressor keyed by the
+  duck      music ducks under speech, 8 to 9 dB, with a sidechain compressor keyed by the
             narration (20 ms attack, so a word's first syllable is clear; 500 ms release, so the bed
             does not pump between words; a 2:1 ratio, so it moves little with the voice's level).
   room      effects and music share one small room: a few early reflections (aecho taps from 11 to
@@ -152,7 +152,7 @@ SOUND = {"room": 1.0, "duck": True, "presence": True}
 KEY_LUFS = -20.0
 FORMAT = f"aformat=sample_fmts=fltp:sample_rates={RATE}"
 # Measured with steady tones under a recorded voice brought to KEY_LUFS: while it speaks the music
-# drops about 9 dB (within about 1.5 dB from word to word) and the presence band about 3 dB more;
+# drops 8 to 9 dB (within about 1.5 dB from word to word) and the presence band about 3 dB more;
 # both are back within about 0.7 s of the sentence's end.
 PRESENCE_BAND = "bandpass=f=2000:width_type=o:w=2"      # 1-4 kHz, 0 dB at its centre
 PRESENCE = "threshold=0.07:ratio=2:attack=10:release=300:knee=2.8"

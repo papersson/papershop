@@ -156,8 +156,37 @@ touches only the peaks over the -1.5 dBTP ceiling (fixed gain alone pushed the r
 +6.5 dBTP on a few samples; an effect over the voice goes further). It is not room tone and
 not one-pass `loudnorm`: that filter is dynamic, so it raised the room tone and breaths in every
 pause, and the learner heard "a constant background noise" (an A/B of delivered, raw and clean
-audio settled it at once). Social destinations use -14 LUFS. Sound effects are off by default,
-placed in pauses, and chosen with `studio sound-lab`.
+audio settled it at once). Social destinations use -14 LUFS.
+
+## Sound
+
+The voice carries an explainer; sound is optional and serves it. Effects and music are off by
+default, and "no music" stays the plain default.
+
+- **Effects belong in pauses.** A loud effect decays before the next word; a quiet one under speech
+  stays below -24 dBFS at the master's level. `studio check` fails on a louder one under a spoken
+  word, so `publish` stops on it: the finish limits peaks, it does not unmask a word.
+- **One voice per kind of event, chosen by listening.** The kit has 24 neutral voices (`studio sfx`
+  and the docstrings in `sfx.py`): click, soft-tick, tap, key-tick and counter-tick for steps and
+  typing; pop, pop-small, pop-large and shimmer for things appearing; confirm and error for a
+  result; snap, card-flip, drop, thump and low-hit for things landing or set down; whoosh, slide-in,
+  slide-out and paper-slide for moves; chime for a milestone; glitch for something wrong; riser and
+  swell for a build, which end on their cue (every other voice starts on it). `studio sound-lab`
+  plays three candidates of each alone and in a pause of the narration.
+- **Time picture and sound from one event** (Motion, above): an effect names the cue the scene's
+  move uses, and `studio audio-check` reports each one's offset from its frame (a warning past one).
+- **One room, a clear voice.** The mix puts effects and music in one small shared room (a few early
+  reflections), dips their 1-4 kHz band about 3 dB while the narration speaks, and ducks music 8 to
+  9 dB under speech; the narration stays dry. video.json `sound` turns each off (`room` also scales
+  the room, 0 to 2). A narration alone is mixed exactly as before.
+- **A bed only when asked.** `studio music VIDEO --bed [--key Am] [--bpm 72]` generates a quiet pad of
+  slow chords on a soft pulse, registers it as a music track 20 LU under the voice (so it ducks), and
+  writes its beat grid, so `beat_N` and `downbeat_N` cues land on it. No melody: a motif per
+  character belongs to a comic video, made by hand.
+- **The kit measures; the user listens once.** `studio audio-check` measures sync, ducking, masking
+  of each word in 1-4 kHz, the pauses guard and loudness on stems the kit renders itself. It cannot
+  judge taste, so with effects or music the user listens once to the finished mix before publishing
+  (`publishing.md`).
 
 ## Length
 

@@ -387,6 +387,28 @@ item: the loop is proven by the user's own notes.
   refused, and a bundle takes one result. Each window's sheet labels its frames, outlines the
   contact and runs across a cut between chapters, and the cut keeps its effect times and layout, so
   an older cut is not judged against newer sound.
+- **The mix is one room with the voice in front.** In one long session the builders wrote their own
+  mixer: every track in one shared room (a send reverb), the presence band of effects and music cut
+  under speech, the bed ducked under speech, the whole mix finished to a loudness target under a
+  true-peak limiter. The kit's bus now does the same, in per-role sub-buses so the narration can key
+  the processing: effects and music get a few early reflections (aecho, delays off any common
+  multiple so they don't comb on one pitch), a 1-4 kHz dip of about 3 dB while the narration speaks,
+  and music ducks 8 to 9 dB (`sidechaincompress`, 2:1, 20 ms attack, 500 ms release), with the key
+  brought to a fixed loudness so the thresholds hold at any voice level. The dip is the band
+  subtracted and its compressed copy added back, so a pause keeps the dry signal: a static EQ dip
+  would thin every effect in its pause, where effects belong, and ffmpeg's crossover filter hung
+  in front of a sidechain. A narration alone, or with footage, is the plain sum it always was.
+- **Sound is measured, and the user listens once.** The same builders wrote an audio checker: sync
+  against the beat sheet, ducking, per-word masking in 1-4 kHz, loudness, and a guard that failed a
+  loud effect over a spoken word. `studio audio-check` measures these on stems the kit renders
+  itself (one role's sub-bus as in the mix, at the master's level), so nothing is unmixed; the
+  pauses guard runs in `studio check`, so publish stops on it. Taste stays the user's: a listening
+  receipt in the reviews registry, bound to the soundtrack's stamp, that publish asks for (a
+  warning) when there are effects or music.
+- **More voices, and a bed only on request.** Four effect voices sent builders to their own synths;
+  the kit has 24 neutral ones now, each a deterministic numpy synth with a line on what it is for,
+  and a build (riser, swell) ends on its cue. `studio music --bed` generates a quiet pad and pulse
+  that registers as music, so it ducks, and writes its beat grid. The plain default stays no music.
 
 | Still open | Done when |
 |---|---|

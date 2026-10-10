@@ -75,7 +75,9 @@ file; changing it re-renders every user.
 - **Loud effects only in narration pauses**, decaying before the next word. Quiet effects under
   speech stay below -24 dBFS: the finish limits peaks, it does not unmask a word.
 - **Layer each hit**: a transient (the click or crack), a body (the thud), a tail (the room), all
-  in the same room so the layers read as one event.
+  in the same room so the layers read as one event. Stack voices on one cue in `studio sfx` (a
+  `snap` or `tap` for the transient, `thump` or `low-hit` for the body); the mix's shared room is
+  the tail, and it is the same room for every effect and the music (`style.md`, Sound).
 - **A small motif per character**: two or three notes or one signature sound, reused whenever it
   acts. It works like shape language for the ear.
 - **Time sounds from events, not by ear.** Name every contact in `cues.json`, anchored to the
@@ -84,7 +86,8 @@ file; changing it re-renders every user.
   the words when the narration moves. `studio timeline VIDEO --events` prints the beat sheet (each
   cue's time, frame, clip and anchor). Place effects with `studio sfx VIDEO CUES` on those names
   and choose them with `studio sound-lab`. A contact lands within a frame of the picture: check
-  the hit with `studio sheets VIDEO OUT --strip CLIP T`.
+  the hit with `studio sheets VIDEO OUT --strip CLIP T`, and `studio audio-check` reports every
+  effect's offset from its event's frame and fails a loud one under a word.
 
 ## Cost
 
