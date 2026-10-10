@@ -48,10 +48,13 @@ clutter: by minute eight one frame held a category list, a table, a record's fie
 
 ## Colour
 
-One meaning per colour for the whole video: amber for cost or a number to watch, ice blue for the
-thing being explained or the current selection, coral for failure, grey for idle. A colour used for
-two things was the most common frame-review finding; in one video two colours swapped roles
-between chapters.
+One meaning per colour for the whole video, declared in video.json `legend` (meaning → theme colour;
+`engines.md`): by default amber for cost or a number to watch, ice blue for the thing being explained
+or the current selection, coral for failure, grey for idle. Tag what a meaning's colour draws
+(`means`); `studio check` warns when a colour stands for two meanings, a meaning changes colour, or a
+reserved colour appears on anything else, and the look sheet draws the legend. A colour used for two
+things was the most common frame-review finding; in one video two colours swapped roles between
+chapters.
 
 ## Line weight
 
@@ -145,6 +148,12 @@ video. ElevenLabs (`eleven_multilingual_v2`, or `eleven_v4`) is the hosted optio
 for it, chosen before scenes are timed, since a new voice moves every word; `eleven_v3` returns no
 timestamps, which the scenes cue from.
 
+Delivery varies with meaning. Three reference explainers speak at about 190–212 wpm and pause where
+an idea ends: a median near 0.7 s, the longest at key moments. Studio's voice spoke in that band but
+left about 0.5 s after every sentence, and read flat. The pause after a sentence now comes from its
+role (0.4 s within a paragraph, 0.9 s at its end, 1.6 s after a question, 2 s after `[key]`, then
+the chapter hold and gap), so write one idea per paragraph and mark the few sentences that matter.
+
 Names and terms are said right. A learner heard "uh reads one" for "A reads one", and "id" said as
 the Freudian id: a lone capital letter is read as the article, a lowercase abbreviation as a word.
 The pronunciation lint lists these before any audio exists, and every finding gets a fix or a
@@ -184,6 +193,14 @@ default, and "no music" stays the plain default.
   narration; the kit was curated by measurement, so listen before choosing.
 - **Time picture and sound from one event** (Motion, above): an effect names the cue the scene's
   move uses, and `studio audio-check` reports each one's offset from its frame (a warning past one).
+  Tag an effect with what the picture does on its frame: `cut`, `move` (at its fastest), `land`
+  (motion ends), `appear` (motion starts). The beat sheet still sets the time; the tag is checked
+  against the cut (a cut within 1 frame, a move's peak within 3, a landing or an appearance within
+  2). A whoosh on a slide's first frame is off by half the slide: put it on the cue where the slide
+  is fastest, or tag it `appear`.
+- **Start every effect at gain 0.** Kit recordings are trimmed to the level of their synth voice, so
+  gain 0 sits where the synth would; adjust from there. audio-check warns an effect more than 6 dB
+  over the voice's peaks.
 - **One room, a clear voice.** The mix puts effects and music in one small shared room (a few early
   reflections), dips their 1-4 kHz band about 3 dB while the narration speaks, and ducks music 8 to
   9 dB under speech; the narration stays dry. video.json `sound` turns each off (`room` also scales
@@ -192,10 +209,12 @@ default, and "no music" stays the plain default.
   slow chords on a soft pulse, registers it as a music track 20 LU under the voice (so it ducks), and
   writes its beat grid, so `beat_N` and `downbeat_N` cues land on it. No melody: a motif per
   character belongs to a comic video, made by hand.
-- **The kit measures; the user listens once.** `studio audio-check` measures sync, whether each
-  effect is heard, ducking, masking of each word in 1-4 kHz, the pauses guard and loudness on stems
-  the kit renders itself. It cannot judge taste, so with effects or music the user listens once to
-  the finished mix before publishing (`publishing.md`).
+- **The kit measures; look at the sheet; the user listens once.** `studio audio-check` measures sync,
+  whether each effect is heard, loud effects, ducking, masking of each word in 1-4 kHz, the pauses
+  guard and loudness on stems the kit renders itself, and draws `out/audio-sheet.png` with close-ups
+  of the hero effects (flagged rows in red). Open the sheet and fix what it shows. It cannot judge
+  taste, so with effects or music the user listens once to the finished mix at the timecodes
+  audio-check printed (`publishing.md`).
 
 ## Length
 

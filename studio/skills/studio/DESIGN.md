@@ -436,10 +436,12 @@ passes end on time and survive a restart.
   or silly video, and only then is `references/styles/comic.md` read; "fun", "delightful" or
   "engaging" ask for the plain polish done well. Two evals hold that line.
 
-## Sound from recordings (0.10.0)
+## Sound, delivery and colour (0.10.0)
 
 One long session's builders and a public "sound layer" both found the synthesised beeps the weakest
 part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its cue by its transient.
+Measurements of three reference explainers (3Blue1Brown, Kurzgesagt, Sebastian Lague) then showed a
+flat voice and an unchecked colour legend as the next gaps.
 
 - **One resolver, one placement.** An effect's sound was a synth's name, read straight from the
   voice table, and the render, the cut's snapshot, the motion review and audio-check's sync each
@@ -497,5 +499,42 @@ part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its 
   around its contact: masked when it lifts the narration and music by under 6 dB, wideband and an
   octave either side of its centroid, and too quiet when its loudest 10 ms is more than 30 dB under
   the voice's level. On fixtures a pop in a pause passes (over silence, 1 dB under the voice), the
-  same pop under an undocked pink-noise bed warns (a 0.8 dB lift), and one at -60 dBFS in silence
+  same pop under an unducked pink-noise bed warns (a 0.8 dB lift), and one at -60 dBFS in silence
   warns (45 dB under the voice).
+- **Tags say what the picture does, never when.** A cue's `visual` (`cut`, `move`, `land`, `appear`)
+  is judged on the cut's frame signal and reported in frames, as a warning only: the beat sheet stays
+  the one source of timing. On the test video a whoosh tagged `move` but placed on a slide's first
+  frame read 10 frames early, which is the kind of thing an ear catches and a frame count can too. A
+  cut between two scenes on one background changes too little to read as a cut, so `cut` also
+  accepts a change exactly at a clip seam. Reading the cut frame by frame exposed a decoder bug: with
+  an audio track, two seeks in three returned the frame before (fixed with `-fps_mode passthrough`).
+- **Recordings at their synth's level.** Kenney's sounds are mastered near -1 dBFS, so a kit confirm
+  at gain 0 came out 12.9 dB over the voice. Each kit sound's `trim_db` (from -15.9 to +8.7 dB) brings
+  its K-weighted loudest 10 ms to its synth voice's, and it is in the digest. The `loud` row compares
+  an effect's loudest 10 ms with the voice's peaks (the 99th-percentile 10 ms level), not its mean:
+  against the mean, the synth thump alone sat 11 dB over a Kokoro voice, and no threshold could pass
+  every default and still catch +10 dB.
+- **A sheet to look at, timecodes to listen at.** The kit cannot hear, so audio-check draws the
+  soundtrack (waveform, spectrogram, sentence bands, one marker per effect, red where a row flagged
+  it; close-ups of the hero effects with the frame grid) with ffmpeg alone, and each motion-review
+  window with effects gets its own. It then picks about five moments for the user's one listen, each
+  with its reason, kept with the soundtrack's stamp so publish, the handoff and the listen receipt
+  name them only for that mix.
+- **Pauses follow meaning.** Measured from auto-captions (so approximate), the three references speak
+  at 190-212 wpm while talking, and studio's Kokoro voice was already in that band; what differed was
+  the pauses. A real seven-minute studio narration had a pause median of 0.52 s with its p90 only
+  1.12 times that, against 0.67-0.75 s and 1.4-2.5 times. The pause after a sentence now comes from
+  its role, read from the script: 0.4 s within a paragraph, 0.9 s at its end, 1.6 s after a
+  question, 2 s after `[key]`, then the chapter hold and gap; `[key]`, `[aside]`, `[recap]` and a
+  term's first use also set the speed (one per Kokoro call in paragraph mode). Paragraph ends stay
+  under the 1.2 s first proposed, which would have pushed the median well above the references.
+  narrate and the animatic report the delivery and warn when it is flat, on rules calibrated so the
+  references pass (a literal two-minute rule would have flagged them), and the estimate now lands
+  within 1% of the real total, against 3.6% before.
+- **One colour, one meaning, checked.** All three references keep one colour legend for the whole
+  video, and a colour used for two things was the most common frame-review finding. The check needed
+  a machine-readable record of what a colour means, so a video declares `legend` in video.json,
+  elements carry `means` (or the meaning's words in their name), and the engines' boxes report each
+  element's resolved fill and stroke. It warns rather than fails, because tags and names are
+  heuristic; neutrals, blends mid-transition and tints never count, so a fade or a dimmed guide is
+  not a misuse.

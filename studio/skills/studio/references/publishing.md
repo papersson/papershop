@@ -88,12 +88,16 @@ role's sub-bus as it sits in the mix, at the master's level):
 
 - **sync**: each effect on a named event (a cue name or anchor in `audio/sfx.json`), its onset
   against the event's frame (a kit recording's transient peak, since its file has a lead-in); a
-  warning past one frame. With a rendered cut, the nearest start or end
-  of picture motion is noted beside it.
+  warning past one frame. With a rendered cut, a tagged effect (`visual`: `cut`, `move`, `land`,
+  `appear`) is judged against the picture frame by frame (a cut within 1 frame, a move's peak within
+  3, a landing or an appearance within 2; a warning past it), and an untagged one gets the nearest
+  start or end of picture motion, or a cut, noted beside it.
 - **audible**: each effect in a window around its contact. A warning when it lifts the narration
   and music there by under 6 dB, wideband and in its own band (masked), or when its loudest 10 ms
   is more than 30 dB under the voice's level (too quiet: an effect alone in a pause still has to be
   heard at the volume the listener set for the voice).
+- **loud**: an effect's loudest 10 ms more than 6 dB over the voice's peaks (its 99th-percentile
+  10 ms level); kit recordings are trimmed to their synth voice, so the defaults at gain 0 pass.
 - **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
 - **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
   within 10 dB.
@@ -104,12 +108,20 @@ role's sub-bus as it sits in the mix, at the master's level):
   finished to, so a check after `export --lufs -14` stays at -14.
 - **loudness**: the master against its target and ceiling, and the web copy's true peak.
 
+It also draws `out/audio-sheet.png` (waveform, spectrogram, sentence bands and a marker per effect,
+red where a row flagged it) and close-ups of the hero effects in `out/audio-sheet/`, with the frame
+grid and the frame where the picture does what the tag says. Look at them before asking for the
+listen. And it picks about five timecodes for that listen, each with its reason: the tagged effect
+furthest from its picture, the closest masking margin, the loudest effect, the music's entry, the
+hero effects.
+
 Then the user listens once. With effects or music, before publishing, ask the user to play the
 finished mix (the desk's latest cut, `audio/final.wav` after `studio audio`, or `out/master.mp4` once
-a publish has made it) and record what they
-said: `studio review-status VIDEO listen passed --reason "…"`, or `waived` with their reason. The
+a publish has made it) at the timecodes audio-check printed, and record what they said: `studio
+review-status VIDEO listen passed --reason "…" [--at 0:02.8,0:16.1]` (without `--at` the receipt keeps
+the timecodes chosen for this mix), or `waived` with their reason. The
 receipt is bound to the soundtrack's stamp, so a new mix makes it stale. Publish warns, not stops,
-when none stands, and the handoff lists it as a next step. A narration alone needs no listening
+when none stands, naming the timecodes, and the handoff lists it as a next step. A narration alone needs no listening
 unless the user wants one.
 
 ## Publishing
