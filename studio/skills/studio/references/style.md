@@ -58,8 +58,8 @@ between chapters.
 Outer contours are heavier than inner detail: a box's outline is heavier than the dividers between
 its fields, a table's outline heavier than its cell lines, a close-up's panel heavier than its
 minimap. Equal weights flatten a diagram into a grid, and the eye can no longer find where one
-thing ends. The kit's components follow it (live boxes 3 over 1.5 dividers; Remotion close-up 2.5
-over a 1.5 minimap, a table 2.5 over 1.5 cells); a lit or selected element may be heavier still,
+thing ends. The kit's components follow it (live boxes 3 over 1.5 dividers; Remotion close-up 2 px
+over a 1 px minimap as rendered, a table 3 px over single 1 px dividers); a lit or selected element may be heavier still,
 since that weight is state, not structure. The look sheet shows it.
 
 ## The look sheet
