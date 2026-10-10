@@ -87,8 +87,13 @@ The kit cannot judge sound by ear, so it measures it. `studio audio-check VIDEO 
 role's sub-bus as it sits in the mix, at the master's level):
 
 - **sync**: each effect on a named event (a cue name or anchor in `audio/sfx.json`), its onset
-  against the event's frame; a warning past one frame. With a rendered cut, the nearest start or end
+  against the event's frame (a kit recording's transient peak, since its file has a lead-in); a
+  warning past one frame. With a rendered cut, the nearest start or end
   of picture motion is noted beside it.
+- **audible**: each effect in a window around its contact. A warning when it lifts the narration
+  and music there by under 6 dB, wideband and in its own band (masked), or when its loudest 10 ms
+  is more than 30 dB under the voice's level (too quiet: an effect alone in a pause still has to be
+  heard at the volume the listener set for the voice).
 - **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
 - **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
   within 10 dB.
@@ -130,8 +135,8 @@ toggle: captions are burned in.
 Recorded sounds are credited. A video that uses sounds from the sound kit (a cue's `"sound": "kit"`
 or `"kit:ID"`, which `studio sfx` copies in, or `studio asset library`) gets a credit line on the
 page under the chapters ("Sound effects: Impact Sounds by Kenney (www.kenney.nl) (CC0 1.0)"),
-beside the voice's; `studio asset list VIDEO --credits` prints the
-CREDITS block, one line per pack with its homepage and the sounds used, for a description or a post.
+beside the voice's; `studio asset list VIDEO --credits` prints the CREDITS block, one line per pack
+with its homepage and the sounds used, for a description or a post.
 CC0 does not require credit; the studio gives it anyway, and the provenance rows say where each
 sound came from.
 

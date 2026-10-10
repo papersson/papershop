@@ -15,10 +15,11 @@ sf = pytest.importorskip("soundfile")
 SOURCE_RATE = 44_100
 
 
-def recording(lead=0.03, rate=SOURCE_RATE, stereo=True):
-    """A knock with a lead-in: `lead` s of near-silence, a 2 ms rise to a peak, a 120 ms decay."""
+def recording(lead=0.03, rate=SOURCE_RATE, stereo=True, swell=0.0):
+    """A knock with a lead-in: `lead` s of silence (or of a sound swelling to `swell` of the peak, as a
+    whoosh does before it lands), a 2 ms rise to a peak, a 120 ms decay."""
     t = np.arange(int((lead + 0.2) * rate)) / rate
-    hit = np.where(t < lead, 0.0, np.minimum(1, (t - lead) / 0.002) * np.exp(-np.maximum(0, t - lead - 0.002) * 40))
+    hit = np.where(t < lead, swell * t / lead, np.minimum(1, (t - lead) / 0.002) * np.exp(-np.maximum(0, t - lead - 0.002) * 40))
     y = (np.sin(2 * np.pi * 700 * t) * hit * 0.8).astype(np.float32)
     return np.stack([y, y * 0.5], axis=1) if stereo else y
 
@@ -40,10 +41,11 @@ PACK = {"title": "Test Pack", "version": "1.0", "license": "CC0-1.0", "creator":
 @pytest.fixture
 def kit(tmp_path, monkeypatch):
     """A one-pack kit served from a file:// URL with two curated recordings (a knock with a 30 ms
-    lead-in as `knock`, the default tap, and a later one as `knock-late`), and an empty cache."""
+    lead-in as `knock`, the default tap, and one that swells for 80 ms before its peak as
+    `knock-late`), and an empty cache."""
     monkeypatch.setenv("STUDIO_CACHE", str(tmp_path / "cache"))
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    members = {"Audio/knock.ogg": ogg(recording()), "Audio/late.ogg": ogg(recording(lead=0.08))}
+    members = {"Audio/knock.ogg": ogg(recording()), "Audio/late.ogg": ogg(recording(lead=0.08, swell=0.3))}
     z = tmp_path / "remote" / "pack.zip"
     z.parent.mkdir()
     with zipfile.ZipFile(z, "w") as f:

@@ -181,3 +181,90 @@ def test_the_picture_note_names_a_cut(tmp_path):
     assert audio_check._picture(v, {"fps": 30}, 15, movie) == (10, "starts")
     assert audio_check._picture(v, {"fps": 30}, 22, movie) == (20, "ends")
     assert audio_check._picture(v, {"fps": 30}, 80, movie) is None
+
+
+
+# --- a recording timed by its peak, and every effect heard ------------------------------------------
+
+import io  # noqa: E402
+
+from studio_kit import soundkit  # noqa: E402
+from test_sfx_kit import kit  # noqa: E402,F401  (the sound kit fixture: two recordings with a lead-in)
+
+
+class Stem:
+    """Stems by hand: an effects stem and nothing else."""
+    roles = {"sfx"}
+
+    def __init__(self, y):
+        self.y = y
+
+    def __getitem__(self, role):
+        return self.y
+
+    def span(self, role, a, b):
+        return self.y[max(0, int(a * 48_000)):max(0, int(b * 48_000))] if role == "sfx" else np.zeros(max(0, int((b - a) * 48_000)), "float32")
+
+
+def test_a_recording_is_timed_by_its_peak_not_its_lead_in(kit, tmp_path):
+    """knock-late swells for 80 ms before its peak: placed with its peak on the event, its onset is
+    two frames early, and sync, timing a recording by its peak, finds it on the frame."""
+    from studio_kit import sfx
+    v = tmp_path / "v"
+    (v / "audio").mkdir(parents=True)
+    cue = {"t": "hit", "type": "tap", "sound": "kit:knock-late"}
+    (v / "audio" / "sfx.json").write_text(json.dumps([cue]))
+    timeline = {"fps": 30, "duration": 4.0, "cues": {"hit": 2.0}, "beats": {}}
+    p = sfx.place([cue], timeline)[0]
+    y = np.zeros(4 * 48_000, "float32")
+    soundkit.fetch_kit(progress=io.StringIO())
+    s = sfx.resolve(cue)                                         # samples from the verified kit (no video here)
+    y[p.start:p.start + s.length] = s.samples
+    assert (audio_check._onset(y, 2.0, "start") - 2.0) * 30 < -1.5
+    (row,) = audio_check.sync(Stem(y), v, timeline)
+    assert abs(row["offset_frames"]) < 0.2 and "severity" not in row and "timed by its peak" in row["detail"]
+    late = np.roll(y, int(0.1 * 48_000))                         # placed three frames late
+    assert abs(audio_check.sync(Stem(late), v, timeline)[0]["offset_frames"] - 3) < 0.2
+
+
+def noise_bed(v, gain):
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                    "anoisesrc=color=pink:duration=10.5:sample_rate=48000:amplitude=0.5:seed=1", str(v / "bed.wav")], check=True)
+    t = json.loads((v / "timeline.json").read_text())
+    t["tracks"]["audio"].append({"file": "bed.wav", "start": 0.0, "gain": gain, "role": "music"})
+    (v / "timeline.json").write_text(json.dumps(t))
+    return v
+
+
+@pytest.mark.parametrize("case, effect, bed, warns", [
+    ("a clear effect in a pause", {"gain": 0}, None, None),
+    ("an effect buried under a loud bed", {"gain": 0}, 0, "masked"),
+    ("an effect at -60 dBFS in silence", {"gain": -44}, None, "too quiet"),
+])
+def test_each_effect_is_heard_or_warned(tmp_path, case, effect, bed, warns):
+    """The calibration: a pop in the first pause, alone (lifts silence, about 1 dB under the voice), under
+    an undocked pink-noise bed at full gain (lifts it under 1 dB), and 44 dB down (peaking near -60
+    dBFS, 45 dB under the voice). The "sound layer" we studied passed the last one."""
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop", **effect}], sound={"duck": False, "presence": False})
+    if bed is not None:
+        noise_bed(v, bed)
+    t = tl.load(v)
+    (row,) = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
+    assert row["check"] == "audible" and row["t"] == 2.0 and row["ok"]
+    if warns is None:
+        assert "severity" not in row and row["lift_db"] >= audio_check.AUDIBLE_LIFT and row["under_voice_db"] < 5, row
+    else:
+        assert row["severity"] == "warning" and warns in row["detail"], row
+    if warns == "masked":
+        assert row["lift_db"] < 2
+    if warns == "too quiet":
+        assert row["level_dbfs"] < -55 and row["lift_db"] == 99.0
+
+
+def test_the_report_carries_the_audibility_thresholds(tmp_path, monkeypatch):
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop"}])
+    monkeypatch.setattr(tl, "build", lambda *a, **k: None)
+    audio_check.main(SimpleNamespace(video=v, cut=None))
+    report = json.loads((v / "out" / "audio-check.json").read_text())
+    assert report["thresholds"]["audible_lift_db"] == audio_check.AUDIBLE_LIFT
+    assert [r["check"] for r in report["rows"]].count("audible") == 1

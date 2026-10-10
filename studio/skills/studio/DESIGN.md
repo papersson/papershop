@@ -472,3 +472,30 @@ part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its 
   The sampled signal keeps ffmpeg's fps filter, which picks a frame from within each tenth of a
   second (at 30 fps the second of three, not the first), so the pacing check and the motion review
   report what they did.
+- **A recording lands on its peak.** A recorded effect has a lead-in, so starting its file on the
+  cue puts the sound late by its attack (up to 180 ms in the kit's whooshes). `sound: "kit:ID"`
+  resolves to a Sound that lands at its transient peak: the first local peak of a 2 ms RMS
+  envelope within 6 dB of the loudest, so an attack wins over a louder ring unless the ring is
+  much louder, and a build lands on its loudest moment. It is measured once, from the audio decoded
+  to 48 kHz mono, and kept in the manifest's facts with the length, so placing needs neither the
+  file nor numpy and the digest holds the file's sha256. audio-check's sync times a recording the
+  same way; on a Kokoro-narrated test video a whoosh read 3 frames early by its onset and 0.2 by its
+  peak. `studio sfx` copies each named recording into `assets/sounds/`, and a render reads only
+  that copy. Recordings are opt-in per cue: a type alone keeps its synth voice, `"sound": "kit"`
+  plays the type's default, and there is no video.json switch, because audio/sfx.json then says on
+  its own what each effect plays, and one setting does not silently move every effect's file and
+  timing.
+- **Curated by measurement, not by ear.** No one could listen, so 174 of the five packs' 386 sounds
+  were mapped to types by their file names and measured (length, peak, lead-in, attack, tail,
+  centroid, floor, events); 22 were rejected (10 clipped, 12 with several events, 4 with long
+  silence, some for two reasons) and 152 kept across 28 types, adding question, page-turn, stack,
+  dice and toggle; swell has none and stays a synth. Each type's default has a crisp attack and is
+  nearest its synth voice in brightness and length. A test re-measures every sound from a fetched
+  kit against the committed facts.
+- **Every effect heard.** The "sound layer" we studied checked each effect's audibility but passed
+  one at -60 dBFS in a silent pause. audio-check's `audible` row measures each effect in a window
+  around its contact: masked when it lifts the narration and music by under 6 dB, wideband and an
+  octave either side of its centroid, and too quiet when its loudest 10 ms is more than 30 dB under
+  the voice's level. On fixtures a pop in a pause passes (over silence, 1 dB under the voice), the
+  same pop under an undocked pink-noise bed warns (a 0.8 dB lift), and one at -60 dBFS in silence
+  warns (45 dB under the voice).

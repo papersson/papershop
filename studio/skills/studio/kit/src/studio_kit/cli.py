@@ -180,7 +180,7 @@ COMMANDS = {
                                    'voice); a kit sound is copied into assets/sounds/'),
     ], "sfx:main"),
     "sound-lab": ("a page to choose effects by listening: each type's synth candidates and kit recordings", [V("video")], "sfx:main_lab"),
-    "audio-check": ("measure the soundtrack: effect sync, ducking, masking, the pauses guard and loudness, into out/audio-check.json", [
+    "audio-check": ("measure the soundtrack: effect sync (a recording by its peak), each effect heard, ducking, masking, the pauses guard and loudness, into out/audio-check.json", [
         W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
     ], "audio_check:main"),
     "music": ("an optional generated bed (quiet chords and a soft pulse) as a music track the mix ducks, with its beat grid", [

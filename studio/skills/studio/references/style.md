@@ -192,10 +192,10 @@ default, and "no music" stays the plain default.
   slow chords on a soft pulse, registers it as a music track 20 LU under the voice (so it ducks), and
   writes its beat grid, so `beat_N` and `downbeat_N` cues land on it. No melody: a motif per
   character belongs to a comic video, made by hand.
-- **The kit measures; the user listens once.** `studio audio-check` measures sync, ducking, masking
-  of each word in 1-4 kHz, the pauses guard and loudness on stems the kit renders itself. It cannot
-  judge taste, so with effects or music the user listens once to the finished mix before publishing
-  (`publishing.md`).
+- **The kit measures; the user listens once.** `studio audio-check` measures sync, whether each
+  effect is heard, ducking, masking of each word in 1-4 kHz, the pauses guard and loudness on stems
+  the kit renders itself. It cannot judge taste, so with effects or music the user listens once to
+  the finished mix before publishing (`publishing.md`).
 
 ## Length
 
