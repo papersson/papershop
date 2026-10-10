@@ -74,6 +74,9 @@ def screen_notes(note, line, paragraph_ids):
 
 
 ROLES = ("key", "aside", "recap")
+# A full stop after one of these ends no sentence ("Dr. Smith", "Rust vs. Go"), so a capital after it
+# starts no new one. "etc." that does end a sentence keeps the next one with it.
+ABBREVIATION = re.compile(r"(?:^|[\s(\"'“])(?:Dr|Mr|Mrs|Ms|Prof|St|vs|e\.g|i\.e|etc|cf)\.$", re.I)
 
 
 def paragraph(text, line, beat):
@@ -100,7 +103,7 @@ def paragraph(text, line, beat):
             events.append((len(clean), "hold", (seconds, token[1] == "predict")))
         cursor = m.end()
     clean += text[cursor:]
-    boundaries = list(re.finditer(r'(?<=[.!?])\s+(?=[A-Z"])', clean))
+    boundaries = [m for m in re.finditer(r'(?<=[.!?])\s+(?=[A-Z"])', clean) if not ABBREVIATION.search(clean[:m.start()])]
     starts = [0] + [m.end() for m in boundaries]
     ends = [m.start() for m in boundaries] + [len(clean)]
     out = []

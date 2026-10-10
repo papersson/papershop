@@ -105,10 +105,10 @@ def test_sentence_mode_lays_out_exact_role_pauses_after_any_hold(tmp_path):
 def test_paragraph_mode_keeps_a_quicker_voice_gap_and_floors_the_long_ones(tmp_path):
     S, chapters = nr.Settings(video(tmp_path, {"timing": {"pause": {"short": 0.4, "long": 1.2}}})), sc.load(tmp_path)
     durs = {k: 1.0 for _, _, ss in chapters for k, _, _ in ss}
-    st = starts(nr.layout(S, chapters, durs, gaps={"s1_01": 0.3, "s1_03": 0.5, "s1_06": 0.05, "s2_03": 0.7}))
+    st = starts(nr.layout(S, chapters, durs, gaps={"s1_01": 0.3, "s1_03": 0.5, "s1_06": 0.0, "s2_03": 0.7}))
     gap = lambda a, b: round(st[b][0] - st[a][1], 3)
     assert gap("s1_01", "s1_02") == 0.3                      # the voice's own, inside the short band
-    assert gap("s1_06", "s1_07") == nr.SHORT_MIN             # never shorter than SHORT_MIN
+    assert gap("s1_06", "s1_07") == 0.0                      # a run-on stays run-on: no silence forced in
     assert gap("s2_03", "s2_04") == 0.4                      # a slow gap capped at short
     assert gap("s1_03", "s1_04") == nr.PAUSES["question"]    # at least the role's
     assert gap("s1_02", "s1_03") == 1.2                      # a tuned value, no voice gap across paragraphs
@@ -268,3 +268,64 @@ def test_the_animatic_report_carries_the_delivery_lines():
               "no_picture": [], "delivery": m}
     lines = animatic.describe(report)
     assert any(l.startswith("delivery: speaking") for l in lines) and any(l.startswith("warn delivery:") for l in lines)
+
+
+# --- regressions from review -----------------------------------------------------------------------
+
+def test_pause_false_is_the_old_behaviour_including_speed(tmp_path):
+    """timing.pause false once kept role speeds, so a term's first use was slowed with no markup."""
+    S, chapters = nr.Settings(video(tmp_path, {"timing": {"pause": False}})), sc.load(tmp_path)
+    S.paragraph = False
+    assert nr.assign_speeds(S, chapters, nr.roles(S, chapters)) == {}
+    durs = nr.estimate_durations(S, chapters)
+    wps = nr.PACE["kokoro"][0]
+    assert all(abs(durs[k] - len(c.split()) / wps) < 1e-9 for _, _, ss in chapters for k, c, _ in ss)
+    # a speed named in narration.json still applies
+    S2 = nr.Settings(video(tmp_path, {"timing": {"pause": False}, "kokoro": {"paragraph": False, "role_speed": {"key": 0.9}}}))
+    assert nr.assign_speeds(S2, chapters, nr.roles(S2, chapters)) == {"s1_05": 0.9}
+
+
+def test_common_abbreviations_end_no_sentence():
+    """"Dr. Smith" and "Rust vs. Go" were split, and the gap raised to a forced pause mid-phrase."""
+    split = lambda t: [x[0] for x in sc.paragraph(t, 1, 0.5)]
+    assert split("Ask Dr. Smith about it. Then go.") == ["Ask Dr. Smith about it.", "Then go."]
+    assert split("Rust vs. Go is old. Mr. Lee, e.g. Ann, and i.e. This.") == ["Rust vs. Go is old.", "Mr. Lee, e.g. Ann, and i.e. This."]
+    assert split("It ends. Next one.") == ["It ends.", "Next one."]
+
+
+def test_the_reference_band_is_reachable_and_the_short_pause_counts_as_speech(tmp_path):
+    """The pause median sat at 0.9 s against the references' 0.67-0.75: it is the paragraph end's."""
+    lo, hi = delivery.REFERENCE["pause_median"]
+    assert nr.PAUSES["short"] < delivery.PAUSE <= lo - 0.03 <= nr.PAUSES["long"] <= hi
+    pauses = [nr.PAUSES[k] for k in ["short", "short", "long", "short", "long", "question", "short", "long"] * 8]
+    m = delivery.measure(narration(pauses))
+    assert lo <= m["pause_median"] <= hi
+
+
+def test_the_evenness_warning_needs_a_long_video_and_hints_by_layout():
+    short_flat = delivery.measure(narration([0.5] * 20))            # about 80 s
+    assert short_flat["seconds"] < delivery.SPREAD_AFTER
+    assert not any("one length" in w for w in delivery.warnings(short_flat))
+    t = narration([0.7] * 60)
+    flat = delivery.warnings(delivery.measure(t))
+    roles = delivery.warnings(delivery.measure({**t, "pauses": {"short": 0.4, "used": {}}}))
+    assert any("re-narrate" in w for w in flat if "one length" in w)
+    assert [w for w in roles if "one length" in w] and not any("re-narrate" in w for w in roles)
+
+
+def test_a_key_sentence_that_ends_a_chapter_gets_the_key_pause(tmp_path):
+    """The chapter gap (1.2 s) won over [key]'s 2 s when chapter_hold was 0."""
+    S, chapters = nr.Settings(video(tmp_path, script=SCRIPT.replace("And one more.", "And one more. [key]"))), sc.load(tmp_path)
+    st = starts(nr.layout(S, chapters, {k: 1.0 for _, _, ss in chapters for k, _, _ in ss}))
+    assert st["s2_01"][0] - st["s1_07"][1] >= nr.PAUSES["key"] - 1e-9
+    plain = starts(nr.layout(nr.Settings(video(tmp_path)), sc.load(tmp_path), {k: 1.0 for _, _, ss in chapters for k, _, _ in ss}))
+    assert plain["s2_01"][0] - plain["s1_07"][1] < nr.PAUSES["key"]
+
+
+def test_narrate_prints_the_laid_out_pause_and_plurals(tmp_path, capsys):
+    v = video(tmp_path, {"kokoro": {"paragraph": False, "speed": 1.0}})
+    t = nr.narrate(v, estimate=True)
+    out = capsys.readouterr().out
+    st = starts(t)
+    assert f"s1_03:" in out and f"then {st['s1_04'][0] - st['s1_03'][1]:.2f}s" in out
+    assert "1 sentence slower" in out

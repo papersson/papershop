@@ -132,13 +132,14 @@ Write short spoken clauses with `*Screen:*` notes specifying the visual change a
 `*Screen:* s2_01: … s2_03–s2_05: …`; text without an id belongs to the paragraph above. Sentence ids
 are positional, so `studio check --only script` reports notes that name a sentence that no longer exists.
 Pauses follow meaning without markup: after each sentence the narration leaves a pause by its
-role, short (0.4s) inside a paragraph, long (0.9s) at a paragraph's end, 1.6s after a question,
+role, short (0.4s) inside a paragraph, long (0.7s) at a paragraph's end, 1.6s after a question,
 and the chapter hold and gap at a chapter's end. So write one idea per paragraph, and let a
 question stand where the viewer should think. Mark the rest after a complete sentence; markers are
 never spoken or captioned:
 
 - `[key]` after the sentence the viewer must keep (a definition, the key insight): a 2s pause after
-  it, and slower speech where synthesis allows (Stage 6). Use it a few times a video, not per
+  it (at a chapter's end, the longer of that and the chapter hold and gap), and slower speech where
+  synthesis allows (Stage 6). Use it a few times a video, not per
   paragraph.
 - `[aside]` or `[recap]` after a sentence, or at the start of a paragraph for all of it: a little
   quicker.
@@ -148,8 +149,12 @@ never spoken or captioned:
 
 A sentence may carry one hold and one role. Intro defaults on new videos: speed 0.95, chapter-end
 hold 2s, chapter gap 1.2s, beat 0.5s, pauses by role as above. Tune them in `narration.json.timing`
-(`pause`: `short`, `long`, `question`, `key`; `false` keeps the old flat 0.5s layout) and the voice
-settings. Old videos keep their timings until they are narrated again.
+(`pause`: `short`, `long`, `question`, `key`) and the voice settings. `pause: false` restores the
+layout of earlier versions exactly: the voice's own gap between sentences of a paragraph (0.3s in
+sentence mode), 0.5s between paragraphs, and no role speeds unless `kokoro.role_speed` names them.
+Old videos keep their timings until they are narrated again. A full stop after Dr., Mr., Mrs., Ms.,
+Prof., St., vs., e.g., i.e., etc. or cf. ends no sentence, so a capital after it stays in the same
+sentence (and keeps its sentence id); end a sentence on "etc." with care.
 
 Run the pedagogy self-check and `studio check VIDEO --only script` before narration. Fill the
 brief, log substantive diagnostics and accepted exceptions. `script_check` in video.json accepts
@@ -192,8 +197,8 @@ moved from the previous narration (the first re-narration of a video made before
 moves every later sentence: recheck scene timing), and the delivery next to three reference
 explainers, approximate on both sides: speaking and overall rate, pauses, and the rate minute by
 minute; the animatic's pacing report repeats it. A `delivery` warning means it reads flat: fewer
-than one pause over 1.5s every three minutes (or none for four), pauses nearly all one length, or
-a rate that never changes across a video over three minutes. Fix it in the script (one idea per
+than one pause over 1.5s every three minutes (or none for four), or, in a video over three minutes,
+pauses nearly all one length or a rate that never changes. Fix it in the script (one idea per
 paragraph, a question, `[key]` on the sentence that matters), not in `timing`. A role's speed
 (`kokoro.role_speed`: key and a vocabulary term's first use 0.9×, aside and recap 1.05×) applies
 per sentence only in sentence mode. In paragraph mode one call has one speed, so it applies to a

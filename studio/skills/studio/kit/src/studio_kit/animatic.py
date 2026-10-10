@@ -51,6 +51,15 @@ def stage_digest(still, stage_fraction):
     return r.stdout.strip()
 
 
+def timings_pauses(video):
+    """How the current narration laid out its pauses (audio/timings.json "pauses"), or None."""
+    f = Path(video) / "audio" / "timings.json"
+    try:
+        return json.loads(f.read_text()).get("pauses")
+    except (OSError, ValueError):
+        return None
+
+
 def pacing(video, timeline, cut_dir, stills, segs, boards=False):
     """The numbers worth reading before animating."""
     cfg = settings.load(video)
@@ -85,7 +94,7 @@ def pacing(video, timeline, cut_dir, stills, segs, boards=False):
         "longest_unchanged": {"at": round(longest[0], 1), "seconds": round(longest[1], 1)},
         "unchanged_runs": [{"at": round(a, 1), "seconds": round(b, 1)} for a, b in runs if b >= STILL_RUN],
         "no_picture": [k for k, v in cov.items() if v is None and clip_of[k] in on_board],
-        "delivery": delivery.from_timeline(timeline),
+        "delivery": delivery.from_timeline(timeline, timings_pauses(video)),
     }
     return report
 

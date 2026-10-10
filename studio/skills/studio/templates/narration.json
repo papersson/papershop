@@ -14,7 +14,7 @@
  "timing": {
   "pause": {
    "short": 0.4,
-   "long": 0.9,
+   "long": 0.7,
    "question": 1.6,
    "key": 2.0
   }

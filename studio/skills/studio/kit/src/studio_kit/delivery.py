@@ -24,7 +24,7 @@ The warning fires on flat delivery:
     long pauses in 18 minutes leave some gap over two minutes. Or
   - a per-minute spread under SPREAD_MIN in a narration longer than SPREAD_AFTER s (the references
     swing 28-32%), or
-  - pauses all about one length: among the pauses up to WITHIN s (inside ideas: chapter breaks and
+  - pauses all about one length, in a narration longer than SPREAD_AFTER s: among the pauses up to WITHIN s (inside ideas: chapter breaks and
     reveal holds left out), the 90th percentile under EVEN times the median. The references' ratio
     is 1.4-2.5 with every pause counted; a narration with a fixed 0.5 s beat reads about 1.1.
 """
@@ -113,12 +113,16 @@ def measure(timings):
         "per_minute_spread": round((max(minutes) - min(minutes)) / mean, 3) if minutes and mean else None,
         "longest_without_long_pause": {"at": round(longest_at, 1), "seconds": round(stretch, 1)},
         "pause_evenness": round(percentile(inner, 0.9) / statistics.median(inner), 2) if len(inner) >= EVEN_COUNT else None,
+        # whether the narration was laid out with pauses by role (None: timings from before they existed)
+        "role_pauses": isinstance(timings.get("pauses"), dict) if "pauses" in timings else None,
     }
 
 
-def from_timeline(timeline):
-    """measure() on a timeline's narration track (its words carry the same times as the timings)."""
-    return measure({"segments": [{"lines": timeline["tracks"].get("narration", [])}]})
+def from_timeline(timeline, pauses=None):
+    """measure() on a timeline's narration track (its words carry the same times as the timings);
+    `pauses` is the timings' own record of how its pauses were laid out, when known."""
+    t = {"segments": [{"lines": timeline["tracks"].get("narration", [])}]}
+    return measure({**t, "pauses": pauses} if pauses is not None else t)
 
 
 def warnings(m):
@@ -136,9 +140,10 @@ def warnings(m):
     if m["seconds"] > SPREAD_AFTER and m["per_minute_spread"] is not None and m["per_minute_spread"] < SPREAD_MIN:
         out.append(f"the rate barely changes minute to minute ({m['per_minute_spread']:.0%} spread, under "
                    f"{SPREAD_MIN:.0%}); let key ideas breathe and asides move")
-    if m.get("pause_evenness") is not None and m["pause_evenness"] < EVEN:
-        out.append(f"the pauses are nearly all one length (p90 {m['pause_evenness']:.2f}× the median, under {EVEN:g}×); "
-                   "re-narrate if this narration predates pauses by role, and mark the sentence that matters [key]")
+    if m["seconds"] > SPREAD_AFTER and m.get("pause_evenness") is not None and m["pause_evenness"] < EVEN:
+        hint = "mark the sentence that matters [key]" if m.get("role_pauses") else \
+            "re-narrate for pauses by role, and mark the sentence that matters [key]"
+        out.append(f"the pauses are nearly all one length (p90 {m['pause_evenness']:.2f}× the median, under {EVEN:g}×); {hint}")
     return out
 
 
