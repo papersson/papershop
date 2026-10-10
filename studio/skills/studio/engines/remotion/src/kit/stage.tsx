@@ -65,6 +65,7 @@ export const Rect: React.FC<{
 	return (
 		<div
 			data-box={name ?? 'rect'}
+			data-default={name === undefined ? '' : undefined}
 			style={{
 				position: 'absolute', left: cx - (w * s.unit) / 2, top: cy - (h * s.unit) / 2,
 				width: w * s.unit, height: h * s.unit, borderRadius: radius * s.unit, background: fill,

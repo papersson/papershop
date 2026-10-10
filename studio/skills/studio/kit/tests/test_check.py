@@ -155,3 +155,27 @@ def test_bounds_leaves_elements_under_a_moved_camera_alone(tmp_path):
               {"clip": "s1", "t": 2.0, "boxes": [box("placed off", 1800)]}]
     rows = check.bounds(tmp_path, engine=object(), boxes=(lay, frames))
     assert rows[0]["ok"] and rows[1]["detail"] == "'placed off' leaves the frame"
+
+
+def test_inframe_flags_a_narrated_element_pushed_off_the_top_past_the_header(tmp_path):
+    """With a header, an element wholly above the frame (y1 <= header but y0 < 0) is out of frame, not
+    header content: only one lying within the strip is left alone."""
+    import json
+    t = make_video(tmp_path)
+    t["tracks"]["narration"][0]["text"] = "The server answers."
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    lay = {**LAYOUT, "header": {"height": 120}}
+    rows = check.in_frame(tmp_path, boxes=(lay, [{"clip": "s1", "t": 1.35, "boxes": [
+        {"name": "node server", "x": 800, "y": -300, "w": 200, "h": 100, "camera": True}]}]))
+    assert rows[0]["severity"] == "warning" and "'node server' (out of frame)" in rows[0]["detail"]
+    rows = check.in_frame(tmp_path, boxes=(lay, [{"clip": "s1", "t": 1.35, "boxes": [
+        {"name": "node server", "x": 800, "y": 20, "w": 200, "h": 60}]}]))
+    assert rows[0]["detail"] == ""
+
+
+def test_bounds_leaves_a_shape_with_no_name_of_its_own_alone(tmp_path):
+    lay = {"width": 1920, "height": 1080, "band": {"height": 160}}
+    frames = [{"clip": "s1", "t": 1.0, "boxes": [{"name": "rect", "kind": "", "x": 1800, "y": 100, "w": 300, "h": 100, "named": False},
+                                                 {"name": "node db", "kind": "", "x": 1800, "y": 300, "w": 300, "h": 100}]}]
+    rows = check.bounds(tmp_path, engine=object(), boxes=(lay, frames))
+    assert rows[0]["detail"] == "'node db' leaves the frame"

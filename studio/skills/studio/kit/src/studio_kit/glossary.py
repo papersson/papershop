@@ -19,17 +19,31 @@ def _words(text):
     return re.findall(r"[a-z0-9]+", text.lower())
 
 
+# Words a note may put between a term's words: an object ("blur them together", "ease it out").
+BETWEEN = {"it", "them", "this", "these", "those", "that", "everything", "all", "each"}
+
+
+def _forms(word):
+    """A term word and its simple inflections: pan, pans, panned, panning; settle, settles, settled, settling."""
+    stem = word[:-1] if word.endswith("e") else word
+    return {word, word + "s", word + "es", word + "d", word + "ed", stem + "ing", stem + "ed",
+            word + word[-1] + "ed", word + word[-1] + "ing"}
+
+
 def mentions(term, text):
-    """Whether text uses the term: its words in order, at most two other words between them, so
-    "blur them together" names "blur together" (a hyphen counts as a space)."""
-    want, got = _words(term), _words(text)
-    for start in (i for i, w in enumerate(got) if w == want[0]):
+    """Whether text uses the term: its words adjacent and in order, each in a simple inflection, with at
+    most one object word between two of them (BETWEEN: "blur them together" names "blur together"; a
+    hyphen counts as a space). "this frame is empty on the right" does not name "frame on"."""
+    want, got = [_forms(w) for w in _words(term)], _words(text)
+    for start in (i for i, w in enumerate(got) if w in want[0]):
         at = start
-        for w in want[1:]:
-            nxt = next((j for j in range(at + 1, min(len(got), at + 4)) if got[j] == w), None)
-            if nxt is None:
+        for forms in want[1:]:
+            if at + 1 < len(got) and got[at + 1] in forms:
+                at += 1
+            elif at + 2 < len(got) and got[at + 1] in BETWEEN and got[at + 2] in forms:
+                at += 2
+            else:
                 break
-            at = nxt
         else:
             return True
     return False

@@ -141,3 +141,38 @@ export default function draw(c) {
     assert right["camera"] is True and right["x"] > lay["width"]
     rows = check.bounds(tmp_path, boxes=(lay, frames))
     assert rows[0]["ok"] and not rows[1]["ok"] and "'stray box' leaves the frame" in rows[1]["detail"]
+
+
+PAN_AND_OVERLAY = """
+export default function draw(c) {
+  const { S, W } = c
+  c.camAt([[0, { x: W / 2, y: c.H / 2, z: 1 }], [1, { x: W / 2 + 100.5, y: c.H / 2 - 40.25, z: 1.15 }, 'linear']])
+  S.rect('box', W / 2 - 100, 200, 200, 120, { fill: '#8FD3FF', box: 'box' })
+  S.text('title', W / 2, 40, 'A title card', { size: 40, anchor: 'middle', layer: 'over', box: 'title card' })
+}
+"""
+
+
+@needs_engine
+def test_a_moving_camera_leaves_the_background_and_the_overlays_where_they_are(tmp_path):
+    """The background sat inside the camera group, so a pan left a seam one shade off in the band (the
+    band pixel check failed); the 'over' layer moved with the camera too, so an overlay's title went
+    off the top. Both stay put now; the scene under them moves."""
+    from studio_kit import check
+    live_video(tmp_path, PAN_AND_OVERLAY)
+    e = Engine(tmp_path)
+    rest, f = e.boxes_at([{"clip": "s1", "t": 0.0}, {"clip": "s1", "t": 1.45}])
+    named = lambda frame, n: next(b for b in frame["boxes"] if b["name"] == n)
+    assert named(f, "title card")["camera"] is False and named(f, "title card")["y"] == pytest.approx(named(rest, "title card")["y"])
+    assert named(f, "box")["camera"] is True and named(f, "box")["y"] != pytest.approx(named(rest, "box")["y"])
+    rows = [r for r in check.band_pixels_check(tmp_path, samples=1, engine=e, clips={"s1"}) if r["check"] == "band"]
+    assert rows and all(r["ok"] for r in rows), rows
+
+
+@needs_engine
+def test_a_broken_look_file_is_named(tmp_path):
+    live_video(tmp_path)
+    (tmp_path / "scenes" / "look.js").write_text("export default function look(c) {\n")
+    with pytest.raises(EngineError, match=r"scenes/look\.js: .*Unexpected end of input"):
+        Engine(tmp_path).look(tmp_path / "out", [])
+    assert Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}])           # the chapters still draw

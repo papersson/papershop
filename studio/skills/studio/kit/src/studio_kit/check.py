@@ -15,6 +15,8 @@
                from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
                samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
                hold is a warning, not a failure
+  pauses       with effects (audio/sfx.json): no effect peaks over -24 dBFS, at the master's level,
+               during a spoken word (audio_check.guard; `studio audio-check` measures the rest of the sound)
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
   filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
@@ -122,7 +124,9 @@ def _boxes(video, per_clip, engine, clips=None):
 def bounds(video, samples=3, engine=None, boxes=None):
     """Captions inside the band and its margins, and every other named element inside the frame. An
     element under a camera that has moved (a push-in, a pan: the engine marks its box "camera") may be
-    cropped or left out of the shot: that is the camera's doing, and in_frame checks the narrated one."""
+    cropped or left out of the shot: that is the camera's doing, and in_frame checks the narrated one.
+    A box with no name of its own (a Remotion Rect given no name: "named" false) is never bounds' to
+    fail, as the live engine reports no unnamed shape at all; a box a clip cuts is reported cut."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)
     W, H, band = lay["width"], lay["height"], lay["height"] - lay["band"]["height"]
@@ -135,7 +139,7 @@ def bounds(video, samples=3, engine=None, boxes=None):
                     bad.append(f"caption line {b['w']:.0f} px wide leaves the {SIDE_MARGIN} px margins")
                 if b["y"] < band - SLACK or b["y"] + b["h"] > H + SLACK:
                     bad.append("caption outside the band")
-            elif not b.get("camera") and (b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK):
+            elif not b.get("camera") and b.get("named", True) and (b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK):
                 bad.append(f"{b['name']!r} leaves the frame")
         rows.append({"check": "bounds", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad)})
     return rows
@@ -210,7 +214,7 @@ def in_frame(video, samples=3, engine=None, boxes=None):
             if b.get("opacity", 1) < 0.05 or b["w"] <= 2 or b["h"] <= 2 or not narrated(b["name"], words):
                 continue
             x0, y0, x1, y1 = b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]
-            if header and y1 <= header + SLACK:
+            if header and y0 >= -SLACK and y1 <= header + SLACK:      # within the header strip, not pushed off the top
                 continue
             where = [side for side, out in (("left", x0 < -SLACK), ("right", x1 > W + SLACK),
                                             ("top" if not header else "header", y0 < header - SLACK), ("band", y1 > band + SLACK)) if out]
@@ -357,7 +361,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
     always = ("legible", "overlap", "pacing", "inframe") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -367,7 +371,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if "code-source" in only or (default and (Path(video) / "data" / "steps" / "index.json").exists()):
         from . import steps
         preflight += steps.check(video)
-    if only <= {"script", "code-source"}:
+    if "pauses" in only or default:      # video-wide, from the sound alone; nothing without effects
+        from . import audio_check
+        preflight += audio_check.guard(video)
+    if only <= {"script", "code-source", "pauses"}:
         return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))

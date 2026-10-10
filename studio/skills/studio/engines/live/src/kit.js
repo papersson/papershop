@@ -19,11 +19,12 @@ export const prog = (t, t0, d, e = motion.ease.inOut) => motion.prog(t, t0, d, e
 export const pulse = (t, t0, d = 0.6) => motion.pulse(t, t0, d)
 
 /**
- * The camera at time t from keys [time, {x, y, z}, ease?] (pixels and a zoom, as S.cam takes them),
- * through `keyed`: a key's ease shapes the move into it. The zoom moves in proportion, so a push-in
- * keeps its apparent speed. Returns {x, y, z}; c.camAt(keys) also points the stage's camera there.
+ * The camera at time t from keys [time, {x, y, z}, ease?] in time order (pixels and a zoom, as S.cam
+ * takes them): a key's ease shapes the move into it, `inOut` by default as in Remotion (the shared
+ * camera's). The zoom moves in proportion and the centre in step with 1/zoom, so the subject travels
+ * a straight line on screen. Returns {x, y, z}; c.camAt(keys) also points the stage's camera there.
  */
-export function camAt(t, keys, e = motion.ease.inOut) {
+export function camAt(t, keys, e) {
   const c = camera.cameraAt(t, keys.map(([time, k, ease]) => [time, { x: k.x, y: k.y, zoom: k.z }, ease]), e)
   return { x: c.x, y: c.y, z: c.zoom }
 }

@@ -56,7 +56,7 @@ Remotion-only; the evidence files can be used by either engine.
 |---|---|
 | `CodePanel` | `source: {text, sha256}`, optional 1-based `range`, `current`, `plumbing`, `markers`, `tokens: [{line,text,progress}]`; displays unmodified source lines |
 | `Terminal` | Captured `runs: [{argv,stdout,stderr,exit}]`, line-reveal `progress`, `maxLines` |
-| `RowTable` | `columns`, actual `rows`, cell `highlight: [rowIndex,key]`, row-reveal `progress`; its outline (2.5) is heavier than the cell lines (1.5) |
+| `RowTable` | `columns`, actual `rows`, cell `highlight: [rowIndex,key]`, row-reveal `progress`; its outline (3 px) is heavier than the single 1 px dividers between cells, in whole pixels |
 | `JsonTree` | Actual JSON `value`, key-path `cursor`, row-reveal `progress` |
 | `ColumnStrips` | `columns: [{name,bytes,groups?}]`, `h`, drawer `open`; widths follow byte proportions |
 | `GeoMap` | `features: [{id,geometry}]`, `selected`, `halo`, `grid`, `h`; normalize WKT to GeoJSON in sims/ |

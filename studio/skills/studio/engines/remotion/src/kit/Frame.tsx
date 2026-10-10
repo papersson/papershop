@@ -50,11 +50,23 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 			for (let n: HTMLElement | null = el; n && n !== root.current; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
 			return o;
 		};
-		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box],[data-caption]')].map((el) => {
+		// A box inside a clip (a CloseUp with clip: data-clip, the clip's box in stage pixels) is the part
+		// the clip shows; one it hides entirely is left out.
+		const clipped = (el: HTMLElement, x: number, y: number, w: number, h: number) => {
+			const c = el.closest<HTMLElement>('[data-clip]')?.dataset.clip?.split(',').map(Number);
+			if (!c) return {x, y, w, h};
+			const [x0, y0, x1, y1] = [Math.max(x, c[0]), Math.max(y, c[1]), Math.min(x + w, c[2]), Math.min(y + h, c[3])];
+			return x1 > x0 && y1 > y0 ? {x: x0, y: y0, w: x1 - x0, h: y1 - y0} : null;
+		};
+		const boxes = [...root.current.querySelectorAll<HTMLElement>('[data-box],[data-caption]')].flatMap((el) => {
 			const r = el.getBoundingClientRect();
-			return {name: el.dataset.box ?? 'caption', kind: el.dataset.kind ?? '', x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height,
+			const at = clipped(el, r.left - origin.left, r.top - origin.top, r.width, r.height);
+			if (!at) return [];
+			return [{name: el.dataset.box ?? 'caption', kind: el.dataset.kind ?? '', ...at,
 				// camera: under a Camera that has moved (data-camera), whose crop is the inframe check's, not bounds'
-				opacity: shown(el), camera: !!el.closest('[data-camera]')};
+				opacity: shown(el), camera: !!el.closest('[data-camera]'),
+				// named: false for a shape given no name of its own (reported as "rect"), which bounds leaves alone
+				...(el.hasAttribute('data-default') ? {named: false} : {})}];
 		});
 		console.log('STUDIO_BOXES ' + JSON.stringify({band: {y: stageH, h: l.band.height}, boxes}));
 	}, [reportBoxes, ready, frame, stageH, l.band.height]);

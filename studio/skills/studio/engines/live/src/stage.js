@@ -16,10 +16,14 @@ export class Stage {
     this.width = width
     this.height = height
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+    // Layers, back to front: back (the background, which the camera never moves, so a push-in leaves
+    // no seam), then bg, main and fx inside the camera, then over (overlays: a ladder, a clock, a
+    // title card, the header's contents) and ui (the band), which the camera doesn't move either.
+    this.layers = { back: this.make('g', svg) }
     this.camera = this.make('g', svg)
-    this.layers = {}
-    for (const name of ['bg', 'main', 'fx', 'over']) this.layers[name] = this.make('g', this.camera)
-    this.ui = this.make('g', svg) // drawn after, and not moved by, the camera
+    for (const name of ['bg', 'main', 'fx']) this.layers[name] = this.make('g', this.camera)
+    this.layers.over = this.make('g', svg)
+    this.ui = this.make('g', svg)
     this.nodes = new Map()        // key -> {node, layer, attrs: Set}
     this.order = []               // keys in this frame's drawing order
   }

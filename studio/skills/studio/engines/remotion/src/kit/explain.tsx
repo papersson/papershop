@@ -74,18 +74,36 @@ export const Terminal: React.FC<Area & {runs: CapturedRun[]; progress?: number; 
 
 export const RowTable: React.FC<Area & {columns: string[]; rows: Record<string, unknown>[]; highlight?: [number, string]; progress?: number}> =
 ({at, w, columns, rows, highlight, progress = 1, opacity = 1, size = 20, name = 'table'}) => {
+  const s = useStage();
   const shown = rows.slice(0, Math.ceil(rows.length * clamp(progress))), cw = w / Math.max(1, columns.length), lh = 0.65;
-  // The table's outline (2.5) is heavier than the dividers between its cells (1.5); a selected cell is outlined in ice.
-  return <><Rect at={at} w={cw * columns.length} h={(shown.length + 1) * lh} stroke={TRAY_EDGE} strokeWidth={2.5} opacity={opacity} name={name}/>
-  {[Object.fromEntries(columns.map(c => [c, c])), ...shown].map((row, i) => columns.map((c, j) => {
-    const pos: XY = [at[0] - w / 2 + (j + 0.5) * cw, at[1] + shown.length * lh / 2 - i * lh];
-    const selected = highlight?.[0] === i - 1 && highlight[1] === c;
-    return <React.Fragment key={`${i}-${c}`}>
-      <Rect at={pos} w={cw} h={lh} stroke={selected ? ICE : TRAY_EDGE} strokeWidth={selected ? 2.5 : 1.5} opacity={opacity}/>
-      <Txt at={pos} size={Math.max(18, size)} color={selected ? ICE : i ? INK : MUTED} opacity={opacity}
-        name={`${name} ${i ? `row ${i}` : 'header'} ${c}`}>{typeof row[c] === 'object' ? JSON.stringify(row[c]) : String(row[c] ?? '')}</Txt>
-    </React.Fragment>;
-  }))}</>;
+  const n = shown.length + 1, top = at[1] + n * lh / 2, left = at[0] - w / 2;
+  // Whole pixels, each edge drawn once: a 3 px outline over 1 px dividers (outer contours heavier than
+  // inner detail). Fractional borders round down in Chrome and cells that draw their own borders double
+  // the shared edges, which is how 2.5 over 1.5 came out as 2 over 2 and 3.
+  const [x0, y0] = toPx(s, [left, top]), [x1, y1] = toPx(s, [left + w, top - n * lh]);
+  const crisp = (v: number) => Math.round(v) + 0.5;
+  return <>
+    <Rect at={at} w={w} h={n * lh} stroke={TRAY_EDGE} strokeWidth={3} opacity={opacity} name={name}/>
+    <Svg opacity={opacity}>
+      {columns.slice(1).map((c, j) => {
+        const x = crisp(toPx(s, [left + (j + 1) * cw, 0])[0]);
+        return <line key={`c${c}`} x1={x} x2={x} y1={y0 + 3} y2={y1 - 3} stroke={TRAY_EDGE} strokeWidth={1}/>;
+      })}
+      {Array.from({length: n - 1}, (_, i) => {
+        const y = crisp(toPx(s, [0, top - (i + 1) * lh])[1]);
+        return <line key={`r${i}`} x1={x0 + 3} x2={x1 - 3} y1={y} y2={y} stroke={TRAY_EDGE} strokeWidth={1}/>;
+      })}
+    </Svg>
+    {[Object.fromEntries(columns.map(c => [c, c])), ...shown].map((row, i) => columns.map((c, j) => {
+      const pos: XY = [left + (j + 0.5) * cw, at[1] + shown.length * lh / 2 - i * lh];
+      const selected = highlight?.[0] === i - 1 && highlight[1] === c;
+      return <React.Fragment key={`${i}-${c}`}>
+        {selected && <Rect at={pos} w={cw} h={lh} stroke={ICE} strokeWidth={2} opacity={opacity} name={`${name} selected`}/>}
+        <Txt at={pos} size={Math.max(18, size)} color={selected ? ICE : i ? INK : MUTED} opacity={opacity}
+          name={`${name} ${i ? `row ${i}` : 'header'} ${c}`}>{typeof row[c] === 'object' ? JSON.stringify(row[c]) : String(row[c] ?? '')}</Txt>
+      </React.Fragment>;
+    }))}
+  </>;
 };
 
 /** Flatten actual JSON values while retaining their key path for a deterministic cursor. */

@@ -30,11 +30,13 @@ export type Framing = {cx: number; cy: number; zoom: number};
 export type CamKey = [number, Framing, (motion.Ease | keyof typeof motion.ease)?];
 
 /**
- * The camera at time t from keys sorted by time, through `keyed` (`smooth` by default, as `ramp`); the
- * zoom moves in proportion, so a push-in keeps its apparent speed. Before the first key the camera is
- * the first, after the last the last.
+ * The camera at time t from keys in time order (engines/shared/camera.js): a key's ease shapes the
+ * move into it, `inOut` by default as in live (not `ramp`'s `smooth`), so the same keys give the same
+ * camera in both engines. The zoom moves in proportion and the centre in step with 1/zoom, so the
+ * subject travels a straight line on screen. Before the first key the camera is the first, after the
+ * last the last. Keys out of order, a zoom that isn't a finite number above 0 or an unknown ease throw.
  */
-export function camAt(t: number, keys: CamKey[], ease: motion.Ease = motion.smooth): Framing {
+export function camAt(t: number, keys: CamKey[], ease?: motion.Ease | keyof typeof motion.ease): Framing {
 	const c = cameraAt(t, keys.map(([time, k, e]): [number, {x: number; y: number; zoom: number}, CamKey[2]] => [time, {x: k.cx, y: k.cy, zoom: k.zoom}, e]), ease);
 	return {cx: c.x, cy: c.y, zoom: c.zoom};
 }
@@ -199,18 +201,21 @@ export const CloseUp: React.FC<{
 	const inner = Math.max(0, (open - 0.55) / 0.45);
 	const mini = s.width < s.height ? W * 0.28 : 3.2;       // minimap width, stage units; on a narrow stage, clear of the header
 	const minis = mini / (2 * Math.max(...nodes.map((n) => Math.abs(n.at[0]) + size(n)[0] / 2), 1));
-	const cut = (() => {                                    // the panel as it is now, grown by the bleed, as a CSS inset
+	// The panel as it is now, grown by the bleed: a CSS inset, and its box in stage pixels (data-clip), so
+	// the boxes the checks get are the parts the clip shows.
+	const cut = (() => {
 		if (!clip) return undefined;
 		const [cx, cy] = [s.width / 2 + at[0] * s.unit, s.height / 2 - at[1] * s.unit];
 		const [hw, hh, r] = [(pw / 2 + bleed) * s.unit, (ph / 2 + bleed) * s.unit, (0.16 + bleed) * s.unit];
-		return `inset(${cy - hh}px ${s.width - cx - hw}px ${s.height - cy - hh}px ${cx - hw}px round ${Math.max(0, r)}px)`;
+		return {css: `inset(${cy - hh}px ${s.width - cx - hw}px ${s.height - cy - hh}px ${cx - hw}px round ${Math.max(0, r)}px)`,
+			box: [cx - hw, cy - hh, cx + hw, cy + hh].join(',')};
 	})();
 	return (
 		<>
 			<Rect at={at} w={pw} h={ph} radius={0.16} stroke={TRAY_EDGE} strokeWidth={2.5}
 				fill={PANEL} opacity={Math.min(1, open * 3)} name="close-up" />
 			<Txt at={[0, y0 + H / 2 - 0.35]} size={24} weight={500} opacity={inner} name={`close-up ${name}`}>{name}</Txt>
-			<div style={{opacity: inner, position: 'absolute', inset: 0, clipPath: cut}}>{children}</div>
+			<div data-clip={cut?.box} style={{opacity: inner, position: 'absolute', inset: 0, clipPath: cut?.css}}>{children}</div>
 			<div style={{opacity: inner, position: 'absolute', inset: 0}}>
 				{nodes.map((n) => {
 					const [w, h] = size(n);

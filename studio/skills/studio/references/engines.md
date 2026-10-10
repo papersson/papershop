@@ -40,13 +40,15 @@ The context `c` (all times in clip seconds):
 - `c.S`: the stage. `rect`, `circle`, `text`, `line`, `path` (with `{p}` a draw-on), `strike`,
   `callout`, `closeUp` (below), `blur`, `el`, and `cam(x, y, zoom)`, the raw camera (it centres the
   whole frame, band included; use `c.camAt`). Every call names its node by a key; a node not drawn
-  this frame is hidden, so a frame is whatever this call drew.
+  this frame is hidden, so a frame is whatever this call drew. A call's `layer` picks where it goes,
+  back to front: `bg`, `main` (the default) and `fx` move with the camera; `over` (overlays, a
+  ladder, a clock, a title card, the header's contents) and `ui` don't, and neither does the
+  background the engine draws.
 - `c.t`, `c.dur`; `c.W`, `c.H` (the stage above the caption band, in pixels); `c.unit` (`H / 8`);
   `c.header` (the strip at the stage's top that framing keeps clear: layout.json `header.height`,
   0 by default) and `c.view`, the stage below it as `[x, y, w, h]`.
-- `c.camAt(keys, ease)`: the camera as one declaration. `keys` are `[time, {x, y, z}, ease?]`; at
-  `c.t` the camera is resolved with `keyed` (`inOut` by default), its zoom moving in proportion so a
-  push-in keeps its apparent speed, and each key's point is centred in `c.view`. It points the stage
+- `c.camAt(keys, ease)`: the camera as one declaration (below). `keys` are `[time, {x, y, z}, ease?]`
+  in time order; each key's point is centred in `c.view`. It points the stage
   there and returns `{x, y, z}`. `c.frameOn([x0, y0, x1, y1], {margin, min, max})` is the key that
   fits a region in the view: `c.camAt([[t0, {x: c.W / 2, y: c.H / 2, z: 1}], [t1, c.frameOn(box), 'heavy']])`
   is a push-in onto `box`. A key of `{x: W / 2, y: H / 2, z: 1}` with no header is the stage as
@@ -66,7 +68,8 @@ The context `c` (all times in clip seconds):
 - `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
 
 Text is named for the checks by its key (`legible`, `overlap`, `bounds`); give a shape `{box: 'name'}`
-to have it checked too. Keep everything above `c.H`: the band checks fail a scene that enters the
+to have it checked too (an unnamed shape isn't reported at all). A scene file that fails to load
+(a syntax error) fails with its name: `scenes/s2.js: Unexpected end of input`. Keep everything above `c.H`: the band checks fail a scene that enters the
 caption band. A frame must not depend on the frames before it; the engine resets every node's
 attributes and stacking each frame, and `studio check` renders samples twice to prove it. A scene
 that throws fails the still or render with the clip, the time and the source line.
@@ -104,27 +107,37 @@ frame late.
 
 ## The camera (live and Remotion)
 
-A camera move is one declaration of keys, `[time, shot, ease?]`, resolved with `keyed`, so any frame
-of it renders alone; the zoom moves in proportion. Framing keeps a header strip clear at the top
+A camera move is one declaration of keys, `[time, shot, ease?]` in time order (`engines/shared/camera.js`),
+so any frame of it renders alone. Between two keys the zoom moves in proportion and the centre in
+step with 1/zoom: the move is a zoom about one fixed point, so every point, the new subject
+included, travels a straight line on screen and never swings out of frame on the way; at one zoom
+it is a plain pan. A key without an ease takes `inOut` in both engines (the camera's own default,
+not `keyed`'s), so the same keys give the same camera in live and Remotion. Keys out of order, an
+x, y or zoom that isn't a finite number (a zoom above 0) and an unknown ease name throw before the
+first frame, not when their move plays; equal times are a cut. Framing keeps a header strip clear at the top
 (layout.json `"header": {"height": px}`, per format under `formats` too), as the caption band is
 kept clear at the bottom: the camera centres a shot in the stage below the header, the map frames
 its boxes there and a close-up opens there. With no header (the default) nothing moves.
 
 - Live: `c.camAt(keys)` with `{x, y, z}` in pixels, `c.frameOn(region)`, `c.header`, `c.view` (above).
 - Remotion: `<Camera keys={[[t0, {cx, cy, zoom}], [t1, frameOn(useStage(), [x0, y0, x1, y1]), 'heavy']]}>`
-  in stage units (`smooth` by default, as `ramp`), or fixed `cx`, `cy`, `zoom` as before; `camAt(t,
+  in stage units, or fixed `cx`, `cy`, `zoom` as before; `camAt(t,
   keys)` is the pure version. `Camera`, `MapView`, `frameCamera` and `CloseUp` take `headerInset`
   (stage units), which defaults to the layout's header. `MapView` and `CloseUp` take `accent`, the
   colour a lit box, a lit arrow and the minimap's source box turn (ice by default). `CloseUp` draws
   its children on the whole stage, so a part can sit outside the panel; `clip` cuts them to the panel
-  and `bleed` (stage units) grows that cut, so a part may cross the edge by that much and no more.
+  and `bleed` (stage units) grows that cut, so a part may cross the edge by that much and no more;
+  the checks get each child's box as the clip shows it (one it hides is left out).
 - Motion Canvas has none of these.
 
 Stage camera moves and content changes; don't run them together (`style.md`). The glossary names
 them: "push-in", "pull back", "pan", "frame on". `studio check`'s `inframe` warns when an element
 the sentence names is cut by the frame, the header or the band at the sentence's end. `bounds` leaves
 alone an element under a camera that has moved (a push-in or pan crops on purpose; the engines mark its
-box `camera`), and still fails one placed past the frame's edge with the camera at rest.
+box `camera`), and still fails one placed past the frame's edge with the camera at rest. It never
+fails a shape given no name of its own (a Remotion `Rect` without `name`, reported as `rect`, marked
+`named: false`), as live reports no unnamed shape; text is named by its key (live) or its words
+(Remotion), and is checked.
 
 ## The look sheet (live and Remotion)
 
@@ -137,12 +150,17 @@ The video's own elements come after, from `scenes/look.js` (live: `export defaul
 optionally `export const pages = [titles]`, `c.page` the page drawn) or `scenes/look.tsx` (Remotion: a
 default export mapping each page's title to a component). Copy `templates/live/scenes/example-look.js`
 or `templates/scenes/example-look.tsx`; export each element from it so the scenes import the same
-drawing. A page is drawn at t = 0 with no sentence times.
+drawing. A page is drawn at t = 0 with no sentence times. On Remotion the sheet is a bundle of its
+own (`src/look-entry.tsx`), so a mistake in `scenes/look.tsx` fails `look-sheet` and nothing else;
+on live a look file that fails to load is named in the error.
 
 Output: `out/look/look-<n>.png` and `out/look/look.json` (engine, format, the page titles and files,
-whether a look file was drawn, and a key over the engine's source, the layout and the look file), or
-`out/look/<format>/` for another format. `look.latest(video)` returns that record with `stale` set
-when any of those changed since; the motion review includes the pages.
+whether a look file was drawn, and a key over the engine and its source, the layout, the look file
+and the scene files it imports), or `out/look/<format>/` for another format. `look.latest(video)`
+returns that record with `stale` set when any of those changed since or video.json names another
+engine. `studio review-motion` copies the pages into its bundle (`look/`) and the reviewer judges "on
+sheet" against them; a missing or stale sheet is flagged in the bundle's manifest (`look.status`) and
+in the prompt, which asks for a SHOULD FIX line naming it.
 
 ## Motion Canvas scenes
 

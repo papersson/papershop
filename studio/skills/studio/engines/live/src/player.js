@@ -36,6 +36,15 @@ async function json(url, fallback) {
   return r.json()
 }
 
+/** A scene module, its import errors naming the file: a syntax error says only "Unexpected end of input". */
+async function importScene(name, url) {
+  try {
+    return await import(url)
+  } catch (e) {
+    throw new Error(`scenes/${name}: ${e && e.message ? e.message : e}`)
+  }
+}
+
 async function exists(url) {
   const r = await fetch(url, { method: 'HEAD', cache: 'no-store' })
   return r.ok
@@ -54,9 +63,9 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     scenes = {}
     for (const c of T.tracks.scene) {
       const url = `${base}scenes/${c.id}.js?v=${version}`
-      if (await exists(`${base}scenes/${c.id}.js`)) scenes[c.id] = (await import(url)).default
+      if (await exists(`${base}scenes/${c.id}.js`)) scenes[c.id] = (await importScene(`${c.id}.js`, url)).default
     }
-    overlay = (await exists(`${base}scenes/overlay.js`)) ? (await import(`${base}scenes/overlay.js?v=${version}`)).default : null
+    overlay = (await exists(`${base}scenes/overlay.js`)) ? (await importScene('overlay.js', `${base}scenes/overlay.js?v=${version}`)).default : null
   }
   await load()
   await Promise.all(['400 20px "IBM Plex Sans"', '500 20px "IBM Plex Sans"', '600 20px "IBM Plex Sans"',
@@ -154,7 +163,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     const frame = Math.min(frames - 1, Math.max(0, f))
     const t = frame / T.fps
     stage.begin()
-    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'bg' })
+    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'back' })
     let error = null
     if (layers !== 'background') {
       const c = context(clip, t)
@@ -184,7 +193,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
   /** The look sheet's page titles; loads scenes/look.js afresh. */
   async function lookPages() {
     const file = `${base}scenes/look.js`
-    own = (await exists(file)) ? await import(`${file}?v=${version}.${Date.now()}`) : null
+    own = (await exists(file)) ? await importScene('look.js', `${file}?v=${version}.${Date.now()}`) : null
     if (own && typeof own.default !== 'function') throw new Error('scenes/look.js must export default function look(c)')
     return [...PAGES.map(p => p.title), ...(own ? own.pages ?? ["the video's own elements"] : [])]
   }
@@ -192,7 +201,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
   /** Draw look-sheet page n (0-based) with the band showing `caption` (lines); {error} when it throws. */
   function look(n, caption = [], titles = []) {
     stage.begin()
-    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'bg' })
+    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'back' })
     const c = { ...frameContext(0), dur: 0, C: kit.C, page: n - PAGES.length }
     let error = null
     try {
