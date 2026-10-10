@@ -66,6 +66,9 @@ def fingerprint(video, frames=False, keys=None):
 
 
 def revision(video, kind):
+    if kind.scope == "sound":
+        from . import audio
+        return audio.revision(video)
     return fingerprint(video, frames=kind.scope == "frames")
 
 
@@ -291,10 +294,25 @@ def main_status(args):
     if args.status == "waived" and not args.reason:
         raise SystemExit("record the user's authorization in --reason for a waived review")
     kind = kind_of(role)
+    if args.status not in kind.records:
+        raise SystemExit(f"{role}: review-status records {' or '.join(kind.records)}"
+                         + ("; a reviewer's pass comes from its own review" if args.status == "passed" else ""))
     extra = motion_waiver(args.video, args.reason or "") if kind.name == "motion" else {}
     record(args.video, role, revision(args.video, kind), args.status, args.reason or "", **extra)
     print(f"{role}: {args.status}" + (f" (cut {extra['cut']}, its {extra['accepted']} known issue(s) accepted)"
                                        if extra.get("accepted") else ""))
+
+
+def listening(video, timeline):
+    """Why the user's listening check is due, or None: a soundtrack with effects or music and no
+    listening recorded for this mix. A narration alone does not need one."""
+    from . import timeline as tl
+    if not {tl.audio_role(e) for e in timeline["tracks"]["audio"]} & {"sfx", "music"}:
+        return None
+    kind, rec = KINDS["listen"], read(video, "listen")
+    if rec.get("status") in kind.settled and stands(video, rec, kind, revision(video, kind)):
+        return None
+    return "nobody has listened to this mix" + (f" (the {rec['status']} listening was of an earlier one)" if rec else "")
 
 
 def motion_waiver(video, reason):

@@ -129,6 +129,8 @@ def assemble(video, notes=None, now=None, notes_at=None):
     steps += [f"The main session gives {m.parent.relative_to(video)} to a fresh reviewer; import its response: "
               f"`studio review-{k.name} {v} --cut {c} --result FILE`" for k, c, m in waiting]
     for r, why in stale:
+        if r["kind"] == "listen":
+            continue                 # the listening step below says what to do
         if r["kind"] == "script":
             ready = f"report ready for the {r['role']} script review (`studio review {v} ROUND --only {r['role']}`)"
             steps.append(f"Address the findings in {one_line(relative(video, r['detail']))}, then {ready}"
@@ -149,6 +151,13 @@ def assemble(video, notes=None, now=None, notes_at=None):
               f"`studio notes {v} --resolve {one_line(x['id'])} --reply TEXT`" for x in open_notes]
     if rendered and recs[rendered].get("source_revision") != fingerprint(video, frames=True):
         steps.append(f"Cut, since the sources changed after cut {rendered}: `studio cut {v}`")
+    if (video / "timeline.json").exists():
+        from . import timeline as tl
+        from .review_state import listening
+        due = listening(video, tl.load(video))
+        if due:
+            steps.append(f"Before publishing, ask the user to listen once to the finished mix ({due}: the kit measures "
+                         f"sound and cannot hear it), then `studio review-status {v} listen passed --reason \"…\"` (or waived)")
     steps.append(f"Mark the stage you resume: `studio stage {v} NAME`"
                  + (f" (the log's latest is {one_line(s['stage'])})" if s["stage"] else ""))
     out += ["", "## Next", ""] + [f"{i}. {step}" for i, step in enumerate(steps, 1)]

@@ -16,11 +16,20 @@
              later revision until a stage mark that starts the kind's round count again over changed
              material (review_state.stands)
 
+  records    the statuses `studio review-status` may record for it: unavailable or waived for a
+             reviewer, passed or waived for the listening check
+
 A script review runs reviewers against the current revision, so it has nothing to import; a frame
 review is packaged for the main session and its result imported later, which is where freshness
 applies. A motion review is packaged the same way, and its rounds stop by a rule (motion_review.py):
 at a round with no must-fix findings, or at the cap. The CLI's review-status roles and
 review_state.require are read from here.
+
+The listening check is not a reviewer: the kit measures sound (audio-check) and cannot hear it, so
+the user listens once to the finished mix and the builder records it (review-status VIDEO listen
+passed or waived). Its revision is the soundtrack's stamp (audio.revision), so it goes stale when the
+mix changes. Nothing requires it: publish warns when a video with effects or music has none standing
+(review_state.listening), and the handoff lists it as a next step.
 """
 import re
 from dataclasses import dataclass, field
@@ -92,6 +101,7 @@ class Kind:
     aliases: dict = field(default_factory=dict)
     settled: tuple = ("passed", "waived")
     stands: str = "revision"
+    records: tuple = ("unavailable", "waived")
 
 
 KINDS = {
@@ -119,9 +129,14 @@ KINDS = {
                        "if the user explicitly asks for more rounds, raise video.json motion_rounds. A structural "
                        "revision (studio stage VIDEO revision --kind structural --summary …) starts a new count")),
                    freshness="record-stale", settled=("passed", "known-issues", "waived"), stands="lineage"),
+    "listen": Kind("listen", ("listen",), "sound", None,
+                   "ask the user to listen once to the finished mix (out/master.mp4, or the desk's latest cut) and record "
+                   "it with studio review-status VIDEO listen passed --reason \"…\" (or waived)",
+                   records=("passed", "waived")),
 }
 
 ROLES = tuple(r for k in KINDS.values() for r in k.roles)
+RECORDS = tuple(dict.fromkeys(st for k in KINDS.values() for st in k.records))
 ALIASES = {a: r for k in KINDS.values() for a, r in k.aliases.items()}
 
 

@@ -165,3 +165,16 @@ def test_scratch_does_not_block_pinning(video):
     assert pin.init(video) == video.resolve() / ".studio"
     with pytest.raises(SystemExit, match="exists: pinned"):
         pin.init(video)
+
+
+def test_the_brief_asks_for_a_listening_when_the_mix_has_music(video):
+    from test_reviews import sounding
+    from studio_kit import review_state
+    sounding(video)
+    (video / "video.json").write_text(json.dumps({"title": "Keys", "mode": "background"}))
+    nxt = handoff.assemble(video).split("## Next")[1]
+    assert "ask the user to listen once to the finished mix (nobody has listened to this mix" in nxt
+    assert 'studio review-status "$VIDEO" listen passed' in nxt
+    review_state.record(video, "listen", "an older mix", "passed", "fine")
+    text = handoff.assemble(video)
+    assert "listen: stale" in text and "Make a fresh cut" not in text and "earlier one" in text.split("## Next")[1]

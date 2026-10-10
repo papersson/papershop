@@ -221,9 +221,11 @@ COMMANDS = {
         V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
         A("--result", help="review response including its REVISION and MOTION verdict"),
     ], "motion_review:main"),
-    "review-status": ("record an unavailable or explicitly waived review", [
-        V("video"), A("role", type=reviews.role, choices=reviews.ROLES, help="a script reviewer, frames (alias frame) or motion"),
-        A("status", choices=["unavailable", "waived"]), A("--reason"),
+    "review-status": ("record an unavailable or explicitly waived review, or the user's listening check", [
+        V("video"), A("role", type=reviews.role, choices=reviews.ROLES,
+                      help="a script reviewer, frames (alias frame), motion, or listen (the user listened to the finished mix)"),
+        A("status", choices=reviews.RECORDS, help="unavailable or waived for a reviewer; passed or waived for listen"),
+        A("--reason", help="the user's authorization for a waiver; what they heard, for a listening"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
         W("video"), A("clip"), A("t", type=float), A("--out", required=True),

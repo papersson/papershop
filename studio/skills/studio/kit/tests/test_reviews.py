@@ -152,3 +152,37 @@ def test_a_cut_without_a_revision_cannot_be_frame_reviewed(tmp_path):
     (tmp_path / "cuts" / "cut1" / "cut.json").write_text("{}")
     with pytest.raises(SystemExit, match="predates review fingerprints"):
         review_state.main_frames(SimpleNamespace(video=tmp_path, cut=1, result=None))
+
+
+def sounding(tmp_path, music=True):
+    """A video whose timeline.json mixes a narration and, with `music`, a bed."""
+    from test_audio import tone
+    (tmp_path / "video.json").write_text("{}")
+    (tmp_path / "audio").mkdir()
+    tone(tmp_path / "audio" / "narration.wav")
+    audio = [{"file": "audio/narration.wav", "start": 0.0, "role": "narration"}]
+    if music:
+        tone(tmp_path / "bed.wav", db=-30, freq=440)
+        audio.append({"file": "bed.wav", "start": 0.0, "gain": -12, "role": "music"})
+    (tmp_path / "timeline.json").write_text(json.dumps({"duration": 6.0, "tracks": {"audio": audio}}))
+    return tmp_path
+
+
+def test_the_listening_check_is_due_for_a_mix_with_music_and_stales_with_it(tmp_path, capsys):
+    v = sounding(tmp_path)
+    assert review_state.listening(v, tl.load(v)) == "nobody has listened to this mix"
+    review_state.main_status(cli.build_parser().parse_args(["review-status", str(v), "listen", "passed",
+                                                            "--reason", "the bed sits well under the voice"]))
+    rec = review_state.read(v, "listen")
+    assert (rec["kind"], rec["status"], rec["detail"]) == ("listen", "passed", "the bed sits well under the voice")
+    assert review_state.listening(v, tl.load(v)) is None
+    (v / "video.json").write_text(json.dumps({"sound": {"room": 0}}))        # the mix changed: heard an earlier one
+    assert review_state.listening(v, tl.load(v)) == "nobody has listened to this mix (the passed listening was of an earlier one)"
+    for role, status in (("frames", "passed"), ("listen", "unavailable")):
+        with pytest.raises(SystemExit, match="review-status records"):
+            review_state.main_status(cli.build_parser().parse_args(["review-status", str(v), role, status]))
+
+
+def test_a_narration_alone_needs_no_listening(tmp_path):
+    v = sounding(tmp_path, music=False)
+    assert review_state.listening(v, tl.load(v)) is None

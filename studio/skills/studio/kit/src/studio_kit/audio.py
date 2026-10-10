@@ -112,6 +112,13 @@ def inputs(timeline, files, processing=None):
     return h.hexdigest()[:16]
 
 
+def revision(video, timeline=None):
+    """The soundtrack's stamp as it is now (inputs, with the processing): what a listening judged."""
+    timeline = timeline or tl.load(video)
+    files = sources(video, timeline)
+    return inputs(timeline, files, processing(video, files))
+
+
 # --- stage 2: each entry's chain ------------------------------------------------------------------
 
 # Each role's own filters, after the trim and fades and before the gain, for what an entry needs on
