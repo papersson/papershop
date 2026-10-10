@@ -52,3 +52,16 @@ def test_the_sound_lab_lists_every_voice_with_what_it_is_for(tmp_path):
         assert f"<legend>{kind}</legend>" in page
     assert "A card turning over" in page
     assert tl.load(tmp_path)["duration"] == 4.0
+
+
+@pytest.mark.parametrize("kind", sfx.KINDS)
+def test_params_a_voice_cannot_render_stop_at_sfx_not_at_the_mix(kind):
+    """length 0 on a riser raised IndexError at mix time."""
+    t = {"duration": 3.0, "cues": {}, "beats": {}}
+    for bad in ({"length": 0}, {"length": -1}, {"freq": "high"}, {"loudness": 3}):
+        with pytest.raises(SystemExit, match="effect"):
+            sfx.check([{"t": 1.0, "type": kind, "params": bad}], t)
+        with pytest.raises(SystemExit):
+            sfx.voice(kind, **bad)
+    v = sfx.voice(kind, length=0.01)
+    assert len(v) == 480 and np.isfinite(v).all() and np.abs(v).max() <= 1.0

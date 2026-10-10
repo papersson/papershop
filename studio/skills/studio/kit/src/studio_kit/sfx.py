@@ -280,11 +280,29 @@ def _counter_tick(t, p):
 KINDS = tuple(VOICES)
 
 
+PARAMS = {"freq": (20, 20_000), "decay": (0.1, 2000), "length": (0.01, 10)}     # each voice reads some of them
+
+
+def params_problem(p):
+    """Why a cue's params can't be rendered, or None: only freq, decay and length, each a number in range."""
+    if not isinstance(p, dict):
+        return "params must be an object"
+    for k, v in p.items():
+        if k not in PARAMS:
+            return f"unknown param {k!r} ({', '.join(PARAMS)})"
+        lo, hi = PARAMS[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+            return f"{k} must be a number from {lo:g} to {hi:g} (got {v!r})"
+    return None
+
+
 def voice(kind, **p):
     """One effect as a float array at RATE, `length` seconds long (the voice's default unless given)."""
     import numpy as np
     if kind not in VOICES:
         raise SystemExit(f"unknown effect {kind!r}: {', '.join(KINDS)}")
+    if params_problem(p):
+        raise SystemExit(f"effect {kind}: {params_problem(p)}")
     fn, length, _ = VOICES[kind]
     t = np.arange(int(p.get("length", length) * RATE)) / RATE
     return fn(t, p)
@@ -356,13 +374,16 @@ def write_wav(path, buf, subtype="PCM_24"):
 
 
 def check(cues, timeline):
-    """Stop on an effect with no time in this timeline, an unknown type or a gain that isn't a number."""
+    """Stop on an effect with no time in this timeline, an unknown type, a gain that isn't a number or
+    params a voice can't render (params_problem)."""
     for c in cues:
         resolve_time(c["t"], timeline)
         if c.get("type") not in KINDS:
             raise SystemExit(f"unknown effect {c.get('type')!r}: {', '.join(KINDS)}")
         if not isinstance(c.get("gain", 0), (int, float)):
             raise SystemExit(f"effect at {c['t']!r}: gain must be dB")
+        if params_problem(c.get("params", {})):
+            raise SystemExit(f"effect at {c['t']!r}: {params_problem(c.get('params', {}))}")
 
 
 def rendered(video, timeline):

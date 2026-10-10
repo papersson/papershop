@@ -54,8 +54,14 @@ def test_the_bed_does_not_take_another_tracks_grid_silently(tmp_path, capsys):
     v = piece(tmp_path)
     (v / "audio" / "beats.json").write_text(json.dumps({"bpm": 120, "beats": [0.5], "downbeats": [0.5], "hits": []}))
     music.make(v, bpm=72.0)
-    assert "was another track's grid" in capsys.readouterr().out
+    assert "was another track's grid: set aside in audio/beats.user.json" in capsys.readouterr().out
     assert json.loads((v / "audio" / "beats.json").read_text())["source"] == music.BED
+    assert json.loads((v / music.USER_BEATS).read_text())["bpm"] == 120
+    music.make(v, bpm=80.0)                                   # again: the user's grid stays set aside
+    assert json.loads((v / music.USER_BEATS).read_text())["bpm"] == 120
+    music.remove(v)                                           # and comes back, not deleted
+    assert json.loads((v / "audio" / "beats.json").read_text())["bpm"] == 120 and not (v / music.USER_BEATS).exists()
+    assert tl.load(v)["beats"]["bpm"] == 120
 
 
 def test_a_narration_with_the_bed_and_effects_is_processed_and_reaches_the_target(tmp_path):

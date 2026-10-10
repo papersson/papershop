@@ -7,11 +7,12 @@ randomness, so the same settings write the same file. It goes to audio/bed.wav a
 in audio/tracks.json as a music track (the mix ducks it under speech and puts it in the effects'
 room), at a gain that sits it BED_UNDER LU under the narration as measured now (under -20 LUFS before
 there is one). It also writes audio/beats.json with its grid, so `beat_N` and `downbeat_N` cues
-land on its pulse. A re-narration does not move the bed's level: run it again to re-level it.
+land on its pulse; a grid already there from `studio beats` is moved to audio/beats.user.json first,
+and put back by `--remove`, so the user's grid is never lost. A re-narration does not move the bed's level: run it again to re-level it.
 
 Off by default: an explainer has no music (style.md), and the bed is an opt-in for when the user
 asks for one. Melodic motifs are out of scope; they belong to a comic video, made by hand.
-`--remove` takes the bed, its track entry and its grid out again.
+`--remove` takes the bed, its track entry and its grid out again, restoring a user grid it set aside.
 """
 import json
 import math
@@ -22,6 +23,7 @@ from .workspace import atomic_json
 
 RATE = 48_000
 BED = "audio/bed.wav"
+USER_BEATS = "audio/beats.user.json"       # a `studio beats` grid the bed's displaced
 BED_UNDER = 20.0          # LU under the narration, before ducking
 NO_VOICE = -20.0          # LUFS assumed for a narration not yet made
 NOTES = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6,
@@ -112,11 +114,15 @@ def remove(video):
     video = Path(video)
     atomic_json(video / "audio" / "tracks.json", _tracks(video))
     (video / BED).unlink(missing_ok=True)
-    beats = video / "audio" / "beats.json"
+    beats, kept = video / "audio" / "beats.json", video / USER_BEATS
     if beats.exists() and json.loads(beats.read_text()).get("source") == BED:
         beats.unlink()
+    restore = kept.exists() and not beats.exists()
+    if restore:
+        kept.replace(beats)
     _rebuild(video)
-    print("bed removed: audio/bed.wav, its audio/tracks.json entry and its beat grid")
+    print("bed removed: audio/bed.wav, its audio/tracks.json entry and its beat grid"
+          + ("; the grid set aside in audio/beats.user.json is back in audio/beats.json" if restore else ""))
 
 
 def make(video, seconds=None, key="C", bpm=72.0):
@@ -141,7 +147,9 @@ def make(video, seconds=None, key="C", bpm=72.0):
     atomic_json(video / "audio" / "tracks.json", _tracks(video) + [entry])
     beats_f = video / "audio" / "beats.json"
     if beats_f.exists() and json.loads(beats_f.read_text()).get("source") != BED:
-        print("warn: audio/beats.json was another track's grid; replaced by the bed's")
+        beats_f.replace(video / USER_BEATS)
+        print("audio/beats.json was another track's grid: set aside in audio/beats.user.json, "
+              "and put back by `studio music --remove`")
     beats = grid(seconds, bpm)
     atomic_json(beats_f, {"bpm": bpm, "beats": beats, "downbeats": beats[::4], "hits": [], "source": BED})
     _rebuild(video)
