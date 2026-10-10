@@ -16,7 +16,7 @@
                from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
                samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
                hold is a warning, not a failure
-  pauses       with effects (audio/sfx.json): no effect peaks over -24 dBFS, at the master's level,
+  pauses       with effects (audio/sfx.json, or an audio entry with role sfx) and a narration: no effect peaks over -24 dBFS, at the master's level,
                during a spoken word (audio_check.guard; `studio audio-check` measures the rest of the sound)
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
   filler, cuts, levels, sync, segments  footage videos only (see footage.py)

@@ -203,6 +203,16 @@ def test_the_listening_check_is_due_for_a_mix_with_music_and_stales_with_it(tmp_
             review_state.main_status(cli.build_parser().parse_args(["review-status", str(v), role, status]))
 
 
+def test_a_mix_that_cannot_be_built_is_reported_not_raised(tmp_path, monkeypatch):
+    from studio_kit import audio
+    v = sounding(tmp_path)
+
+    def unbuildable(*a, **k):
+        raise audio.MixUnavailable("audio/sfx.json: no time for cue 'reveal:s1_02'")
+    monkeypatch.setattr(audio, "revision", unbuildable)
+    assert review_state.listening(v, tl.load(v)).startswith("the mix can't be built: audio/sfx.json")
+
+
 def test_a_narration_alone_needs_no_listening(tmp_path):
     v = sounding(tmp_path, music=False)
     assert review_state.listening(v, tl.load(v)) is None

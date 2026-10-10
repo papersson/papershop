@@ -346,8 +346,13 @@ def listening(video, timeline):
     from . import timeline as tl
     if not {tl.audio_role(e) for e in timeline["tracks"]["audio"]} & {"sfx", "music"}:
         return None
+    from .audio import MixUnavailable
     kind, rec = KINDS["listen"], read(video, "listen")
-    if rec.get("status") in kind.settled and stands(video, rec, kind, revision(video, kind)):
+    try:
+        current = revision(video, kind)
+    except MixUnavailable as e:     # a handoff or publish asking about the sound must not die on it
+        return f"the mix can't be built: {e}"
+    if rec.get("status") in kind.settled and stands(video, rec, kind, current):
         return None
     return "nobody has listened to this mix" + (f" (the {rec['status']} listening was of an earlier one)" if rec else "")
 
