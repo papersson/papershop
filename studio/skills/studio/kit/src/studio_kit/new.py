@@ -35,14 +35,31 @@ def source_record(path):
     return rec
 
 
-def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
-           level="intro", checkpoints="few", mode="background", tone="plain"):
-    video = Path(directory).expanduser().resolve() if directory else studio_home() / name
+def default_title(name):
+    """A title from NAME, which may be a path: its folder's name, words for hyphens."""
+    return Path(name).name.replace("-", " ").capitalize()
+
+
+def target(name, directory=None):
+    """The folder a new video goes into: --dir, else $STUDIO_HOME/NAME. Refused when it already
+    holds a video, is STUDIO_HOME itself, or holds anything else: `new --dir $STUDIO_HOME` once made
+    the home a video repository, with every video in it swept into its commits."""
+    video = (Path(directory).expanduser() if directory else studio_home() / name).resolve()
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
+    if video == studio_home().resolve():
+        raise SystemExit(f"{video} is STUDIO_HOME, which holds the videos; make the video in a new folder of its own")
+    if video.is_dir() and any(video.iterdir()):
+        raise SystemExit(f"{video} is not empty; make the video in a new folder")
+    return video
+
+
+def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
+           level="intro", checkpoints="few", mode="background", tone="plain"):
+    video = target(name, directory)
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     (video / "research").mkdir(exist_ok=True)
-    cfg = {"title": title or name.replace("-", " ").capitalize(), "version": "v1", "genre": genre,
+    cfg = {"title": title or default_title(name), "version": "v1", "genre": genre,
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
            "level": level, "tone": tone, "mode": mode, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
            "teaching_contract": genre == "explainer"}     # minutes; `studio stage` reports against it
@@ -125,9 +142,7 @@ def variant(source, name, directory=None, learner=None, vocabulary=None, title=N
     """A sibling video for another audience: same evidence, assets and look, new script."""
     source = Path(source).resolve()
     scfg = settings.raw(source)
-    video = Path(directory).expanduser().resolve() if directory else studio_home() / name
-    if (video / "video.json").exists():
-        raise SystemExit(f"{video} already holds a video")
+    video = target(name, directory)
     video.mkdir(parents=True, exist_ok=True)
     for rel in KEEP:
         src = source / rel
@@ -144,7 +159,7 @@ def variant(source, name, directory=None, learner=None, vocabulary=None, title=N
         ": rewrite the Argument, Chain, Script and vocabulary for the new audience; keep the Evidence rows.\n"
     script = re.sub(r"^Status:.*$", "Status: draft variant, before review round 1", script, count=1, flags=re.M)
     (video / "SCRIPT.md").write_text(script)
-    cfg = {**scfg, "title": title or name.replace("-", " ").capitalize(), "version": "v1", "variant_of": str(source)}
+    cfg = {**scfg, "title": title or default_title(name), "version": "v1", "variant_of": str(source)}
     if learner:
         cfg["learner"] = str(Path(learner).expanduser().resolve())
     if vocabulary:
@@ -202,7 +217,7 @@ def fork(source, name, directory=None, title=None):
             if not skip(rel / f):
                 shutil.copy2(Path(root) / f, video / rel / f, follow_symlinks=False)
     origin = source_record(source)
-    cfg = {**settings.raw(source), "title": title or name.replace("-", " ").capitalize(), "version": "v1",
+    cfg = {**settings.raw(source), "title": title or default_title(name), "version": "v1",
            "forked_from": origin}
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
     now = time.time()

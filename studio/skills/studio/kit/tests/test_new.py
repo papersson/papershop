@@ -32,6 +32,31 @@ def test_new_refuses_an_existing_video(tmp_path):
         raise AssertionError("expected a refusal")
 
 
+def test_new_goes_into_a_new_folder_of_its_own(tmp_path, monkeypatch):
+    """`new --dir $STUDIO_HOME` made the home, with five videos in it, one video repository."""
+    home = tmp_path / "home"
+    monkeypatch.setenv("STUDIO_HOME", str(home))
+    new.create("first")
+    with pytest.raises(SystemExit, match="STUDIO_HOME"):
+        new.create("x", directory=str(home))
+    busy = tmp_path / "busy"
+    busy.mkdir()
+    (busy / "notes.txt").write_text("mine")
+    for make in (lambda: new.create("x", directory=str(busy)), lambda: new.variant(home / "first", "x", directory=busy)):
+        with pytest.raises(SystemExit, match="not empty"):
+            make()
+    assert not (home / ".git").exists() and not (home / "video.json").exists() and sorted(p.name for p in busy.iterdir()) == ["notes.txt"]
+    (tmp_path / "empty").mkdir()
+    assert (new.create("x", directory=str(tmp_path / "empty"))[0] / "video.json").exists()
+
+
+def test_a_path_as_name_titles_the_video_by_its_folder(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    video, _ = new.create(str(tmp_path / "e2e-comic"))
+    assert video == (tmp_path / "e2e-comic").resolve()
+    assert json.loads((video / "video.json").read_text())["title"] == "E2e comic"
+
+
 def test_a_variant_keeps_evidence_and_look_and_drops_the_words(tmp_path, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
     src, _ = new.create("engineer", directory=str(tmp_path / "engineer"))
