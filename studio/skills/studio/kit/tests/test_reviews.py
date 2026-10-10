@@ -218,8 +218,10 @@ def test_a_listening_records_the_timecodes_it_was_at(tmp_path, capsys):
     assert rec["timecodes"] == offered and rec["revision"] == audio.revision(v) and "listen: passed, at 0:01.2, 0:04.0" in capsys.readouterr().out
     status("--at", "0:04, 5.5")
     assert review_state.read(v, "listen")["timecodes"] == [offered[1], {"t": 5.5, "at": "0:05.5", "reasons": []}]
-    with pytest.raises(SystemExit, match="not a timecode"):
-        status("--at", "the end")
+    for bad, why in (("the end", "not a timecode"), ("nan", "not a timecode"), ("inf", "not a timecode"), ("-5", "not a timecode"),
+                     ("99:99", "not a timecode"), ("0:07", "past the video's end")):
+        with pytest.raises(SystemExit, match=why):
+            status("--at", bad)
     (v / "out" / "audio-check.json").write_text(json.dumps({"soundtrack": "another mix", "listen": offered}))
     status()
     assert "timecodes" not in review_state.read(v, "listen")              # chosen for another mix: not these

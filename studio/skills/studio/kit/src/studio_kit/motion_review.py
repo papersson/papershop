@@ -223,18 +223,20 @@ def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
     return sorted(out, key=lambda w: (w["frames"][0], w["name"])), dropped
 
 
-def sound_sheets(video, n, found, t, bundle, movie):
+def sound_sheets(video, n, found, t, bundle, movie, rec=None):
     """A sound sheet for each window with effects (sheets/NAME-sound.png, its path set on the window as
     sound_sheet), from the cut's own video.mp4, whose sound is the cut's: the window's span with a
     frame either side, its effects marked with their ids and tags, and the flags and picture marks of
-    the audio-check made of this cut (out/audio-check.json, when its cut is this one). None without the cut's video
+    the audio-check made of this cut (out/audio-check.json, when its cut is this one and the cut's
+    soundtrack is the one it measured: audio_check.sound_files). None without the cut's video
     (clip renders carry no sound) or when it has no sound track. Returns the windows given one."""
     from . import sound_sheet
     if not movie.exists() or not any(w["sfx"] for w in found) or not proc.ffprobe(movie, "-show_streams", "-select_streams", "a")["streams"]:
         return []
     report = Path(video) / "out" / "audio-check.json"
     report = json.loads(report.read_text()) if report.exists() else {}
-    measured = {e["id"]: e for e in report.get("effects", [])} if report.get("cut") == n else {}
+    same = report.get("cut") == n and (rec or {}).get("sound") in report.get("sounds", [])
+    measured = {e["id"]: e for e in report.get("effects", [])} if same else {}
     sentences = [{"id": s["id"], "start": s["start"], "end": s["end"]} for s in t["tracks"].get("narration", [])]
     done = []
     for w in found:
@@ -522,7 +524,7 @@ def main(args):
         else:                       # a clip render numbers its frames from the clip's first
             f, offset = clip_render(video, rec, w["clip"]), -tl.frames(t, w["clip"])[0]
         labelled = sheet(f, w["frames"], offset, w["contact_frame"], t["fps"], bundle / w["sheet"]) and labelled
-    sounds = sound_sheets(video, n, found, t, bundle, movie)
+    sounds = sound_sheets(video, n, found, t, bundle, movie, rec)
     atomic_json(bundle / "windows.json", found)
     from .script import sections
     script = cut / "SCRIPT.md" if (cut / "SCRIPT.md").exists() else video / "SCRIPT.md"

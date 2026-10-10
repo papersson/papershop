@@ -420,8 +420,13 @@ def test_publish_asks_an_explainer_for_its_motion_review(video, monkeypatch):
     from studio_kit import check, publish
     monkeypatch.setattr(check, "run", lambda video, everything: [])
     review_state.record(video, "student", review_state.revision(video, reviews.KINDS["script"]), "waived", "user said so")
-    with pytest.raises(SystemExit, match=r"publish now needs a motion review.*new in this kit.*with the user's agreement"):
+    with pytest.raises(SystemExit, match=r"publish needs a motion review for an explainer.*only the user can waive") as made_now:
         publish.gate(video)
+    assert "new in this kit" not in str(made_now.value) and "made before" not in str(made_now.value)
+    old = json.loads((video / "research" / "reviews" / "student.json").read_text())
+    (video / "research" / "reviews" / "student.json").write_text(json.dumps({**old, "t": review_state.MOTION_REQUIRED_SINCE - 86400}))
+    with pytest.raises(SystemExit, match=r"publish now needs a motion review.*new in this kit.*made before the requirement"):
+        publish.gate(video)                   # a receipt from before the requirement: an older video
     review_state.record(video, "motion", review_state.revision(video, reviews.KINDS["motion"]), "waived",
                         "the user accepts the motion as it is")
     publish.gate(video)
@@ -536,3 +541,25 @@ def test_a_silent_cut_gets_no_sound_sheets(video):
     b = bundle_of(video, 1)
     assert all("sound_sheet" not in w for w in json.loads((b / "windows.json").read_text()))
     assert motion_review.SOUND_NOTE not in (b / "prompt.md").read_text()
+
+
+def test_audio_checks_flags_reach_a_window_only_for_the_soundtrack_it_measured(video, monkeypatch):
+    """fxN of the cut's snapshot was matched to audio-check's fxN by the cut number alone."""
+    from studio_kit import sound_sheet
+    d = make_cut(video, 1)
+    silent, with_sound = d / "video.mp4", d / "with-sound.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(silent), "-f", "lavfi", "-i", "sine=frequency=300:duration=6:sample_rate=48000",
+                    "-c:v", "copy", "-c:a", "aac", "-shortest", str(with_sound)], check=True)
+    with_sound.replace(silent)
+    (video / "out").mkdir(exist_ok=True)
+    report = {"cut": 1, "sounds": ["aaaa.m4a"], "effects": [{"id": "fx1", "flags": ["LOUD"], "picture_frame": 31}]}
+    (video / "out" / "audio-check.json").write_text(json.dumps(report))
+    drawn = []
+    monkeypatch.setattr(sound_sheet, "draw", lambda movie, out, a, b, marks, *rest, **kw: drawn.append(marks))
+    t = tl.load(video)
+    found, _ = motion_review.windows(video, 1, json.loads((d / "cut.json").read_text()), t,
+                                     motion_review.effects(video, d, t)[0], spans=True)
+    for sound, flags in (("bbbb.m4a", []), ("aaaa.m4a", ["LOUD"])):
+        drawn.clear()
+        motion_review.sound_sheets(video, 1, found, t, d, silent, {"sound": sound})
+        assert drawn[0][0]["flags"] == flags and (drawn[0][0].get("picture_frame") == 31) == bool(flags)

@@ -19,6 +19,7 @@ video (out/audio-sheet.png) and a close-up around each hero effect (out/audio-sh
 use the same named font file as the motion review's frame numbers (motion_review.label_font), so
 fontconfig is never asked; with no font at all the sheet is drawn without text.
 """
+import math
 import re
 
 from . import proc
@@ -53,7 +54,8 @@ def _rows(labels, width_of):
 def draw(audio_file, out, a, b, effects=(), sentences=(), masked=(), fps=None, width=1600, title=""):
     """Draw seconds a..b of `audio_file` into `out` (PNG). effects: [{id, type, visual?, t, flags}];
     sentences: [{id, start, end}]; masked: [(start, end)] of words; fps: draw a tick per frame (a
-    close-up). Returns whether the text was drawn (False when ffmpeg has no font)."""
+    close-up). Audio short of b (a close-up near the video's end) is padded with silence, so the
+    picture keeps its time scale. Returns whether the text was drawn (False when ffmpeg has no font)."""
     from .motion_review import label_font
     span = max(b - a, 1e-3)
     x_of = lambda t: (t - a) / span * width                                   # noqa: E731
@@ -76,7 +78,7 @@ def draw(audio_file, out, a, b, effects=(), sentences=(), masked=(), fps=None, w
         x0 = max(0, x_of(w0))
         boxes.append(f"drawbox=x={x0:.0f}:y={lanes}:w={max(2, min(width, x_of(w1)) - x0):.0f}:h={SPEECH_H + WAVE_H}:"
                      f"color={MASKED}@0.35:t=fill")
-    step = next(s for s in (0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120) if span / s <= 24)
+    step = tick_step(span)
     k = int(a // step) + 1 if a > 0 else 0
     while k * step <= b + 1e-9:                                               # seconds along the bottom
         t = k * step
@@ -108,7 +110,7 @@ def draw(audio_file, out, a, b, effects=(), sentences=(), masked=(), fps=None, w
     texts.insert(0, _text(font, 8, 7, title, color="white@0.9", size=FONT - 1))
     lanes_graph = (f"color=c={BG}:s={width}x{lanes + SPEECH_H}[top];color=c={BG}:s={width}x{WAVE_H}[wb];"
                    f"color=c={BG}:s={width}x{AXIS_H}[axis];")
-    pictures = (f"[0:a]aformat=channel_layouts=mono,asplit=2[a1][a2];"
+    pictures = (f"[0:a]aformat=channel_layouts=mono,apad=whole_dur={span:.3f},atrim=duration={span:.3f},asplit=2[a1][a2];"
                 f"[a1]showwavespic=s={width}x{WAVE_H}:colors=0x8fd3ff:scale=sqrt[w];[wb][w]overlay=format=auto[wave];"
                 f"[a2]showspectrumpic=s={width}x{SPECTRUM_H}:legend=0:fscale=log:color=magma:scale=log:drange=70:"
                 f"start=60:stop=16000[spec];")
@@ -123,6 +125,12 @@ def draw(audio_file, out, a, b, effects=(), sentences=(), masked=(), fps=None, w
             if not with_text:
                 raise
     return False
+
+
+def tick_step(span):
+    """Seconds between the time axis's labels: at most 24 across `span`, on a round step."""
+    return next((s for s in (0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600) if span / s <= 24),
+                60 * math.ceil(span / 24 / 60))
 
 
 def _label(e):

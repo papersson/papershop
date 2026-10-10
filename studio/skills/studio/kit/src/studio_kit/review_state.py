@@ -302,10 +302,14 @@ def require(video, role):
         return
     v = quoted(video)
     if kind.name == "motion" and not rec and settings.load(video).get("teaching_contract"):
-        raise SystemExit("publish now needs a motion review for an explainer (new in this kit: Stage 11, Polish, in "
-                         f"references/explainer.md): run studio review-motion {v} and have the main session's reviewer "
-                         "judge it; for a video made before this requirement, with the user's agreement, record "
-                         f"studio review-status {v} motion waived --reason \"…\"")
+        if made_before(video, MOTION_REQUIRED_SINCE):
+            raise SystemExit("publish now needs a motion review for an explainer (new in this kit: Stage 11, Polish, in "
+                             f"references/explainer.md): run studio review-motion {v} and have the main session's reviewer "
+                             "judge it; this video was made before the requirement, so with the user's agreement you may "
+                             f"record studio review-status {v} motion waived --reason \"…\" instead")
+        raise SystemExit(f"publish needs a motion review for an explainer (Stage 11, Polish, in references/explainer.md): run "
+                         f"studio review-motion {v} and have the main session's reviewer judge it; only the user can waive it "
+                         f"(studio review-status {v} motion waived --reason \"…\")")
     gone = rec and kind.stands == "lineage" and lineage_gone(video, rec, kind, current)
     if gone:
         raise SystemExit(f"the {role} review no longer stands: {gone}. Mark a structural revision (studio stage {v} "
@@ -321,6 +325,27 @@ def require(video, role):
                          "studio review-status")
     raise SystemExit(f"{unsettled(video, role, kind, rec, current)}; {kind.remedy.format(role=role, video=v)}"
                      f"; an authorized waiver can be recorded with studio review-status {v} {role} waived --reason …")
+
+
+# When publish began to require a motion review for an explainer (the kit's review-motion commit).
+MOTION_REQUIRED_SINCE = 1791584500.0       # 2026-10-10 00:21:40 +02:00
+
+
+def made_before(video, since):
+    """Whether the video has a record older than `since` (epoch seconds): its first stage mark, a cut or a
+    review receipt. A video made with this kit has none, so it is not told it predates a requirement."""
+    video = Path(video)
+    times = []
+    log = video / "research" / "timing.jsonl"
+    if log.exists():
+        first = next((line for line in log.read_text().splitlines() if line.strip()), None)
+        times += [json.loads(first).get("t")] if first else []
+    for f in [*(video / "cuts").glob("cut*/cut.json"), *(video / "research" / "reviews").glob("*.json")]:
+        try:
+            times.append(json.loads(f.read_text()).get("t"))
+        except (OSError, ValueError):
+            continue
+    return any(isinstance(t, (int, float)) and t < since for t in times)
 
 
 def main_status(args):
@@ -346,13 +371,22 @@ def main_status(args):
           + (f", at {', '.join(m['at'] for m in extra['timecodes'])}" if extra.get("timecodes") else ""))
 
 
-def _seconds(text):
-    """Seconds from a timecode as the listening shows it (m:ss.s) or as seconds."""
-    m, _, sec = text.strip().rpartition(":")
+def _seconds(text, duration=None):
+    """Seconds from a timecode as the listening shows it (m:ss.s) or as seconds: finite, its seconds
+    under 60 when it has minutes, and from 0 to the video's `duration` when that is known."""
+    import math
+    raw = text.strip()
+    m, _, sec = raw.rpartition(":")
     try:
-        return (int(m) * 60 if m else 0) + float(sec)
+        minutes, secs = (int(m) if m else 0), float(sec)
     except ValueError:
-        raise SystemExit(f"--at: {text.strip()!r} is not a timecode (m:ss.s, or seconds)") from None
+        raise SystemExit(f"--at: {raw!r} is not a timecode (m:ss.s, or seconds)") from None
+    t = minutes * 60 + secs
+    if not math.isfinite(t) or t < 0 or minutes < 0 or (m and not 0 <= secs < 60):
+        raise SystemExit(f"--at: {raw!r} is not a timecode (m:ss.s with seconds under 60, or seconds, from 0)")
+    if duration is not None and t > duration + 0.05:
+        raise SystemExit(f"--at: {raw!r} is past the video's end ({duration:.1f} s)")
+    return t
 
 
 def listened(video, at=None):
@@ -365,9 +399,11 @@ def listened(video, at=None):
     offered = moments(video) or []
     if not at:
         return {"timecodes": offered or None}
+    tf = Path(video) / "timeline.json"
+    duration = json.loads(tf.read_text()).get("duration") if tf.exists() else None
     out = []
     for part in filter(str.strip, at.split(",")):
-        t = _seconds(part)
+        t = _seconds(part, duration)
         m = min(offered, key=lambda m: abs(m["t"] - t), default=None)
         out.append(m if m and abs(m["t"] - t) <= 0.5 else {"t": round(t, 2), "at": timecode(t), "reasons": []})
     return {"timecodes": out or None}

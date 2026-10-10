@@ -30,8 +30,10 @@ named fxN, their place in audio/sfx.json (sfx.effect_id), in every row, sheet an
             under the voice's level, so an effect in a silent pause, which nothing masks, still warns
             when nobody would hear it at the volume the voice was set to
   loud      each effect's level (soundkit.level: K-weighted, its loudest 10 ms) against the voice's
-            peaks (the VOICE_PEAK percentile of its own 10 ms levels), warning past LOUD_OVER dB; the
-            kit's trims put every default recording where its synth voice is, and all of those pass
+            integrated loudness, warning past LOUD_OVER dB; the effects follow the narration's
+            loudness (sfx.narration_offset) and the kit's trims put every default recording where its
+            synth voice is, so all of those pass at any narration level. Without a narration, the
+            music is what audible and loud measure against; with neither, a row says so
   ducking   music under speech against the music in the pauses (from 0.7 s after a sentence, once the
             duck has let go, in pauses of at least 1 s), warning under DUCK_MIN dB
   masking   per spoken word, the effects and music in 1-4 kHz against the narration in that band,
@@ -85,16 +87,16 @@ AUDIBLE_UNDER = 30.0     # dB an effect's loudest 10 ms may sit under the voice'
 # a cut is one frame, so it gets one; a move's fastest frame is broad, three; where motion ends or
 # starts, two, since an ease's first or last frames change by less than the moving level.
 VISUAL_FRAMES = {"cut": 1, "move": 3, "land": 2, "appear": 2}
+TAG_WINDOW = 1.0         # seconds either side searched for a tagged effect's mark, so a miss says where it is
 MARKS = {"cut": "cut", "move": "move", "land": "motion end", "appear": "motion start"}
 VERBS = {"cut": "cut", "move": "move", "land": "land", "appear": "show something appearing"}
-# Loud: an effect's level (soundkit.level, the K-weighted loudest 10 ms) against the voice's peaks
-# (the VOICE_PEAK percentile of its own 10 ms levels over its sentences), so like is measured against
-# like. Calibrated on a Kokoro narration (af_heart): its 99th percentile sits 6.8 dB over its mean, the
-# synth voices at gain 0 (which the kit's trims match) sit from 10.5 dB under those peaks (key-tick)
-# to 4.3 dB over (thump), so every default passes at LOUD_OVER, and a +10 dB gain warns on every voice
-# from confirm up (the untrimmed kit confirm sat 12.9 dB over the voice's mean).
-LOUD_OVER = 6.0
-VOICE_PEAK = 99
+# Loud: an effect's level (soundkit.level, the K-weighted loudest 10 ms) against the voice's integrated
+# loudness at the master's level. The effects follow the narration's loudness (sfx.narration_offset),
+# so this is the same at any level the voice came out at: the synth voices at gain 0, which the kit's
+# trims match, sit from -3.5 dB (key-tick) to +12.2 dB (thump), measured on a Kokoro cut with its room
+# and presence, so every default passes at LOUD_OVER, with 1.3 dB to spare, and a +10 dB gain warns on
+# every voice from confirm (+5.0) up. The untrimmed kit confirm sat at +15.
+LOUD_OVER = 13.5
 
 
 def _mono(f):
@@ -126,8 +128,16 @@ class Stems:
         self.video, self.timeline = Path(video), timeline
         self.files = audio.sources(self.video, timeline)
         self.roles = {tl.audio_role(e) for e, _ in self.files}
-        self.gain = 10 ** ((record or {}).get("gain_db", 0) / 20)
+        self.gain_db = (record or {}).get("gain_db", 0)
+        self.gain = 10 ** (self.gain_db / 20)
         self._cache = {}
+
+    def loudness(self, role):
+        """A role's integrated loudness (LUFS, ebur128's gating) at the master's level, or None."""
+        if role not in self.roles:
+            return None
+        lufs = audio.measure(audio.stem(self.video, self.timeline, role, self.files))[0]
+        return None if lufs <= audio.SILENCE else lufs + self.gain_db
 
     def __getitem__(self, role):
         import numpy as np
@@ -171,7 +181,7 @@ def pauses(stems, timeline):
         peak = 20 * np.log10(float(seg[over].max()))
         bad.append({"check": "pauses", "clip": "audio", "t": round(x, 2), "ok": False, "peak_dbfs": round(peak, 1),
                     "overlap": [round(x, 3), round(y, 3)],
-                    "detail": f"an effect is over {PAUSE_PEAK:g} dBFS for {x:.2f}-{y:.2f} s of the word {w!r} "
+                    "detail": f"an effect is over {PAUSE_PEAK:g} dBFS for {x:.3f}-{y:.3f} s ({1000 * (y - x):.0f} ms) of the word {w!r} "
                               f"({a:.2f}-{b:.2f} s), peaking there at {peak:.1f} dBFS at the master's gain, before its "
                               f"limiter: move it into a pause or keep it under {PAUSE_PEAK:g} dBFS"})
     return bad or [{"check": "pauses", "clip": "audio", "ok": True,
@@ -233,11 +243,11 @@ def _onset(y, t0, lands):
     return (i0 + (over[-1] if lands == "end" else over[0])) / r
 
 
-def _signal(video, timeline, frame, cut):
-    """The cut's frame signal over PICTURE_WINDOW frames either side of `frame` (motion.frame_signal)."""
+def _signal(video, timeline, frame, cut, window=PICTURE_WINDOW):
+    """The cut's frame signal over `window` frames either side of `frame` (motion.frame_signal)."""
     from . import motion
-    first = max(0, frame - PICTURE_WINDOW)
-    return motion.frame_signal(cut, tl.layout(video), timeline["fps"], first, 2 * PICTURE_WINDOW + 1)
+    first = max(0, frame - window)
+    return motion.frame_signal(cut, tl.layout(video), timeline["fps"], first, 2 * window + 1)
 
 
 def _picture(video, timeline, frame, cut, signal=None):
@@ -311,17 +321,24 @@ def _note(pic, frame):
     return f"; picture: no motion within {PICTURE_WINDOW} frames"
 
 
-def sync(stems, video, timeline, cut=None):
+def sync(stems, video, timeline, cut=None, cut_timeline=None, stale=None):
     """Rows: each effect on a named event, or tagged with a `visual`, its sound's contact against the
-    event's frame; and, with a cut's video, the picture there. An untagged effect gets a note of the
-    nearest motion edge, not judged; a tagged one is judged (`tagged`): its mark within
-    VISUAL_FRAMES[tag] of the event's frame, or a warning with the offset measured."""
+    event's frame; and, with a cut's video, the picture there. The picture is read where the cut put
+    the event: the effects placed on the cut's own timeline snapshot (`cut_timeline`), whose frames its
+    video shows; a cue the sources have moved since says so, as does `stale` (what changed since the
+    cut). An untagged effect gets a note of the nearest motion edge, not judged; a tagged one is judged
+    (`tagged`): its mark within VISUAL_FRAMES[tag] of the event's frame, or a warning with the offset
+    measured, and the nearest mark is reported up to TAG_WINDOW seconds away."""
     from . import sfx
     f = Path(video) / "audio" / "sfx.json"
     if "sfx" not in stems.roles or not f.exists():
         return []
-    fps, rows, at_seams = timeline["fps"], [], seams(timeline)
-    for i, p in enumerate(sfx.place(json.loads(f.read_text()), timeline)):
+    cues = json.loads(f.read_text())
+    shown = cut_timeline or timeline
+    fps, rows, at_seams = timeline["fps"], [], seams(shown)
+    in_cut = [None if q.time is None else tl.half_up(q.time * fps) for q in sfx.place(cues, shown, strict=False)]
+    window = max(PICTURE_WINDOW, round(TAG_WINDOW * fps))
+    for i, p in enumerate(sfx.place(cues, timeline)):
         c, at, lands, visual = p.cue, p.time, p.sound.lands, p.cue.get("visual")
         name = _event(c, timeline)
         if name is None and not visual:
@@ -342,27 +359,37 @@ def sync(stems, video, timeline, cut=None):
             if abs(off) > SYNC_FRAMES:
                 row["severity"] = "warning"
                 row["detail"] += f"; more than {SYNC_FRAMES:g} frame off"
-        if cut and visual:
-            row |= _judged(_signal(video, timeline, frame, cut), frame, visual, fps, at_seams)
+        shot = in_cut[i] if cut else None
+        if cut and shot is None:
+            row["detail"] += "; picture not judged: the cut's timeline has no time for this cue (make a fresh cut)"
+        elif cut and visual:
+            row |= _judged(_signal(video, timeline, shot, cut, window), shot, visual, fps, at_seams, window)
             if row.get("picture_ok") is False:
                 row["severity"] = "warning"
         elif cut:
-            row["detail"] += _note(_picture(video, timeline, frame, cut), frame)
+            row["detail"] += _note(_picture(video, timeline, shot, cut), shot)
+        if cut and shot is not None and shot != frame:
+            row["cut_frame"] = shot
+            row["picture"] = row.get("picture", "") + (f"; the cut is older than the sources: it shows this cue at frame {shot}, the timeline has it at "
+                               f"frame {frame}, so the picture was read at {shot}: make a fresh cut")
+        elif cut and shot is not None and stale:
+            row["picture"] = row.get("picture", "") + f"; the cut is older than the sources ({stale} changed since)"
         elif visual:
             row["detail"] += f"; picture ({visual}) not judged: no rendered cut"
-        if visual and "picture" in row:
+        if "picture" in row:
             row["detail"] += row.pop("picture")
         rows.append(row)
     return rows
 
 
-def _judged(signal, frame, visual, fps, at_seams):
+def _judged(signal, frame, visual, fps, at_seams, window=PICTURE_WINDOW):
     """A tagged effect's picture verdict: {picture_frame, picture_offset_frames, picture_ok, picture
-    (the detail's clause)}, its mark measured in frames from the event's frame."""
+    (the detail's clause)}, its mark measured in frames from the event's frame; `window` is how far
+    `signal` reaches either side, so the nearest mark is reported however far off it is within it."""
     tol = VISUAL_FRAMES[visual]
     mark = tagged(signal, frame, visual, fps, at_seams)
     if mark is None:
-        return {"picture_ok": False, "picture": f"; picture ({visual}): no {MARKS[visual]} within {PICTURE_WINDOW} frames, "
+        return {"picture_ok": False, "picture": f"; picture ({visual}): no {MARKS[visual]} within {window} frames, "
                                                 f"so the picture does not {VERBS[visual]} on this sound"}
     off = mark[0] - frame
     ok = abs(off) <= tol
@@ -451,36 +478,46 @@ def _lift(effect, rest, band=None):
     return _db(power(effect + rest)) - _db(under) if under > 1e-12 else 99.0
 
 
+def _spans(stems, timeline):
+    """(what the effects are measured against, its spans of samples): the narration's sentences, or
+    without a narration the music where it plays (its 0.4 s blocks within 30 dB of its loudest), or
+    (None, [])."""
+    import numpy as np
+    if "narration" in stems.roles and timeline["tracks"].get("narration"):
+        return "voice", [stems.span("narration", s["start"], s["end"]) for s in timeline["tracks"]["narration"]]
+    if "music" in stems.roles:
+        y, k = stems["music"], int(0.4 * audio.RATE)
+        blocks = [y[i:i + k] for i in range(0, len(y) - k + 1, k)]
+        powers = [float(np.mean(b.astype(np.float64) ** 2)) for b in blocks]
+        top = max(powers, default=0.0)
+        if top > 0:
+            return "music", [b for b, pw in zip(blocks, powers) if pw >= top * 1e-3]
+    return None, []
+
+
 def voice_level(stems, timeline):
     """The narration's level over its sentences in dBFS (the RMS of every spoken span: integrated over
-    the voice, unweighted), or None without one."""
+    the voice, unweighted), or the music's where it plays when there is no narration, or None."""
     import numpy as np
-    spans = [stems.span("narration", s["start"], s["end"]) for s in timeline["tracks"].get("narration", [])]
-    if "narration" not in stems.roles or not spans:
+    _, spans = _spans(stems, timeline)
+    if not spans:
         return None
     power = float(np.mean(np.concatenate(spans).astype(np.float64) ** 2))
     return _db(power) if power > 0 else None
 
 
-def voice_peaks(stems, timeline):
-    """The voice's peaks in dB, K-weighted: the VOICE_PEAK percentile of its 10 ms levels (taken every
-    millisecond) over its sentences, what an effect's soundkit.level is compared with; None without a
-    narration."""
-    import numpy as np
-    from .soundkit import LEVEL_WINDOW, k_weighted
-    if "narration" not in stems.roles or not timeline["tracks"].get("narration"):
-        return None
-    x, r = k_weighted(stems["narration"], audio.RATE), audio.RATE
-    k, powers = int(LEVEL_WINDOW * r), []
-    for s in timeline["tracks"]["narration"]:
-        seg = x[max(0, int(s["start"] * r)):max(0, int(s["end"] * r))]
-        if len(seg) > k:
-            c = np.concatenate([[0.0], np.cumsum(seg ** 2)])
-            powers.append(((c[k:] - c[:-k]) / k)[::r // 1000])
-    if not powers:
-        return None
-    p = float(np.percentile(np.concatenate(powers), VOICE_PEAK))
-    return _db(p) if p > 0 else None
+def loudness_of(stems, timeline):
+    """(what, its loudness in LUFS at the master's level): the narration's integrated loudness, else
+    the music's; (None, None) with neither. What an effect's soundkit.level is compared with. The
+    effects follow the narration's loudness (sfx.narration_offset), so against it a default effect's
+    level is the same at any level the voice was synthesised at."""
+    for what, role in (("voice", "narration"), ("music", "music")):
+        if role == "narration" and not timeline["tracks"].get("narration"):
+            continue
+        lufs = stems.loudness(role)
+        if lufs is not None:
+            return what, lufs
+    return None, None
 
 
 def audibility(stems, video, timeline):
@@ -491,17 +528,24 @@ def audibility(stems, video, timeline):
     AUDIBLE_UNDER dB under the voice's level, so an effect in a silent pause, unmasked, still has to be
     heard against the voice the listener set the volume by. Loud: a `loud` warning for each effect
     whose level over its whole span (soundkit.level, K-weighted) is more than LOUD_OVER dB over the
-    voice's peaks (voice_peaks), else one ok row naming the loudest."""
+    voice's loudness (loudness_of), else one ok row naming the loudest. Without a narration both are
+    measured against the music; with neither, one row says they were not measured. An effect placed
+    outside the video is a warning of its own: nobody hears it."""
     from . import sfx
     from .soundkit import level as k_level
     f = Path(video) / "audio" / "sfx.json"
     if "sfx" not in stems.roles or not f.exists():
         return []
     r, voice, rows, loud = audio.RATE, voice_level(stems, timeline), [], []
-    peaks = voice_peaks(stems, timeline)
+    against, ref = loudness_of(stems, timeline)
     others = [role for role in ("narration", "music") if role in stems.roles]
     for i, p in enumerate(sfx.place(json.loads(f.read_text()), timeline, strict=False, video=video)):
         if p.time is None:
+            continue
+        if not 0 <= p.time <= timeline["duration"]:
+            rows.append({"check": "audible", "clip": "audio", "t": round(p.time, 2), "ok": True, "severity": "warning",
+                         "effect": sfx.effect_id(i), "detail": f"{sfx.effect_id(i)} {p.cue.get('type', p.sound.id)} at "
+                         f"{p.time:.2f} s is outside the video (0 to {timeline['duration']:.2f} s): nobody hears it; move it"})
             continue
         a = max(p.start, p.contact + int(AUDIBLE_WINDOW[0] * r)) / r
         b = max(min(p.end, p.contact + int(AUDIBLE_WINDOW[1] * r)) / r, a + 0.01)
@@ -515,33 +559,36 @@ def audibility(stems, video, timeline):
         eid = sfx.effect_id(i)
         what = f"{eid} {p.cue.get('type', p.sound.id)} at {p.time:.2f} s"
         heard = ("over silence" if lift >= 99 else f"lifts the bed {lift:.1f} dB") + f" around {c:.0f} Hz"
-        over = None if peaks is None else float(k_level(stems.span("sfx", p.start / r, max(p.end, p.start + r // 100) / r), r) - peaks)
+        over = None if ref is None else float(k_level(stems.span("sfx", p.start / r, max(p.end, p.start + r // 100) / r), r) - ref)
         row = {"check": "audible", "clip": "audio", "t": round(p.time, 2), "ok": True, "effect": eid,
                "lift_db": round(min(lift, 99.0), 1),
                "level_dbfs": round(level, 1), **({"under_voice_db": round(under, 1)} if under is not None else {}),
-               **({"over_voice_peaks_db": round(over, 1)} if over is not None else {}),
+               **({"over_loudness_db": round(over, 1), "against": against} if over is not None else {}),
                "detail": f"{what}: {heard}, its loudest 10 ms {level:.1f} dBFS"
-                         + ("" if under is None else f", {abs(under):.1f} dB {'under' if under >= 0 else 'over'} the voice's level")}
+                         + ("" if under is None else f", {abs(under):.1f} dB {'under' if under >= 0 else 'over'} the {against}'s level")}
         why = []
         if lift < AUDIBLE_LIFT:
             why.append(f"masked: it lifts the narration and music under {AUDIBLE_LIFT:g} dB (raise its gain or move it into a pause)")
         if under is not None and under > AUDIBLE_UNDER:
-            why.append(f"too quiet: more than {AUDIBLE_UNDER:g} dB under the voice (raise its gain)")
+            why.append(f"too quiet: more than {AUDIBLE_UNDER:g} dB under the {against} (raise its gain)")
         if why:
             row["severity"] = "warning"
             row["detail"] += "; " + "; ".join(why)
         rows.append(row)
         if over is not None and over > LOUD_OVER:
             loud.append({"check": "loud", "clip": "audio", "t": round(p.time, 2), "ok": True, "severity": "warning",
-                         "effect": eid, "over_voice_peaks_db": round(over, 1),
-                         "detail": f"{what}: {over:+.1f} dB against the voice's peaks (K-weighted, its loudest 10 ms), more "
-                                   f"than {LOUD_OVER:g} dB over: lower its gain"})
-    measured = [x for x in rows if "over_voice_peaks_db" in x]
+                         "effect": eid, "over_loudness_db": round(over, 1), "against": against,
+                         "detail": f"{what}: its loudest 10 ms (K-weighted) {over:+.1f} dB against the {against}'s loudness, "
+                                   f"more than {LOUD_OVER:g} dB over: lower its gain"})
+    measured = [x for x in rows if "over_loudness_db" in x]
     if measured and not loud:
-        top = max(measured, key=lambda x: x["over_voice_peaks_db"])
+        top = max(measured, key=lambda x: x["over_loudness_db"])
         loud.append({"check": "loud", "clip": "audio", "ok": True,
-                     "detail": f"no effect more than {LOUD_OVER:g} dB over the voice's peaks; the loudest, {top['effect']} at "
-                               f"{top['t']:.2f} s, is at {top['over_voice_peaks_db']:+.1f} dB"})
+                     "detail": f"no effect more than {LOUD_OVER:g} dB over the {against}'s loudness; the loudest, {top['effect']} "
+                               f"at {top['t']:.2f} s, is at {top['over_loudness_db']:+.1f} dB"})
+    elif rows and against is None:
+        loud.append({"check": "loud", "clip": "audio", "ok": True, "severity": "warning",
+                     "detail": "loud and too quiet not measured: no narration or music to measure the effects against"})
     return rows + loud
 
 
@@ -579,7 +626,7 @@ def effects(video, timeline, rows):
     """[{id, type, visual?, t, event, flags, over, picture_frame?}] for audio/sfx.json's effects placed
     on this timeline: what the sheet marks and the timecodes choose from. flags: what audio-check
     warned on for it (LOUD, MASKED, QUIET, SYNC for its sound, PICTURE for its tag, PAUSE when the
-    pauses guard failed inside its span); over: its level against the voice's peaks, when measured;
+    pauses guard failed inside its span); over: its level against the voice's (or music's) loudness, when measured;
     picture_frame: where the picture does what its tag says."""
     from . import sfx
     f = Path(video) / "audio" / "sfx.json"
@@ -604,11 +651,12 @@ def effects(video, timeline, rows):
                     flags.append("PICTURE")
         if any(r["check"] == "pauses" and not r["ok"] and p.start <= r["overlap"][0] * audio.RATE < p.end for r in rows):
             flags.append("PAUSE")
-        over = next((r["over_voice_peaks_db"] for r in mine if r["check"] == "audible" and "over_voice_peaks_db" in r), None)
+        over = next((r["over_loudness_db"] for r in mine if r["check"] == "audible" and "over_loudness_db" in r), None)
         mark = next((r["picture_frame"] for r in mine if "picture_frame" in r), None)
         out.append({"id": eid, "type": p.cue.get("type") or p.sound.id.split(":", 1)[-1], "t": round(p.time, 3),
                     **({"visual": p.cue["visual"]} if p.cue.get("visual") else {}),
                     "event": _event(p.cue, timeline) is not None, "flags": flags, "over": over,
+                    **({"against": next(r["against"] for r in mine if "against" in r)} if over is not None else {}),
                     **({"picture_frame": mark} if mark is not None else {})})
     return out
 
@@ -625,7 +673,8 @@ def heroes(found):
 
 
 def timecode(t):
-    """m:ss.s, as a player shows it."""
+    """m:ss.s, as a player shows it (rounded to a tenth first, so 59.96 s is 1:00.0)."""
+    t = round(t, 1)
     return f"{int(t // 60)}:{t % 60:04.1f}"
 
 
@@ -652,7 +701,8 @@ def listening(found, rows, timeline):
                                      f"word {closest['word']!r}"))
     loudest = max((e for e in found if e["over"] is not None), key=lambda e: e["over"], default=None)
     if loudest:
-        wanted.append((loudest["t"], f"the loudest effect, {_name(loudest)}: {loudest['over']:+.1f} dB against the voice's peaks"))
+        wanted.append((loudest["t"], f"the loudest effect, {_name(loudest)}: {loudest['over']:+.1f} dB against the "
+                                      f"{loudest.get('against', 'voice')}'s loudness"))
     music = sorted(e["start"] for e in timeline["tracks"]["audio"] if tl.audio_role(e) == "music")
     if music:
         wanted.append((music[0], "the music's first entry"))
@@ -697,6 +747,20 @@ def sheets(video, timeline, found, rows):
     return made
 
 
+def _stale(video, rec, n):
+    """What changed since cut n when its frames are older than the sources (review_state's words), or
+    None: current, or a cut that kept no revision to tell by."""
+    if not rec.get("source_revision"):
+        return None
+    from . import review_state
+    try:
+        if rec["source_revision"] == review_state.fingerprint(video, frames=True):
+            return None
+        return review_state.changed_since(video, n) or "the scenes"
+    except (OSError, ValueError, KeyError, SystemExit):
+        return None
+
+
 def run(video, cut=None):
     """All rows. `cut`: a cut's number for the picture notes (default: the latest rendered cut)."""
     from . import cuts, render
@@ -716,7 +780,13 @@ def run(video, cut=None):
     if cut and movie is None:
         raise SystemExit(f"cut {cut} has no rendered video")
     estimate = tl.timing(video, timeline) == "estimate"
-    rows = (sync(stems, video, timeline, movie if movie and movie.exists() else None) + audibility(stems, video, timeline)
+    shown, stale = None, None
+    if movie and movie.exists():
+        snap = movie.parent / "timeline.json"
+        shown = json.loads(snap.read_text()) if snap.exists() else None
+        stale = _stale(video, rec, n)
+    rows = (sync(stems, video, timeline, movie if movie and movie.exists() else None, shown, stale)
+            + audibility(stems, video, timeline)
             + ducking(stems, timeline)
             + ([] if estimate else masking(stems, timeline) + pauses(stems, timeline)) + loudness(video, record))
     return rows, n if movie else None
@@ -732,11 +802,12 @@ def main(args):
     drawn = sheets(video, timeline, found, rows)
     out = video / "out" / "audio-check.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"cut": n, "soundtrack": audio.revision(video, timeline),
+    stamp = audio.revision(video, timeline)
+    out.write_text(json.dumps({"cut": n, "soundtrack": stamp, "sounds": sound_files(video, stamp),
                                "thresholds": {"sync_frames": SYNC_FRAMES, "duck_min_db": DUCK_MIN,
                                               "mask_margin_db": MASK_MARGIN, "pause_peak_dbfs": PAUSE_PEAK,
                                               "audible_lift_db": AUDIBLE_LIFT, "audible_under_voice_db": AUDIBLE_UNDER,
-                                              "loud_over_voice_peaks_db": LOUD_OVER, "visual_frames": VISUAL_FRAMES},
+                                              "loud_over_loudness_db": LOUD_OVER, "visual_frames": VISUAL_FRAMES},
                                "effects": found, "heroes": [e["id"] for e in heroes(found)], "sheets": drawn,
                                "listen": moments, "rows": rows}, indent=1) + "\n")
     for r in rows:
@@ -749,6 +820,16 @@ def main(args):
     print(f"{len(rows)} rows, {sum(not r['ok'] for r in rows)} failed, {sum(r.get('severity') == 'warning' for r in rows)} "
           f"warnings → {out}" + ("" if n is None else f" (picture from cut {n})"))
     return 1 if any(not r["ok"] for r in rows) else 0
+
+
+def sound_files(video, stamp):
+    """The names a cut's record gives the soundtrack it muxed (its "sound") when that soundtrack was
+    made from these inputs, finished or not: audio.soundtrack names its file by the stamp it mixed.
+    So a motion review can tell that a cut carries the sound this report measured."""
+    import hashlib
+    done = audio._record(video)
+    stamps = [stamp] + ([done["stamp"]] if done and done.get("inputs") == stamp and done.get("stamp") else [])
+    return [hashlib.sha1(x.encode()).hexdigest()[:16] + ".m4a" for x in stamps]
 
 
 def moments(video):

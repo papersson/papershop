@@ -148,7 +148,7 @@ def test_the_guard_names_the_overlap_and_its_level_there(tmp_path):
     (bad,) = audio_check.guard(v)
     x, y = bad["overlap"]
     assert abs(x - 4.40) < 0.01 and abs(y - 4.45) < 0.01 and bad["t"] == 4.4
-    assert "for 4.40-4.45 s of the word 'three' (4.00-4.45 s)" in bad["detail"]
+    assert "for 4.400-4.450 s (50 ms) of the word 'three' (4.00-4.45 s)" in bad["detail"]
     assert "at the master's gain, before its limiter" in bad["detail"] and bad["peak_dbfs"] > audio_check.PAUSE_PEAK
 
 
@@ -238,13 +238,14 @@ def noise_bed(v, gain):
 
 @pytest.mark.parametrize("case, effect, bed, warns", [
     ("a clear effect in a pause", {"gain": 0}, None, None),
-    ("an effect buried under a loud bed", {"gain": 0}, 0, "masked"),
-    ("an effect at -60 dBFS in silence", {"gain": -44}, None, "too quiet"),
+    ("an effect buried under a loud bed", {"gain": -7}, 0, "masked"),
+    ("an effect at -60 dBFS in silence", {"gain": -51}, None, "too quiet"),
 ])
 def test_each_effect_is_heard_or_warned(tmp_path, case, effect, bed, warns):
     """The calibration: a pop in the first pause, alone (lifts silence, about 1 dB under the voice), under
     an undocked pink-noise bed at full gain (lifts it under 1 dB), and 44 dB down (peaking near -60
-    dBFS, 45 dB under the voice). The "sound layer" we studied passed the last one."""
+    dBFS, 45 dB under the voice). The "sound layer" we studied passed the last one. (This stand-in voice
+    is 7 dB louder than Kokoro's and the effects follow it, so the last two take 7 dB off their gains.)"""
     v = narrated(tmp_path, [{"t": "hit", "type": "pop", **effect}], sound={"duck": False, "presence": False})
     if bed is not None:
         noise_bed(v, bed)
@@ -337,8 +338,8 @@ def test_sync_judges_a_tagged_effect_and_notes_an_untagged_one(tmp_path):
     assert (land["picture_frame"], land["picture_offset_frames"], land["picture_ok"]) == (20, -1, True)
     assert "picture (land): motion ends at frame 20 (-1), within 2" in land["detail"] and "severity" not in land
     assert "picture: a cut at frame 45" in untagged["detail"] and "picture_ok" not in untagged
-    assert appear["picture_ok"] is False and appear["severity"] == "warning" and "picture_frame" not in appear
-    assert "picture (appear): no motion start within 12 frames, so the picture does not show something appearing" in appear["detail"]
+    assert appear["picture_ok"] is False and appear["severity"] == "warning" and appear["picture_frame"] == 10
+    assert "picture (appear): motion starts at frame 10 (-20), more than 2 frames off" in appear["detail"]     # found up to 1 s away
     rows = audio_check.sync(Stem(y), v, timeline)                       # no cut: a tag is not judged
     assert "picture (land) not judged: no rendered cut" in rows[0]["detail"] and "severity" not in rows[0]
 
@@ -354,17 +355,16 @@ def test_sfx_takes_only_a_known_visual_tag():
 @pytest.mark.parametrize("effect, gain, loud", [("thump", 0, False), ("pop", 0, False), ("click", 10, True), ("thump", 10, True)])
 def test_the_loud_audit_warns_an_effect_well_over_the_voice(tmp_path, effect, gain, loud):
     """The synth voices at gain 0, which the kit's trims match, pass, the loudest (thump) too; +10 dB warns.
-    (This narration's peaks sit 3.7 dB over its mean, a Kokoro voice's 6.8 dB, so here a +10 dB confirm
-    stays under the line that it crosses over Kokoro.)"""
+    This stand-in voice is 7 dB louder than Kokoro's; the effects follow it, so the verdicts are Kokoro's."""
     v = narrated(tmp_path, [{"t": "hit", "type": effect, "gain": gain}])
     t = tl.load(v)
     rows = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
     (row,) = rows_of(rows, "loud")
     assert (row.get("severity") == "warning") == loud, row
     if loud:
-        assert row["effect"] == "fx1" and row["over_voice_peaks_db"] > audio_check.LOUD_OVER
+        assert row["effect"] == "fx1" and row["over_loudness_db"] > audio_check.LOUD_OVER and row["against"] == "voice"
     else:
-        assert row["detail"].startswith("no effect more than 6 dB over the voice's peaks; the loudest, fx1")
+        assert row["detail"].startswith("no effect more than 13.5 dB over the voice's loudness; the loudest, fx1")
 
 
 def test_the_heroes_and_the_listening_timecodes():
@@ -381,9 +381,9 @@ def test_the_heroes_and_the_listening_timecodes():
     assert [m["at"] for m in got] == ["0:00.0", "0:03.5", "0:05.0", "0:08.0", "0:09.6"]
     by = {m["at"]: m["reasons"] for m in got}
     assert by["0:05.0"] == ["fx2 (land) is the tagged effect furthest from its picture: +4 frames", "hero effect fx2 thump (land) (PICTURE)"]
-    assert by["0:08.0"][0] == "the loudest effect, fx3 click: +3.5 dB against the voice's peaks"
+    assert by["0:08.0"][0] == "the loudest effect, fx3 click: +3.5 dB against the voice's loudness"
     assert by["0:00.0"] == ["the music's first entry"] and by["0:03.5"][0].startswith("the closest masking margin")
-    assert audio_check.timecode(75.25) == "1:15.2"
+    assert audio_check.timecode(75.25) == "1:15.2" and audio_check.timecode(59.96) == "1:00.0"
 
 
 def test_audio_check_draws_the_sheet_and_offers_timecodes_for_this_mix(tmp_path, monkeypatch, capsys):
@@ -400,6 +400,7 @@ def test_audio_check_draws_the_sheet_and_offers_timecodes_for_this_mix(tmp_path,
         assert info.split(",")[1] == str(sound_sheet.height())
     assert [e["id"] for e in report["effects"]] == ["fx1", "fx2"] and report["effects"][0]["visual"] == "appear"
     assert report["soundtrack"] == audio.revision(v) and report["listen"] == audio_check.moments(v)
+    assert audio.soundtrack(v, tl.load(v)).name in report["sounds"]        # what a cut's record calls this sound
     assert any("hero effect fx1 pop (appear)" in why for m in report["listen"] for why in m["reasons"])
     out = capsys.readouterr().out
     assert "sound sheet: out/audio-sheet.png" in out and "listen at:\n  0:0" in out
@@ -407,3 +408,125 @@ def test_audio_check_draws_the_sheet_and_offers_timecodes_for_this_mix(tmp_path,
     (v / "video.json").write_text(json.dumps({"title": "x", "genre": "motion", "sound": {"room": 0}}))     # another mix
     assert audio_check.moments(v) is None and audio_check.listen_hint(v, '"$VIDEO"') == \
         'run `studio audio-check "$VIDEO"` first for the timecodes to listen at'
+
+
+def test_a_pauses_failure_prints_a_short_overlap_as_it_is():
+    """A 2 ms overlap printed "15.70-15.70 s"."""
+    v_t = {"tracks": {"narration": [{"caption": "word", "start": 1.0, "end": 1.5, "words": [{"w": "word", "start": 1.0, "end": 1.5}]}]}}
+    y = np.zeros(48_000 * 2, "float32")
+    y[int(1.4985 * 48_000):int(1.5005 * 48_000)] = 0.5
+    (bad,) = audio_check.pauses(Stem(y), v_t)
+    assert "for 1.498-1.500 s (2 ms) of the word 'word'" in bad["detail"], bad["detail"]
+
+
+def test_a_stale_cut_is_read_where_it_put_the_event_and_says_so(tmp_path):
+    """Moving a cue after the cut gave a picture warning with no hint that the cut was stale: the
+    picture is read at the frame the cut's own timeline put the event on, and the row says it moved."""
+    from test_motion import gray_clip, picture
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop", "visual": "appear"}])
+    (v / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT))
+    d = v / "cuts" / "cut1"
+    d.mkdir(parents=True)
+    pic = picture()
+    gray_clip(d / "video.mp4", pic + [pic[-1]] * (315 - len(pic)))
+    t = json.loads((v / "timeline.json").read_text())
+    t["cues"]["hit"] = 2.0
+    (d / "timeline.json").write_text(json.dumps(t))
+    (d / "cut.json").write_text(json.dumps({"kind": "cut", "video": "video.mp4"}))
+    (v / "timeline.json").write_text(json.dumps(t))
+    (row,) = rows_of(audio_check.run(v)[0], "sync")
+    assert row["picture_ok"] and "cut_frame" not in row and "older than the sources" not in row["detail"], row["detail"]
+    t["cues"]["hit"] = 2.5
+    (v / "timeline.json").write_text(json.dumps(t))
+    (row,) = rows_of(audio_check.run(v)[0], "sync")
+    assert row["frame"] == 75 and row["cut_frame"] == 60 and row["picture_ok"], row["detail"]
+    assert "the cut is older than the sources: it shows this cue at frame 60, the timeline has it at frame 75" in row["detail"]
+
+
+def test_without_narration_the_effects_are_measured_against_the_music(tmp_path):
+    """A thump at +20 dB in a music-only piece passed every row."""
+    v = narrated(tmp_path, [{"t": "hit", "type": "thump", "gain": 20}], bed_gain=-12)
+    t = json.loads((v / "timeline.json").read_text())
+    t["tracks"]["narration"] = []
+    t["tracks"]["audio"] = t["tracks"]["audio"][1:]
+    (v / "timeline.json").write_text(json.dumps(t))
+    t = tl.load(v)
+    rows = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
+    (loud,) = rows_of(rows, "loud")
+    assert loud["severity"] == "warning" and loud["against"] == "music" and "against the music's loudness" in loud["detail"]
+    (heard,) = rows_of(rows, "audible")
+    assert "the music's level" in heard["detail"]
+
+
+def test_with_neither_voice_nor_music_loudness_is_said_not_measured(tmp_path):
+    v = narrated(tmp_path, [{"t": 1.0, "type": "pop"}])
+    t = json.loads((v / "timeline.json").read_text())
+    t["tracks"]["narration"] = []
+    t["tracks"]["audio"] = t["tracks"]["audio"][1:]
+    (v / "timeline.json").write_text(json.dumps(t))
+    t = tl.load(v)
+    rows = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
+    assert rows_of(rows, "loud")[0]["detail"].startswith("loud and too quiet not measured: no narration or music")
+
+
+def test_the_loud_audit_holds_at_any_narration_level(tmp_path):
+    """With the narration 8 dB quieter the defaults warned at +12.8 dB: the effects follow the narration's
+    loudness, so the thump sits where it sits against a voice of any level."""
+    from studio_kit import sfx
+    over = []
+    for gain in (0, -8, -16):
+        v = narrated(tmp_path / str(gain), [{"t": "hit", "type": "thump"}])
+        t = json.loads((v / "timeline.json").read_text())
+        t["tracks"]["audio"][0]["gain"] = gain
+        (v / "timeline.json").write_text(json.dumps(t))
+        t = tl.load(v)
+        rows = audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t)
+        over.append(rows_of(rows, "audible")[0]["over_loudness_db"])
+        assert "severity" not in rows_of(rows, "loud")[0], rows
+        assert abs(sfx.narration_offset(v, t) - (sfx.narration_offset(v, {**t, "tracks": {**t["tracks"], "audio": [
+            {**t["tracks"]["audio"][0], "gain": 0}]}}) + gain)) < 0.01
+    assert max(over) - min(over) < 0.5, over
+
+
+def test_an_effect_outside_the_video_is_never_heard_and_says_so(tmp_path):
+    from studio_kit import sfx
+    v = narrated(tmp_path, [{"t": 12.0, "type": "pop"}])
+    t = tl.load(v)
+    with pytest.raises(SystemExit, match="12.00 s is outside the video"):
+        sfx.check([{"t": 12.0, "type": "pop"}], t)
+    with pytest.raises(SystemExit, match="outside the video"):
+        sfx.check([{"t": -1.0, "type": "pop"}], t)
+    sfx.check([{"t": 0.3, "type": "riser"}], t)                  # a build may start before 0: its contact is inside
+    (row,) = rows_of(audio_check.audibility(audio_check.Stems(v, t, audio_check.finished(v, t)), v, t), "audible")
+    assert row["severity"] == "warning" and "outside the video (0 to 10.50 s): nobody hears it" in row["detail"]
+
+
+def test_a_missed_tag_reports_where_the_picture_really_is_up_to_a_second_away(tmp_path):
+    """A `land` 18 frames early warned, but neither the row nor the close-up said where the landing was."""
+    from studio_kit import motion
+    from test_motion import gray_clip, picture
+    movie = tmp_path / "cut.mp4"
+    gray_clip(movie, picture())
+    window = round(audio_check.TAG_WINDOW * 30)
+    sig = motion.frame_signal(movie, tl.DEFAULT_LAYOUT, 30, 0, 2 * window + 1)
+    got = audio_check._judged(sig, 2, "land", 30, [], window)
+    assert (got["picture_frame"], got["picture_offset_frames"], got["picture_ok"]) == (20, 18, False), got
+
+
+def test_a_close_up_near_the_end_keeps_its_time_scale_and_a_long_sheet_draws(tmp_path):
+    """0.8 s of audio was spread across a 1.5 s close-up, so the click sat at x=900 under a marker at 480;
+    a sheet over 2880 s raised StopIteration."""
+    from studio_kit import sound_sheet as ss
+    y = np.zeros(10 * 48_000, np.float32)
+    y[int(9.8 * 48_000):int(9.8 * 48_000) + 480] = 0.9
+    sf.write(tmp_path / "end.wav", y, 48_000)
+    a, b = ss.closeup_span(9.8)
+    ss.draw(tmp_path / "end.wav", tmp_path / "end.png", a, b, [{"id": "fx1", "type": "pop", "t": 9.8, "flags": []}], fps=30, width=1200)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(tmp_path / "end.png"), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                         capture_output=True, check=True).stdout
+    im = np.frombuffer(raw, np.uint8).reshape(ss.height(), 1200, 3).astype(int)
+    top = ss.TITLE_H + ss.LABEL_ROW_H * ss.LABEL_ROWS + ss.SPEECH_H
+    band = im[top + 5:top + ss.WAVE_H - 5]
+    loud = np.nonzero((((abs(band[..., 0] - 0x8f) < 30) & (abs(band[..., 1] - 0xd3) < 30) & (band[..., 2] > 200)).sum(axis=0)) > 20)[0]
+    assert abs(loud.min() - (9.8 - a) / (b - a) * 1200) < 10, loud
+    assert ss.tick_step(25.6) == 2 and ss.tick_step(3000) == 300 and ss.tick_step(30_000) == 1260
