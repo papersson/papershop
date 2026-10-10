@@ -262,3 +262,27 @@ def test_the_committed_facts_are_what_the_kit_measures():
         f = soundkit.measure(soundkit.decode(data)[0], sfx.RATE)
         assert (f["contact"], f["samples"]) == (s["facts"]["contact"], s["facts"]["samples"]), s["id"]
         assert s["facts"]["trim_db"] == soundkit.trim(soundkit.decode(data)[0], s["type"]), s["id"]
+
+
+def test_a_kit_sound_refuses_another_decoder(kit, monkeypatch):
+    """ffmpeg's decode moved a contact by up to 7.4 ms and isn't in the digest: a kit sound refuses it."""
+    with pytest.raises(SystemExit, match="soundfile could not read this recording"):
+        soundkit.decode(b"not audio at all", fallback=False)
+    fetched()
+    seen = []
+    real = soundkit.decode
+    monkeypatch.setattr(soundkit, "decode", lambda data, to=None, fallback=True: seen.append(fallback) or real(data, to, fallback))
+    sfx.resolve("kit:knock").samples
+    assert seen == [False]
+
+
+def test_the_effects_track_is_the_same_bytes_every_render(tmp_path):
+    """libsndfile wrote the time into a float wav's PEAK chunk, so two renders of one track differed."""
+    import time
+    y = sfx.voice("thump")
+    sfx.write_wav(tmp_path / "a.wav", y, "FLOAT")
+    time.sleep(1.1)
+    sfx.write_wav(tmp_path / "b.wav", y, "FLOAT")
+    a, b = (tmp_path / "a.wav").read_bytes(), (tmp_path / "b.wav").read_bytes()
+    assert b"PEAK" in a and a == b
+    assert np.array_equal(sf.read(tmp_path / "a.wav", dtype="float32")[0], y.astype(np.float32))

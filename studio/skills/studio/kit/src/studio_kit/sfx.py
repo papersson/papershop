@@ -29,7 +29,8 @@ is one function too (`place`), which the render, the motion review's windows, th
 audio-check's sync all read. `studio sfx` checks the cues and keeps them as audio/sfx.json; every mix
 renders them against the timeline it mixes (`rendered`, into audio/sfx.wav, again only when a
 placement changed), so a re-narration moves an effect with its cue. The timeline mixes it at -8 dB
-under the narration.
+under the narration, and the track follows the narration's loudness (narration_offset: against
+Kokoro's -25.6 LUFS), so an effect keeps its place against the voice however loud the voice came out.
 
 A cue's `visual` tag says what the picture does at that moment, never when: the time is still the cue
 or beat the effect names, the beat sheet's one time for picture and sound. The tag lets audio-check
@@ -481,7 +482,7 @@ class Kit:
             if hashlib.sha256(data).hexdigest() != e["sha256"]:
                 raise SystemExit(f"assets/{library_file(e)} is not the kit's {e['pack']}:{e['member']} (sha256 differs); "
                                  "remove it and run `studio sfx` again")
-            y = soundkit.decode(data)[0] * 10 ** (trim / 20)
+            y = soundkit.decode(data, fallback=False)[0] * 10 ** (trim / 20)
             return np.pad(y, (0, max(0, facts["samples"] - len(y))))[:facts["samples"]].astype(np.float32)
         trim = facts.get("trim_db", 0)
         return Sound(f"kit:{name}", "peak", facts["contact"], facts["samples"],
@@ -614,14 +615,47 @@ def place(cues, timeline, strict=True, video=None):
     return out
 
 
-def _mix(placed, duration):
+def _mix(placed, duration, offset=0.0):
+    """The placed effects summed on one track, each at its gain plus `offset` (narration_offset)."""
     import numpy as np
     end = max(p.end for p in placed) if placed else RATE
     buf = np.zeros(int(max(end, duration * RATE)) + RATE, dtype=np.float32)
     for p in placed:
         v = p.sound.samples[p.start - (p.contact - p.sound.contact):]       # less a cut build's head
-        buf[p.start:p.start + len(v)] += (v * 10 ** (p.gain / 20)).astype(np.float32)
+        buf[p.start:p.start + len(v)] += (v * 10 ** ((p.gain + offset) / 20)).astype(np.float32)
     return buf
+
+
+# The narration level the effects' levels were set against: Kokoro's (af_heart measures -25.6 LUFS at
+# any speed). The timeline mixes the effects at a fixed -8 dB and the finish raises the whole mix to its
+# target, so a voice synthesised 8 dB quieter made every effect 8 dB louder against it; the effects
+# follow the narration instead (narration_offset), within NARRATION_RANGE dB.
+NARRATION_REF = -25.6
+NARRATION_RANGE = 20.0
+
+
+def narration_offset(video, timeline):
+    """dB the effects follow the narration by: the narration's integrated loudness (its first entry, with
+    that entry's gain; the wav when narrate wrote one) less NARRATION_REF, so an effect sits where
+    it was set against the voice at whatever level the voice came out; 0 without a narration. Measured
+    once a file, cached by its size and time."""
+    video = Path(video)
+    e = next((e for e in timeline.get("tracks", {}).get("audio", []) if tl.audio_role(e) == "narration"), None)
+    f = video / e["file"] if e else None
+    if f is not None and f.suffix == ".mp3" and f.with_suffix(".wav").exists():
+        f = f.with_suffix(".wav")
+    if f is None or not f.exists():
+        return 0.0
+    st = f.stat()
+    stamp, cache = f"{e['file']}:{st.st_size}:{st.st_mtime_ns}", video / ".cache" / "sound" / "narration-loudness.json"
+    kept = json.loads(cache.read_text()) if cache.exists() else {}
+    if kept.get("stamp") != stamp:
+        from .audio import measure
+        kept = {"stamp": stamp, "lufs": measure(f)[0]}
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(kept))
+    off = kept["lufs"] + e.get("gain", 0) - NARRATION_REF
+    return round(max(-NARRATION_RANGE, min(NARRATION_RANGE, off)), 2)
 
 
 def render(cues, timeline):
@@ -631,16 +665,42 @@ def render(cues, timeline):
 
 
 def write_wav(path, buf, subtype="PCM_24"):
+    """A mono wav at RATE, byte for byte the same for the same samples: libsndfile writes the time of
+    writing into a float wav's PEAK chunk, which is zeroed here (the peaks it lists stay)."""
     import soundfile as sf
     sf.write(path, buf, RATE, subtype=subtype)
+    _zero_peak_time(path)
+
+
+def _zero_peak_time(path):
+    """Zero the timestamp of a wav's PEAK chunk (its version, then a 32-bit time), if it has one."""
+    import struct
+    with open(path, "r+b") as f:
+        data = f.read(4096)
+        if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+            return
+        i = 12
+        while i + 8 <= len(data):
+            cid, size = data[i:i + 4], struct.unpack("<I", data[i + 4:i + 8])[0]
+            if cid == b"PEAK":
+                f.seek(i + 12)
+                f.write(b"\0\0\0\0")
+                return
+            if cid == b"data":
+                return
+            i += 8 + size + (size & 1)
 
 
 def check(cues, timeline):
     """Stop on an effect with no time in this timeline, a sound the resolver can't make (an unknown
-    type or sound, params its provider can't render), a gain that isn't a number or a visual tag
-    that isn't one of VISUALS."""
+    type or sound, params its provider can't render), a time outside the video (a build may still start
+    before 0: its contact is what must be inside), a gain that isn't a number or a visual tag that
+    isn't one of VISUALS."""
     for c in cues:
-        resolve_time(c["t"], timeline)
+        at = resolve_time(c["t"], timeline)
+        if "duration" in timeline and not 0 <= at <= timeline["duration"]:
+            raise SystemExit(f"effect at {c['t']!r}: {at:.2f} s is outside the video (0 to {timeline['duration']:.2f} s), "
+                             "where nobody hears it")
         resolve(c, at=c["t"])
         if not isinstance(c.get("gain", 0), (int, float)):
             raise SystemExit(f"effect at {c['t']!r}: gain must be dB")
@@ -649,18 +709,18 @@ def check(cues, timeline):
                              f"its frame (got {c['visual']!r})")
 
 
-TRACK_VERSION = 1       # in the track's key: bump it when placing or mixing changes how the track sounds
+TRACK_VERSION = 2       # in the track's key: bump it when placing or mixing changes how the track sounds
 
 
-def key(placed, duration):
-    """The rendered track's identity: each effect's sound digest, time and gain, and the track's
-    length. Not this file's bytes, so an edit elsewhere in the kit keeps the render."""
-    return _digest(TRACK_VERSION, duration, [[p.sound.digest, p.time, p.gain] for p in placed])
+def key(placed, duration, offset=0.0):
+    """The rendered track's identity: each effect's sound digest, time and gain, the narration offset
+    and the track's length. Not this file's bytes, so an edit elsewhere in the kit keeps the render."""
+    return _digest(TRACK_VERSION, duration, offset, [[p.sound.digest, p.time, p.gain] for p in placed])
 
 
 def rendered(video, timeline):
-    """audio/sfx.wav for this timeline: audio/sfx.json's cues placed on it and rendered, again only
-    when the key changed (kept beside the mix cache). A re-render rewrites the file, so the mix's
+    """audio/sfx.wav for this timeline: audio/sfx.json's cues placed on it and rendered at their gains
+    plus the narration offset, again only when the key changed (kept beside the mix cache). A re-render rewrites the file, so the mix's
     stamp of it (audio.inputs: its size and time) moves with it."""
     video = Path(video)
     cues = json.loads((video / "audio" / "sfx.json").read_text())
@@ -669,12 +729,13 @@ def rendered(video, timeline):
                          "timeline (a re-narration drops a reveal: cue whose hold is gone); `studio sfx VIDEO CUES` "
                          "with times that exist")
     placed = place(cues, timeline, video=video)
-    k = key(placed, timeline["duration"])
+    offset = narration_offset(video, timeline)
+    k = key(placed, timeline["duration"], offset)
     out, kept = video / "audio" / "sfx.wav", video / ".cache" / "sound" / "sfx.key"
     if out.exists() and kept.exists() and kept.read_text() == k:
         return out
     try:
-        write_wav(out, _mix(placed, timeline["duration"]), "FLOAT")
+        write_wav(out, _mix(placed, timeline["duration"], offset), "FLOAT")
     except ImportError:
         if not out.exists():
             raise SystemExit(NEEDS)

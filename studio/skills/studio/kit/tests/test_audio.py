@@ -174,10 +174,13 @@ def test_a_sparse_mix_reaches_its_target_or_says_so(tmp_path, monkeypatch, capsy
     assert "warn: the finish landed at" in capsys.readouterr().out
 
 
-def test_a_loud_effect_is_not_clipped_before_its_gain(tmp_path):
-    """The render clipped at full scale before the mix's -8 dB, so a thump at +6 dB lost its peak."""
+def test_a_loud_effect_is_not_clipped_before_its_gain(tmp_path, monkeypatch):
+    """The render clipped at full scale before the mix's -8 dB, so a thump at +6 dB lost its peak. (This
+    video's stand-in voice is 20 dB under Kokoro's: the effects' narration offset is held at 0 here.)"""
     np = pytest.importorskip("numpy")
     sf = pytest.importorskip("soundfile")
+    from studio_kit import sfx
+    monkeypatch.setattr(sfx, "narration_offset", lambda *a: 0.0)
     v = video(tmp_path)
     (v / "audio" / "sfx.json").write_text(json.dumps([{"t": 2.0, "type": "thump", "gain": 6}]))
     t = timeline(dict(tl.SFX))

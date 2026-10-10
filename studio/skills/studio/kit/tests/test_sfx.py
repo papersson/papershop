@@ -145,7 +145,7 @@ def test_the_track_re_renders_when_an_effect_changes_and_only_then(tmp_path, mon
     fx.write_text(json.dumps(EFFECTS[3:6]))
     made = []
     real = sfx._mix
-    monkeypatch.setattr(sfx, "_mix", lambda placed, d: made.append(len(placed)) or real(placed, d))
+    monkeypatch.setattr(sfx, "_mix", lambda placed, d, o=0.0: made.append(len(placed)) or real(placed, d, o))
     sfx.rendered(tmp_path, MIXED)
     sfx.rendered(tmp_path, MIXED)
     assert made == [3]
