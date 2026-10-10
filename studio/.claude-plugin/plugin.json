@@ -1,7 +1,7 @@
 {
   "name": "studio",
-  "version": "0.8.0",
-  "description": "Narrated, animated videos built around a learning goal, recorded evidence and fresh reviews. Build in the background, or follow along on the desk: notes on single sentences, answered in place, with live scenes that redraw as they change. Boards and an animatic settle the picture and pacing first; protected cuts and incremental revisions on one timeline. Replaces tutor.",
+  "version": "0.9.0",
+  "description": "Narrated, animated videos built around a learning goal, recorded evidence and fresh reviews. Polished by default: a beat sheet times picture and sound to the frame, polish is a planned stage judged on frame sequences with a rule for when it stops, and a measured mix keeps effects out of the words. Build in the background, with handoffs and hard stops, or follow along on the desk. Boards and an animatic settle the picture and pacing first. Replaces tutor.",
   "author": {
     "name": "Patrik Persson"
   }

@@ -260,6 +260,29 @@ item: the loop is proven by the user's own notes.
 - **Cues on what the voice says.** Positional sentence cues broke whenever a note split a sentence
   (several did). `phrase(id, text)` cues the spoken words (word timings, or the caption position where
   a spoken rule rewrote them), in all three engines.
+- **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
+  synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
+- **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare
+  401. The balance is now checked before a run when the key may read it, and a refusal prints
+  ElevenLabs' own reason and that the cache resumes.
+- **Words for motion.** The motion glossary (20 terms, each one helper in the live kit, with the
+  Remotion equivalent) grew from the user's own words ("blur them together"); a note that uses a
+  term says so to the builder.
+- **Checks after every change.** A text-on-text `overlap` check joins the incremental per-chapter
+  set, and a live scene that throws fails with its clip, time and source line, so a collision or a
+  crash is caught before the user sees it.
+
+
+## Polish by default and long runs (0.9.0)
+
+One long session (six builder runs, about 14 hours) made a video the user judged very polished, but
+the kit did not make the polish: the builders invented a beat sheet, a motion rig, staged passes,
+motion reviews on frame sequences and a measured mix, and hit about twenty kit gaps on the way. Two
+failures cost hours: a polish loop with no end and a builder that ran out of context with no
+handoff. 0.9.0 makes that method the default for every explainer, in a neutral style, with comic
+technique kept in one reference read only on request, and adds stopping rules and handoffs so long
+passes end on time and survive a restart.
+
 - **One writer for the timeline.** Seven commands edited timeline.json in place, and a re-narration
   rebuilt it keeping only the hand cues, so it dropped the effects track, the beat grid and any music
   bed. Each command now owns one source file (narrate the timings, align the words, sfx its cues, the
@@ -272,17 +295,6 @@ item: the loop is proven by the user's own notes.
   gain and the limiter run on the whole mix. AAC then overshoots the finished peak (0.1 dB at 160
   kbps, up to 1.5 dB for the web copy's low-bitrate mono), so every encode is measured and made
   quieter until it is under the ceiling too.
-- **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
-  synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
-- **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare
-  401. The balance is now checked before a run when the key may read it, and a refusal prints
-  ElevenLabs' own reason and that the cache resumes.
-- **Words for motion.** The motion glossary (20 terms, each one helper in the live kit, with the
-  Remotion equivalent) grew from the user's own words ("blur them together"); a note that uses a
-  term says so to the builder.
-- **Checks after every change.** A text-on-text `overlap` check joins the incremental per-chapter
-  set, and a live scene that throws fails with its clip, time and source line, so a collision or a
-  crash is caught before the user sees it.
 - **One frame sampler.** The cut's stills, the checks' samples and the sheets' strips each chose
   their frames in their own code, with the 0.15 s before a sentence's end written three times.
   `moments.py` now chooses them all, as moments with a clip time, a video time and a kind, so
@@ -418,4 +430,8 @@ item: the loop is proven by the user's own notes.
 |---|---|
 | **Live parity for code explainers**: CodePanel, Terminal and the other code components are Remotion-only | a code explainer is built on the live engine |
 | **Desk on other machines**: the desk binds to 127.0.0.1 | a phone or second machine can follow a build safely |
-
+- **Comic is a tone, asked for, not a default.** The same session's video was comic, and much of its
+  craft (gags acting out the sentence, double takes, impact frames, layered sound) would be wrong in
+  a calm explainer. `tone: comic` in video.json is set only when the user asks for a comic, cartoon
+  or silly video, and only then is `references/styles/comic.md` read; "fun", "delightful" or
+  "engaging" ask for the plain polish done well. Two evals hold that line.
