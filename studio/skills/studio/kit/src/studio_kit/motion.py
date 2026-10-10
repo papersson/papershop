@@ -134,13 +134,20 @@ AMBIENT_MAX = 0.2
 CHANGED = 8             # grey levels a pixel must change by to count as changed
 LINK_MIN = 0.05
 DIP = 0.35
-# A cut is a full-frame change: at least CUT_SHARE of the stage's pixels change by CHANGED from one frame
-# to the next. Calibrated at PACING_SIZE on 109 rendered clips (Remotion and live) and their cuts: the
-# widest fades and wipes there change at most 0.48 of the stage a frame, and scenes ending on their
-# background change none at a seam; a cut to another background changes nearly all of it. A cut
-# between two scenes on one background changes only where their content differs (a median 0.17 for
-# frames of different scenes), and reads as motion.
+# A cut is a one-frame spike of full-frame change: at least CUT_SHARE of the stage's pixels change by
+# CHANGED into the frame, and less than that into the frames either side. A cut to another background
+# changes nearly all of it; on 109 rendered clips (Remotion and live) the kit's own fades and wipes change
+# at most 0.48 of the stage a frame, but a flat full-stage fade, a flash or a fast pan over texture
+# changes all of it frame after frame, so it is the spike, not the share alone, that makes a cut: a run
+# of full-frame changes is motion. A cut between two scenes on one background changes only where their
+# content differs (a median 0.17 for frames of different scenes), and reads as motion too.
 CUT_SHARE = 0.6
+# A small element (a 40 px label fading in over 0.3 s) changes the stage by less than a move's level a
+# frame, but its pixels still change visibly: where motion starts or ends also counts a frame where at
+# least VISIBLE_SHARE of the stage changes by CHANGED over the window's median share (its ambient
+# life). Calibrated on a live-engine "1 ms" label fading in at 540p: 0.0009 to 0.0013 of the stage a
+# frame, against 0 for a held frame's encoding noise.
+VISIBLE_SHARE = 0.0005
 
 
 def rendered_clip(video, t, cid, fmt=None):
@@ -279,21 +286,33 @@ def frame_signal(path, lay, fps, first, count):
 def moving(signal, fps):
     """The frames of a frame signal that move: they change by more than MOVE_LEVEL, a 0.1 s sample's
     level, shared out over the frames of a sample at `fps`, and are not cuts."""
-    level = MOVE_LEVEL * PACING_FPS / fps
-    return [f for f, change, _, share in signal if change > level and share < CUT_SHARE]
+    level, cut = MOVE_LEVEL * PACING_FPS / fps, set(cuts(signal))
+    return [f for f, change, _, share in signal if change > level and f not in cut]
+
+
+def changing(signal, fps):
+    """The frames that move, or where a small element visibly changes (VISIBLE_SHARE of the stage over
+    the window's median share); a single still frame between two changing ones (an ease's step that
+    rounded to nothing) counts as changing. Where motion starts and ends is read from these."""
+    import statistics
+    if not signal:
+        return []
+    ambient, cut = statistics.median(r[3] for r in signal), set(cuts(signal))
+    on = set(moving(signal, fps)) | {f for f, _, _, share in signal if share - ambient >= VISIBLE_SHARE and f not in cut}
+    return sorted(on | {f for f, *_ in signal if f not in cut and f - 1 in on and f + 1 in on})
 
 
 def starts(signal, fps):
-    """The frames where motion starts: the first frame that differs after one that does not. Motion
-    under way at the window's start has no start in it."""
-    on = set(moving(signal, fps))
+    """The frames where motion starts: the first frame that differs after one that does not (changing).
+    Motion under way at the window's start has no start in it."""
+    on = set(changing(signal, fps))
     return [f for f, *_ in signal[1:] if f in on and f - 1 not in on]
 
 
 def ends(signal, fps):
     """The frames where motion ends: the last frame that differs before one that does not (where a
     moving thing lands). Motion still under way at the window's end has no end in it."""
-    on = set(moving(signal, fps))
+    on = set(changing(signal, fps))
     return [f for f, *_ in signal[:-1] if f in on and f + 1 not in on]
 
 
@@ -304,8 +323,11 @@ def peak(signal, fps):
 
 
 def cuts(signal):
-    """The frames that are cuts: at least CUT_SHARE of the stage changes into them."""
-    return [f for f, _, _, share in signal if share >= CUT_SHARE]
+    """The frames that are cuts: at least CUT_SHARE of the stage changes into them and less than that
+    into the frame before and the frame after (where the signal has them). A run of full-frame
+    changes, a fade, a flash in and out or a fast pan, is motion."""
+    share = {f: s for f, _, _, s in signal}
+    return [f for f, _, _, s in signal if s >= CUT_SHARE and share.get(f - 1, 0) < CUT_SHARE and share.get(f + 1, 0) < CUT_SHARE]
 
 
 def is_cut(signal, frame):

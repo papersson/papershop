@@ -236,3 +236,36 @@ def test_the_frame_signal_names_where_motion_starts_peaks_ends_and_cuts(tmp_path
     assert motion.peak(motion.frame_signal(f, LAY, 30, 25, 15), 30) is None
     window = motion.frame_signal(f, LAY, 30, 12, 6)          # motion under way across the whole window
     assert motion.starts(window, 30) == motion.ends(window, 30) == [] and len(motion.moving(window, 30)) == 5
+
+
+def flat_frames(values, w=384, h=216):
+    return [bytes([v]) * (w * h) for v in values]
+
+
+def test_a_fade_or_a_flash_is_motion_and_a_cut_is_a_one_frame_spike(tmp_path):
+    """An 8-frame full-stage fade changed all of the stage frame after frame, so it read as eight cuts:
+    a `cut` tag anywhere on it passed and an `appear` on it found no start. A flash read as two cuts."""
+    fade, flash, cut = tmp_path / "fade.mp4", tmp_path / "flash.mp4", tmp_path / "cut.mp4"
+    gray_clip(fade, flat_frames([0] * 30 + [16 * k for k in range(1, 9)] + [128] * 30))
+    gray_clip(flash, flat_frames([0] * 30 + [255] + [0] * 30))
+    gray_clip(cut, flat_frames([0] * 30 + [200] * 30))
+    s = motion.frame_signal(fade, LAY, 30, 20, 25)
+    assert motion.cuts(s) == [] and motion.starts(s, 30) == [30] and motion.ends(s, 30) == [37]
+    assert motion.cuts(motion.frame_signal(flash, LAY, 30, 20, 25)) == []
+    assert motion.cuts(motion.frame_signal(cut, LAY, 30, 20, 25)) == [30]
+
+
+def test_a_small_label_fading_in_starts_and_ends(tmp_path):
+    """A 40 px label fading in over 0.3 s changes the stage by less than a move's level; its pixels still
+    change, so its start and end are found (VISIBLE_SHARE)."""
+    w, h = 384, 216
+
+    def frame(v):
+        rows = [bytearray(w) for _ in range(h)]
+        for r in rows[150:154]:
+            r[180:196] = bytes([v]) * 16
+        return bytes(b"".join(rows))
+    f = tmp_path / "label.mp4"
+    gray_clip(f, [frame(0)] * 30 + [frame(20 * k) for k in range(1, 10)] + [frame(180)] * 30)
+    s = motion.frame_signal(f, LAY, 30, 20, 30)
+    assert motion.moving(s, 30) == [] and motion.starts(s, 30) == [30] and motion.ends(s, 30) == [38]
