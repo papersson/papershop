@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from studio_kit import audio_check
+from studio_kit import audio, audio_check, check
 from studio_kit import timeline as tl
 
 np = pytest.importorskip("numpy")
@@ -63,6 +63,7 @@ def test_a_loud_effect_on_a_word_fails_and_a_quiet_one_does_not(tmp_path, monkey
     bad = [r for r in rows if not r["ok"]]
     assert bad and {r["check"] for r in bad} == {"pauses"} and all(3.0 <= r["t"] < 4.5 for r in bad)
     assert "'two'" in bad[0]["detail"]
+    assert check.run(v, only=["pauses"]) == audio_check.guard(v)            # `studio check` reports the same rows
     monkeypatch.setattr(tl, "build", lambda *a, **k: None)      # the timeline is made by hand, not from sources
     assert audio_check.main(SimpleNamespace(video=v, cut=None)) == 1
     report = json.loads((v / "out" / "audio-check.json").read_text())
@@ -96,11 +97,25 @@ def test_sync_warns_when_the_sound_is_off_its_frame():
 
 def test_the_guard_waits_for_a_voice_and_skips_a_video_without_effects(tmp_path):
     v = narrated(tmp_path)
-    assert audio_check.guard(v) == []
+    assert audio_check.guard(v) == [] and check.run(v, only=["pauses"]) == []
     t = json.loads((v / "timeline.json").read_text())
     (v / "audio" / "sfx.json").write_text(json.dumps([{"t": "hit", "type": "pop"}]))
     (v / "timeline.json").write_text(json.dumps({**t, "timing": "estimate"}))
     assert audio_check.guard(v)[0]["skipped"]
+
+
+def test_the_full_check_runs_the_guard_when_there_are_effects(tmp_path, monkeypatch):
+    """publish's gate is the full check, so this is how publish stops on a loud effect under a word."""
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop"}])
+    called = []
+    monkeypatch.setattr(audio_check, "guard", lambda video: called.append(video) or [])
+
+    def no_engine(*a, **k):
+        raise RuntimeError("the engine checks come next")
+    monkeypatch.setattr(check, "Engine", no_engine)
+    with pytest.raises(RuntimeError):
+        check.run(v)
+    assert called == [v]
 
 
 def test_the_picture_note_finds_where_motion_starts(tmp_path):
