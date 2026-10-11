@@ -247,7 +247,9 @@ rebuild later. It needs real narration (Kokoro is quick), so narrate before boar
 Run `studio look-sheet VIDEO` first: the model sheet, in the video's engine, theme and layout. Add
 this video's own elements (its protagonist and each of its states) to `scenes/look.js` or
 `scenes/look.tsx` from the template, exporting each drawing so scenes import it, and re-run. Scenes
-draw what is on the sheet; the motion review checks drawings are on sheet.
+draw what is on the sheet; the motion review checks drawings are on sheet. A live video with a 3D
+chapter (only when the admission test in `style.md` holds) puts its model on the sheet too, each
+item in its own view, flat and oblique, in each state.
 
 Make real static scenes for the main picture and a close-up; `studio cut --stills-only` records
 these without displacing playable cuts. Get the user's choice before animation unless already
@@ -260,7 +262,9 @@ anticipation, effects) is the next stage, planned from the start rather than add
 build the moves plainly here and leave room for it. Move the camera with keys (`c.camAt` in live,
 `<Camera keys>` in Remotion; `engines.md`), staged apart from content changes; a layout `header` is
 kept clear the way the band is. `studio check` warns (inframe) when an element the sentence names is
-cut by the frame, header or band.
+cut by the frame, header or band. A 3D chapter (live, `engines.md`) opens from its flat diagram with
+`c.flatShot()` and returns to it, and `studio check` also warns (occluded) when a part the sentence
+names is hidden behind the model.
 
 One scene per chapter, built in order and cut as each is done: unbuilt chapters show their boards,
 so every cut plays the whole video. In interactive mode, show the first finished chapter on the desk

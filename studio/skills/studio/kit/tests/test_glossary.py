@@ -19,3 +19,14 @@ from studio_kit import glossary
 ])
 def test_a_term_is_its_words_together(text, terms):
     assert [g["term"] for g in glossary.find(text)] == terms
+
+
+@pytest.mark.parametrize("text,terms", [
+    ("orbit round the stack once it opens", ["orbit"]),
+    ("tilt it so the layers show", ["tilt"]),
+    ("open it into depth on the cue, then flatten it back", ["open into depth", "flatten"]),
+    ("explode the stack", ["explode"]),
+    ("a projected callout on the heads", ["projected callout", "callout"]),
+])
+def test_the_3d_terms_are_their_words_together(text, terms):
+    assert sorted(g["term"] for g in glossary.find(text)) == sorted(terms)

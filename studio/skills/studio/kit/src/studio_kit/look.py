@@ -10,9 +10,10 @@ The builder adds the video's own elements in scenes/look.js (live) or scenes/loo
 templates/live/scenes/example-look.js and templates/scenes/example-look.tsx show how.
 
 Output: out/look/look-<n>.png, one per page, and out/look/look.json, the record a review bundle
-includes (`latest`). Another format's sheet goes to out/look/<format>/. The record's key covers the
-engine's source, the layout, the legend and the video's look file, so a stale sheet is told apart
-from a current one. Live and Remotion only.
+includes (`latest`). Another format's sheet goes to out/look/<format>/. The record's key covers what
+the engine's pixels depend on (render.engine_inputs: its source, packages, page and WebGL backend),
+the layout, the legend, the video's assets and its look file, so a stale sheet is told apart from a
+current one. Live and Remotion only.
 """
 import hashlib
 import json
@@ -21,7 +22,6 @@ from pathlib import Path
 
 from . import timeline as tl
 from .engine import LOOK_ENGINES, Engine
-from .env import engine_dir
 
 SAMPLE = "Captions go in the band, at most two lines."     # two lines or fewer at every format's width
 OWN = ("look.js", "look.tsx", "look.ts", "look.jsx")
@@ -54,17 +54,17 @@ def look_files(video):
 
 
 def key(video, engine, fmt=None):
-    """A hash of what the sheet is drawn from: the engine and its source, the layout, the colour
-    legend, and the video's look file with the scene files it imports."""
-    from . import settings
+    """A hash of what the sheet is drawn from: the engine and what its pixels depend on
+    (render.engine_inputs), the layout, the colour legend, the assets, and the video's look file with
+    the scene files it imports."""
+    from . import render, settings
     h = hashlib.sha256(engine.encode())
+    render.engine_inputs(h, engine, video)
+    render._hash_assets(h, Path(video) / "assets")
     h.update(json.dumps(tl.layout(video, fmt), sort_keys=True).encode())
     legend = settings.raw(video).get("legend")
     if legend:
         h.update(json.dumps(legend, sort_keys=True).encode())
-    roots = [engine_dir(engine) / "src", engine_dir("shared")]
-    for f in sorted(p for root in roots for p in root.rglob("*") if p.is_file() and "node_modules" not in p.parts):
-        h.update(f.name.encode() + f.read_bytes())
     scenes = (Path(video) / "scenes").resolve()
     for f in look_files(video):
         h.update(str(f.relative_to(scenes)).encode() + f.read_bytes())

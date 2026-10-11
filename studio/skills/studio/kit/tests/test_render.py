@@ -272,3 +272,22 @@ def test_a_new_beat_grid_re_renders_only_the_chapters_that_read_it(tmp_path):
     t2["beats"] = {"bpm": 120, "beats": [0.5, 1.0, 1.5, 2.0], "downbeats": [0.5], "hits": []}
     after = keys(tmp_path, t2)
     assert after["s1"] == before["s1"] and after["s2"] != before["s2"]
+
+
+def test_a_live_clip_is_keyed_on_its_webgl_backend_and_the_engines_page(tmp_path, monkeypatch):
+    """A clip rendered on the GPU differs from one rendered on the CPU (2D frames too), so a backend
+    switch must not reuse the other's clips; nor may an edit to the live page or its CLI (launch flags,
+    the import map). A Remotion video's keys don't depend on either."""
+    t = make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
+    cpu = render.clip_key(tmp_path, t, "s1", "draft")
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "live", "gl": "gpu"}))
+    assert render.clip_key(tmp_path, t, "s1", "draft") != cpu
+    hashed = []
+    real = render._hash_tree
+    monkeypatch.setattr(render, "_hash_tree", lambda h, p, root=None: (hashed.append(Path(p).name), real(h, p, root)))
+    render.clip_key(tmp_path, t, "s1", "draft")
+    assert {"cli.mjs", "render.html", "package-lock.json"} <= set(hashed)
+    hashed.clear()
+    render.clip_key(tmp_path, t, "s1", "draft", engine="remotion")
+    assert not {"cli.mjs", "render.html"} & set(hashed)

@@ -15,6 +15,7 @@ import tempfile
 import urllib.request
 
 from . import proc
+from . import settings
 from .env import ROOT, engine_dir, resolve_browser
 
 OK, WARN, FAIL, SKIP = "ok", "warn", "FAIL", "skip"
@@ -74,21 +75,31 @@ def check_browser():
 LAUNCH_SCENE = "export default function draw(c) { c.S.text('probe', c.W / 2, c.H / 2, 'studio doctor', { size: 48 }) }\n"
 
 
+def probe_video(video, gl="cpu"):
+    """A throwaway one-chapter live video in an empty folder, for the engine's own commands."""
+    video = Path(video)
+    (video / "scenes").mkdir()
+    (video / "scenes" / "probe.js").write_text(LAUNCH_SCENE)
+    (video / "video.json").write_text(json.dumps({"engine": "live", "gl": gl}))
+    (video / "timeline.json").write_text(json.dumps({"version": 1, "fps": 30, "duration": 1.0, "cues": {}, "tracks": {
+        "scene": [{"id": "probe", "engine": "live", "title": "probe", "start": 0.0, "end": 1.0}],
+        "narration": [], "captions": [], "audio": []}}))
+    return video
+
+
+def live_ready():
+    return (engine_dir("live") / "node_modules" / ENGINE_MARKER["live"]).is_dir() and shutil.which("node")
+
+
 def check_launch(timeout=60):
     """A one-frame still through the live engine's own command, in a throwaway video: the browser
     starting the way a cut starts it, which `--dump-dom` does not show (a sandbox can allow one and
     refuse the other)."""
-    if not (engine_dir("live") / "node_modules" / ENGINE_MARKER["live"]).is_dir() or not shutil.which("node"):
+    if not live_ready():
         return SKIP, "browser launch", "skipped: the live engine or node is not installed", ""
     from .engine import LAUNCH_HINT, Engine, launch_hint
     with tempfile.TemporaryDirectory(prefix="studio-doctor-") as tmp:
-        video = Path(tmp)
-        (video / "scenes").mkdir()
-        (video / "scenes" / "probe.js").write_text(LAUNCH_SCENE)
-        (video / "video.json").write_text(json.dumps({"engine": "live"}))
-        (video / "timeline.json").write_text(json.dumps({"version": 1, "fps": 30, "duration": 1.0, "cues": {}, "tracks": {
-            "scene": [{"id": "probe", "engine": "live", "title": "probe", "start": 0.0, "end": 1.0}],
-            "narration": [], "captions": [], "audio": []}}))
+        video = probe_video(tmp)
         engine = Engine(video, "live")
         cmd = engine._command("still", "--clip", "probe", "--t", "0.5", "--out", str(video / "probe.png"))
         try:     # its own session, so a hung launch is killed with the browser it started
@@ -106,6 +117,25 @@ def check_launch(timeout=60):
             return FAIL, "browser launch", f"the live engine could not render a still: {cause[0][:300]}", \
                 launch_hint(err) or "`studio still VIDEO CLIP T --out PNG` on a live video prints the engine's full error"
     return OK, "browser launch", "the live engine rendered a still", ""
+
+
+def check_webgl(gl="cpu", timeout=60):
+    """The WebGL renderer the live engine's 3D stage gets on a backend (video.json gl), from the engine's
+    own page: SwiftShader for cpu, this machine's GPU for gpu. A browser without WebGL can still draw
+    every 2D scene, so a failure here is a warning."""
+    name = f"webgl {gl}"
+    if not live_ready():
+        return SKIP, name, "skipped: the live engine or node is not installed", ""
+    if not (engine_dir("live") / "node_modules" / "three").is_dir():
+        return WARN, name, "three.js is not installed (3D scenes need it)", "studio doctor --fetch --engine live"
+    from .engine import Engine, EngineError
+    with tempfile.TemporaryDirectory(prefix="studio-doctor-") as tmp:
+        try:
+            info = Engine(probe_video(tmp, gl), "live").webgl()
+        except (EngineError, OSError) as e:
+            return WARN, name, f"no WebGL for the 3D stage: {str(e).strip().splitlines()[-1][:200]}", \
+                "2D scenes are unaffected; set STUDIO_BROWSER to a Chrome with WebGL for 3D"
+    return OK, name, f"{info['renderer']} (WebGL {info['version'].split()[1]}, {info['samples']}x MSAA, three r{info['three']}, browser {info['browser']})", ""
 
 
 def check_host(url):
@@ -257,6 +287,7 @@ def checks(net=False):
         check_engine("live"),
         check_browser(),
         check_launch(),
+        check_webgl(),
     ]
     if net:
         from .soundkit import hosts
@@ -292,6 +323,9 @@ def main(args):
     rows = checks(net=args.net) + extra_checks(extras) + [check_sounds(offline)]
     if args.video and (library := check_library(args.video)):
         rows.append(library)
+    if args.video and (Path(args.video) / "video.json").exists() and settings.load(args.video)["engine"] == "live" \
+            and settings.load(args.video)["gl"] != "cpu":
+        rows.append(check_webgl(settings.load(args.video)["gl"]))
     if args.video:
         print("video requires: " + ", ".join(required(args.video)))
     if not args.video and not args.extra:

@@ -1,6 +1,7 @@
 """Cuts: render what changed, composite, and write what the review page shows.
 
-A clip's cache key hashes everything its frames depend on: the engine, the video's shared scene
+A clip's cache key hashes everything its frames depend on: the engine (engine_inputs: its source and
+packages, and for the live engine its page, its WebGL backend and the browser), the video's shared scene
 files, the clip's own scene file (scenes/<clip>.tsx), its slice of the timeline (as times relative
 to the clip's first frame) and the layout. So an edit to one chapter's scene re-renders that
 chapter only, a narration edit re-renders the chapter it is in (later chapters move by whole frames,
@@ -28,7 +29,7 @@ from . import audio
 from . import moments
 from . import timeline as tl
 from .engine import Engine
-from .env import engine_dir
+from .env import engine_dir, resolve_browser
 
 STILL_SCALE = 0.25          # 480×270 stills on the page
 
@@ -44,6 +45,28 @@ def _hash_tree(h, p, root=None):
     elif p.exists():
         h.update(str(p.relative_to(root)).encode())
         h.update(p.read_bytes())
+
+
+@functools.lru_cache(maxsize=None)
+def _browser_identity():
+    """The browser the engines render with (env.resolve_browser), as its path and size: another
+    browser can draw the same scene differently, so live clips are keyed on it."""
+    path, _ = resolve_browser()
+    return f"{path}:{Path(path).stat().st_size}" if path and Path(path).is_file() else str(path)
+
+
+def engine_inputs(h, engine, video):
+    """Hash what an engine's pixels depend on outside the video: its source, the engines' shared
+    modules and its lock file (a pinned package such as three.js), and for the live engine its CLI and
+    page (launch flags, the import map), the video's WebGL backend (video.json gl) and the browser.
+    The clip keys and the look sheet's key both use it, so neither goes stale where the other doesn't."""
+    _hash_tree(h, engine_dir(engine) / "src")
+    _hash_tree(h, engine_dir("shared"))  # the engines' shared modules: motion maths, narration times, cameras
+    _hash_tree(h, engine_dir(engine) / "package-lock.json")
+    if engine == "live":
+        for f in ("cli.mjs", "render.html"):
+            _hash_tree(h, engine_dir(engine) / f)
+        h.update(json.dumps({"gl": settings.load(video)["gl"], "browser": _browser_identity()}).encode())
 
 
 def _engine_of(video):
@@ -163,9 +186,7 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     video = Path(video)
     clip_ids = {c["id"] for c in timeline["tracks"]["scene"]}
     h = hashlib.sha1(quality.encode())
-    _hash_tree(h, engine_dir(engine) / "src")
-    _hash_tree(h, engine_dir("shared"))  # the engines' shared modules: motion maths, narration times
-    _hash_tree(h, engine_dir(engine) / "package-lock.json")
+    engine_inputs(h, engine, video)
     scenes = sorted((video / "scenes").iterdir()) if (video / "scenes").is_dir() else []
     for f in scenes:
         if f.stem == clip_id or f.stem not in clip_ids:

@@ -48,6 +48,11 @@ keys without a default are simply absent when unset (callers use .get).
   legend             {meaning: colour}: the video's colour legend, each colour a theme name of its
                      engine or #rrggbb; `studio check` (legend.py) holds the scenes to it and the
                      look sheet draws it
+  gl                 cpu | gpu: where the live engine's 3D stage renders WebGL. cpu is SwiftShader,
+                     Chrome's CPU renderer: identical frames run after run on a machine, about 3.5x
+                     slower per 3D frame than the GPU. gpu is this machine's GPU (Metal on macOS):
+                     3D frames cost what 2D ones do, but its pixels differ from the CPU's, 2D ones
+                     included, so clips are keyed on it (render.engine_inputs)     default "cpu"
   sound              {"room": 1.0, "duck": true, "presence": true}: the mix's processing of effects
                      and music (audio.py): room scales their shared room's reflections (0 or false:
                      off, up to 2), duck lowers music under the narration, presence dips their 1-4 kHz
@@ -65,6 +70,7 @@ DEFAULTS = {
     "engine": "remotion",
     "checkpoints": "few",
     "keep_cuts": 10,
+    "gl": "cpu",
 }
 
 MODES = ("background", "interactive")
@@ -74,6 +80,7 @@ CHOICES = {
     "mode": MODES,
     "level": ("intro", "deep-dive"),
     "tone": ("plain", "comic"),
+    "gl": ("cpu", "gpu"),
 }
 
 

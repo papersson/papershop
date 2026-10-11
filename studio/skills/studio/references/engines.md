@@ -8,7 +8,8 @@ don't care which one draws. A video picks its engine in video.json (`"engine": "
 What the engines have in common is written once, in `engines/shared/`: the motion maths
 (`motion.js`: eases, springs, `track`, `pulse`, `keyed`, `follow`, `settle`, `wobble`, ...), the narration times (`timing.js`: `at`, `end`,
 `word`, `phrase`, `cue`, half-up frame rounding), the camera maths (`camera.js`: camera keys and
-`frameOn`, used by live and Remotion) and the pixel-art core (`pixels.ts`). Each kit
+`frameOn`, used by live and Remotion; `camera3d.js`: 3D shots, used by live's 3D stage) and the
+pixel-art core (`pixels.ts`). Each kit
 re-exports them under its own names and defaults. Captions are wrapped by the kit for every
 format and stored in timeline.json; an engine never wraps them.
 
@@ -17,7 +18,8 @@ format and stored in timeline.json; an engine never wraps them.
 - **Live** (default for explainers). A chapter is a plain JS module that draws one frame of SVG
   from `t`; there is no build step, so the desk plays the current scenes and redraws them the
   moment a file changes, and the same code renders the cut. Use it whenever the user may follow on
-  the desk, and for any explainer that doesn't need the Remotion code components.
+  the desk, and for any explainer that doesn't need the Remotion code components. It is the only
+  engine with a 3D stage (below).
 - **Remotion** (code explainers, motion, launch, footage). Scenes are React components, and every
   frame is a pure function of time. It has the whole component kit: `Txt`, `Rect`, `Arrow`, the map
   and close-up components, `CodePanel`, `Terminal` (a long line shrinks to fit the panel, down to
@@ -66,6 +68,11 @@ The context `c` (all times in clip seconds):
   `clamp`, and the theme colours `C` (`C.hot`, `C.cold`, `C.good`, `C.bad`, `C.ink`, `C.dim`, `C.edge`
   and `C.tray` for a box's outline and fill, ...).
 - `c.title`, `c.index`, `c.chapters`, `c.sentences`, `c.asset(file)`.
+- `c.G`, `c.shot(keys)`, `c.flatShot()`, `c.frameOn3(points, o)`: the 3D stage and its camera (below).
+
+A scene imports the engine as `@studio/` (`import { ease } from '@studio/kit.js'`) and three.js by
+name (`three`, `three/addons/...`); the page's import map resolves both in the renderer and on the
+desk alike. Never import the engine by an absolute `/engine/...` path: the desk serves it elsewhere.
 
 Text is named for the checks by its key (`legible`, `overlap`, `bounds`); give a shape `{box: 'name'}`
 to have it checked too (an unnamed shape isn't reported at all). A scene file that fails to load
@@ -142,6 +149,69 @@ fails a shape given no name of its own (a Remotion `Rect` without `name`, report
 `named: false`), as live reports no unnamed shape; text is named by its key (live) or its words
 (Remotion), and is checked.
 
+## The 3D stage (live)
+
+Some subjects can't be explained flat: a mechanism whose parts sit behind each other, a stack of
+layers, an orbit's inclination. For those, a live chapter can draw in 3D under its SVG, on the same
+timeline, with the same cues, legend, checks, look sheet and desk. The admission test is in
+`style.md`; everything else stays 2D. three.js is pinned in the live engine's packages (0.186.1), so
+`studio doctor --fetch` installs it and its version is in every live clip's key.
+
+- `c.G` is an immediate-mode 3D stage, like `c.S`: every call names a node by key and sets all its
+  state from `t`; a node not drawn this frame is hidden. The canvas sits under the SVG stage and
+  shows only on frames that draw in 3D, so 2D frames, the `background` and `no-band` layers and a
+  video that never asks for `c.G` are exactly as before (no WebGL context is made).
+- `G.mesh(key, kind, params, o)`: `box {size: [w, h, d]}`, `cylinder {r, h}`, `tube {r, h}` (open),
+  `sphere {r}`, `ring {r0, r1}` (flat, facing up) and `extrude {d, depth}` (an SVG path in stage
+  pixels, its outline in the x-z plane, rising from y = 0 to `depth`). Options: `at`, `rot`
+  (degrees), `scale`, `color` (a theme colour or a `c.legend` meaning's), `op`, `edges {width,
+  color}` (outlines at its creases, in pixels), `box` (a name for the checks), `means` (a legend
+  meaning), `view`. `G.line(key, points, {width, color, loop})` is a polyline in pixels;
+  `G.circle(centre, r)` gives a circle's points.
+- **The house look has no lights.** A face's tone comes from its normal against one fixed light, in
+  three steps (1, 0.8, 0.62 of its colour), so a face lit from above shows its palette colour exactly
+  (a legend colour stays the legend's), sides read darker, and a frame costs little. Outlines keep the
+  line-weight rule: outer contours heavier than inner detail, in screen pixels. There are no shadows,
+  bloom, depth of field or textures; they cost 1.4-5.8x a frame on the CPU renderer and turn one
+  legend colour into many.
+- **Shots.** A 3D camera is a shot `{target: [x, y, z], az, el, span, fov}` (world units, y up; `az`
+  0 looks along -z, `el` 90 straight down; `span` is half the view's height in world units at the
+  target, the 3D form of zoom). `c.shot([[t0, shot], [t1, shot2, 'heavy'], ...])` is one declaration
+  of keys, as `camAt` is, centred in `c.view` (below the header, above the band); between keys the
+  target, az and el ease and span and fov move in proportion. `G.camera(shot)` sets one directly.
+  The glossary names the moves: "orbit" (az), "tilt" (el), "push-in" and "pull back" (span), "pan"
+  (target), "frame on", "open into depth" and "flatten", plus "explode" for parts coming apart and
+  "projected callout" for a label on a 3D point.
+- **The bridge to 2D.** `c.flatShot()` is the top-down shot (fov 1, orthographic in all but name)
+  under which world `(x, 0, z)` lands on stage pixel `(x, z)` (`c.flatShot(camAt(...))` follows a
+  moved 2D camera). Build the SVG diagram and the 3D model in the same numbers, draw the SVG until a
+  cue and the 3D model from it, and the hand-over doesn't show (measured: 0.23 grey levels of mean
+  difference, all of it antialiasing). A dolly zoom out of it (fov up, span held) opens the diagram
+  into depth; the reverse flattens it back. `templates/live/scenes/example-3d.js` does both.
+- **Labels stay SVG.** `G.project([x, y, z])` gives a world point's stage pixels under this frame's
+  camera, so a label or callout rides with the model, stays upright and is read by every text check.
+  `G.scaleAt(point)` is pixels per world unit there, for SVG drawn to match a model.
+- `c.frameOn3(points, {az, el, fov, margin})` is "frame on" in 3D: the shot that fits world points in
+  the view. `c.kit.shotAt`, `flatShot` and `frameOn3` are the pure versions (`shared/camera3d.js`).
+- **Views.** `G.camera(shot, {view: 'name', rect: [x, y, w, h]})` gives a panel its own camera, and
+  `{view: 'name'}` on a node draws it there: two things side by side without one wide-angle camera
+  stretching both (look sheets). `G.project(point, 'name')` projects in it.
+- **Motion.** The shared helpers work on 3D values unchanged: `keyed` on a position or an angle,
+  `follow`, `settle`, `wobble`, `pulse`. Write rotations as unwrapped angles. A contact needs an ease
+  that arrives firmly (`heavy`) or at speed (`in`); `inOut` creeps into the stop and audio-check reads
+  the landing early.
+- **What the checks see.** `studio boxes` reports each named 3D node as kind `3d`: its projected
+  bounds (clipped at the near plane; `behind` when part of it is behind the camera), its colour and
+  outline as `rgb(...)`, its `means`, `camera` while the shot is moving (so `bounds` and `band` treat
+  it as a moving 2D camera's), and `visible`, the share of its pixels no opaque node covers (object
+  masks, made only for boxes, never in a render). `inframe`, `legend`, `bounds` and `band` use them
+  as they use 2D boxes; `occluded` warns when an element the narration names shows under 30%.
+- **Rendering.** WebGL runs on the CPU (SwiftShader) by default, identical frame after frame: about
+  156 ms a 3D frame at 1080p against 45 ms for a 2D one. video.json `"gl": "gpu"` renders on the
+  machine's GPU (Metal on macOS), where a 3D frame costs what a 2D one does; its pixels differ from
+  the CPU's, 2D ones included, so the backend is part of every live clip's key and of the look
+  sheet's. `studio doctor` names the renderer each backend gets.
+
 ## The look sheet (live and Remotion)
 
 `studio look-sheet VIDEO [--format F]` renders the model sheet through the video's engine, in its
@@ -156,11 +226,14 @@ or `templates/scenes/example-look.tsx`; export each element from it so the scene
 drawing. A page is drawn at t = 0 with no sentence times. A video with a colour legend (below) gets a
 `colour legend` page after the built-in ones: each meaning in its colour beside a swatch, its colour's name and value under it (live returns each page's boxes too). On Remotion the sheet is a bundle of its
 own (`src/look-entry.tsx`), so a mistake in `scenes/look.tsx` fails `look-sheet` and nothing else;
-on live a look file that fails to load is named in the error.
+on live a look file that fails to load is named in the error. A live look page may draw in 3D:
+give each item its own view (`G.camera(shot, {view, rect})`), seen flat and oblique, in each state,
+so one camera doesn't stretch the items at its edges.
 
 Output: `out/look/look-<n>.png` and `out/look/look.json` (engine, format, the page titles and files,
-whether a look file was drawn, and a key over the engine and its source, the layout, the colour
-legend, the look file and the scene files it imports), or `out/look/<format>/` for another format. `look.latest(video)`
+whether a look file was drawn, and a key over what the engine's pixels depend on (its source, its
+packages and, on live, its page and WebGL backend), the layout, the colour legend, the assets, the
+look file and the scene files it imports), or `out/look/<format>/` for another format. `look.latest(video)`
 returns that record with `stale` set when any of those changed since or video.json names another
 engine. `studio review-motion` copies the pages into its bundle (`look/`) and the reviewer judges "on
 sheet" against them; a missing or stale sheet is flagged in the bundle's manifest (`look.status`) and
@@ -268,6 +341,12 @@ motion-canvas`), and each passes its genre's checks unchanged.
 Both start their bundle or dev server on every call; Motion Canvas's first call after installing
 takes about 20 s while Vite optimises its dependencies, and is quick afterwards.
 
+The live engine's 3D stage, on an Apple M3 at 1080p (median of 30 frames, draw and capture): a 2D
+frame 35-47 ms; a 3D frame 156 ms on the CPU renderer with 4x MSAA (118 ms without), 37-46 ms on the
+GPU. Every frame of a 20 s 3D chapter rendered twice, forward and in a shuffled order, was identical
+on each backend; no frame was identical across the two. Visibility masks cost 0.6-0.8 s a `boxes`
+sample on the CPU and about 35 ms on the GPU.
+
 
 ## Setup and render diagnostics
 
@@ -277,6 +356,10 @@ installed through UV_INDEX_URL, or PIP_INDEX_URL when UV_INDEX_URL is unset. A m
 wheel must supply it; narration never calls spaCy's GitHub downloader. Doctor distinguishes a
 reachable host from HTTP access denial. Optional extras and model wheels survive subsequent
 wrapper invocations; after a pinned-kit upgrade, run the repair command printed for that kit.
+
+`studio doctor` renders a frame through the live engine's own launch (`browser launch`) and asks
+its page for the WebGL renderer the 3D stage gets (`webgl cpu`, and `webgl gpu` for a video set to
+the GPU). A browser without WebGL still draws every 2D scene, so that row only warns.
 
 A browser launch blocked from a helper script may work when the same studio command is invoked
 directly through the host's approved execution path. Inspect preserved stderr, run doctor, and

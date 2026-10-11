@@ -417,6 +417,10 @@ function startLive() {
     useClock(SilentClock(S.live.duration));
   }
   $('full').onclick = function () { wrap.requestFullscreen(); };
+  // A fresh page (after a reload) draws the current moment as soon as its scenes are loaded.
+  window.addEventListener('message', function (e) {
+    if (e.source === liveFrame.contentWindow && e.data && e.data.studioLive === 'ready') liveT = -1;
+  });
   (function draw() {
     var api = liveFrame.contentWindow && liveFrame.contentWindow.studio;
     if (api && video.currentTime !== liveT) {
@@ -446,6 +450,11 @@ if (window.EventSource) {
   events.addEventListener('scenes', function () {
     var api = liveFrame && liveFrame.contentWindow && liveFrame.contentWindow.studio;
     if (api) api.reload().then(function () { liveT = -1; if (S) load(cutN); });
+  });
+  // A module the scenes import, or the engine itself, changed: only a fresh page loads it. The draw
+  // loop finds the new page's api and draws the same moment.
+  events.addEventListener('page', function () {
+    if (liveFrame) { liveFrame.contentWindow.location.reload(); liveT = -1; }
   });
 } else {
   setInterval(onCut, 5000);

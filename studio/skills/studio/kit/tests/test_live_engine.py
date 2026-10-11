@@ -236,3 +236,136 @@ export default function draw(c) {
         for meaning in legend:
             a, b = by[f"legend {meaning}"], by[f"legend colour {meaning}"]
             assert a["y"] + a["h"] <= b["y"] + 1 or a["x"] + a["w"] <= b["x"], (fmt, meaning)
+
+
+# --- the 3D stage --------------------------------------------------------------------------------
+
+needs_3d = pytest.mark.skipif(not (engine_dir("live") / "node_modules" / "three").is_dir(), reason="three.js is not installed")
+
+SCENE_3D = """
+export default function draw(c) {
+  const { S, G, t, W, kit } = c
+  const cy = c.view[1] + c.view[3] / 2
+  const side = { target: [W / 2, -40, cy], az: -25, el: 30, span: 300, fov: 30 }
+  c.shot([[0.5, c.flatShot()], [1.0, side, 'heavy']])
+  if (t < 0.5) {
+    S.rect('slab', W / 2 - 200, cy - 100, 400, 200, { fill: kit.C.bg3, stroke: kit.C.edge, sw: 3, r: 0, box: 'slab' })
+    return
+  }
+  G.mesh('slab', 'box', { size: [400, 12, 200] }, { at: [W / 2, -6, cy], color: kit.C.bg3, edges: { width: 3, color: kit.C.edge }, box: 'slab' })
+  G.mesh('gear', 'cylinder', { r: 30, h: 20 }, { at: [W / 2, -40, cy], color: c.legend.gear, means: 'gear', box: 'gear' })
+  G.mesh('pin', 'sphere', { r: 20 }, { at: [W / 2 + 120, 40, cy], color: kit.C.hot, box: 'pin' })
+  const [x, y] = G.project([W / 2 + 200, 0, cy])
+  S.text('label slab', x + 30, y, 'slab', { size: 28 })
+}
+"""
+
+
+def video_3d(tmp_path, scene=SCENE_3D, seconds=2.0, cues=None):
+    (tmp_path / "scenes").mkdir()
+    (tmp_path / "scenes" / "s1.js").write_text(scene)
+    narration = [{"id": "s1_01", "clip": "s1", "text": "The gear turns under the slab.", "caption": "The gear turns under the slab.",
+                  "paragraph": 0, "start": 0.3, "end": 1.6, "words": []}]
+    t = {"version": 1, "fps": 30, "duration": seconds, "cues": cues or {},
+         "tracks": {"scene": [{"id": "s1", "engine": "live", "title": "One", "start": 0.0, "end": seconds}],
+                    "narration": narration, "captions": tl.chunk_captions(narration), "audio": []}}
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": {"gear": "cold"}}))
+    return t
+
+
+def rgba(path):
+    from studio_kit import proc
+    return proc.ffmpeg("-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24", "-", capture_output=True).stdout
+
+
+@needs_engine
+@needs_3d
+def test_a_flat_diagram_opens_into_depth_without_a_jump_and_its_3d_elements_are_reported(tmp_path):
+    """The SVG diagram and the 3D model built in the same numbers meet on the handover frame: the frame
+    before it (SVG) and the frame of it (WebGL, the flat shot) differ only by antialiasing. The 3D
+    boxes carry their palette colour, legend meaning, camera state and visible share."""
+    video_3d(tmp_path)
+    e = Engine(tmp_path)
+    e.stills([{"clip": "s1", "t": 14 / 30, "out": tmp_path / "svg.png"}, {"clip": "s1", "t": 15 / 30, "out": tmp_path / "gl.png"}])
+    a, b = rgba(tmp_path / "svg.png"), rgba(tmp_path / "gl.png")
+    assert len(a) == len(b) and sum(abs(x - y) for x, y in zip(a, b)) / len(a) < 0.5
+    frames = e.boxes_at([{"clip": "s1", "t": 0.75}, {"clip": "s1", "t": 1.5}])
+    moving, held = ({b["name"]: b for b in f["boxes"]} for f in frames)
+    assert moving["slab"]["kind"] == "3d" and moving["slab"]["camera"] is True and held["slab"]["camera"] is False
+    assert held["gear"]["fill"] == "rgb(143, 211, 255)" and held["gear"]["means"] == "gear" and held["slab"]["stroke"] == "rgb(201, 211, 221)"
+    assert held["gear"]["visible"] == 0 and held["pin"]["visible"] > 0.95 and held["slab"]["visible"] > 0.95
+    assert held["label slab"]["kind"] == "text"                    # labels stay SVG text, which the checks read
+
+
+@needs_engine
+@needs_3d
+def test_3d_frames_are_the_same_in_any_order_and_the_background_layer_hides_the_canvas(tmp_path):
+    video_3d(tmp_path)
+    e = Engine(tmp_path)
+    times = [1.5, 0.75, 1.2, 0.2]
+    digests = []
+    for order in (times, times[::-1]):
+        batch = [{"clip": "s1", "t": t, "out": tmp_path / f"{len(digests)}-{t}.png"} for t in order]
+        e.stills(batch)
+        digests.append({r["t"]: hashlib.sha256(rgba(r["out"])).hexdigest() for r in batch})
+    assert digests[0] == digests[1]
+    e.stills([{"clip": "s1", "t": 1.5, "out": tmp_path / "bg3d.png", "layers": "background"},
+              {"clip": "s1", "t": 0.2, "out": tmp_path / "bg2d.png", "layers": "background"}])
+    assert rgba(tmp_path / "bg3d.png") == rgba(tmp_path / "bg2d.png")
+
+
+@needs_engine
+@needs_3d
+def test_occluded_warns_about_a_narrated_part_the_model_hides(tmp_path):
+    from studio_kit import check
+    video_3d(tmp_path)
+    rows = check.occluded(tmp_path, engine=Engine(tmp_path))
+    assert any("'gear' (0% visible)" in r["detail"] for r in rows)
+    assert not any("'slab'" in r["detail"] for r in rows)
+
+
+@needs_engine
+@needs_3d
+def test_the_template_3d_chapter_draws_through_its_cues(tmp_path):
+    from studio_kit.env import ROOT
+    scene = (ROOT / "templates" / "live" / "scenes" / "example-3d.js").read_text()
+    scene = scene.replace("{{opens into depth}}", "open").replace("{{flattens again}}", "close")
+    video_3d(tmp_path, scene, seconds=6.0, cues={"open": 1.0, "close": 4.0})
+    e = Engine(tmp_path)
+    assert len(e.stills([{"clip": "s1", "t": t, "out": tmp_path / f"{t}.png"} for t in (0.5, 3.0, 5.6)])["stills"]) == 3
+    names = {b["name"] for b in e.boxes("s1", 3.0)["boxes"]["boxes"]}
+    assert {"layer {{top layer}}", "layer {{bottom layer}}", "label0:txt"} <= names
+
+
+@needs_engine
+@needs_3d
+def test_doctor_names_the_webgl_renderer_the_3d_stage_gets():
+    from studio_kit import doctor
+    level, name, detail, _ = doctor.check_webgl()
+    assert (level, name) == ("ok", "webgl cpu") and "WebGL 2.0" in detail and "three r" in detail
+
+
+@needs_engine
+@needs_3d
+def test_a_view_of_its_own_draws_an_item_in_its_panel(tmp_path):
+    """Two items side by side, each in a view with its own camera (a look sheet's items): each one's
+    box lies in its panel, and a node in a view nobody pointed a camera at fails, naming the view."""
+    scene = """
+export default function draw(c) {
+  const { G, kit } = c
+  const shot = { target: [0, 0, 0], az: -20, el: 30, span: 160, fov: 30 }
+  G.camera(shot, { view: 'left', rect: [0, 0, 960, 920] })
+  G.camera(shot, { view: 'right', rect: [960, 0, 960, 920] })
+  G.mesh('a', 'box', { size: [120, 120, 120] }, { view: 'left', color: kit.C.hot, box: 'cube left' })
+  G.mesh('b', 'box', { size: [120, 120, 120] }, { view: 'right', color: kit.C.cold, box: 'cube right' })
+  if (c.t > 1) G.mesh('c', 'box', { size: [10, 10, 10] }, { view: 'nowhere' })
+}
+"""
+    video_3d(tmp_path, scene)
+    boxes = {b["name"]: b for b in Engine(tmp_path).boxes("s1", 0.5)["boxes"]["boxes"]}
+    left, right = boxes["cube left"], boxes["cube right"]
+    assert 0 < left["x"] and left["x"] + left["w"] < 960 and 960 < right["x"] and right["x"] + right["w"] < 1920
+    assert right["x"] - left["x"] == pytest.approx(960, abs=1) and right["w"] == pytest.approx(left["w"], abs=0.5)
+    with pytest.raises(EngineError, match="no camera for the view \"nowhere\""):
+        Engine(tmp_path).still("s1", 1.5, tmp_path / "x.png")

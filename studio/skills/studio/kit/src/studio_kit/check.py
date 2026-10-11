@@ -12,6 +12,9 @@
   inframe      the element being narrated stays in frame (in_frame): at each sentence's sample, a named
                element whose label the sentence or its screen note says lies inside the visible stage,
                below the layout's header and above the band. A warning: the match is by name
+  occluded     the element being narrated can be seen (occluded): a named 3D element the sentence says, at
+               its check samples and at each event of the beat sheet, shows at least 30% of its pixels
+               (the live engine's boxes report each 3D element's visible share). A warning, as inframe
   pacing       after a significant move the stage holds at least 0.5 s before the next (motion.pacing): read
                from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
                samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
@@ -26,7 +29,7 @@
 Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
 Incremental by default: the per-chapter checks (length, determinism, bounds, band, contrast,
-legible, overlap, pacing) re-run only for chapters whose clip key changed since they last passed
+legible, overlap, pacing, inframe, occluded) re-run only for chapters whose clip key changed since they last passed
 there; a pass is remembered per chapter, check and format in .cache/check/ (a warning is a pass; a
 pacing check skipped for want of a rendered clip runs again once a cut renders one). A warning is
 remembered with its pass and printed again by each check that skips the chapter, until the chapter
@@ -54,7 +57,7 @@ SIDE_MARGIN = 80                         # px kept free either side of a caption
 SLACK = 1.0                              # px of tolerance on box edges
 
 
-PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing", "inframe")
+PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing", "inframe", "occluded")
 OVERLAP = 0.3                            # share of the smaller text box another text box may cover
 
 
@@ -186,12 +189,41 @@ def _said(text):
 
 def narrated(name, words):
     """Whether an element named `name` is what `words` (a sentence's, lowercased) talk about: its label's
-    words appear together, in order. Labels of small words only, or under three letters, never match."""
+    words appear together, in order, each as said or with a plural ending ("head" in "heads"). A number
+    ending the label counts one of several ("head 2" is a head, "every head lands" names it). Labels of
+    small words only, or under three letters, never match."""
     label = next((name[len(k):] for k in KINDS if name.startswith(k)), name)
     want = _said(label)
+    while len(want) > 1 and want[-1].isdigit():
+        want = want[:-1]
     if name in NOT_LABELS or not want or len("".join(want)) < 3 or set(want) <= SMALL_WORDS:
         return False
-    return any(words[i:i + len(want)] == want for i in range(len(words) - len(want) + 1))
+    same = lambda said, w: said in (w, w + "s", w + "es")
+    return any(all(same(s, w) for s, w in zip(words[i:i + len(want)], want)) for i in range(len(words) - len(want) + 1))
+
+
+class Narration:
+    """What each sentence says, with its screen note (boards/notes.json), for the checks that ask
+    whether an element on screen is the one being narrated (in_frame, occluded)."""
+
+    def __init__(self, video, t, samples):
+        self.entries = {s["id"]: s for s in t["tracks"]["narration"]}
+        notes_file = Path(video) / "boards" / "notes.json"
+        self.notes = json.loads(notes_file.read_text()) if notes_file.exists() else {}
+        self.sample = {(m["clip"], round(m["t"], 3)): m["sentence"] for m in moments.check_samples(t, samples) if m.get("sentence")}
+
+    def at_sample(self, f):
+        """The sentence a check sample (a boxes frame) was taken at the end of, or None."""
+        return self.sample.get((f["clip"], round(f["t"], 3)))
+
+    def spoken_at(self, time):
+        """The sentence being spoken at a video time, or the last one before it (its picture may still
+        be on screen), or None before the first."""
+        before = [s for s in self.entries.values() if s["start"] <= time]
+        return max(before, key=lambda s: s["start"])["id"] if before else None
+
+    def words(self, sid):
+        return _said(" ".join([self.entries.get(sid, {}).get("text", ""), self.notes.get(sid, "")]))
 
 
 def in_frame(video, samples=3, engine=None, boxes=None):
@@ -203,17 +235,13 @@ def in_frame(video, samples=3, engine=None, boxes=None):
     t = tl.load(video)
     lay, frames = boxes or _boxes(video, samples, engine)
     W, band, header = lay["width"], lay["height"] - lay["band"]["height"], (lay.get("header") or {}).get("height", 0)
-    sentence = {(m["clip"], round(m["t"], 3)): m["sentence"] for m in moments.check_samples(t, samples) if m.get("sentence")}
-    entries = {s["id"]: s for s in t["tracks"]["narration"]}
-    notes_file = Path(video) / "boards" / "notes.json"
-    notes = json.loads(notes_file.read_text()) if notes_file.exists() else {}
+    said = Narration(video, t, samples)
     rows = []
     for f in frames:
-        sid = sentence.get((f["clip"], round(f["t"], 3)))
+        sid = said.at_sample(f)
         if sid is None:
             continue
-        e = entries.get(sid, {})
-        words = _said(" ".join([e.get("text", ""), notes.get(sid, "")]))
+        words = said.words(sid)
         bad = {}
         for b in f["boxes"]:
             if b.get("opacity", 1) < 0.05 or b["w"] <= 2 or b["h"] <= 2 or not narrated(b["name"], words):
@@ -230,6 +258,40 @@ def in_frame(video, samples=3, engine=None, boxes=None):
         detail = (f"{sid} narrates " + "; ".join(bad.values()) + " outside the visible stage") if bad else ""
         rows.append({"check": "inframe", "clip": f["clip"], "t": f["t"], "ok": True, "detail": detail,
                      **({"severity": "warning"} if bad else {})})
+    return rows
+
+
+OCCLUDED = 0.3         # the share of a narrated 3D element's pixels that must show
+
+
+def occluded(video, samples=3, engine=None, boxes=None, clips=None):
+    """A named 3D element the narration names can be seen: at each sentence's check sample, and at each
+    event of the beat sheet (two frames after its cue, against the sentence spoken then), an element
+    the sentence (or its screen note) names shows at least OCCLUDED of its pixels, the rest hidden by
+    nearer geometry. The live engine's 3D stage reports each named element's visible share; other
+    engines report none, and there is nothing to check. A warning, as in_frame: the match is by name."""
+    engine = engine or Engine(video)
+    t = tl.load(video)
+    _, frames = boxes or _boxes(video, samples, engine, clips)
+    said = Narration(video, t, samples)
+    looks = [(f, said.at_sample(f), None) for f in frames]
+    if getattr(engine, "name", None) == "live":
+        found = moments.events(t, clips)
+        if found:
+            for m, f in zip(found, engine.boxes_at(moments.requests(found))):
+                looks.append((f, said.spoken_at(m["time"]), m["label"]))
+    rows = []
+    for f, sid, event in looks:
+        if sid is None:
+            continue
+        words = said.words(sid)
+        hidden = sorted({f"{b['name']!r} ({b['visible']:.0%} visible)" for b in f["boxes"]
+                         if b.get("kind") == "3d" and "visible" in b and b.get("opacity", 1) >= 0.05
+                         and b["visible"] < OCCLUDED and narrated(b["name"], words)})
+        where = f"at {event}, " if event else ""
+        detail = f"{where}{sid} narrates " + "; ".join(hidden) + " hidden behind other geometry" if hidden else ""
+        rows.append({"check": "occluded", "clip": f["clip"], "t": f["t"], "ok": True, "detail": detail,
+                     **({"severity": "warning"} if hidden else {})})
     return rows
 
 
@@ -342,7 +404,7 @@ def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
 MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), "
-        "inframe (the narrated element stays in frame), legend (one colour, one meaning; with video.json legend), "
+        "inframe (the narrated element stays in frame), occluded (a narrated 3D element is not hidden), legend (one colour, one meaning; with video.json legend), "
         "provenance (assets used are recorded), dead and loop (motion)")
 
 
@@ -426,9 +488,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     default = only is None
     extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
-    always = ("legible", "overlap", "pacing", "inframe", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    always = ("legible", "overlap", "pacing", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "occluded", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -461,10 +523,12 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if "determinism" in only:
         rows += determinism(video, samples, engine, clips)
     boxes = None
-    if only & {"bounds", "band", "legible", "overlap", "inframe"}:
+    if only & {"bounds", "band", "legible", "overlap", "inframe", "occluded"}:
         boxes = _boxes(video, samples, engine, clips)
         if "inframe" in only:
             rows += in_frame(video, samples, engine, boxes)
+        if "occluded" in only:
+            rows += occluded(video, samples, engine, boxes, clips)
         if "overlap" in only:
             rows += overlap(video, samples, engine, boxes)
         if "legible" in only:

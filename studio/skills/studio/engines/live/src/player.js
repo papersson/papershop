@@ -9,6 +9,10 @@
 //
 // The context `c` a scene gets, all times in clip seconds:
 //   S                the stage (rect, circle, text, line, path, strike, callout, blur, el, cam)
+//   G                the 3D stage under it (stage3d.js), made the first time a scene asks for it
+//   shot(keys, e)    point G's camera along 3D shot keys [time, {target, az, el, span, fov}, ease?] at t,
+//                    centred in the view; flatShot() is the top-down shot that matches the 2D stage, and
+//                    frameOn3(points, {az, el, fov}) a shot that fits world points (shared/camera3d.js)
 //   t, dur           time in the clip and the clip's length
 //   W, H, unit       the stage above the caption band, in pixels; unit = H / 8 (the other engines' unit)
 //   header, view     the strip at the stage's top that framing keeps clear (layout.json header.height,
@@ -23,9 +27,11 @@
 //   clip, index, chapters, timeline, layout, asset(file)
 
 import { Stage } from './stage.js'
+import { Stage3D } from './stage3d.js'
 import * as kit from './kit.js'
 import { PAGES, LEGEND_PAGE } from './look.js'
 import { captionLines, clipTimes, frameOf } from '../../shared/timing.js'
+import { flatShot, frameOn3, shotAt } from '../../shared/camera3d.js'
 
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
 
@@ -66,7 +72,7 @@ async function exists(url) {
   return r.ok
 }
 
-export async function boot({ svg, video, layout: layoutUrl }) {
+export async function boot({ svg, canvas, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
   let T, L, scenes, overlay, boards, notes, legend, colours, version = 0
 
@@ -91,12 +97,28 @@ export async function boot({ svg, video, layout: layoutUrl }) {
 
   const stage = new Stage(svg, { width: L.width, height: L.height })
   const bandTop = () => L.height - L.band.height
+  const viewOf = () => [0, L.header?.height ?? 0, L.width, bandTop() - (L.header?.height ?? 0)]
+  // The 3D stage is made on first use, so a video that draws nothing in 3D never makes a WebGL context.
+  let stage3d = null
+  const G = () => {
+    if (!stage3d) (stage3d = new Stage3D(canvas, { width: L.width, height: L.height })).begin(viewOf())
+    return stage3d
+  }
+  /** Every stage runs the same frame: begin before the scene draws, end after (end renders the 3D stage). */
+  function begin() {
+    stage.begin()
+    stage3d?.begin(viewOf())
+  }
+  function end() {
+    stage3d?.end()
+    stage.end()
+  }
 
   /** What scenes and look pages share: the stage, its size, the header and the camera helpers, at clip time t. */
   function frameContext(t) {
     const H = bandTop(), header = L.header?.height ?? 0
     return {
-      S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: [0, header, L.width, H - header], layout: L,
+      S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: viewOf(), layout: L,
       legend: colours,
       // S.cam centres the whole frame; a key's point goes to the middle of the view instead.
       camAt: (keys, e) => {
@@ -105,6 +127,10 @@ export async function boot({ svg, video, layout: layoutUrl }) {
         return k
       },
       frameOn: (region, o) => kit.frameOn(region, [L.width, H - header], o),
+      get G() { return G() },
+      shot: (keys, e) => G().camera(shotAt(t, keys, e)),
+      flatShot: (cam2d = { x: L.width / 2, y: (header + H) / 2, z: 1 }, o) => flatShot(cam2d, H - header, o),
+      frameOn3: (points, o) => frameOn3(points, [L.width, L.height], viewOf(), o),
       asset: file => `${base}assets/${file}`,
     }
   }
@@ -181,8 +207,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     const { first, frames } = clipRange(clip)
     const frame = Math.min(frames - 1, Math.max(0, f))
     const t = frame / T.fps
-    stage.begin()
-    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'back' })
+    begin()
     let error = null
     if (layers !== 'background') {
       const c = context(clip, t)
@@ -195,7 +220,12 @@ export async function boot({ svg, video, layout: layoutUrl }) {
       }
       if (layers !== 'no-band') band((first + frame) / T.fps, layers === 'all')
     }
-    stage.end()
+    try {
+      end()
+    } catch (e) {
+      error ??= `${clip} at ${t.toFixed(3)} s (3D): ${e && e.stack ? e.stack : e}`
+      stage.end()
+    }
     return error ? { error } : { clip, frame, t }
   }
 
@@ -221,8 +251,7 @@ export async function boot({ svg, video, layout: layoutUrl }) {
 
   /** Draw look-sheet page n (0-based) with the band showing `caption` (lines); {error} when it throws. */
   function look(n, caption = [], titles = []) {
-    stage.begin()
-    stage.rect('background', 0, 0, L.width, L.height, { fill: 'var(--bg)', r: 0, layer: 'back' })
+    begin()
     const pages = builtIn()
     const c = { ...frameContext(0), dur: 0, C: kit.C, page: n - pages.length, declared: legend }
     let error = null
@@ -236,13 +265,20 @@ export async function boot({ svg, video, layout: layoutUrl }) {
     // The page's name, in the band's corner: on the stage it would sit where a scene's header goes.
     stage.text('look:tag', L.width - 24, L.height - 26, `LOOK ${n + 1}/${titles.length || n + 1}  ${titles[n] ?? ''}`.trim(),
       { size: 18, fill: 'var(--faint)', anchor: 'end', weight: 600, box: 'look tag', layer: 'ui' })
-    stage.end()
+    try {
+      end()
+    } catch (e) {
+      error ??= `look page ${n + 1} (3D): ${e && e.stack ? e.stack : e}`
+      stage.end()
+    }
     return error ? { error } : { page: n + 1 }
   }
 
   return {
     draw, drawAt, lookPages, look,
-    boxes: () => ({ band: { y: bandTop(), h: L.band.height }, boxes: stage.boxes() }),
+    boxes: () => ({ band: { y: bandTop(), h: L.band.height }, boxes: [...stage.boxes(), ...(stage3d?.boxes() ?? [])] }),
+    /** The WebGL renderer this page uses (doctor prints it); makes the 3D stage if no scene has. */
+    gl: () => G().info(),
     info: () => ({ fps: T.fps, width: L.width, height: L.height, duration: T.duration,
       clips: T.tracks.scene.map(c => ({ id: c.id, ...clipRange(c.id), c: undefined, hasScene: !!scenes[c.id] })) }),
     reload: load,

@@ -10,6 +10,11 @@
 //   node cli.mjs boxesAt  --video DIR --requests JSON
 //   node cli.mjs duration --video DIR --clip ID
 //   node cli.mjs look     --video DIR --out DIR [--caption JSON]   the look sheet: look-<n>.png per page, with its boxes
+//   node cli.mjs gl       --video DIR       the browser and the WebGL renderer the 3D stage gets (doctor prints it)
+//
+// Every operation takes --gl cpu|gpu (video.json gl, passed by the kit): WebGL on SwiftShader, Chrome's
+// CPU renderer (the default: identical frames run after run), or on this machine's GPU (fast, but its
+// pixels differ from the CPU's, 2D ones included, so the kit keys clips on it).
 //
 // A scene that throws fails the call with the clip, the time and the error (the kit's EngineError).
 import { chromium } from 'playwright-core'
@@ -27,6 +32,12 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
   '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp' }
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
+// Chrome's flags per WebGL backend. --enable-unsafe-swiftshader keeps the CPU renderer Chrome has been
+// retiring as an automatic fallback; on macOS the GPU is Metal through ANGLE.
+const GL = {
+  cpu: ['--disable-gpu', '--enable-unsafe-swiftshader'],
+  gpu: process.platform === 'darwin' ? ['--use-gl=angle', '--use-angle=metal', '--enable-gpu'] : ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist'],
+}
 
 const [op, ...rest] = process.argv.slice(2)
 const opt = {}
@@ -77,7 +88,9 @@ async function withPage(video, fn) {
   const server = await serve(video)
   const port = server.address().port
   const lay = layoutOf(video)
-  const browser = await chromium.launch({ executablePath: opt.browser || undefined, args: ['--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1'] })
+  const gl = GL[opt.gl ?? 'cpu']
+  if (!gl) throw new Error(`--gl ${opt.gl}: expected ${Object.keys(GL).join(' or ')}`)
+  const browser = await chromium.launch({ executablePath: opt.browser || undefined, args: [...gl, '--hide-scrollbars', '--force-device-scale-factor=1'] })
   try {
     const page = await browser.newPage({ viewport: { width: lay.width, height: lay.height }, deviceScaleFactor: 1 })
     page.on('console', m => (process.env.STUDIO_DEBUG || m.type() === 'error') && log('page', m.type() + ':', m.text()))
@@ -86,7 +99,7 @@ async function withPage(video, fn) {
     await page.waitForFunction(() => window.studioReady || window.studioError, null, { timeout: 120_000 })
     const err = await page.evaluate(() => window.studioError)
     if (err) throw new Error(err)
-    return await fn(page)
+    return await fn(page, browser)
   } finally {
     await browser.close()
     server.close()
@@ -194,6 +207,7 @@ const ops = {
   boxesAt: () => boxesAt(opt.video, JSON.parse(readFileSync(opt.requests, 'utf8'))),
   duration: async () => duration(opt.video, opt.clip),
   look: () => look(opt.video, path.resolve(opt.out), opt.caption),
+  gl: () => withPage(opt.video, async (page, browser) => ({ backend: opt.gl ?? 'cpu', browser: browser.version(), ...await page.evaluate(() => window.studio.gl()) })),
 }
 if (!ops[op]) {
   log(`unknown op ${op}; expected one of ${Object.keys(ops).join(', ')}`)

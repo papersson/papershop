@@ -7,12 +7,23 @@
 <link rel="stylesheet" href="./node_modules/@fontsource/ibm-plex-mono/400.css">
 <link rel="stylesheet" href="./node_modules/@fontsource/ibm-plex-mono/500.css">
 <link rel="stylesheet" href="./src/theme.css">
+<!-- Scenes import the engine as @studio/ and three.js by name; these resolve against this page, so the
+     same imports work in the renderer (/engine/) and on the desk (/live/engine/). -->
+<script type="importmap">{"imports": {
+  "@studio/": "./src/",
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/"
+}}</script>
 <style>
 
 html, body { margin: 0; background: var(--bg); overflow: hidden; }
-svg { display: block; width: 100vw; height: 100vh; }
+/* The page paints the background; the 3D canvas (hidden unless a frame draws in 3D) sits under the SVG stage. */
+svg, canvas#gl { position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; }
+svg { display: block; }
+canvas#gl { display: none; }
 </style></head>
 <body>
+<canvas id="gl"></canvas>
 <svg id="stage" xmlns="http://www.w3.org/2000/svg"><defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
     <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs></svg>
@@ -20,7 +31,7 @@ svg { display: block; width: 100vw; height: 100vh; }
 // Query: video=<base URL of the video folder>, layout=<URL of layout.json>. Exposes window.studio.
 import { boot } from './src/player.js'
 const q = new URLSearchParams(location.search)
-boot({ svg: document.getElementById('stage'), video: q.get('video'), layout: q.get('layout') })
+boot({ svg: document.getElementById('stage'), canvas: document.getElementById('gl'), video: q.get('video'), layout: q.get('layout') })
   .then(api => { window.studio = api; window.studioReady = true; if (q.get('play')) parent.postMessage({ studioLive: 'ready' }, '*') })
   .catch(e => { window.studioError = String(e && e.stack ? e.stack : e); console.error(e) })
 </script>

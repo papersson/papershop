@@ -16,6 +16,7 @@ note arrives, so a builder running it in the background is woken by each note.
 `studio notes VIDEO` folds the log into the current notes for a cut; review/status.json is the
 builder's status line ({text, busy}), written by `studio status`.
 """
+import hashlib
 import json
 import mimetypes
 import re
@@ -245,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
             f = self.video / "layout.json"
         elif rel.startswith("video/"):
             sub = rel[len("video/"):]
-            ok = sub in ("timeline.json", "layout.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
+            ok = sub in ("timeline.json", "layout.json", "video.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
             f = self.video / sub if ok else None
         else:
             f = None
@@ -281,23 +282,23 @@ class Handler(BaseHTTPRequestHandler):
 
     def _events(self):
         """Server-sent events: `notes` when the log changes, `status` when the builder's status line
-        does, `cut` when a newer cut lands, `scenes` when a live scene, the timeline or the boards
-        change (the page redraws in place). Polled twice a second; a comment line keeps it open."""
+        does, `cut` when a newer cut lands, `scenes` when what the live page reloads in place changes
+        (live_inputs), and `page` when anything else it imports does, which reloads the page at the
+        same moment. Polled twice a second; a comment line keeps it open."""
+        def stamp(f):
+            return f.stat().st_mtime_ns if f.exists() else 0
+
+        def now_state():
+            in_place, page = live_inputs(self.video)
+            return {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
+                    "cut": render.latest_cut(self.video), "scenes": inventory(in_place), "page": inventory(page)}
+        # The state is taken before the client hears it is subscribed: a note it adds the moment the
+        # headers arrive must count as new.
+        seen = now_state()
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-
-        def stamp(f):
-            return f.stat().st_mtime_ns if f.exists() else 0
-        def scenes():
-            files = [self.video / "timeline.json", *(self.video / "scenes").glob("*.js"), *(self.video / "boards").glob("*.json")]
-            return max((stamp(f) for f in files), default=0)
-
-        def now_state():
-            return {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
-                    "cut": render.latest_cut(self.video), "scenes": scenes()}
-        seen = now_state()
         try:
             while True:
                 time.sleep(0.5)
@@ -326,6 +327,39 @@ class Handler(BaseHTTPRequestHandler):
             notes, _ = fold(read_log(self.video), cut)
             return self._json(append(self.video, {"type": "round", "cut": cut, "notes": [n["id"] for n in notes]}))
         self._send(404, b"not found", "text/plain")
+
+
+def live_inputs(video):
+    """The files the desk's live page reads, in two groups: what it reloads in place (each chapter's
+    and the overlay's scene file, which it imports afresh, and the JSON it fetches: timeline, boards,
+    layout, video.json), and what only a fresh page picks up (the modules those scenes import, which a
+    browser keeps by URL, anything else under scenes/, and the engine's own files)."""
+    from .env import engine_dir
+    video = Path(video)
+    scenes = video / "scenes"
+    try:
+        clips = {c["id"] for c in json.loads((video / "timeline.json").read_text())["tracks"]["scene"]}
+    except (OSError, ValueError, KeyError):
+        clips = set()
+    owned = {scenes / f"{c}.js" for c in clips} | {scenes / "overlay.js"}
+    in_place = [video / "timeline.json", video / "layout.json", video / "video.json", *(video / "boards").glob("*.json"),
+                *(f for f in owned if f.is_file())]
+    page = [f for f in sorted(scenes.rglob("*")) if f.is_file() and f not in owned] if scenes.is_dir() else []
+    live = engine_dir("live")
+    page += [live / "render.html", *sorted((live / "src").rglob("*")), *sorted(engine_dir("shared").rglob("*"))]
+    return in_place, page
+
+
+def inventory(files):
+    """A stamp for a set of files that changes when one is edited, added or removed (a newest
+    modification time alone misses a deletion, or a file restored with an older time)."""
+    def entry(f):
+        try:
+            st = f.stat()
+        except OSError:            # removed since it was listed
+            return f"{f}:gone"
+        return f"{f}:{st.st_mtime_ns}:{st.st_size}"
+    return hashlib.sha1("\n".join(entry(f) for f in files).encode()).hexdigest()
 
 
 PORT = 8765

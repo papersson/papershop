@@ -44,7 +44,9 @@ engine a cut is for the record and the publish gate, not for the user to see the
      "overshoot" (`ease.back`), "follow-through" (`follow`), "settle" (`settle`) and "wobble"
      (`wobble`). The camera's terms are "push-in", "pull back", "pan" and "frame on": each is a
      camera key list (`c.camAt` in live, `<Camera keys>` in Remotion), "frame on" a key from
-     `c.frameOn(region)` / `frameOn(stage, region)`. A move the glossary lacks: make it, and add the term to
+     `c.frameOn(region)` / `frameOn(stage, region)`. In a 3D chapter (live only) they are shot keys
+     (`c.shot`), joined by "orbit", "tilt", "open into depth", "flatten", "explode" and "projected
+     callout". A move the glossary lacks: make it, and add the term to
      `engines/live/src/glossary.json` with a demo in `glossary.js`;
    - a note on timing at a contact ("the thud is early"): move the event in `cues.json`, which moves
      its picture, its effect and its still together (`studio timeline VIDEO --events` lists them).

@@ -555,3 +555,62 @@ flat voice and an unchecked colour legend as the next gaps.
   below half opacity is not a misuse. The kit tags its own accent states, so a legend that follows
   style.md passes the kit's components; editing the legend re-keys live clips, and elements below
   half opacity are not counted.
+
+## 3D inside the live engine (0.11.0)
+
+The user asked for 3D that sits coherently next to the 2D explainers rather than as a gimmick. A spike
+(a 20 s narrated chapter: a hard-disk platter drawn flat, tilted into a stack of four, the arm landing
+on one cue, the cylinder lighting, back to flat) settled the shape before anything was built.
+
+- **3D earns its place by a sentence.** "The viewer needs to see ___, and the flat diagram hides it."
+  The spike's subject passed: "cylinder" means nothing until the stack is seen. Most of what studio
+  explains (code, flows, maps, tables) fails it, and stays 2D. The test is in style.md.
+- **One engine, one timeline: a stage under the SVG, not a second engine.** A separate 3D engine
+  would rebuild the lifecycle, boxes, look sheet, desk and cache, and one engine per video would
+  stop a chapter moving between flat and 3D, which is the point. The live engine gained `c.G`, an
+  immediate-mode three.js stage built like the SVG one (keyed nodes, all state from `t`, undrawn
+  nodes hidden), on a canvas under the SVG made the first time a scene asks for it; a 2D video
+  never makes a WebGL context. To make room for it the page now paints the background, which the
+  SVG stage drew as a full-frame rect; every 2D frame is the same as before.
+- **The flat diagram is the model seen from above.** Camera maths live in `shared/camera3d.js`
+  (shots `{target, az, el, span, fov}`, keyed as the 2D camera is), and the 3D stage loads its
+  matrices as they are, so SVG projected through the same numbers lands on WebGL's pixels.
+  `c.flatShot()` makes world `(x, 0, z)` the stage's pixel `(x, z)`: the hand-over between an SVG
+  diagram and its model measured 0.23 grey levels of mean difference, all antialiasing, once faces
+  sat a little behind their own outlines (a face had been winning the depth test against the line on
+  its edge, halving the rim). A diorama with the diagram painted onto a surface was considered and
+  left out: an SVG texture is asynchronous to make, blurs up close, and hides its text from the checks.
+- **No lights.** Faces take three tones of their palette colour from one fixed house light, so a lit
+  face shows the legend colour exactly (11,056 pixels of exactly `#8FD3FF` in a 3D frame) and a
+  washed-out grade can't happen. Shadows, bloom and depth of field cost 214, 292 and 667 ms a frame on
+  the CPU renderer against 156 for the house look, and none of them explains anything.
+- **CPU WebGL by default, the GPU on request, and the backend in the keys.** Studio's renderer runs
+  Chrome with `--disable-gpu`, which gives WebGL 2 on SwiftShader: 599 of 599 frames identical across
+  runs and render orders, at 156 ms a 3D frame against 45 for 2D. On Metal a 3D frame costs what a 2D
+  one does and is just as repeatable, but no frame matched the CPU's, 2D ones included (the GPU
+  rasterises SVG differently too). The spike reused a GPU-rendered clip for a CPU cut because the
+  backend wasn't in the key; now `render.engine_inputs` hashes the live engine's page and CLI, the
+  video's `gl` and the browser for both the clip keys and the look sheet's key (which hadn't hashed
+  the lock file either).
+- **The checks see 3D.** Named 3D nodes are reported like SVG ones, with projected bounds, colours,
+  meaning and `camera` while the shot moves, so `bounds`, `band`, `inframe` and `legend` work unchanged.
+  They also report `visible`, from object masks made only for boxes. The spike's first layout had seven
+  of eight heads invisible under "every head lands": a frame review might miss that, a measurement
+  doesn't. `occluded` warns at a sentence's samples and at each event; the name match learned that "head
+  2" is one of the heads a sentence names.
+- **Labels stay SVG**, on points projected from the model: upright, legible and read by every text
+  check. SDF text in 3D was left out.
+- **The desk reloads a fresh page when a module changes.** It re-imported chapter files in place, but a
+  browser keeps an imported module by URL, so an edited helper (or the engine) showed stale. It now
+  watches two groups and reloads the page for the second; it also serves video.json, so the legend on
+  the desk is the render's. Scenes import the engine as `@studio/`: an absolute `/engine/` import, as
+  `kit.js` once suggested, worked in the renderer and failed on the desk.
+- **Sound needs no new clock.** audio-check judged the landing's `land` tag on the 3D picture and was
+  right twice: once when an in-out ease crept into the stop (3 frames early), once when the tap sat on
+  the word it illustrated.
+
+| Still open | Done when |
+|---|---|
+| **A second 3D subject** of another shape (a molecule, an orbit) | built and checked without kit changes |
+| **SwiftShader on another CPU** | a frame compared between Apple silicon and x86 |
+| **Pacing reads a settle as a new move**, and motion-review strips are too small for small 3D parts | pacing treats a settle from the contact frame as part of the landing; a window crops to the named element |

@@ -82,3 +82,15 @@ def test_the_sheet_goes_stale_when_the_colour_legend_changes(tmp_path):
     assert look.latest(tmp_path)["stale"] is False
     (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": {"step": "hot"}}))
     assert look.latest(tmp_path)["stale"] is True
+
+
+def test_the_sheet_goes_stale_when_the_webgl_backend_or_an_asset_changes(tmp_path):
+    live(tmp_path)
+    look.make(tmp_path, engine=FakeEngine(tmp_path))
+    assert look.latest(tmp_path)["stale"] is False
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "gl": "gpu"}))
+    assert look.latest(tmp_path)["stale"] is True
+    look.make(tmp_path, engine=FakeEngine(tmp_path))
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "texture.png").write_bytes(b"png")
+    assert look.latest(tmp_path)["stale"] is True

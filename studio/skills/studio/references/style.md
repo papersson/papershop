@@ -46,6 +46,33 @@ clutter: by minute eight one frame held a category list, a table, a record's fie
   tags or dashed outlines, which were tried and removed as clutter. A value on screen that is
   neither real nor framed as supposed is removed, not labelled.
 
+## 3D, when the flat diagram hides something
+
+Most explainers never need 3D: code, tables, equations, timelines, state machines, request flows,
+comparisons and architecture maps read better flat, and a server drawn as a cuboid teaches nothing.
+Use the live engine's 3D stage (`engines.md`) only when this sentence is true: **"the viewer needs to
+see ___, and the flat diagram hides it."** A mechanism whose parts sit behind each other, an assembly
+taken apart, a stack of layers, a bond angle, an orbit's tilt, height on a map. If the blank is "more
+cinematic" or "more alive", stay flat.
+
+- **Open from the diagram, flatten back to it.** Build the model in the diagram's own coordinates,
+  open into depth on the cue where the narration needs it, and return to the same flat diagram with
+  the one thing that changed (a ring that was a track is now a cylinder). The viewer should feel one
+  picture turning, not two videos.
+- **The same identity.** One colour legend for flat and 3D (a face takes its meaning's colour), the
+  same protagonist, the same labels. Labels stay SVG text on projected points, upright and at least
+  18 px, never painted onto a surface.
+- **The house look.** No lights, shadows, bloom, depth of field, textures or grain: faces in three
+  tones of their colour, outlines in pixels with outer contours heavier than inner detail.
+- **The camera moves to show a relation, then holds.** An orbit that reveals which part sits behind
+  which earns its seconds; an orbit for its own sake does not. Stage camera moves and changes to the
+  model as in 2D.
+- **What is narrated can be seen.** A part the sentence names must show at the sentence's end and at
+  its event: `studio check` warns (`occluded`) when one shows under 30%. Turn the camera or move the
+  part, as a cutaway would, rather than leave the narration naming something hidden.
+- **Geometry is a claim.** A model that looks precise is read as accurate. Build it from the
+  evidence, keep it as simple as the explanation allows, and record where its numbers come from.
+
 ## Colour
 
 One meaning per colour for the whole video, declared in video.json `legend` (meaning → theme colour;

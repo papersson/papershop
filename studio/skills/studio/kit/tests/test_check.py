@@ -167,6 +167,9 @@ def test_a_label_is_narrated_when_its_words_are_said_together():
     assert check.narrated("box hash function", words) and check.narrated("bucket", words)
     assert not check.narrated("node function hash", words) and not check.narrated("card", words)
     assert not check.narrated("a", words) and not check.narrated("box the", words)
+    words = check._said("Every head lands on one of the platters.")
+    assert check.narrated("head 2", words) and check.narrated("platter 4", words) and check.narrated("box head", words)
+    assert not check.narrated("headset", words) and not check.narrated("land 2", check._said("the island"))
 
 
 def test_bounds_leaves_elements_under_a_moved_camera_alone(tmp_path):
@@ -200,3 +203,36 @@ def test_bounds_leaves_a_shape_with_no_name_of_its_own_alone(tmp_path):
                                                  {"name": "node db", "kind": "", "x": 1800, "y": 300, "w": 300, "h": 100}]}]
     rows = check.bounds(tmp_path, engine=object(), boxes=(lay, frames))
     assert rows[0]["detail"] == "'node db' leaves the frame"
+
+
+def test_occluded_warns_when_a_narrated_3d_element_is_hidden_at_a_sample_or_an_event(tmp_path):
+    """The live engine's 3D boxes say how much of each named element shows. A narrated one under 30%
+    warns, at a sentence's check sample and at each event (against the sentence spoken then); an
+    element nobody narrates, a faded one, or a 2D box (no visible share) never does."""
+    import json
+    t = make_video(tmp_path)
+    t["tracks"]["narration"][0]["text"] = "Every head lands on the same track."
+    t["cues"] = {"land": 1.0}
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    box = lambda name, visible, **kw: {"name": name, "kind": "3d", "x": 0, "y": 0, "w": 50, "h": 50, "visible": visible, **kw}
+
+    class Live:
+        name = "live"
+
+        def __init__(self, items):
+            self.items = items
+
+        def boxes_at(self, requests):
+            return [{**r, "boxes": self.items} for r in requests]
+
+    hidden = [box("head 2", 0.0), box("head 1", 0.6), box("platter 2", 0.0), box("head 3", 0.1, opacity=0.02),
+              {"name": "head", "kind": "", "x": 0, "y": 0, "w": 50, "h": 50}]
+    sample = (LAYOUT, [{"clip": "s1", "t": 1.35, "boxes": hidden}])
+    rows = check.occluded(tmp_path, engine=Live(hidden), boxes=sample)
+    assert [r["t"] for r in rows] == [1.35, rows[1]["t"]] and rows[1]["t"] != 1.35        # the sample, then the event
+    assert all(r["ok"] and r["severity"] == "warning" for r in rows)
+    assert rows[0]["detail"] == "s1_01 narrates 'head 2' (0% visible) hidden behind other geometry"
+    assert rows[1]["detail"].startswith("at land, s1_01 narrates 'head 2'")
+    seen = [box("head 2", 0.45)]
+    assert all("severity" not in r for r in check.occluded(tmp_path, engine=Live(seen), boxes=(LAYOUT, [{**sample[1][0], "boxes": seen}])))
+    assert [r["t"] for r in check.occluded(tmp_path, engine=FakeEngine({}), boxes=sample)] == [1.35]   # no event boxes off live

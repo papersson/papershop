@@ -2,7 +2,8 @@
 // and helpers scenes use, so a term means exactly what a scene can do. glossary.html shows them all
 // (or ?term=<term> alone); the desk links to it next to the note box.
 
-import { clamp, ease, lerp, prog, pulse, stagger, countUp, keyed, follow, settle, wobble, camAt, frameOn } from './kit.js'
+import { clamp, ease, lerp, prog, pulse, stagger, countUp, keyed, follow, settle, wobble, camAt, frameOn, shotAt, flatShot } from './kit.js'
+import { camera, project } from '../../shared/camera3d.js'
 
 export const LOOP = 3.6 // seconds per demo loop
 export const W = 480, H = 270
@@ -19,6 +20,26 @@ function versus(S, t, e, name) {
   S.path('curve', pts, { stroke: 'var(--line)', sw: 2 })
   S.circle('cd', 130 + clamp((t - 0.4) / 1.6) * 300, 245 - p * 60, 5, { fill: hot })
 }
+
+/**
+ * The 3D terms' demos, as wireframes in SVG: boxes projected through the same camera maths the 3D
+ * stage renders with (shared/camera3d.js), so each shows exactly the move its helper makes.
+ */
+const EDGES = [[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4], [0, 4], [1, 5], [2, 6], [3, 7]]
+function wireBox(S, cam, key, [cx, cy, cz], [w, h, d], o = {}) {
+  const corners = [0, 1, 2, 3, 4, 5, 6, 7].map(i => project(cam, [cx + (i & 1 ? w : -w) / 2, cy + (i & 4 ? h : -h) / 2, cz + (i & 2 ? d : -d) / 2]))
+  S.path(key, EDGES.map(([a, b]) => `M ${corners[a][0]} ${corners[a][1]} L ${corners[b][0]} ${corners[b][1]}`).join(' '),
+    { stroke: o.stroke ?? 'var(--edge)', sw: o.sw ?? 2 })
+  return corners
+}
+/** Three slabs stacked `gap` apart, the top one lit, under a shot. */
+function slabs(S, shot, gap = 34) {
+  const cam = camera(shot, [W, H])
+  for (let i = 0; i < 3; i++) wireBox(S, cam, `slab${i}`, [0, -i * gap, 0], [160, 10, 110], { stroke: i ? 'var(--dim)' : cold, sw: i ? 1.5 : 2.5 })
+  return cam
+}
+const SIDE = { target: [0, -34, 0], az: -25, el: 28, span: 95, fov: 32 }
+const TOP = flatShot({ x: 0, y: 0, z: 1 }, H)
 
 export const DEMOS = {
   'ease out': (S, t) => versus(S, t, ease.out, 'ease out'),
@@ -70,6 +91,25 @@ export const DEMOS = {
       S.line(`wl${i}`, 120 + i * 120, 0, x, y - 18, { stroke: 'var(--line)', sw: 2 })
       S.circle(`wc${i}`, x, y, 18, { fill: i === 1 ? log : 'var(--bg3)', stroke: log, sw: 2 })
     }
+  },
+  'orbit': (S, t) => slabs(S, { ...SIDE, az: lerp(-45, 45, ease.float(clamp((t - 0.3) / 3))) }),
+  'tilt': (S, t) => slabs(S, shotAt(t, [[0.4, { ...SIDE, el: 89 }], [2.2, SIDE, 'heavy']])),
+  'open into depth': (S, t) => {
+    const shot = shotAt(t, [[1.0, { ...TOP, target: [0, -34, 0] }], [2.6, SIDE, 'heavy']])
+    if (t < 1.0) S.rect('diagram', W / 2 - 80, H / 2 - 55, 160, 110, { stroke: cold, sw: 2.5, r: 0 })
+    else slabs(S, shot)
+    S.text('dl', 24, 30, t < 1.0 ? 'SVG diagram' : 'the same model in 3D', { size: 16, fill: dim, mono: true })
+  },
+  'flatten': (S, t) => {
+    const shot = shotAt(t, [[0.4, SIDE], [2.0, { ...TOP, target: [0, -34, 0] }, 'heavy']])
+    if (t >= 2.0) S.rect('diagram', W / 2 - 80, H / 2 - 55, 160, 110, { stroke: cold, sw: 2.5, r: 0 })
+    else slabs(S, shot)
+  },
+  'explode': (S, t) => slabs(S, SIDE, keyed(t, [[0.4, 14], [1.4, 50, 'heavy'], [2.6, 50], [3.4, 14, 'heavy']])),
+  'projected callout': (S, t) => {
+    const cam = slabs(S, { ...SIDE, az: lerp(-40, 40, ease.float(clamp(t / LOOP))) })
+    const [x, y] = project(cam, [80, 5, 55])
+    S.callout('pc', x + 50, y - 45, x, y, 'top slab', 1, { fill: cold, size: 18 })
   },
   'blur together': (S, t) => { const m = prog(t, 1.4, 1.4); const f = S.blur('gblur', 8 * m); ['var(--key)', cold, 'var(--warm)', hot].forEach((c, i) => S.rect(`bt${i}`, 40, lerp(50 + i * 48, 92 + i * 17, m), 400 * prog(t, stagger(0.2, i, 0.2), 0.8), lerp(30, 22, m), { fill: c, r: 15, filter: f })) },
 }

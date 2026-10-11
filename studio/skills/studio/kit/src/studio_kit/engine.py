@@ -38,6 +38,7 @@ class Engine:
         self.name = name or self._video_engine()
         self.fmt = fmt
         self.browser, _ = resolve_browser()
+        self.gl = settings.load(self.video)["gl"] if (self.video / "video.json").exists() else "cpu"
 
     def _video_engine(self):
         return settings.load(self.video)["engine"]
@@ -52,6 +53,8 @@ class Engine:
         cmd = [proc.tool("node"), str(engine_dir(self.name) / "cli.mjs"), op, "--video", str(self.video), *args]
         if self.browser:
             cmd += ["--browser", self.browser]
+        if self.name == "live":
+            cmd += ["--gl", self.gl]
         if self.fmt and self.fmt != "16:9":
             cmd += ["--layout", str(tl.layout_file(self.video, self.fmt))]
         return cmd
@@ -107,6 +110,13 @@ class Engine:
 
     def duration(self, clip):
         return self._call("duration", "--clip", clip)
+
+    def webgl(self):
+        """The browser and the WebGL renderer the live engine's 3D stage gets on this video's backend:
+        {backend, browser, renderer, version, samples, three}."""
+        if self.name != "live":
+            raise EngineError(f"only the live engine has a 3D stage, not {self.name}")
+        return self._call("gl")
 
     def durations(self, clips):
         """{clip: frames} for many clips; one browser session where the engine supports it."""

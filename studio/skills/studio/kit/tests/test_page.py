@@ -154,3 +154,33 @@ def test_a_busy_port_moves_the_desk_unless_the_port_was_asked_for(tmp_path, monk
             page.bind(tmp_path, taken)
     finally:
         busy.close()
+
+
+def test_the_live_page_reloads_scenes_in_place_and_everything_else_by_reloading(tmp_path):
+    """A chapter's scene file and the JSON the page fetches reload in place; a helper the scenes import
+    (which a browser keeps by URL), anything under scenes/ in a folder, and the engine's own files only
+    load in a fresh page, so they are watched as the page's."""
+    from studio_kit.env import engine_dir
+    make_video(tmp_path)
+    (tmp_path / "scenes" / "s1.js").write_text("export default function draw(c) {}\n")
+    (tmp_path / "scenes" / "lib").mkdir()
+    (tmp_path / "scenes" / "lib" / "model.js").write_text("export const R = 300\n")
+    (tmp_path / "video.json").write_text("{}")
+    in_place, fresh = page.live_inputs(tmp_path)
+    assert tmp_path / "scenes" / "s1.js" in in_place and tmp_path / "video.json" in in_place
+    assert tmp_path / "scenes" / "lib" / "model.js" in fresh and tmp_path / "scenes" / "kit.tsx" in fresh
+    assert engine_dir("live") / "render.html" in fresh and engine_dir("live") / "src" / "stage3d.js" in fresh
+    before = page.inventory(fresh)
+    (tmp_path / "scenes" / "lib" / "model.js").unlink()
+    assert page.inventory([f for f in fresh if f.exists()]) != before        # a deletion changes it too
+
+
+def test_the_live_page_can_read_video_json_for_the_legend(tmp_path):
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"legend": {"request": "warm"}}))
+    server, base = serve(tmp_path)
+    try:
+        got = json.loads(urllib.request.urlopen(base + "/live/video/video.json", timeout=5).read())
+        assert got["legend"] == {"request": "warm"}
+    finally:
+        server.shutdown()
