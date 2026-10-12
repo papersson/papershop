@@ -6,6 +6,8 @@
 # STUDIO_NO_NIX=1 skips nix and uses whatever is on PATH (`studio doctor` says what is missing).
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+preflight=0
+[ "${1:-}" != preflight ] || preflight=1
 
 # A video that pinned its kit (`studio init`) runs that copy, so a plugin update can't change how it renders.
 # An explicit update must run the installed kit, not route back into the old pinned copy.
@@ -13,7 +15,7 @@ updating=0
 if [ "${1:-}" = init ]; then
   for arg in "$@"; do [ "$arg" != --update ] || updating=1; done
 fi
-if [ -z "${STUDIO_PINNED:-}" ] && [ "$updating" = 0 ] && [ "${1:-}" != new ] && [ "${1:-}" != variant ]; then
+if [ -z "${STUDIO_PINNED:-}" ] && [ "$updating" = 0 ] && [ "$preflight" = 0 ] && [ "${1:-}" != new ] && [ "${1:-}" != variant ]; then
   for arg in "$@"; do
     if [ -x "$arg/.studio/bin/studio" ] && [ "$(cd "$arg/.studio" && pwd)" != "$here" ]; then
       STUDIO_PINNED=1 exec "$arg/.studio/bin/studio" "$@"
@@ -27,16 +29,44 @@ if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/d
   lock_hash="$( (cat "$flake/flake.lock" "$flake/flake.nix") | shasum | cut -c1-12)"
   env_file="$here/.cache/devenv-$lock_hash.sh"
   if [ ! -s "$env_file" ]; then
+    if [ "$preflight" = 1 ]; then
+      echo "setup required: Nix is installed, but this kit's pinned environment has not been prepared."
+      echo "Read references/setup.md; confirm the environment, package, browser and model downloads before running doctor --fetch."
+      exit 1
+    fi
     mkdir -p "$here/.cache"
     # Only the variables the kit needs: the full `print-dev-env` script uses bash 4+ syntax, and
     # macOS runs this wrapper with bash 3.2.
-    nix develop "$flake#studio" -c bash -c \
+    nix --extra-experimental-features 'nix-command flakes' develop "$flake#studio" -c bash -c \
       'for v in PATH STUDIO_ENV SSL_CERT_FILE NIX_SSL_CERT_FILE; do
          if [ -n "${!v:-}" ]; then printf "export %s=%q\n" "$v" "${!v}"; fi; done' > "$env_file.tmp"
     mv "$env_file.tmp" "$env_file"
   fi
   # shellcheck disable=SC1090
   source "$env_file"
+fi
+
+# Unlike every production command, preflight must work before uv/Python exists, and must not sync
+# packages, create caches, enter Nix or download a browser/model. Inspect this kit, never an old pin.
+if [ "$preflight" = 1 ]; then
+  shift
+  missing=0
+  for tool in uv node npm ffmpeg ffprobe sox; do
+    if ! command -v "$tool" >/dev/null; then echo "missing: $tool"; missing=1; fi
+  done
+  if [ ! -x "$here/kit/.venv/bin/python" ]; then echo "missing: kit Python environment"; missing=1; fi
+  if [ "$missing" = 1 ]; then
+    echo "setup required: read references/setup.md and confirm the missing installs before doctor --fetch."
+    echo "Use Nix on a supported platform, or STUDIO_NO_NIX=1 with Python 3.12, uv, Node 22+, ffmpeg 6+ and sox."
+    exit 1
+  fi
+  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$here/kit/src${PYTHONPATH:+:$PYTHONPATH}" \
+    exec "$here/kit/.venv/bin/python" -m studio_kit.cli preflight "$@"
+fi
+
+if ! command -v uv >/dev/null; then
+  echo "studio: uv is missing. Run '$here/bin/studio preflight' and follow references/setup.md." >&2
+  exit 1
 fi
 
 # Sync base dependencies without removing extras or separately installed model wheels.

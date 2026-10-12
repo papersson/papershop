@@ -96,12 +96,19 @@ def W(*names, **kw):
 
 
 COMMANDS = {
+    "preflight": ("check prerequisites without installs, downloads or browser/model launches", [
+        V("video", nargs="?", help="check this video's selected engine and narration requirements"),
+        A("--engine", choices=["remotion", "live", "motion-canvas"], help="engine to check (default: live, or the video's engine)"),
+        A("--extra", action="append", choices=["audio", "align", "kokoro"], help="check only these extras (default: kokoro and align, or the video's requirements)"),
+        A("--silent", action="store_true", help="no narration extras for a video without speech"),
+    ], "doctor:main_preflight"),
     "doctor": ("check the environment and print fixes", [
         V("video", nargs="?", help="diagnose extras required by this video"),
         A("--fetch", action="store_true", help="install the engines' node packages and headless browser first"),
         A("--net", action="store_true", help="also check the hosts downloads come from"),
         A("--extra", action="append", default=[], choices=["audio", "align", "kokoro"], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
-        A("--engine", action="append", default=[], choices=["motion-canvas", "live"], help="with --fetch: also install this engine (Remotion always is)"),
+        A("--engine", action="append", default=[], choices=["remotion", "motion-canvas", "live"], help="require this engine; with --fetch, also install it (Remotion always is)"),
+        A("--speech", action="store_true", help="smoke-test local narration and recognition; may download model weights"),
         A("--sounds", action="store_true", help="with --fetch: fetch the sound kit (recorded CC0 effects), verified, into the cache; the engines too only with --engine or --extra, or when Remotion is not installed"),
     ], "doctor:main"),
     "new": ("a video folder, ready for a script", [

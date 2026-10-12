@@ -10,13 +10,5 @@
  "spoken": [],
  "spoken_by_id": {},
  "phonemes": {},
- "phonemes_by_id": {},
- "timing": {
-  "pause": {
-   "short": 0.4,
-   "long": 0.7,
-   "question": 1.6,
-   "key": 2.0
-  }
- }
+ "phonemes_by_id": {}
 }

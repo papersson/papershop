@@ -35,7 +35,7 @@ what the viewer can now predict, and the point of local closure.
   predictions; experts may need less scaffolding. The learner thinks; the teacher designs the path.
 - Make a plausible wrong model produce a prediction, then test the assumption. The model is the
   thing under pressure, not the viewer. Retain only failures whose diagnosis teaches something.
-- Signal the key ideas when they land (`[key]` gives the sentence a pause and a slower read) and
+- Signal the key ideas in the picture when they land and
   gather them in a short recap. Wave plumbing past once.
   Give local closure every few minutes before opening the next question.
 - Ask the viewer to predict, reconstruct, explain a causal link or transfer the model. Leave actual

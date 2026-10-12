@@ -37,6 +37,7 @@ def test_engine_headless_shell_beats_installed_chrome():
     ("https://uv.example/simple", "https://pip.example/simple", "https://uv.example/simple"),
 ])
 def test_spacy_wheel_uses_configured_index_without_github_fallback(monkeypatch, uv_index, pip_index, expected):
+    monkeypatch.delenv("STUDIO_SPACY_MODEL", raising=False)
     monkeypatch.delenv("UV_INDEX_URL", raising=False)
     if uv_index:
         monkeypatch.setenv("UV_INDEX_URL", uv_index)
@@ -49,7 +50,7 @@ def test_spacy_wheel_uses_configured_index_without_github_fallback(monkeypatch, 
     doctor.install_spacy_model()
     assert calls[1][0][-1] == "en-core-web-sm~=3.8.0"
     assert calls[1][1]["env"]["UV_INDEX_URL"] == expected
-    assert len(calls) == 2 and "github" not in str([cmd for cmd, _ in calls])
+    assert len(calls) == 3 and "github" not in str([cmd for cmd, _ in calls])
 
 
 def test_missing_model_fails_before_synthesis_with_one_repair(monkeypatch):

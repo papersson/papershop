@@ -11,8 +11,7 @@ paragraph above it. Boards and checks read these as ScreenNote(start, end, text)
 Markers in narration are never spoken or captioned. Each follows a complete sentence:
   [pause 2]  [predict 3]  [beat]   a hold after the sentence (a prediction hold is thinking time
                                    before a reveal; a beat is narration.json timing.beat)
-  [key]  [aside]  [recap]          the sentence's role: a key sentence gets a long pause after it and
-                                   is said a little slower, an aside or recap a little quicker
+  [key]  [aside]  [recap]          legacy role annotations, accepted but do not change the voice or timing
 A role marker at the very start of a paragraph applies to all its sentences. A sentence carries at
 most one hold and one role.
 """

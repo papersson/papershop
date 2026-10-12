@@ -350,10 +350,12 @@ sample on the CPU and about 35 ms on the GPU.
 
 ## Setup and render diagnostics
 
-`studio doctor VIDEO` lists the extras needed by narration and voice-check. Install with
-`studio doctor --fetch --extra kokoro --extra align`. The compatible en-core-web-sm wheel is
+Start with the invocation preflight and consent flow in `setup.md`. `studio doctor VIDEO` lists
+the extras needed by narration and voice-check. For the default live explainer, install with
+`studio doctor --fetch --engine live --extra kokoro --extra align`. The compatible en-core-web-sm wheel is
 installed through UV_INDEX_URL, or PIP_INDEX_URL when UV_INDEX_URL is unset. A mirror without that
-wheel must supply it; narration never calls spaCy's GitHub downloader. Doctor distinguishes a
+wheel must supply it, or the approved setup can explicitly set `STUDIO_SPACY_MODEL` to a compatible
+wheel URL/path; narration never calls spaCy's GitHub downloader. Doctor distinguishes a
 reachable host from HTTP access denial. Optional extras and model wheels survive subsequent
 wrapper invocations; after a pinned-kit upgrade, run the repair command printed for that kit.
 

@@ -1,11 +1,10 @@
 """`studio narrate VIDEO`: narration from SCRIPT.md with Kokoro or ElevenLabs, into the timeline.
 
 Each paragraph is one synthesis call (up to CHUNK_WORDS words), so intonation carries across its
-sentences. A sentence starts at its first word's timestamp and ends where the pause into the next
-sentence begins, both snapped to silence; the silence placed after it comes from its role (timing
-below), so pauses vary with meaning: short inside a thought, longer at an idea's end, a question or
-a key sentence. Kokoro can also render one sentence per call ("paragraph": false): flatter, since
-every sentence then starts at the same pitch, but each sentence can take its role's speed.
+sentences and pauses follow the punctuation. A sentence starts at its first word's timestamp and
+ends where the pause into the next sentence begins, both snapped to silence. Kokoro can also
+render one sentence per call with fixed gaps ("paragraph": false): flatter, since every sentence
+then starts at the same pitch.
 
 Writes audio/narration.wav and .mp3 and audio/timings.json (each sentence's times and words, from
 the engine's own timestamps; `--estimate` writes only the timings), then builds the timeline: its
@@ -33,28 +32,11 @@ narration.json also holds:
                 letter that names something ("A reads one"), since Kokoro reads a lone "A" as the
                 article. Kokoro only; ElevenLabs ignores them and `studio narrate` says so.
   tail          seconds of silence after the last sentence, for the end card (default 6)
-  timing        beat (a [beat]'s seconds), chapter_hold (after a chapter's last sentence),
-                chapter_gap (between chapters), and pause: the silence after each sentence by its
-                role (PAUSES), {"short": 0.4, "long": 0.7, "question": 1.6, "key": 2.0}. short
-                continues a thought (a sentence followed by one in the same paragraph); long ends
-                one (a paragraph's last sentence); question follows a question; key follows a
-                sentence marked [key]. A chapter's last sentence keeps chapter_hold and chapter_gap.
-                An inline hold ([pause 2], [predict 3], [beat]) or a "holds" entry comes first, then
-                the role's pause. A key sentence that ends a chapter gets at least the key pause
-                before the next chapter. In paragraph mode the voice's own gap stands for a short
-                pause when it is quicker (a run-on gap of 0 stays 0), and every longer pause is at
-                least the role's. "pause": false keeps the layout of earlier versions exactly: the
-                voice's own gap inside a paragraph (SENTENCE_GAP in sentence mode), PARAGRAPH_GAP
-                between paragraphs, and no role speeds unless kokoro.role_speed names them.
-  kokoro.role_speed  {"key": 0.9, "term": 0.9, "aside": 1.05, "recap": 1.05}: speed factors for a
-                sentence marked [key], [aside] or [recap], and for the first sentence that uses a term
-                of SCRIPT.md's vocabulary ledger, within SPEED_BOUNDS. One speed per Kokoro call: in
-                sentence mode every such sentence; in paragraph mode a chunk whose sentences share
-                one factor (a paragraph opened with a marker, or a one-sentence paragraph), so a
-                marked sentence inside a longer paragraph keeps the paragraph's speed.
+  timing        beat, chapter_hold and chapter_gap: explicit spacing, with one voice and speed
+                throughout. Legacy timing.pause and kokoro.role_speed are ignored. Explicit holds
+                and [pause], [predict] and [beat] markers still apply.
 """
 import base64
-import collections
 import hashlib
 import json
 import math
@@ -64,7 +46,6 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from . import delivery
 from . import proc
 from . import settings
 from . import script as sc
@@ -73,8 +54,8 @@ from .workspace import atomic_json
 
 RATE = 24_000
 LEAD_IN = 0.8        # silence before the first sentence
-SENTENCE_GAP = 0.3   # flat layout: between sentences of one paragraph (Kokoro per-sentence mode only)
-PARAGRAPH_GAP = 0.5  # flat layout: between paragraphs
+SENTENCE_GAP = 0.3   # between sentences of one paragraph (Kokoro per-sentence mode only)
+PARAGRAPH_GAP = 0.5  # between paragraphs
 SEGMENT_GAP = 1.2    # between chapters
 # Each chapter's first sentence starts on a 0.1 s grid (a whole number of frames at 30 fps, and of
 # milliseconds), and its clip starts PRE_ROLL_FRAMES before it. So an edit that lengthens one chapter
@@ -84,15 +65,6 @@ CHAPTER_GRID = 0.1
 PRE_ROLL_FRAMES = 10
 CHUNK_WORDS = 90     # longest run of sentences sent in one call
 ASK_ABOVE = 2000     # ElevenLabs characters that need --yes
-# The silence after a sentence by its role (see the module docstring), calibrated against three
-# reference explainers (delivery.REFERENCE), measured as they were: pauses of 0.5 s or more. A short
-# pause stays under that, as the references' run-on sentence ends do, so the median of the counted
-# pauses is the paragraph end's, in their 0.67-0.75 s band, and the long ones over 1.5 s fall at
-# questions, key sentences and chapter ends. Before roles every boundary was about 0.5 s; on a
-# seven-minute video these add about 1% to its length.
-PAUSES = {"short": 0.4, "long": 0.7, "question": 1.6, "key": 2.0}
-ROLE_SPEED = {"key": 0.9, "term": 0.9, "aside": 1.05, "recap": 1.05}
-SPEED_BOUNDS = (0.85, 1.15)   # a role's speed factor stays inside these
 
 
 def whole_word(word):
@@ -117,23 +89,13 @@ class Settings:
         self.tail = cfg.get("tail", 6.0)
         self.holds = cfg.get("holds", {})
         timing = dict(cfg.get("timing", {}))
-        pause = timing.pop("pause", {})
+        # Retired variation settings may remain in existing videos; they never change delivery.
+        timing.pop("pause", None)
+        self.kokoro.pop("role_speed", None)
         self.timing = {"beat": 0.5, "chapter_hold": 0.0, "chapter_gap": SEGMENT_GAP, **timing}
-        if pause is not False and not isinstance(pause, dict):
-            raise SystemExit('narration.json timing.pause is {"short": s, "long": s, "question": s, "key": s} or false')
-        self.pauses = None if pause is False else {**PAUSES, **pause}
-        for key, value in [*self.timing.items(), *((f"pause.{k}", v) for k, v in (self.pauses or {}).items())]:
-            if key.startswith("pause.") and key[6:] not in PAUSES:
-                raise SystemExit(f"narration.json timing.pause takes {', '.join(PAUSES)} (or false), not {key[6:]!r}")
+        for key, value in self.timing.items():
             if not isinstance(value, (float, int)) or isinstance(value, bool) or not math.isfinite(value) or value < 0:
                 raise SystemExit(f"narration.json timing.{key} must be finite and nonnegative")
-        # The flat layout is the old behaviour throughout: no role speeds unless asked for by name.
-        defaults = ROLE_SPEED if self.pauses else dict.fromkeys(ROLE_SPEED, 1.0)
-        self.role_speed = {**defaults, **self.kokoro.get("role_speed", {})}
-        for key, value in self.role_speed.items():
-            if not isinstance(value, (float, int)) or not SPEED_BOUNDS[0] <= value <= SPEED_BOUNDS[1]:
-                raise SystemExit(f"narration.json kokoro.role_speed.{key} must be between {SPEED_BOUNDS[0]} and {SPEED_BOUNDS[1]}")
-        self.speeds = {}    # sentence id -> Kokoro speed, where a role changes it (assign_speeds)
         from .preferences import lexicon
         shared = lexicon(video)
         self.spoken_pairs = list({**dict(shared.get("spoken", [])), **dict(cfg.get("spoken", []))}.items())
@@ -176,78 +138,12 @@ class Settings:
                 "mode": "paragraph" if self.paragraph else "sentence"}
 
 
-def roles(S, chapters, events=None):
-    """{sentence id: (the role of the pause after it, its speed role or None)}. The pause role is
-    "chapter" for a chapter's last sentence, else "key" (after [key], or after the last of a run of
-    them in one paragraph), "question", "long" (a paragraph's last sentence) or "short". The speed role is a marker's ([key], [aside], [recap]),
-    else "term" for the first sentence that uses a vocabulary-ledger term."""
-    if events is None:
-        events = {s.id: s for c in sc.read(S.video, S.timing["beat"]) for s in c.sentences}
-    pending, out = sc.vocabulary(S.video), {}
-    for _, _, sents in chapters:
-        for i, (lid, cap, pi) in enumerate(sents):
-            marker = getattr(events.get(lid), "role", None)
-            run_on = i + 1 < len(sents) and sents[i + 1][2] == pi and \
-                getattr(events.get(sents[i + 1][0]), "role", None) == marker
-            if i + 1 == len(sents):
-                after = "chapter"
-            elif marker == "key" and not run_on:      # a run of key sentences pauses at its end
-                after = "key"
-            elif cap.rstrip("\"”’)").endswith("?"):
-                after = "question"
-            elif sents[i + 1][2] != pi:
-                after = "long"
-            else:
-                after = "short"
-            low = cap.lower()
-            used = [t for t in pending if re.search(rf"(?<![\w-]){re.escape(t)}(?![\w-])", low)]
-            pending = [t for t in pending if t not in used]
-            out[lid] = (after, marker or ("term" if used else None))
-    return out
-
-
-def assign_speeds(S, chapters, R):
-    """S.speeds: {sentence id: Kokoro speed} for the sentences a role speeds up or slows down, as
-    synthesis can deliver it (see the module docstring); ElevenLabs gets none."""
-    base = S.kokoro["speed"]
-    factor = {lid: S.role_speed.get(r[1], 1.0) if r[1] else 1.0 for lid, r in R.items()}
-    S.speeds = {}
-    if S.engine != "kokoro":
-        return S.speeds
-    groups = [c for _, _, ss in chapters for c in chunked(S, ss)] if S.paragraph else \
-             [[(lid, None, None)] for _, _, ss in chapters for lid, _, _ in ss]
-    for g in groups:
-        fs = {factor.get(lid, 1.0) for lid, _, _ in g}
-        f = fs.pop() if len(fs) == 1 else 1.0
-        if f != 1.0:
-            S.speeds.update({lid: round(base * f, 3) for lid, _, _ in g})
-    return S.speeds
-
-
-def chunk_speed(S, chunk):
-    """The one speed a chunk is synthesised at."""
-    return S.speeds.get(chunk[0][0], S.kokoro["speed"])
-
-
-def gap_after(S, lid, role, same_paragraph, gaps):
-    """Seconds of silence between sentence `lid` (whose pause role is `role`) and the next one in its
-    chapter. `gaps`: the voice's own gap after a sentence, in paragraph mode."""
-    natural = gaps.get(lid)
-    if S.pauses is None:
-        return (SENTENCE_GAP if natural is None else natural) if same_paragraph else PARAGRAPH_GAP
-    want = S.pauses[role]
-    if natural is None:
-        return want
-    return min(natural, want) if role == "short" else max(natural, want)
-
-
 def layout(S, chapters, durations, gaps=None, words=None):
-    """Place every sentence on one track, with the pause after each from its role (gap_after).
-    `gaps` (paragraph mode): the voice's own pause after a sentence, measured in its paragraph's
-    audio. `words`: each sentence's words relative to its own start."""
+    """Place every sentence on one track. `gaps` (paragraph mode): the voice's own pause after a
+    sentence, measured in its paragraph's audio; it replaces SENTENCE_GAP there. `words`: each
+    sentence's words relative to its own start."""
     gaps, words = gaps or {}, words or {}
     events = {s.id: s for c in sc.read(S.video, S.timing["beat"]) for s in c.sentences}
-    R = roles(S, chapters, events)
     dangling = set(S.holds) | set(S.spoken_by_id) | set(S.phonemes_by_id)
     if dangling - events.keys():
         print("warn: dangling narration sentence IDs: " + ", ".join(sorted(dangling - events.keys())))
@@ -264,7 +160,7 @@ def layout(S, chapters, durations, gaps=None, words=None):
         prev_p = prev_id = None
         for lid, cap, pi in sents:
             if prev_p is not None:
-                r += gap_after(S, prev_id, R[prev_id][0], pi == prev_p, gaps)
+                r += gaps.get(prev_id, SENTENCE_GAP) if pi == prev_p else PARAGRAPH_GAP
             d = durations[lid]
             seg["lines"].append({"id": lid, "text": S.spoken(cap, lid), "caption": cap, "paragraph": pi,
                                  "start": at(r), "end": at(r + d),
@@ -280,9 +176,6 @@ def layout(S, chapters, durations, gaps=None, words=None):
                 seg["lines"][-1]["pause"] = {"seconds": hold, "prediction": bool(event and event.prediction),
                                                    "start": at(r + d), "end": at(r + d + hold)}
             r += d + hold
-            if S.pauses and lid == sents[-1][0] and ci + 1 < len(chapters) and getattr(event, "role", None) == "key":
-                # a key sentence that ends a chapter: the key pause at least, hold and gap included
-                r += max(0.0, S.pauses["key"] - hold - S.timing["chapter_gap"])
             prev_p, prev_id = pi, lid
         t = g + r
         out.append(seg)
@@ -294,10 +187,7 @@ def layout(S, chapters, durations, gaps=None, words=None):
         b["start"] = (tl.half_up(b["lines"][0]["start"] * fps) - PRE_ROLL_FRAMES) / fps
         a["end"] = b["start"]
     out[-1]["end"] = round(total, 3)
-    used = collections.Counter(R[l["id"]][0] for seg in out for l in seg["lines"])
-    return {**S.voice_info(), "total": round(total, 3), "segments": out,
-            "pauses": {**S.pauses, "used": {k: used[k] for k in PAUSES}} if S.pauses else "flat",
-            **({"speeds": dict(S.speeds)} if S.speeds else {})}
+    return {**S.voice_info(), "total": round(total, 3), "segments": out}
 
 
 def silence_runs(audio, sr, below=35.0):
@@ -371,9 +261,8 @@ def kokoro_pipeline():
     return KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
 
 
-def kokoro_key(S, full, speed=None):
-    blob = json.dumps({"voice": S.kokoro["voice"], "speed": S.kokoro["speed"] if speed is None else speed, "text": full},
-                      sort_keys=True)
+def kokoro_key(S, full):
+    blob = json.dumps({"voice": S.kokoro["voice"], "speed": S.kokoro["speed"], "text": full}, sort_keys=True)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:16]
 
 
@@ -384,17 +273,16 @@ def kokoro_engine(S):
     cache = S.video / ".cache" / "narration"
     pipe = None
 
-    def synth(full, _prev, _next, marked=None, speed=None):
+    def synth(full, _prev, _next, marked=None):
         nonlocal pipe
         marked = marked or full
-        speed = S.kokoro["speed"] if speed is None else speed
-        key = kokoro_key(S, marked, speed)
+        key = kokoro_key(S, marked)
         wav, meta = cache / f"{key}.npy", cache / f"{key}.json"
         if wav.exists() and meta.exists():
             return np.load(wav), [tuple(w) for w in json.loads(meta.read_text())]
         pipe = pipe or kokoro_pipeline()
         audio, words, pos = [], [], 0
-        for part in pipe(marked, voice=S.kokoro["voice"], speed=speed, split_pattern=None):
+        for part in pipe(marked, voice=S.kokoro["voice"], speed=S.kokoro["speed"], split_pattern=None):
             at = full.find(part.graphemes, pos)
             assert at >= 0, (part.graphemes, full)
             off, c = sum(len(x) for x in audio) / RATE, at
@@ -543,9 +431,7 @@ def paragraph_clips(S, synth, chunks):
         full = " ".join(texts)
         marked = " ".join(S.marked(t, lid) for lid, t, _ in chunk)
         begins = [sum(len(t) + 1 for t in texts[:i]) for i in range(len(texts))]
-        speed = chunk_speed(S, chunk)
-        extra = {"speed": speed} if speed != S.kokoro["speed"] else {}
-        audio, words = synth(full, prev, nxt, marked, **extra) if marked != full or extra else synth(full, prev, nxt)
+        audio, words = synth(full, prev, nxt, marked) if marked != full else synth(full, prev, nxt)
         runs = silence_runs(audio, RATE)
         firsts = [next(w for w in words if w[0] >= b) for b in begins]
         starts = []
@@ -571,12 +457,12 @@ def paragraph_clips(S, synth, chunks):
                              for c, ws, we in words if lo <= c < hi]
             if i + 1 < len(chunk):
                 gaps[lid] = spans[i + 1][0] - b
-            print(f"{lid}: {b - a:5.2f}s  {text[:70]}")
+            print(f"{lid}: {b - a:5.2f}s  gap {gaps.get(lid, 0):.2f}  {text[:70]}")
     return clips, gaps, said, words_by
 
 
 def sentence_clips(S, sents):
-    """{sentence id: clip}, {sentence id: phonemes}: one Kokoro call per sentence, at its role's
+    """{sentence id: clip}, {sentence id: phonemes}: one Kokoro call per sentence, at the configured
     speed, cached under .cache/narration/ by its text and settings."""
     import numpy as np
 
@@ -584,8 +470,8 @@ def sentence_clips(S, sents):
     pipe = None
     clips, phonemes = {}, {}
     for key, cap in sents:
-        marked, speed = S.marked(S.spoken(cap, key), key), S.speeds.get(key, S.kokoro["speed"])
-        ck = kokoro_key(S, "sentence:" + marked, speed)
+        marked, speed = S.marked(S.spoken(cap, key), key), S.kokoro["speed"]
+        ck = kokoro_key(S, "sentence:" + marked)
         wav, meta = cache / f"{ck}.npy", cache / f"{ck}.json"
         if wav.exists() and meta.exists():
             clips[key], phonemes[key] = np.load(wav), json.loads(meta.read_text())
@@ -614,7 +500,7 @@ def estimate_durations(S, chapters):
     """Each sentence's spoken length guessed from its word count and the voice's speed."""
     wps, extra = PACE.get(S.engine, PACE["elevenlabs"])
     speed = S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"]
-    return {sid: len(cap.split()) / (wps * S.speeds.get(sid, speed)) + extra for _, _, ss in chapters for sid, cap, _ in ss}
+    return {sid: len(cap.split()) / (wps * speed) + extra for _, _, ss in chapters for sid, cap, _ in ss}
 
 
 def laid_out(timings):
@@ -628,27 +514,14 @@ def laid_out(timings):
 
 
 def summary(S, timings, previous):
-    """Lines for narrate's printout: how pauses and speeds were laid out, how far the total moved
-    from the previous narration, and the delivery next to the references."""
+    """Laid-out timings and the total change since the previous narration."""
     lines = laid_out(timings)
-    if S.pauses:
-        used = timings["pauses"]["used"]
-        lines.append("pauses by role: " + ", ".join(f"{used[k]} {k} ({S.pauses[k]:g}s)" for k in PAUSES)
-                     + f", {len(timings['segments'])} chapter ends "
-                     f"(hold {S.timing['chapter_hold']:g}s, gap {S.timing['chapter_gap']:g}s)")
-    else:
-        lines.append("pauses: flat (timing.pause is false)")
-    if S.speeds:
-        slow = sum(1 for v in S.speeds.values() if v < S.kokoro["speed"])
-        quick = len(S.speeds) - slow
-        lines.append(f"role speed: {slow} sentence{'s' * (slow != 1)} slower, {quick} quicker (kokoro.role_speed)")
     if previous and previous.get("segments"):
         d = timings["total"] - previous["total"]
         lines.append(f"total {timings['total']:.1f}s, was {previous['total']:.1f}s ({d:+.1f}s)")
-        if S.pauses and previous.get("pauses", "flat") == "flat":
-            lines.append("note: the previous narration had flat pauses; pauses by role moved every later sentence, "
-                         "so re-check scene timing (narration.json timing.pause: false keeps the flat layout)")
-    return lines + delivery.describe(delivery.measure(timings))
+        if previous.get("speeds") or isinstance(previous.get("pauses"), dict):
+            lines.append("note: automatic delivery variation was removed; re-check scene timing after re-narration")
+    return lines
 
 
 def write_timeline(S, timings, timing="narrated"):
@@ -663,7 +536,6 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     S.audio.mkdir(exist_ok=True)
     chapters = sc.load(S.video)
     sents = [(lid, cap) for _, _, ss in chapters for lid, cap, _ in ss]
-    assign_speeds(S, chapters, roles(S, chapters))
     old = S.audio / "timings.json"
     previous = json.loads(old.read_text()) if old.exists() else None
     if not estimate:
@@ -734,7 +606,6 @@ def plan(video, config=None):
     """What a narration would synthesise: (chunks, chunks not cached, characters not cached)."""
     S = Settings(video, config)
     chapters = sc.load(S.video)
-    assign_speeds(S, chapters, roles(S, chapters))
     chunks = all_chunks(S, chapters)
     todo = []
     for chunk, prev, nxt in chunks:
@@ -743,7 +614,7 @@ def plan(video, config=None):
             cached = eleven_request(S, full, prev, nxt)[1].exists()
         else:
             marked = " ".join(S.marked(t, lid) for lid, t, _ in chunk)
-            cached = (S.video / ".cache" / "narration" / f"{kokoro_key(S, marked, chunk_speed(S, chunk))}.npy").exists()
+            cached = (S.video / ".cache" / "narration" / f"{kokoro_key(S, marked)}.npy").exists()
         if not cached:
             todo.append((chunk, full))
     return S, chunks, todo

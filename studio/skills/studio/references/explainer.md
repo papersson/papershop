@@ -131,27 +131,13 @@ parameters that make a worked example's arithmetic match what is actually shown.
 Write short spoken clauses with `*Screen:*` notes specifying the visual change and its sentence:
 `*Screen:* s2_01: … s2_03–s2_05: …`; text without an id belongs to the paragraph above. Sentence ids
 are positional, so `studio check --only script` reports notes that name a sentence that no longer exists.
-Pauses follow meaning without markup: after each sentence the narration leaves a pause by its
-role, short (0.4s) inside a paragraph, long (0.7s) at a paragraph's end, 1.6s after a question,
-and the chapter hold and gap at a chapter's end. So write one idea per paragraph, and let a
-question stand where the viewer should think. Mark the rest after a complete sentence; markers are
-never spoken or captioned:
-
-- `[key]` after the sentence the viewer must keep (a definition, the key insight): a 2s pause after
-  it (at a chapter's end, the longer of that and the chapter hold and gap), and slower speech where
-  synthesis allows (Stage 6). Use it a few times a video, not per
-  paragraph.
-- `[aside]` or `[recap]` after a sentence, or at the start of a paragraph for all of it: a little
-  quicker.
-- `[pause 2]`, `[predict 3]` or `[beat]`: silence inserted after the sentence, before its role's
-  pause; `[predict]` is thinking time before a reveal, and its end is the `reveal:` cue. An explicit
-  hold replaces the default/legacy hold on that sentence.
-
-A sentence may carry one hold and one role. Intro defaults on new videos: speed 0.95, chapter-end
-hold 2s, chapter gap 1.2s, beat 0.5s, pauses by role as above. Tune them in `narration.json.timing`
-(`pause`: `short`, `long`, `question`, `key`) and the voice settings. `pause: false` restores the
-layout of earlier versions exactly: the voice's own gap between sentences of a paragraph (0.3s in
-sentence mode), 0.5s between paragraphs, and no role speeds unless `kokoro.role_speed` names them.
+Keep one voice and speed throughout. Paragraph synthesis preserves its natural punctuation;
+spacing is 0.5s between paragraphs (0.3s between sentences in sentence mode). Use explicit
+`[pause 2]`, `[predict 3]` or `[beat]` after a complete sentence for a deliberate hold. Markers are
+never spoken or captioned; a prediction's end is the `reveal:` cue. An explicit hold replaces the
+default/legacy hold on that sentence. Intro defaults: speed 0.95, chapter-end hold 2s, chapter gap
+1.2s, beat 0.5s. `narration.json` owns these settings. Legacy `[key]`, `[aside]` and `[recap]`
+markers still parse but do not affect delivery; `timing.pause` and `kokoro.role_speed` are ignored.
 Old videos keep their timings until they are narrated again. A full stop after Dr., Mr., Mrs., Ms.,
 Prof., St., vs., e.g., i.e., etc. or cf. ends no sentence, so a capital after it stays in the same
 sentence (and keeps its sentence id); end a sentence on "etc." with care.
@@ -190,22 +176,14 @@ waiver is recorded with `studio review-status VIDEO student waived --reason "aut
 
 ## Stage 6: Narration
 
-`studio narrate VIDEO --estimate` gives a timeline without synthesis, with the same pauses by role
-(within about 1% of the real total on a seven-minute video). Actual `studio narrate` requires a
-current student pass for new teaching videos. Both print the pauses by role, how far the total
-moved from the previous narration (the first re-narration of a video made before pauses by role
-moves every later sentence: recheck scene timing), and the delivery next to three reference
-explainers, approximate on both sides: speaking and overall rate, pauses, and the rate minute by
-minute; the animatic's pacing report repeats it. A `delivery` warning means it reads flat: fewer
-than one pause over 1.5s every three minutes (or none for four), or, in a video over three minutes,
-pauses nearly all one length or a rate that never changes. Fix it in the script (one idea per
-paragraph, a question, `[key]` on the sentence that matters), not in `timing`. A role's speed
-(`kokoro.role_speed`: key and a vocabulary term's first use 0.9×, aside and recap 1.05×) applies
-per sentence only in sentence mode. In paragraph mode one call has one speed, so it applies to a
-paragraph opened with a marker or a one-sentence paragraph; a marked sentence inside a longer
-paragraph keeps the paragraph's speed, and its pause still applies. `narration.json` owns engine,
-voice, speed, timing and pronunciation. Kokoro in paragraph mode is the voice from the first narration to
-the published video, so the timing scenes are built against is the final timing. ElevenLabs is used
+`studio narrate VIDEO --estimate` gives an approximate timeline without synthesis. Actual
+`studio narrate` requires a current student pass for new teaching videos. Both print the laid-out
+timings and the change in total length since the previous narration. Re-narrating a video that
+used automatic delivery variation changes later timings: recheck affected scenes. `narration.json`
+owns engine, voice, speed, timing and pronunciation. Keep its configured voice and speed constant;
+do not add role-based changes or treat consistent delivery as a defect. Kokoro in paragraph mode
+is the voice from the first narration to the published video, so the timing scenes are built
+against is the final timing. ElevenLabs is used
 only when the user asks for it, and is chosen before scenes are timed: `--plan` reports
 cached/costed work, `--fetch-only --yes` fills its paid response cache; retain that cache. A voice
 change moves every word, so recheck visual timing after one.

@@ -33,20 +33,32 @@ from first draft to the published video; ElevenLabs on request, with its balance
 
 ## Environment
 
-Everything runs through `skills/studio/bin/studio`, which enters the plugin's own flake
-(`flake.nix`, with the shell in `shell.nix`: Python, uv, Node 22, ffmpeg, sox) and caches it per
-lock file. Python packages are pinned by `kit/uv.lock`, the engine's by
-`engines/remotion/package-lock.json`. On a new machine:
+On invocation the skill runs `skills/studio/bin/studio preflight`, a read-only check that works
+before the environment is installed. On first use it explains the missing tools and downloads,
+asks for your confirmation, installs the agreed set, then tests rendering and local speech before
+starting the video. Expect several minutes and several GB for a fresh local narration setup.
 
-```
-skills/studio/bin/studio doctor --fetch --extra kokoro --extra align   # add --engine motion-canvas if a video uses it
+The launcher uses the plugin's pinned Nix environment (Python 3.12, uv, Node 22, ffmpeg, sox) when
+Nix is present, or an existing toolchain with `STUDIO_NO_NIX=1`. The flake covers Apple silicon
+macOS and x86_64/aarch64 Linux; native Windows needs a Linux environment. Python packages are
+pinned by `kit/uv.lock` and engine packages by their `package-lock.json` files. After setup approval,
+the usual install is:
+
+```sh
+skills/studio/bin/studio doctor --fetch --engine live --extra kokoro --extra align
+skills/studio/bin/studio doctor --engine live --extra kokoro --extra align --speech
 ```
 
-installs the engine's packages and its headless browser, local narration (Kokoro, with torch) and
-the voice check (faster-whisper). `doctor` alone checks every layer and prints fixes. The browser is
-the engine's headless shell (four times faster per frame than a full Chrome in headless mode), else
-`STUDIO_BROWSER`, else an installed Chrome. Without Nix, set `STUDIO_NO_NIX=1` and install the tools
-yourself. ElevenLabs narration, used only when you ask for it, needs `ELEVENLABS_API_KEY`.
+The first command installs packages, a headless browser and the language model; the second renders
+a test frame and synthesises/recognises a short sample, fetching speech model weights if needed.
+Public installs must explicitly select spaCy's official model wheel if their package index does
+not carry it. See the [setup guide](skills/studio/references/setup.md) for that command, system-tool
+installation, proxies, optional dependencies and existing pinned videos. `preflight` doesn't
+verify model weights or launch tools; the first-run smoke tests do. Later invocations check what
+is present without reinstalling everything.
+
+Kokoro needs no API key or paid account. ElevenLabs is used only on request and needs
+`ELEVENLABS_API_KEY`. Sound packs and other rendering engines are installed only when needed.
 
 Videos go to `$STUDIO_HOME/NAME` (default `~/studio`), which also holds `learner.md`, the learner
 model the student reviewer plays. Optional `house.md` and `lexicon.json` are snapshotted into new

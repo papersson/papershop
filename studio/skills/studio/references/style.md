@@ -176,11 +176,10 @@ video. ElevenLabs (`eleven_multilingual_v2`, or `eleven_v4`) is the hosted optio
 for it, chosen before scenes are timed, since a new voice moves every word; `eleven_v3` returns no
 timestamps, which the scenes cue from.
 
-Delivery varies with meaning. Three reference explainers speak at about 190–212 wpm and pause where
-an idea ends: a median near 0.7 s, the longest at key moments. Studio's voice spoke in that band but
-left about 0.5 s after every sentence, and read flat. The pause after a sentence now comes from its
-role (0.4 s within a paragraph, 0.7 s at its end, 1.6 s after a question, 2 s after `[key]`, then
-the chapter hold and gap), so write one idea per paragraph and mark the few sentences that matter.
+Keep the configured voice and speed constant throughout. Automatic role-based speed changes and
+pauses sounded unnatural in use and have been removed. Let punctuation shape the paragraph's
+natural speech; use explicit `[pause]`, `[predict]` or `[beat]` holds where the viewer needs time.
+Do not add variation merely to match another narrator's rate or pause statistics.
 
 Names and terms are said right. A learner heard "uh reads one" for "A reads one", and "id" said as
 the Freudian id: a lone capital letter is read as the article, a lowercase abbreviation as a word.

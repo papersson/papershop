@@ -15,6 +15,23 @@ reviews cuts. The narrative determines what the viewer learns; the timeline and 
 keep narration, scenes and revisions consistent. Re-render only changed dependencies. Respect
 existing authorization rather than adding repeated permission gates.
 
+## Check setup first
+
+At every invocation, before `new`, narration or rendering, run the installed skill's
+`bin/studio preflight [VIDEO]` using its absolute path. It only inspects prerequisites; unlike
+ordinary commands it does not bootstrap Nix/uv or download anything. Infer the selected engine
+and speech needs from the request/video (`--engine`, `--extra`, or `--silent`); new explainers
+default to live, Kokoro and alignment. Run once per invocation, not before every command.
+
+If prerequisites are missing, this is a new user's first run, or they request setup, read
+`references/setup.md`. Explain the concrete missing installs, download/storage implications and
+where videos go; ask for confirmation before installing tools or downloading packages/models.
+Prior approval for that setup still applies. Wait for the answer, then install the agreed set and
+verify rendering and a short speech sample. If declined, continue only with work that needs none
+of the missing tools. Never silently switch to paid narration or waive reviews to finish setup.
+For an existing pinned video also check its own kit as described there; the installed-kit check
+does not prove an old pin works.
+
 ## Route the work
 
 Infer these choices or ask only what affects the result; record them in video.json:
@@ -38,7 +55,7 @@ setting waives a known correctness failure.
 
 | Mode | Procedure |
 |---|---|
-| Setup | `studio doctor [VIDEO]`; install missing extras with its exact `--fetch` repair command |
+| Setup | `references/setup.md`: preflight → agreed install plan → doctor and speech verification |
 | Propose | `studio new NAME …`; explainers use `references/propose.md`, others use `references/genres/<genre>.md` |
 | Build explainer | `references/explainer.md`; code also reads `references/code.md`; visual language is in `references/style.md`; tone comic also reads `references/styles/comic.md` |
 | Build other genre | `references/genres/motion.md`, `launch.md`, `pixel.md` or `footage.md` |
@@ -95,13 +112,15 @@ out of the narration; subject-specific code/product names remain legitimate.
 
 ## Commands
 
-All commands run through `bin/studio` in its pinned environment. `--help` lists full arguments.
+All commands run through `bin/studio`; only `preflight` skips environment bootstrapping.
+`--help` lists full arguments.
 VIDEO is a path to a folder holding `video.json`, relative to the current directory; anything else
 is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the full path.
 
 | Command | Purpose |
 |---|---|
-| `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--sounds] [--net]` | Environment, package/model and network diagnostics, the WebGL renderer the live engine's 3D stage gets; `--fetch --sounds` fetches the sound kit alone (CC0 recordings, pinned by sha256, into `$STUDIO_HOME/cache/`; engines only with `--engine`/`--extra` or when Remotion is missing); packs stay zipped, and a row says whether it is there and verified (with VIDEO: whether its library sounds are present) |
+| `preflight [VIDEO] [--engine live\|remotion\|motion-canvas] [--extra kokoro\|align\|audio] [--silent]` | Read-only prerequisite check before setup; defaults to live with Kokoro and alignment, or the video's requirements; no downloads, syncs or browser/model launches |
+| `doctor [VIDEO] [--fetch] [--extra kokoro|align|audio] [--sounds] [--net] [--speech]` | `--speech` tests local synthesis and recognition (may download weights; setup approval first). Environment, package/model and network diagnostics, the WebGL renderer the live engine's 3D stage gets; `--fetch --sounds` fetches the sound kit alone (CC0 recordings, pinned by sha256, into `$STUDIO_HOME/cache/`; engines only with `--engine`/`--extra` or when Remotion is missing); packs stay zipped, and a row says whether it is there and verified (with VIDEO: whether its library sounds are present) |
 | `new NAME [--source REPO] [--drive …] [--level …] [--tone plain\|comic] [--mode background\|interactive] [--genre …] [--engine live\|remotion\|motion-canvas]` | New folder, source repository and snapshotted defaults (explainers default to the live engine) |
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
@@ -116,13 +135,13 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `review-frames VIDEO [--cut N] [--result FILE]` | Package a cut's frames for the main session, or import the reviewer's result (one for a cut older than the sources is recorded as stale, and publish refuses it) |
 | `review-motion VIDEO [--cut N] [--result FILE]` | Package a cut's motion windows (frame strips around every event and uncovered move, from the cut's own frames) for the main session, or import the result as findings; stops at a round with no must-fix findings or after `motion_rounds` (2), recording the rest on the cut as known issues |
 | `review-status VIDEO ROLE unavailable|waived [--reason TEXT]` · `review-status VIDEO listen passed|waived --reason TEXT [--at m:ss.s,…]` | Explicit review limitation/authorization; ROLE is a script reviewer, `frames` (alias `frame`) or `motion`. `listen` records the user's one listening to a mix with effects or music (publish warns without one), with the timecodes listened at: `--at`, else the ones audio-check chose for this mix |
-| `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and pause cues; pauses by role (paragraph ends, questions, `[key]`), a delivery report against three references and a `delivery` warning when flat |
+| `narrate VIDEO [--estimate|--plan|--list|--fetch-only] [--yes]` | Script → speech, captions, word timings and explicit pause cues; one voice and speed throughout |
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
 | `timeline VIDEO [--events]` | Rebuild timeline.json from its sources, after editing `cues.json`, `captions.json` or `audio/tracks.json`; `--events` lists the beat sheet: every cue's time, frame, clip and anchor |
 | `lexicon add WORD --spoken TEXT [--phonemes IPA]` | Promote a pronunciation for future videos |
 | `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; reports actual output dimensions. Chapters without a scene show their boards |
 | `boards VIDEO` | A stills cut of every chapter's board (`boards/boards.json`, notes from the screen notes); reports sentences with nothing on screen |
-| `animatic VIDEO [--boards]` | Pictures held to the real narration with its audio, and a pacing report (runtime, chapter lengths, unchanged stretches, empty sentences), and the narration's delivery (rates, pauses, per-minute swing) |
+| `animatic VIDEO [--boards]` | Pictures held to the real narration with its audio, and a pacing report (runtime, chapter lengths, unchanged stretches, empty sentences) |
 | `open VIDEO [CUT]` · `desk VIDEO` · `notes VIDEO [--start ID \| --resolve ID --reply TEXT]` | Protected system playback; the desk (latest cut, sentence notes, live status and replies; `serve` is an alias); numbered notes and their marks |
 | `wait VIDEO [--timeout S]` · `status VIDEO [TEXT] [--busy]` | Block until a new desk note arrives (run in the background to be woken by each note); the builder's status line on the desk |
 | `glossary [--term T]` | The motion glossary: the words a note can use for motion and the helper behind each (`references/desk.md`) |

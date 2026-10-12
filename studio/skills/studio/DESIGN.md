@@ -532,20 +532,14 @@ flat voice and an unchecked colour legend as the next gaps.
   window with effects gets its own. It then picks about five moments for the user's one listen, each
   with its reason, kept with the soundtrack's stamp so publish, the handoff and the listen receipt
   name them only for that mix.
-- **Pauses follow meaning.** Measured from auto-captions (so approximate), the three references speak
-  at 190-212 wpm while talking, and studio's Kokoro voice was already in that band; what differed was
-  the pauses. A real seven-minute studio narration had a pause median of 0.52 s with its p90 only
-  1.12 times that, against 0.67-0.75 s and 1.4-2.5 times. The pause after a sentence now comes from
-  its role, read from the script: 0.4 s within a paragraph, 0.7 s at its end, 1.6 s after a
-  question, 2 s after `[key]`, then the chapter hold and gap; `[key]`, `[aside]`, `[recap]` and a
-  term's first use also set the speed (one per Kokoro call in paragraph mode). Paragraph ends sit at
-  0.7 s, measured the way the references were (pauses of at least 0.5 s), so the median lands in their
-  band; the 1.2 s first proposed would have pushed it well above. `timing.pause: false` restores the
-  old layout and speeds exactly, and the sentence splitter no longer breaks after common
-  abbreviations (Dr., vs., e.g.).
-  narrate and the animatic report the delivery and warn when it is flat, on rules calibrated so the
-  references pass (a literal two-minute rule would have flagged them), and the estimate now lands
-  within 1% of the real total, against 3.6% before.
+- **Consistent narration (revised after 0.11.0).** The 0.10.0 experiment varied pauses and
+  Kokoro speed by sentence role and first vocabulary use, calibrated against reference explainers.
+  Listening to actual videos found it unnatural. It is removed, together with the warnings that
+  encouraged varied delivery. One configured voice and speed now runs throughout; paragraph
+  punctuation, explicit holds and chapter spacing remain. Old role markers and variation settings
+  are accepted without changing speech, so existing scripts remain usable. Re-narration can move
+  timing, while existing audio and pinned kits are untouched. The sentence-splitter fixes for
+  common abbreviations and the sentence audio cache remain.
 - **One colour, one meaning, checked.** All three references keep one colour legend for the whole
   video, and a colour used for two things was the most common frame-review finding. The check needed
   a machine-readable record of what a colour means, so a video declares `legend` in video.json,

@@ -50,10 +50,11 @@ ENGINE_MARKER = {"remotion": "remotion", "motion-canvas": "@motion-canvas/core",
 
 def check_engine(name):
     d = engine_dir(name)
+    fix = f"studio doctor --fetch{'' if name == 'remotion' else ' --engine ' + name}"
     if not (d / "node_modules" / ENGINE_MARKER[name]).is_dir():
-        return FAIL if name == "remotion" else WARN, f"engine {name}", "node packages not installed", f"studio doctor --fetch{'' if name == 'remotion' else ' --engine ' + name}"
+        return FAIL if name == "remotion" else WARN, f"engine {name}", "node packages not installed", fix
     if not (d / "node_modules" / "@fontsource" / "ibm-plex-mono").is_dir():
-        return FAIL, f"engine {name}", "bundled fonts missing", "studio doctor --fetch"
+        return FAIL if name == "remotion" else WARN, f"engine {name}", "bundled fonts missing", fix
     return OK, f"engine {name}", str(d), ""
 
 
@@ -218,13 +219,21 @@ def install_spacy_model():
     env = dict(os.environ)
     if not env.get("UV_INDEX_URL") and env.get("PIP_INDEX_URL"):
         env["UV_INDEX_URL"] = env["PIP_INDEX_URL"]
-    cmd = ["uv", "pip", "install", "--python", str(ROOT / "kit/.venv/bin/python"),
-           f"en-core-web-sm~={family}.0"]
+    # An explicit source lets a public install use spaCy's official release wheel. Never silently
+    # bypass a configured package mirror when it is unavailable.
+    model = os.environ.get("STUDIO_SPACY_MODEL", f"en-core-web-sm~={family}.0")
+    cmd = ["uv", "pip", "install", "--python", str(ROOT / "kit/.venv/bin/python"), model]
     r = proc.run(cmd, env=env, capture_output=True, text=True)
     if r.returncode:
-        raise SystemExit("spaCy model wheel unavailable through the configured index. Supply a compatible "
-                         "en-core-web-sm wheel on UV_INDEX_URL/PIP_INDEX_URL, then rerun " + repair("kokoro") +
-                         ". No GitHub fallback was attempted.")
+        raise SystemExit("spaCy model wheel unavailable from the selected source. Supply a compatible "
+                         "en-core-web-sm wheel on UV_INDEX_URL/PIP_INDEX_URL, or explicitly set "
+                         "STUDIO_SPACY_MODEL to a compatible wheel URL/path (references/setup.md), then rerun " +
+                         repair("kokoro") + ". No GitHub fallback was attempted.")
+    probe = proc.run([str(ROOT / "kit/.venv/bin/python"), "-c",
+                      "import spacy; spacy.load('en_core_web_sm')"], capture_output=True, text=True)
+    if probe.returncode:
+        raise SystemExit("the installed spaCy model could not load; supply a compatible en-core-web-sm wheel "
+                         f"for spaCy {family} (references/setup.md)")
 
 
 def check_sounds(offline=None):
@@ -272,8 +281,8 @@ def check_sound_host(url):
                                          "reach it and copy $STUDIO_HOME/cache/sounds/ over")
 
 
-def checks(net=False):
-    rows = [
+def system_checks():
+    return [
         (OK, "python", f"{sys.version_info.major}.{sys.version_info.minor}", "")
         if sys.version_info >= (3, 11) else (FAIL, "python", sys.version.split()[0], NIX_FIX),
         check_tool("node", ["node", "--version"], (22, 0)),
@@ -282,6 +291,11 @@ def checks(net=False):
         check_tool("ffprobe", ["ffprobe", "-version"], (6, 0)),
         check_tool("sox", ["sox", "--version"], level=WARN, why=" (needed for the audio finish)"),
         check_tool("uv", ["uv", "--version"]),
+    ]
+
+
+def checks(net=False):
+    rows = system_checks() + [
         check_engine("remotion"),
         check_engine("motion-canvas"),
         check_engine("live"),
@@ -293,6 +307,72 @@ def checks(net=False):
         from .soundkit import hosts
         rows += [check_host(u) for u in HOSTS] + [check_sound_host(u) for u in hosts()]
     return rows
+
+
+def report(rows, label="doctor"):
+    for level, name, detail, fix in rows:
+        print(f"{level:4}  {name:22} {detail}" + (f"\n      fix: {fix}" if fix and level != OK else ""))
+    failed = any(r[0] == FAIL for r in rows)
+    print(f"\nkit at {ROOT}\n{label}: " + ("FAIL" if failed else "ok"))
+    return 1 if failed else 0
+
+
+def require_engines(rows, engines):
+    """An optional engine becomes required when selected for this task."""
+    names = {f"engine {e}" for e in engines}
+    return [(FAIL if name in names and level != OK else level, name, detail, fix)
+            for level, name, detail, fix in rows]
+
+
+def main_preflight(args):
+    engine = args.engine or (settings.load(args.video)["engine"] if args.video else "live")
+    if args.silent:
+        extras = ()
+    elif args.extra is not None:
+        extras = args.extra
+    else:
+        extras = required(args.video) if args.video else ("kokoro", "align")
+    rows = system_checks() + [check_engine(e) for e in dict.fromkeys(("remotion", engine))]
+    rows = require_engines(rows, ("remotion", engine)) + extra_checks(extras)
+    path, source = resolve_browser()
+    present = path and Path(path).is_file() and os.access(path, os.X_OK)
+    rows.append((OK if present else FAIL, "browser", f"{path} ({source}); not launched" if present else
+                 "no executable browser installed", "studio doctor --fetch, or set STUDIO_BROWSER to a working Chrome"))
+    print("No installs, downloads or browser/model launches. Model weights are verified during setup with doctor --speech.")
+    return report(rows, "preflight")
+
+
+def check_speech(timeout=300):
+    """An opt-in smoke test, isolated from any video; first use can download model weights."""
+    missing = [r for r in extra_checks(("kokoro", "align")) if r[0] == FAIL]
+    if missing:
+        return FAIL, "speech", "install kokoro and align extras first", "studio doctor --fetch --extra kokoro --extra align"
+    code = '''import numpy as np
+from studio_kit.narration import kokoro_pipeline
+from faster_whisper import WhisperModel
+from studio_kit.voice_check import score
+text = "The studio is ready to make a video."
+parts = list(kokoro_pipeline()(text, voice="af_heart", speed=1.0, split_pattern=None))
+audio = np.concatenate([p.audio.numpy() for p in parts])
+assert np.isfinite(audio).all() and np.max(np.abs(audio)) > 0.01, "empty or invalid speech"
+audio = np.interp(np.arange(0, len(audio), 1.5), np.arange(len(audio)), audio).astype(np.float32)
+parts, _ = WhisperModel("small.en", device="cpu", compute_type="int8").transcribe(audio, language="en")
+heard = " ".join(p.text.strip() for p in parts)
+assert score(text, heard) >= 0.7, "speech could not be recognised: " + heard
+print(heard)
+'''
+    print("speech: synthesising and recognising a short sample (first use may download model weights)", flush=True)
+    fix = "check the model download/native-library error, then rerun studio doctor --speech (references/setup.md)"
+    try:
+        result = proc.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=timeout)
+    except proc.TimeoutExpired:
+        return FAIL, "speech", f"sample timed out after {timeout} seconds", fix
+    except OSError as e:
+        return FAIL, "speech", f"sample did not complete: {e}", fix
+    if result.returncode:
+        detail = (result.stderr or result.stdout).strip()[-1500:]
+        return FAIL, "speech", detail or "sample failed", fix
+    return OK, "speech", "local narration and recognition passed: " + result.stdout.strip().splitlines()[-1], ""
 
 
 def fetch_sounds():
@@ -319,8 +399,14 @@ def main(args):
     offline = fetch_sounds() if args.fetch and args.sounds else None
     if args.fetch and installs_engines(args):
         fetch(engines=tuple(dict.fromkeys(("remotion", *args.engine))), extras=args.extra)
-    extras = tuple(dict.fromkeys([*args.extra, *(required(args.video) if args.video else EXTRAS)]))
+    # Explicit extras are the task's requirements, not a request to require every optional voice.
+    defaults = required(args.video) if args.video else (() if args.extra else EXTRAS)
+    extras = tuple(dict.fromkeys([*args.extra, *defaults]))
     rows = checks(net=args.net) + extra_checks(extras) + [check_sounds(offline)]
+    engines = [*args.engine, *([settings.load(args.video)["engine"]] if args.video else [])]
+    rows = require_engines(rows, engines)
+    if getattr(args, "speech", False):
+        rows.append(check_speech())
     if args.video and (library := check_library(args.video)):
         rows.append(library)
     if args.video and (Path(args.video) / "video.json").exists() and settings.load(args.video)["engine"] == "live" \
@@ -331,8 +417,4 @@ def main(args):
     if not args.video and not args.extra:
         rows = [(WARN if level == FAIL and name.startswith("extra ") else level, name, detail, fix)
                 for level, name, detail, fix in rows]
-    for level, name, detail, fix in rows:
-        print(f"{level:4}  {name:22} {detail}" + (f"\n      fix: {fix}" if fix and level != OK else ""))
-    failed = [r for r in rows if r[0] == FAIL]
-    print(f"\nkit at {ROOT}\n" + ("doctor: FAIL" if failed else "doctor: ok"))
-    return 1 if failed else 0
+    return report(rows)
