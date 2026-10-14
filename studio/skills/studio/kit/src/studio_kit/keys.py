@@ -213,6 +213,10 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
         "beats": timeline.get("beats", {}) if scene_reads_beats(video, clip_id, clip_ids) else {},
         "layout": tl.layout(video, fmt),
     }
+    # A plate (plates.py) is part of the frame: its key, at the quality a render of this clip draws.
+    from . import plates
+    if clip_id in plates.config(video):
+        part["plate"] = plates.key(video, timeline, clip_id, "final" if quality == "final" else "draft")
     # The one part of video.json a scene reads as it draws: live scenes get the colour legend as
     # c.legend. Left out when there is none, so a video without one keeps its keys.
     if engine == "live" and settings.raw(video).get("legend"):

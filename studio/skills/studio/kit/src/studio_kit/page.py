@@ -279,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
         elif rel.startswith("video/"):
             sub = rel[len("video/"):]
             ok = (sub in ("timeline.json", "layout.json", "video.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
-                  or sub.startswith(".cache/sound/"))
+                  or sub.startswith((".cache/sound/", ".cache/plates/")))
             f = self.video / sub if ok else None
         else:
             f = None

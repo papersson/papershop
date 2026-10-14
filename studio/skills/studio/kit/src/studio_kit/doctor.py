@@ -250,6 +250,18 @@ def _some(files, n=4):
     return ", ".join(files[:n]) + (f" and {len(files) - n} more" if len(files) > n else "")
 
 
+def check_blender(video=None):
+    """Blender, for a video's plates (plates.py): required when video.json names plates, else optional."""
+    from . import plates
+    needed = bool(video and plates.config(video))
+    b = plates.blender()
+    if b:
+        return OK, "blender", f"{b} (plates render with it)", ""
+    return (FAIL if needed else WARN), "blender", ("missing: this video's plates render in Blender" if needed else
+                                                   "not installed (optional: plates for realistic hero shots)"), \
+        "brew install --cask blender (or set STUDIO_BLENDER to its binary)"
+
+
 def check_library(video):
     """A video's library sounds: each in assets/ with the digest its row recorded (Git leaves sound
     out, so a fresh clone has rows and no files). None when the video uses none."""
@@ -338,6 +350,10 @@ def main_preflight(args):
     present = path and Path(path).is_file() and os.access(path, os.X_OK)
     rows.append((OK if present else FAIL, "browser", f"{path} ({source}); not launched" if present else
                  "no executable browser installed", "studio doctor --fetch, or set STUDIO_BROWSER to a working Chrome"))
+    if args.video:
+        from . import plates
+        if plates.config(args.video):
+            rows.append(check_blender(args.video))
     print("No installs, downloads or browser/model launches. Model weights are verified during setup with doctor --speech.")
     return report(rows, "preflight")
 
@@ -409,6 +425,10 @@ def main(args):
         rows.append(check_speech())
     if args.video and (library := check_library(args.video)):
         rows.append(library)
+    if args.video:
+        from . import plates
+        if plates.config(args.video):
+            rows.append(check_blender(args.video))
     if args.video and (Path(args.video) / "video.json").exists() and settings.load(args.video)["engine"] == "live" \
             and settings.load(args.video)["gl"] != "cpu":
         rows.append(check_webgl(settings.load(args.video)["gl"]))

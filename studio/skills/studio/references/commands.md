@@ -25,6 +25,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `run [--allow-outside] VIDEO SCRIPT [ARGS…]` | A builder's `.py` (kit Python, kit importable) or `.mjs`/`.js` (node) inside the video, run in its folder with `STUDIO_VIDEO` and `STUDIO_WORK` set, `studio` on PATH as the video's own kit, and stdin closed; arguments pass verbatim, SIGTERM reaches the script, exit status passes through |
 | `check VIDEO --only script|code-source` | Source/text checks before a browser or timeline exists |
 | `steps VIDEO STEPS.json` | Execute full-file program versions and record source/output evidence |
+| `plate VIDEO [CLIP…] [--quality draft\|final] [--probe [N]]` | Render a chapter's plate (video.json `plates`) in Blender ahead of a cut, or render N frames spread over it and say how long the rest will take; the engine renders missing frames itself otherwise (`engines.md`, Plates) |
 | `typing VIDEO PLAN.json` | Code typed from a plan of edits between recorded versions: `data/typing.json` for the Remotion `Editor`, `type-*` cues, and per burst a key stream and accents in `audio/sfx.json` (`code.md`) |
 | `review VIDEO ROUND [--only student|expert|editor] [--narrative FILE]` | Isolated, revision-bound script/narrative review; `max_rounds` counts the rounds since the latest structural stage mark |
 | `review-frames VIDEO [--cut N] [--result FILE]` | Package a cut's frames for the main session, or import the reviewer's result (one for a cut older than the sources is recorded as stale, and publish refuses it) |

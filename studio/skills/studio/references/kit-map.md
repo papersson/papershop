@@ -50,7 +50,8 @@ The CLI table is `kit/src/studio_kit/cli.py` (COMMANDS: each command's arguments
 | init | `pin.py` |
 | lexicon | `preferences.py` |
 
-Typed code is `typecode.py` (the generator) and `engines/remotion/src/kit/editor.tsx` (Editor,
+Plates are `plates.py` (the kit's side) and `engines/blender/plate.py` (Blender's), with a starter
+scene script in `templates/blender/scene.py`. Typed code is `typecode.py` (the generator) and `engines/remotion/src/kit/editor.tsx` (Editor,
 RunTerminal, ProgramWindow); an effect made of many events is `streams.py`. What a clip's frames
 depend on (its cache key) is `keys.py`; the timeline's contract, cues and
 captions are `timeline.py`; video.json's settings and their defaults are `settings.py`.

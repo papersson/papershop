@@ -227,6 +227,11 @@ COMMANDS = {
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),
     "steps": ("run program versions in scratch projects and record evidence", [W("video"), P("manifest")], "steps:main"),
+    "plate": ("render a chapter's plate (video.json plates) in Blender, or probe how long it will take", [
+        W("video"), A("clips", nargs="*", help="the chapters (default: every plated chapter)"),
+        A("--quality", default="draft", choices=["draft", "final"]),
+        A("--probe", type=int, nargs="?", const=6, help="render N frames spread over the clip and estimate the rest"),
+    ], "plates:main"),
     "typing": ("type code into an editor from a plan: the editor's steps (data/typing.json), cues and key sounds",
                [W("video"), P("plan", help="the plan: sources, bursts of edits, the run (typecode.py)")], "typecode:main"),
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [

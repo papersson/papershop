@@ -72,13 +72,31 @@ class Engine:
                 raise EngineError(f"{self.name} {op} wrote no reply")
             return json.loads(answer.read_text())
 
+    def _plates(self, requests, quality="draft"):
+        """Render the frames of a plate (plates.py) these requests draw, before the page draws them:
+        [{clip, t}], or a clip's every frame for a render (t None)."""
+        from . import plates
+        cfg = plates.config(self.video)
+        wanted = [r for r in requests if r["clip"] in cfg]
+        if not wanted or self.name != "live":
+            return
+        t = tl.load(self.video)
+        need = {}
+        for r in wanted:
+            count = tl.frames(t, r["clip"])[1]
+            frames = range(count) if r.get("t") is None else [min(count - 1, max(0, tl.half_up(float(r["t"]) * t["fps"])))]
+            need.setdefault(r["clip"], set()).update(frames)
+        plates.ensure(self.video, t, quality, need)
+
     def still(self, clip, t, out, layers="all", scale=1.0):
         """The exact frame at clip time t, rendered alone."""
         assert layers in LAYERS, layers
+        self._plates([{"clip": clip, "t": t}])
         return self._call("still", "--clip", clip, "--t", t, "--out", out, "--layers", layers, "--scale", scale)
 
     def stills(self, requests):
         """Many stills in one browser session: [{clip, t, out, layers?, scale?}]."""
+        self._plates(requests)
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump([{**r, "out": str(r["out"])} for r in requests], f)
         try:
@@ -88,6 +106,7 @@ class Engine:
 
     def render(self, clip, out, quality="draft", range_=None):
         """The clip as a silent video, or the part of it between range_ = (a, b) seconds."""
+        self._plates([{"clip": clip, "t": None}], quality)
         args = ["--clip", clip, "--out", out, "--quality", quality]
         if range_:
             args += ["--range", range_[0], range_[1]]
@@ -95,6 +114,7 @@ class Engine:
 
     def boxes_at(self, requests):
         """Boxes for many frames in one browser session: [{clip, t}] -> [{clip, t, band, boxes}]."""
+        self._plates(requests)
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump(requests, f)
         try:
@@ -104,6 +124,7 @@ class Engine:
 
     def boxes(self, clip, t):
         """Pixel boxes of every labelled element at clip time t, and the caption band's position."""
+        self._plates([{"clip": clip, "t": t}])
         return self._call("boxes", "--clip", clip, "--t", t)
 
     def look(self, outdir, caption=()):

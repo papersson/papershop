@@ -212,6 +212,40 @@ timeline, with the same cues, legend, checks, look sheet and desk. The admission
   the CPU's, 2D ones included, so the backend is part of every live clip's key and of the look
   sheet's. `studio doctor` names the renderer each backend gets.
 
+## Plates: Blender behind a live chapter
+
+For a physical object the viewer should believe (a hard drive's platter, an engine's piston), a
+chapter can have a plate: frames Blender renders, which the live scene draws as its background
+while it keeps everything else, its labels, the caption band, the checks, the desk, the reviews,
+publish. Name it in video.json:
+
+```json
+"plates": {"s3": {"script": "sims/drive_scene.py", "inputs": ["sims/drive/*.py"],
+                  "project": ["head", "platter"], "draft": {"samples": 16}, "final": {"samples": 64}}}
+```
+
+- **The scene script** (`templates/blender/scene.py` is a start) defines `build(scene, ctx)`, run
+  once (objects, materials, lights, `scene.camera`), and `pose(scene, t, ctx)`, run every frame: where
+  everything is at clip time t. `ctx["cues"]` are the clip's cues in clip seconds, so a contact in
+  Blender lands on the narration's word. pose depends on t alone. Hide what can't be seen
+  (`hide_render`) instead of fading it to nothing: transparent objects tripled a film's frame time.
+- **The live scene** draws it: `c.plate()` fills the stage above the band behind everything (the
+  camera never moves it; the plate's own camera is Blender's), and `c.plate.at('head')` is that
+  object's projected point on the stage (null behind the camera), where an SVG label goes. Labels
+  stay live text, so every text check reads them; nothing is written into the plate.
+- **Rendering.** The engine renders whatever frames a still, a check or a cut needs, at draft quality
+  (half size) for stills and drafts and full size for a final, into `.cache/plates/`, keyed on the
+  script, its `inputs`, the profile and the clip's cues: an edit to any of them renders again, and a
+  stopped render resumes. Before a long one, `studio plate VIDEO s3 --probe` renders six frames spread
+  over the clip and says how long all of it would take; `studio plate VIDEO s3 --quality final`
+  renders it ahead of the cut. Measured on the hard-drive film: half a second a draft frame, 4 to 15 s
+  a final one, the slow ones where transparent objects faded.
+- **A renderer of your own** reads the same request: `"renderer": "command", "command": [argv…,
+  "{request}"]` with the request's `out`, `frames`, `width`, `height`, `fps`, `cues` and `project`,
+  writing `f00012.png` per frame and a `frames.jsonl` line per frame (`{frame, seconds, points}`).
+- `studio doctor VIDEO` and `preflight` check Blender when a video names plates (`brew install --cask
+  blender`, or STUDIO_BLENDER).
+
 ## The look sheet (live and Remotion)
 
 `studio look-sheet VIDEO [--format F]` renders the model sheet through the video's engine, in its

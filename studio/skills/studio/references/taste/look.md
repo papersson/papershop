@@ -67,10 +67,16 @@ hard drive, an engine, a lock) often passes the test for its hero shots and fail
 - **The same identity.** One colour legend for flat and 3D (a face takes its meaning's colour), the
   same protagonist, the same labels. Labels stay SVG text on projected points, upright and at least
   18 px, never painted onto a surface.
-- **The house look is flat.** No lights, shadows, bloom, depth of field, textures or grain: faces in
-  three tones of their colour, outlines in pixels with outer contours heavier than inner detail. It
-  matches the diagrams it opens from and renders on any machine. When the user's own reference is
-  more dimensional than that (an isometric figure, a photo of the object), match the reference.
+- **Three looks, chosen per chapter.** *Flat*, the house look: no lights, shadows, bloom, depth of
+  field, textures or grain; faces in three tones of their colour, outlines in pixels with outer
+  contours heavier than inner detail. It matches the diagrams it opens from and renders on any
+  machine. *Plate*: Blender renders the picture behind a live chapter (`../engines.md`, Plates), with
+  real materials, light and shadow, for the few hero shots of a physical object the user wants to
+  feel ("tactile", "realistic"); the labels and band stay live. A hard-drive film looked "not very
+  3D" and "underwhelming" in the flat look, and its Blender plates were what the user liked. Every
+  other chapter stays flat: a plate costs seconds a frame, and code, maps and diagrams gain nothing
+  from it. When the user's own reference is more dimensional than the flat look (an isometric
+  figure, a photo of the object), match the reference.
 - **The camera moves to show a relation, then holds.** An orbit that reveals which part sits behind
   which earns its seconds; an orbit for its own sake does not. Stage camera moves and changes to the
   model as in 2D.

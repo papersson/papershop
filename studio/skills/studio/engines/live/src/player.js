@@ -25,6 +25,9 @@
 //   legend           the video's colour legend (video.json legend) as meaning -> CSS colour: draw a
 //                    meaning with {stroke: c.legend.request, means: 'request'} and the legend check sees it
 //   clip, index, chapters, timeline, layout, asset(file)
+//   plate(o)         draw the chapter's plate behind everything (video.json plates: Blender renders it,
+//                    the kit's plates.py), filling the stage above the band; plate.at(name) is a projected
+//                    object's point on the stage, [x, y], to put a label on; null when it is behind the camera
 
 import { Stage } from './stage.js'
 import { Stage3D } from './stage3d.js'
@@ -74,7 +77,11 @@ async function exists(url) {
 
 export async function boot({ svg, canvas, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
-  let T, L, scenes, overlay, boards, notes, legend, colours, version = 0
+  let T, L, scenes, overlay, boards, notes, legend, colours, plates, platePoints, version = 0
+  // Images a frame draws (a plate) are decoded before the frame counts as drawn, so a still never
+  // catches a plate half loaded: draw() returns a promise while any is pending.
+  const decoded = new Map()
+  let pending = []
 
   async function load() {
     version += 1
@@ -84,6 +91,13 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     notes = await json(base + 'boards/notes.json', {})
     legend = (await json(base + 'video.json', {})).legend ?? {}
     colours = legendColours(legend)
+    plates = await json(base + '.cache/plates/index.json', {})
+    platePoints = {}
+    for (const [clip, p] of Object.entries(plates)) {
+      const r = await fetch(`${base}${p.dir}/frames.jsonl`, { cache: 'no-store' })
+      platePoints[clip] = r.ok ? Object.fromEntries((await r.text()).split('\n').filter(Boolean)
+        .map(line => JSON.parse(line)).map(e => [e.frame, e.points])) : {}
+    }
     scenes = {}
     for (const c of T.tracks.scene) {
       const url = `${base}scenes/${c.id}.js?v=${version}`
@@ -142,11 +156,35 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     return { c, first, frames: frameOf(c.end, T.fps) - first }
   }
 
+  /** c.plate for a clip at frame f: draws the plate's frame behind the camera, above the band. */
+  function plateOf(clip, f) {
+    const draw = (o = {}) => {
+      const p = plates[clip]
+      if (!p) throw new Error(`no plate for ${clip}: name it in video.json plates (studio plate renders it)`)
+      const href = `${base}${p.dir}/f${String(f).padStart(5, '0')}.png`
+      if (!decoded.has(href)) {
+        const img = new Image()
+        img.src = href
+        decoded.set(href, img.decode().catch(() => { throw new Error(`plate frame missing: ${p.dir}/f${String(f).padStart(5, '0')}.png`) }))
+        if (decoded.size > 240) decoded.delete(decoded.keys().next().value)
+      }
+      pending.push(decoded.get(href))
+      stage.el('plate', 'image', { href, x: 0, y: 0, width: L.width, height: bandTop(), preserveAspectRatio: 'none',
+        opacity: o.opacity ?? 1, box: o.box }, 'back')
+    }
+    draw.at = name => {
+      const p = plates[clip], pt = (platePoints[clip] ?? {})[f]?.[name]
+      if (!p || !pt) return null
+      return pt[2] ? [pt[0] * L.width / p.width, pt[1] * bandTop() / p.height] : null
+    }
+    return draw
+  }
+
   function context(clip, t) {
     const { c, first, frames } = clipRange(clip)
     const { at, end, word, phrase, cue, sentences } = clipTimes(T, clip, first / T.fps)
     return {
-      ...frameContext(t), dur: frames / T.fps,
+      ...frameContext(t), dur: frames / T.fps, plate: plateOf(clip, Math.round(t * T.fps)),
       clip, index: T.tracks.scene.indexOf(c), title: c.title, chapters: T.tracks.scene, timeline: T,
       at, end, word, phrase, cue, sentences,
       P: (t0, d, e) => kit.prog(t, t0, d, e),
@@ -210,6 +248,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     const frame = Math.min(frames - 1, Math.max(0, f))
     const t = frame / T.fps
     begin()
+    pending = []
     let error = null
     if (layers !== 'background') {
       const c = context(clip, t)
@@ -228,7 +267,9 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
       error ??= `${clip} at ${t.toFixed(3)} s (3D): ${e && e.stack ? e.stack : e}`
       stage.end()
     }
-    return error ? { error } : { clip, frame, t }
+    if (error) return { error }
+    const done = { clip, frame, t }
+    return pending.length ? Promise.all(pending).then(() => done, e => ({ error: `${clip} at ${t.toFixed(3)} s: ${e.message}` })) : done
   }
 
   /** Draw the frame at absolute time `at` (the desk's live playback). */
