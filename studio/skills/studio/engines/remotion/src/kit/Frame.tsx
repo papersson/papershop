@@ -94,7 +94,7 @@ export const Frame: React.FC<{clip: string; first: number; layers: Layers; repor
 					</ClipContext.Provider>
 				</StageContext.Provider>
 			)}
-			{layers !== 'no-band' && layers !== 'background' && (
+			{layers !== 'no-band' && layers !== 'background' && l.band.height > 0 && (
 				<CaptionBand top={stageH} height={l.band.height} font={l.band.font ?? 38}
 					time={first / fps + frame / fps} show={ready && layers === 'all'} />
 			)}

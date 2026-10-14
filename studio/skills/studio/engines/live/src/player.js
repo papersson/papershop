@@ -185,8 +185,10 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     }
   }
 
-  /** The caption band and the caption chunk spoken at absolute time `at` (Remotion's look), or the `given` lines. */
+  /** The caption band and the caption chunk spoken at absolute time `at` (Remotion's look), or the `given`
+   * lines. A band of height 0 is a video without captions: nothing is drawn. */
   function band(at, withCaptions, given) {
+    if (!(L.band.height > 0)) return
     const top = bandTop(), font = L.band.font ?? 38
     stage.rect('band', 0, top, L.width, L.band.height, { fill: 'var(--band)', r: 0, layer: 'ui' })
     const chunk = withCaptions && !given ? T.tracks.captions.find(x => x.start <= at && at < x.end) : null

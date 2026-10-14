@@ -394,3 +394,13 @@ export default function draw(c) {
     from studio_kit import check
     assert all(r["ok"] for r in check.bounds(tmp_path, samples=1))
     assert any("'slab'" in r["detail"] for r in check.in_frame(tmp_path, samples=1))
+
+
+@needs_engine
+def test_a_layout_without_a_band_draws_no_captions(tmp_path):
+    # Captions are burned in, and the only way to leave them out is a band of height 0; the game-dev
+    # video set it to 1 instead, because 0 still drew the caption text across the frame's bottom edge.
+    live_video(tmp_path)
+    (tmp_path / "layout.json").write_text(json.dumps({"width": 1920, "height": 1080, "fps": 30, "band": {"height": 0}}))
+    frame = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.5}])[0]
+    assert "caption" not in {b["name"] for b in frame["boxes"]} and "title" in {b["name"] for b in frame["boxes"]}

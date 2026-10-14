@@ -111,7 +111,7 @@ export function studioScene(clip: string, body: (c: Ctx) => ThreadGenerator) {
 				yield* ctx.until(dur);
 			})(),
 		];
-		if (layers !== 'no-band') {
+		if (layers !== 'no-band' && band > 0) {      // a band of height 0: a video without captions
 			view.add(new Rect({position: new Vector2(0, layout.height / 2 - band / 2), width: layout.width, height: band, fill: BAND}));
 			if (layers === 'all') tasks.push(captions(view, me.start, me.end, T));
 		}
