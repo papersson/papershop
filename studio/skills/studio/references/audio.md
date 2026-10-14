@@ -38,6 +38,22 @@ listening the user does.
   loud voice keeps them in place; adjust from there. audio-check warns an effect more than 13.5 dB
   over the voice's loudness (its loudest 10 ms against the voice's integrated loudness; the loudest
   default, thump, sits at +12).
+- **A repeated sound varies.** A cue's `sound` may be a pool, a list of sounds: each cue plays one,
+  never the one the cue before it with the same pool played, a little higher or lower and louder or
+  softer (`"jitter": false` turns that off). Footsteps, keys and ticks are pools.
+- **The video's own recordings play on cues too**: `"sound": "asset:sounds/door/latch.wav"`, a file
+  under `assets/` added with `studio asset add VIDEO FILE --kind … --source … --name sounds/…`. It
+  lands on its transient like a kit recording; `studio sfx` measures it when it keeps the cue. Put a
+  sound in `audio/tracks.json` at fixed seconds only when nothing on screen times it (a room tone).
+- **Many small events are one stream.** Typing is hundreds of keystrokes, too many for cues (each
+  gets a still and a review window), so one effect carries them: `"events": [[seconds after the cue,
+  kind], …]` and `"sounds"` per kind, where a kind's sound may be `"grains:kit:keys-typing-cherry-blue"`
+  (key-sized grains of a take of real typing; `#low` for a space bar, `#high` for a backspace). Each
+  event plays a different variant than the last, crowded events thin out, and events under a spoken
+  word step back by `under_speech` dB (-6), so fast typing is a texture and the voice stays on top
+  (`kit/src/studio_kit/streams.py`). `studio typing` writes these for typed code; a generator of
+  your own (gait contacts, a counter) can too. Generated effects carry `"source"`, and `studio sfx`
+  keeps them when it rewrites the rest.
 - **A bed only when asked.** `studio music VIDEO --bed [--key Am] [--bpm 72]` generates a quiet pad of
   slow chords on a soft pulse, registers it as a music track 20 LU under the voice (so it ducks), and
   writes its beat grid, so `beat_N` and `downbeat_N` cues land on it. No melody: a motif per

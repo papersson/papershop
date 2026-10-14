@@ -46,10 +46,13 @@ The CLI table is `kit/src/studio_kit/cli.py` (COMMANDS: each command's arguments
 | commit | `checkpoint.py` |
 | open | `cuts.py` (the cut store: every cut record is read and written here) |
 | ingest, edit | `footage.py` |
+| typing | `typecode.py` |
 | init | `pin.py` |
 | lexicon | `preferences.py` |
 
-What a clip's frames depend on (its cache key) is `keys.py`; the timeline's contract, cues and
+Typed code is `typecode.py` (the generator) and `engines/remotion/src/kit/editor.tsx` (Editor,
+RunTerminal, ProgramWindow); an effect made of many events is `streams.py`. What a clip's frames
+depend on (its cache key) is `keys.py`; the timeline's contract, cues and
 captions are `timeline.py`; video.json's settings and their defaults are `settings.py`.
 
 ## Questions the kit answers in one place

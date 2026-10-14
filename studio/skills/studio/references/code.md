@@ -14,9 +14,18 @@ and a key texture that follows the typing, with accents on Enter, save and run. 
 and the running program together, so an edit lands as a visible change in the program on the
 frame its sound plays: the colour typed and the window filling, the number changed and the square
 moving. Build then run is an event of its own: output ticks in, then the window opens with weight.
-Generate the keystroke cues from the recorded source text with a helper in `sims/`, rather than by
-hand, so they follow the code. The kit's `CodePanel` has no typed reveal yet (its `tokens` only
-fade colour onto a line), so build one in the video and report it as a missing capability.
+
+`studio typing VIDEO PLAN.json` does this from a plan (its format is in `kit/src/studio_kit/typecode.py`):
+bursts of Vim-style edits (paste, open, put, change, subst, delete, yank, save, run), each from one
+recorded version of the file to the next, with the anchor each edit is finished by. The replay must
+end at the recorded version, or it stops with a diff, so what is typed is the code that ran. Give a
+segment a `typo` once or twice in a video, and a `think` before a hard line. It writes
+`data/typing.json`, the `type-*` cues and, per burst, a key stream and accents in `audio/sfx.json`
+(`audio.md`); run it again after any narration change, since the keys follow the words. In a
+Remotion scene, `Editor`, `RunTerminal` and `ProgramWindow` from `@studio` replay
+`data/typing.json`: import it (`import typing from '../data/typing.json'`) and pass the bursts a
+shot shows. Keep the editor and the program window in one shot, and draw what the program shows in
+`ProgramWindow`'s children (a recorded capture, or the scene's own drawing of its state).
 
 ## Recorded program steps
 
