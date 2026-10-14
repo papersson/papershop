@@ -137,7 +137,7 @@ its boxes there and a close-up opens there. With no header (the default) nothing
   the checks get each child's box as the clip shows it (one it hides is left out).
 - Motion Canvas has none of these.
 
-Stage camera moves and content changes; don't run them together (`style.md`). The glossary names
+Stage camera moves and content changes; don't run them together (`taste/delight.md`). The glossary names
 them: "push-in", "pull back", "pan", "frame on". `studio check`'s `inframe` warns when an element
 the sentence names is cut by the frame, the header or the band at the sentence's end. `bounds` leaves
 alone an element under a camera that has moved (a push-in or pan crops on purpose; the engines mark its
@@ -154,7 +154,7 @@ fails a shape given no name of its own (a Remotion `Rect` without `name`, report
 Some subjects can't be explained flat: a mechanism whose parts sit behind each other, a stack of
 layers, an orbit's inclination. For those, a live chapter can draw in 3D under its SVG, on the same
 timeline, with the same cues, legend, checks, look sheet and desk. The admission test is in
-`style.md`; everything else stays 2D. three.js is pinned in the live engine's packages (0.186.1), so
+`taste/look.md`; everything else stays 2D. three.js is pinned in the live engine's packages (0.186.1), so
 `studio doctor --fetch` installs it and its version is in every live clip's key.
 
 - `c.G` is an immediate-mode 3D stage, like `c.S`: every call names a node by key and sets all its
@@ -264,10 +264,10 @@ no `name` is not).
 
 Untagged, the kit's own accent states (a lit or failed box, a focused layer or variable, a selected
 cell, the current code line, a failed terminal row, a token's state, a ghost, the close-up's
-minimap) are tagged `kit`, and the check leaves them alone: they follow style.md's roles (ice the
+minimap) are tagged `kit`, and the check leaves them alone: they follow the roles in `taste/look.md` (ice the
 thing explained or selected, coral failure, amber a number to watch), which a legend following
-style.md agrees with. A colour the scene picks for a component (Box `color`, a map's `accent`) is not
-the kit's and is checked. A scene may tag its own use of a colour in its style.md role `kit` too
+`taste/look.md` agrees with. A colour the scene picks for a component (Box `color`, a map's `accent`) is not
+the kit's and is checked. A scene may tag its own use of a colour in its `taste/look.md` role `kit` too
 (the ice record in `templates/scenes/example-map.tsx`). A legend that moves ice, coral or amber to
 another role should tag the kit components it uses with its own meanings.
 

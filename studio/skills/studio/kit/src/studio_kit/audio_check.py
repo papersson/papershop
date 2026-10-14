@@ -39,7 +39,7 @@ named fxN, their place in audio/sfx.json (sfx.effect_id), in every row, sheet an
   masking   per spoken word, the effects and music in 1-4 kHz against the narration in that band,
             warning when they come within MASK_MARGIN dB of it; the closest word is kept either way
   pauses    an effect rising over PAUSE_PEAK dBFS (in the effects stem, at the master's gain, before
-            its limiter) during a spoken word fails, naming the part of the word it covers: effects belong in pauses (style.md), and the finish limits peaks, it
+            its limiter) during a spoken word fails, naming the part of the word it covers: effects belong in pauses (references/audio.md), and the finish limits peaks, it
             does not unmask a word. A quiet effect under speech, below it, is allowed
   loudness  the master's integrated loudness and true peak against its target and ceiling, and the web
             copy's true peak when out/web.mp4 exists

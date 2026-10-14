@@ -419,10 +419,10 @@ def comic_questions():
     """The questions of comic.md's "Motion review: comic questions" section, read when the bundle is
     made: from its first numbered question on, so the note to builders above them stays out of the prompt."""
     from .script import sections
-    part = sections((ROOT / "references" / "styles" / "comic.md").read_text()).get("Motion review: comic questions")
+    part = sections((ROOT / "references" / "taste" / "comic.md").read_text()).get("Motion review: comic questions")
     first = re.search(r"^1\. ", part or "", re.M)
     if not first:
-        raise SystemExit("references/styles/comic.md has no '## Motion review: comic questions' section with numbered questions")
+        raise SystemExit("references/taste/comic.md has no '## Motion review: comic questions' section with numbered questions")
     return part[first.start():].strip()
 
 

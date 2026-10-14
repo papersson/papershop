@@ -20,27 +20,20 @@ note to the sentence/chapter of its cut. An empty note still means “here.”
    makes possible, even when that touches a neighboring chapter. Update the learning brief and
    narrative Decisions together when needed. Record each note's disposition.
 4. Recheck the teaching chain if the script changed; rerun the student review and any required
-   subject review after material changes. `max_rounds` caps the review rounds of one revision of
-   the script: rounds are counted from the reviews since the latest structural round mark, not
-   from the ROUND typed, and reviewers run again on an unchanged script are the same round. A
-   structural round mark (step 2) made over a script changed since its last review starts the
-   count again; a mark over an unchanged script does not. Raising the cap is the learner's
-   decision. Keep sentence cues/per-ID pronunciation overrides in sync. Narrate and voice-check
-   only changed speech; a timing-only edit should reuse synthesis.
+   subject review after material changes (round caps: `reviews.md`). Keep sentence cues/per-ID
+   pronunciation overrides in sync. Narrate and voice-check only changed speech; a timing-only edit
+   should reuse synthesis.
 5. Answer picture notes with a still where useful, then `studio cut VIDEO --changelog FILE`.
    FILE is a JSON list of `{note, change}`. Run incremental checks/sheets/craft on the actual
    dependency changes; shared helpers may affect more than one chapter. Required independent
-   frame review uses the new bundle and includes affected transitions/neighbors. A frame receipt
-   goes stale when what its reviewer saw changes (a chapter's frames, the Script or Evidence
-   section, data/), not after a sound-only edit (effects, music, the mix); a new beat grid stales
-   the chapters whose scenes read it. `review-frames` packages any cut with that cut's own
-   revision, and a result for a cut older than the current sources is recorded as stale, naming
-   the chapters changed since; publish refuses a stale receipt and says what changed. Review a
-   fresh cut, or record an authorized waiver. A motion review that has ended is not reopened by
-   these fixes (below).
-6. Report the cut, actual width×height/fps, quality and final-quality status, runtime change,
-   note dispositions, late requests and measured stage times. Do not guess per-request minutes.
-   Mark waiting/finished boundaries and checkpoint at authorized stages.
+   frame review uses the new bundle and includes affected transitions/neighbors; a stale receipt
+   is redone on a fresh cut or waived with the user's authorization (`reviews.md`). A motion
+   review that has ended is not reopened by these fixes.
+6. Report the cut and the desk's address, actual width×height/fps, quality, runtime change, note
+   dispositions, late requests and measured stage times. Do not guess per-request minutes. Mark
+   waiting/finished boundaries and checkpoint at authorized stages. Keep cutting previews until the
+   user says one is ready; that approval, not the end of a round, is what allows the final
+   (`gates.md`).
 
 New requests are queued by the main session with `studio request VIDEO "text"` and incorporated
 at a stage boundary; explicit stop/correction is immediate. One builder owns the folder. Do not
@@ -48,88 +41,16 @@ change sources during a render or launch a second writer. Preserve the record of
 A changed chapter without a new Review log entry produces a cut warning; a re-encode need not
 invent an editorial revision.
 
-## The motion review and its stop rule
+## Reviews and the sound
 
-An explainer with a teaching contract (what `studio new` makes) built in background mode publishes
-only with a settled motion receipt: `passed`, `known-issues` or `waived`. In interactive mode the user
-watches every cut on the desk, so it runs only when they ask; other genres don't need one. `studio review-motion`
-packages a cut's motion windows and imports the reviewer's findings (`explainer.md`, Stage 11).
-
-The review stops at a round with no must-fix findings, or after video.json `motion_rounds` rounds
-(default 2), whichever comes first. Rounds count per cut lineage: each cut motion-reviewed is a
-round (a re-cut of unchanged sources too), since the latest structural stage mark (or fork) made over
-a picture that changed substantially: a new chapter, or half the chapters or more. A mark over a
-small change buys no rounds, as a mark over an unchanged script buys no script rounds. Should-fix findings
-plateaued at 25 to 45 a round in one long session, so the loop ran for hours with no natural end;
-now the last round's should-fix and nit findings go on the cut record as `known_issues`, later cuts
-carry them, and the desk shows them under the cut, so nobody raises them again. The receipt says how
-it ended, read from the findings with the verdict line as a cross-check: `passed` (nothing left),
-`known-issues` (no must-fix, smaller findings left), or `findings` with `stopped: "cap"` (must-fix
-findings still open at the cap). A bundle takes one result, so a reviewer is not re-rolled. That last one is open,
-never passed: report it to the user, who either has them fixed and records acceptance with
-`studio review-status VIDEO motion waived --reason …`, or asks for more rounds by raising
-`motion_rounds`. A third round is refused: with must-fix findings open the refusal spells out that
-choice; after a clean end or a waiver it says the review is settled and nothing more is needed.
-
-An ended review stands for its lineage: later small edits (frame-review fixes, desk notes) are
-judged by the frame review and the user, not by another motion round. It stops standing when the
-reviewed cut came before a structural mark that started a new count, or when a chapter is new or
-half the chapters or more changed since that cut; publish names them and asks for a structural mark,
-a fresh cut and a new review. A later review that ends replaces the known issues; a waiver records
-how many it accepts. When the user prefers to judge motion on the desk, record a waiver whose
-reason names their notes by id (the receipt keeps the mode and the ids). A video made before this requirement is told so at publish, with
-the waiver to record if the user agrees.
-
-## Sound: measured, then heard once
-
-The kit cannot judge sound by ear, so it measures it. `studio audio-check VIDEO [--cut N]` writes
-`out/audio-check.json` and a line a row, each ok or a warning, on stems the kit renders itself (each
-role's sub-bus as it sits in the mix, at the master's level):
-
-- **sync**: each effect on a named event (a cue name or anchor in `audio/sfx.json`), its onset
-  against the event's frame (a kit recording's transient peak, since its file has a lead-in); a
-  warning past one frame. With a rendered cut, a tagged effect (`visual`: `cut`, `move`, `land`,
-  `appear`) is judged against the picture frame by frame (a cut within 1 frame, a move's peak within
-  3, a landing or an appearance within 2; a warning past it), and an untagged one gets the nearest
-  start or end of picture motion, or a cut, noted beside it.
-- **audible**: each effect in a window around its contact. A warning when it lifts the narration
-  and music there by under 6 dB, wideband and in its own band (masked), or when its loudest 10 ms
-  is more than 30 dB under the voice's level (too quiet: an effect alone in a pause still has to be
-  heard at the volume the listener set for the voice).
-- **loud**: an effect's loudest 10 ms (K-weighted) more than 13.5 dB over the voice's integrated
-  loudness; the effects follow the narration's loudness and kit recordings are trimmed to their synth
-  voice, so the defaults at gain 0 pass at any narration level. With no narration, loud and audible
-  measure against the music; with neither, a row says they were not measured.
-- **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
-- **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
-  within 10 dB.
-- **pauses** (fails): an effect over -24 dBFS during a spoken word, at the master's gain before its
-  limiter; the row names the part of the word it covers and its peak there. `studio check` runs this
-  guard whenever there are effects (`audio/sfx.json`, or a `tracks.json` entry with role `sfx`) and
-  a narration, so publish's full-check gate stops on it. Both keep the target the mix was last
-  finished to, so a check after `export --lufs -14` stays at -14.
-- **loudness**: the master against its target and ceiling, and the web copy's true peak.
-
-It also draws `out/audio-sheet.png` (waveform, spectrogram, sentence bands and a marker per effect,
-red where a row flagged it) and close-ups of the hero effects in `out/audio-sheet/`, with the frame
-grid and the frame where the picture does what the tag says. Look at them before asking for the
-listen. And it picks about five timecodes for that listen, each with its reason: the tagged effect
-furthest from its picture, the closest masking margin, the loudest effect, the music's entry, the
-hero effects.
-
-Then the user listens once. With effects or music, before publishing, ask the user to play the
-finished mix (the desk's latest cut, `audio/final.wav` after `studio audio`, or `out/master.mp4` once
-a publish has made it) at the timecodes audio-check printed, and record what they said: `studio
-review-status VIDEO listen passed --reason "…" [--at 0:02.8,0:16.1]` (without `--at` the receipt keeps
-the timecodes chosen for this mix), or `waived` with their reason. The
-receipt is bound to the soundtrack's stamp, so a new mix makes it stale. Publish warns, not stops,
-when none stands, naming the timecodes, and the handoff lists it as a next step. A narration alone needs no listening
-unless the user wants one.
+Which receipts publish needs, the motion review's stop rule and the frame review's freshness are in
+`reviews.md`; what audio-check measures and the user's one listening are in `audio.md`.
 
 ## Publishing
 
-`studio publish VIDEO` first requires the review receipts (script reviews, the frame review where
-required, the motion review for a background explainer) and runs the full `studio check` on every chapter as
+`studio publish VIDEO` first requires the user's approval of a cut (`reviews.md`) and the review
+receipts (script reviews, the frame review where required, the motion review for a background
+explainer), and runs the full `studio check` on every chapter as
 its gate (a failure stops it; with effects, it includes the pauses guard), then renders the final cut (1080p) unless the latest cut is one (only chapters
 whose key changed since the last final render re-render) with its whole mix finished to -16 LUFS
 under a -1.5 dBTP ceiling (`studio audio`; a social export takes `--lufs -14`, below), links it as

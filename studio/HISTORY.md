@@ -1,0 +1,451 @@
+# Studio release history
+
+What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
+see current rules, not their history. DESIGN.md keeps the standing rationale.
+
+## What the next three productions changed (0.6.0)
+
+A 26-minute line-by-line Rust tour failed even though its facts were correct. A construction story
+with four marked ideas, real intermediate runs and optional language sidebars worked. The method
+now lives in one pedagogy reference: model delta and transfer questions precede the outline,
+abstractions earn their place, and prediction beats leave actual silence. Intro describes
+scaffolding rather than an exemption from evidence/review. Runtime follows the cognitive arc;
+engagement measurements do not establish a universal learning duration.
+
+An expert author is not a substitute for a beginner's perspective. One student pass applies to
+teaching explainers in either drive, with receipts tied to the current script. Builders hand
+frame bundles back to the main session so independent review does not require nested delegation.
+A review that could not run is unavailable, never an implicit pass. Reaching a cap leaves findings
+open rather than certifying correctness. Simulated students remain diagnostics, not learning data.
+
+Cut pruning deleted a video the user had just watched. Cut records and MP4s are now retained by
+default; explicit media cleanup excludes watched/final/noted cuts. The local player and page share
+the same protection. Git checkpoints track source and evidence rather than rotating binary
+renders into history. These are separate forms of preservation. Older pinned kits must be updated
+explicitly before their old pruning code is used again.
+
+Inline pauses belong to source sentences, not a hand-maintained map of positional IDs. The parser
+serves narration and pre-render diagnostics. Old narration settings keep their old timing; new
+intro defaults add breathing room. Prediction reveal cues, like other timeline cues, must remain
+relative to a shifted chapter for incremental rendering to remain valid.
+
+Revisions now begin with a merge/trim analysis. Only changed dependencies render, but the editorial
+change covers the smallest coherent argument, not necessarily only the annotated sentence. One
+folder has one writer, late requests are queued, and structural revisions get different forecasts.
+Personal style/lexicon and series evidence are snapshotted so global edits cannot change old cuts.
+
+
+## Boards, the animatic and checkpoints (0.7.0)
+
+Two explainers made after 0.6.0 found their worst problems only after scenes were built: a
+chapter that opened on an empty stage, a close-up that sat empty for two sentences, a runtime
+8:42 against a 7:00 target, and a note ("show concretely what a script or a storyboard is") that
+was about what the picture shows, not how it moves, yet cost a scene rewrite. Animation studios
+settle those questions with storyboards and an animatic before animating, because each stage is
+cheaper to change than the next. The studio borrows the two that make videos better.
+
+Boards are layout decisions in data (boards/boards.json: boxes, text, arrows per beat), drawn
+rough on purpose; screen notes fill the gaps, so a chapter has a picture from the moment its script
+exists. They live outside scenes/ because a change to a shared scene file changes every chapter's
+render key; a chapter's key includes the boards only when it renders them. A chapter without a
+scene renders its board in every cut, which is what makes progressive cuts possible: finished
+chapters animated, the rest as boards.
+
+The animatic holds each sentence's picture to the real narration. It renders its own stills at
+half resolution (upscaled page thumbnails made board text unreadable) into its own cache, since a
+still cache removes the stills a call no longer wants. It refuses an estimated timeline: a
+timeline written by `narrate --estimate` now says so, where before the animatic would have played
+silence. Kokoro stays the voice from first narration to publishing, so the animatic's timing is the
+final timing; the word-count estimate was recalibrated against two Kokoro narrations (3.55 words
+per second at speed 1.0, sentence ends included, within 2% of both; the old 2.8 + 0.3 s overstated
+one video by 27%).
+
+`checkpoints: few | many` is how much the user follows along. The boards and animatic checks run
+either way; `many` only adds the stops.
+
+Considered and left out: a picture-lock state. In film it protects work that depends on frozen
+timing (sound, colour, other people's schedules); here re-rendering after a late timing change
+costs seconds, so a lock would only make late fixes harder. Cut records now carry a kind (stills,
+boards, animatic, cut, final) so the new kinds never reach publish or frame review, and
+`settings.py` lists every video.json key in one place.
+
+## The desk, the live engine and two modes (0.8.0)
+
+Evidence: one 11-minute explainer (TigerBeetle's seven stages of survivability) built in a single
+session on a prototype desk, through 16 notes from the user. That closes the "notes from real use"
+item: the loop is proven by the user's own notes.
+
+- **What the user wanted was to be in the middle.** Before, a background builder worked for hours
+  and the user saw the end; checkpoints asked process questions (review caps, waivers) on a page
+  they didn't open. On the prototype, each note was answered in 5 to 15 minutes, in place, and the
+  user stayed in the loop for the whole build. But the user also said plainly that sometimes they
+  just want a video made without them. So there are two modes: `background` (the default; nothing
+  waits on the user) and `interactive` (the desk, chapter by chapter, note by note). `checkpoints`
+  is superseded; old videos with `many` load as interactive.
+- **The desk replaces the review page, it doesn't add one.** Notes keep their log; they gain a
+  status and a reply shown under the note on the cut that answers it; open notes carry to later
+  cuts. `studio wait` is the mechanism that makes it interactive: a builder that runs it in the
+  background is woken by each note. None of the desk's commands take the operation lock.
+- **Most notes were about teaching, not motion.** About 12 of the 16: explain this better, the jump
+  is too big, use canonical terms, what is a key, how runs relate to the log, which stages survive.
+  The reviews that passed the script had missed most of them, so the student reviewer and the
+  pedagogy self-check gained eight checks drawn from those notes.
+- **The live engine exists for the loop.** A scene that is plain JS drawn from t needs no build:
+  the desk draws the current scenes and redraws the moment a file changes, and the same code renders
+  the cut (measured: a 27 s two-chapter draft cut in 28 s; the prototype's 11-minute 1080p video in
+  under 6 minutes with six workers). It is the default for explainers; Remotion keeps the code
+  components, so code explainers stay there.
+- **Determinism is enforced, not hoped for.** The prototype carried a clock reading across frames;
+  the engine now gives every node exactly this frame's attributes and stacking order, so a frame
+  drawn after any other equals the frame drawn alone (tested, and `studio check` renders samples twice).
+- **Cues on what the voice says.** Positional sentence cues broke whenever a note split a sentence
+  (several did). `phrase(id, text)` cues the spoken words (word timings, or the caption position where
+  a spoken rule rewrote them), in all three engines.
+- **Paragraph synthesis stays.** The prototype re-voiced sentence by sentence; studio keeps paragraph
+  synthesis (sentence-by-sentence Kokoro sounded robotic, above). An edit re-voices its paragraph.
+- **ElevenLabs refusals say why.** A per-key quota stopped the prototype's final render with a bare
+  401. The balance is now checked before a run when the key may read it, and a refusal prints
+  ElevenLabs' own reason and that the cache resumes.
+- **Words for motion.** The motion glossary (20 terms, each one helper in the live kit, with the
+  Remotion equivalent) grew from the user's own words ("blur them together"); a note that uses a
+  term says so to the builder.
+- **Checks after every change.** A text-on-text `overlap` check joins the incremental per-chapter
+  set, and a live scene that throws fails with its clip, time and source line, so a collision or a
+  crash is caught before the user sees it.
+
+
+## Polish by default and long runs (0.9.0)
+
+One long session (six builder runs, about 14 hours) made a video the user judged very polished, but
+the kit did not make the polish: the builders invented a beat sheet, a motion rig, staged passes,
+motion reviews on frame sequences and a measured mix, and hit about twenty kit gaps on the way. Two
+failures cost hours: a polish loop with no end and a builder that ran out of context with no
+handoff. 0.9.0 makes that method the default for every explainer, in a neutral style, with comic
+technique kept in one reference read only on request, and adds stopping rules and handoffs so long
+passes end on time and survive a restart.
+
+- **One writer for the timeline.** Seven commands edited timeline.json in place, and a re-narration
+  rebuilt it keeping only the hand cues, so it dropped the effects track, the beat grid and any music
+  bed. Each command now owns one source file (narrate the timings, align the words, sfx its cues, the
+  builder `cues.json` and `audio/tracks.json`) and `timeline.build` composes the file from them; words
+  aligned against an earlier narration are ignored rather than misplaced.
+- **The finish is on the master.** It ran on the narration file alone, so an effect or a music hit
+  over the voice could take the published sound past the -1.5 dBTP ceiling, and the effects, rendered
+  once, stayed at their old times after a re-narration. The mix is now staged (sources, a chain per
+  role, the bus, the master): effects render at mix time against the current timeline, and the fixed
+  gain and the limiter run on the whole mix. AAC then overshoots the finished peak (0.1 dB at 160
+  kbps, up to 1.5 dB for the web copy's low-bitrate mono), so every encode is measured and made
+  quieter until it is under the ceiling too.
+- **One frame sampler.** The cut's stills, the checks' samples and the sheets' strips each chose
+  their frames in their own code, with the 0.15 s before a sentence's end written three times.
+  `moments.py` now chooses them all, as moments with a clip time, a video time and a kind, so
+  stills at beat events or in a pause, or a frame sequence for a beat window, is one function that
+  every consumer can use. The change was proved against the old samplers on a fixture timeline.
+- **A frame review goes stale on what its reviewer saw.** Its revision hashed timeline.json's
+  bytes, and since the timeline became a build product it also changes for sources, the audio track
+  and effects, so a sound edit staled a frame review. The revision now hashes the bundle's Script
+  and Evidence, data/ and each chapter's clip key, which already covers the narration, captions,
+  cues, scene code and layout a frame shows. Review kinds (script, frames, and later motion) declare their roles,
+  revision scope, verdict line, round cap and freshness rule in one registry, `reviews.py`.
+  Upgrading changes every frame revision once: existing frame receipts (waived and unavailable
+  ones included) and every cut's `source_revision` stop matching, so a video that requires a frame
+  review needs a fresh cut and a new review or waiver.
+- **Captions wrap balanced, at every format's width.** The greedy wrap filled a line and left a word
+  or two alone below it, and a chunk sized for 16:9 wrapped to three lines in 9:16. `wrap` now takes
+  the fewest lines that hold the text and the most even of those, and ends a line on an article,
+  short preposition or conjunction, or leaves a word alone, only when nothing else fits. Every
+  format shares the chunks, so `split_phrases` sizes them to two lines at the narrowest width; 16:9
+  chunks are shorter for it, and every caption, so every clip key, changes once on upgrade.
+- **A stale frame review is recorded, not refused.** `review-frames` refused a cut older than the
+  sources, so a review that came back after a small edit was lost. The frames kind's freshness is
+  now "record-stale": a bundle carries its cut's revision, a result is checked against its
+  manifest, and the receipt records the cut, that it is stale and which chapters changed since
+  (cuts keep their review keys). Publish still needs the current revision, and says what changed.
+- **Review rounds count per revision of the script.** The cap compared the typed round number with
+  `max_rounds` across the whole video, so a structural rewrite began near the cap, and one build
+  raised it from 3 to 17. A round is now a script revision reviewed since the latest structural
+  stage mark (logged in research/reviews/rounds.jsonl); ROUND only names the files.
+- **A background stage stops at twice its own budget.** One long session (six builder runs, about
+  14 hours) had a polish stage alone run over five hours unattended, because every budget was
+  advisory and nobody was watching. In background mode, a stage with its own budget in video.json
+  now stops at twice it: the mark prints STOP, and `studio stage VIDEO --check`, run between
+  chapters, exits 3. The builder writes a handoff and reports, and the main session decides
+  whether to raise the budget. The scopes' defaults (20 and 5 minutes) were never calibrated
+  against real builds, so they stay advisory, and so does everything in interactive mode, where
+  the user is watching.
+- **A restart reads a handoff, not a transcript.** In the same session, a builder that ran out of
+  context was resumed from notes it happened to write. `studio handoff` assembles
+  research/handoff.md from the files (owner, stage against budget, last cut and open notes,
+  reviews in flight, requests, the next commands they imply) and adds the builder's own notes.
+  `lock acquire --recover` rebuilds the state from the files and keeps only the stored notes: a
+  stored brief once told the next builder to obey a stop the main session had already lifted.
+  Background builders write one at every stage boundary; chapter fixers report to the owner
+  instead, since they share its token and would overwrite each other's. The brief is committed,
+  so it names paths relative to the video and no host.
+- **Scratch lives in the video, and scripts run through the kit.** That session's key helper
+  scripts lived in /tmp, outside the video and its history, and builders put "claude" in a
+  script's path to get it past the macOS sandbox. Scratch now goes in `.studio/work/`, which
+  survives a restart but stays out of Git and forks; a helper the build depends on moves to
+  `sims/`. `studio run` runs either through the allowlisted `bin/studio`, with the kit's Python
+  and that kit's own `studio` first on PATH, so a pinned video's script calls the pinned kit.
+- **Stills wait their turn.** Parallel chapter fixers rendering stills hit the operation lock,
+  which refuses at once. Stills can't skip it: Remotion bundles into `.cache/bundle` and deletes
+  other bundles there, and Motion Canvas transcodes footage into `.cache/mc-footage`. So `still`,
+  `boxes` and `duration` wait up to two minutes for it instead.
+- **doctor starts the browser the way a cut does.** It launched Chrome with `--dump-dom`, which a
+  sandbox can allow while refusing the engine's own launch. It now renders a one-frame still
+  through the live engine in a throwaway video.
+- **cues.json is a beat sheet.** One builder session wrote its own: named events anchored to a
+  sentence's start or end or to a word, with picture and sound both timed from them. That put all
+  93 sound contacts within a frame of their visual contact, the largest single quality gain of the
+  session, and it hand-added 74 stills, because the kit's fell only near sentence ends. A cue may now
+  be an anchor (`sentence`, `at`, `word`, `phrase`, `offset`) that a phrase finds again after a
+  renumbering and that stops the build, naming the cue, when its words are gone. Every cue lands on
+  the frame grid by the engines' half-up rule, so a scene's `cue()` and an effect on it start on the
+  same frame, and every cut has a still two frames after each event and one in each long pause.
+- **A hold after every move, measured on the pixels.** Moves that follow each other with no rest
+  read as one blur, and nothing checked for it. `pacing` samples each chapter's stage at 10 frames a
+  second from the cut's own rendered clips (0.2 s a chapter; rendering stills instead costs about
+  0.7 s a second of video, so that is opt-in), finds the significant moves, and warns at a hold
+  under 0.5 s. Its thresholds were set so the kit's live and Remotion templates pass; it warns
+  rather than fails until real builds calibrate it.
+- **Motion is reviewed on frame sequences.** In a long session, motion reviews on frame sequences
+  were the builders' main polish tool, and stills near a sentence's end could not see a contact or
+  a pop. `studio review-motion` packages a strip of consecutive frames (about 15 a second) around
+  every event of the cut's beat sheet, the contact fourth so anticipation and settle show, and over
+  every significant move no event covers, each with the narration and the effects cued in it. The
+  frames are cut from the cut's own renders, so the bundle carries that cut's revision, and a
+  result for an older cut is recorded as stale, as a frame review's is. Polish became a planned
+  stage of the explainer (Stage 11), after the blocking and before the frame review, with the
+  motion review as its gate; publish requires it for explainers built in background mode; in
+  interactive mode the user watches every cut on the desk, so a gate would only repeat them.
+- **A motion review stops by a rule.** The same session's review loop ran for hours with no natural
+  end: should-fix findings plateaued at 25 to 45 a review. A motion review now ends at a round with
+  no must-fix findings or after `motion_rounds` (default 2) rounds, whichever comes first, and the
+  rest is recorded on the cut as known issues that later cuts carry and the desk shows. Rounds count
+  per cut lineage: each cut reviewed is a round (counting revisions let a re-cut of unchanged
+  sources roll the reviewer again), and the count starts again only at a structural mark over a
+  substantially changed picture (a new chapter, or half the chapters or more), as a script mark
+  needs a changed script; per script revision, a one-word fix would buy two more rounds. An ended
+  review stands while its lineage does, so frame-review fixes don't reopen it, and stops standing
+  when its cut predates such a mark or the picture changed that much since (the first version
+  compared the import time with the mark, so a result for the old picture could stand for the new).
+  A round with must-fix findings at the cap is reported as open, never passed.
+- **A reviewer's findings are read from a block, and the status from the findings.** An independent
+  review of the first version found that common formats made false findings: a counts line such as
+  `MUST FIX: 0 · SHOULD FIX: 1`, or last round's list echoed with "fixed", became a must-fix that
+  stopped publish, while a table or heading-grouped list read as nothing, so known issues were lost.
+  The prompt now asks for a fenced `findings` block and a separate `regressions` block; without
+  them the parser skips counts lines and the regression check and reads tables, headings,
+  checkboxes and unicode hyphens. The status follows the findings, a FIX with none readable is
+  refused, and a bundle takes one result. Each window's sheet labels its frames, outlines the
+  contact and runs across a cut between chapters, and the cut keeps its effect times and layout, so
+  an older cut is not judged against newer sound.
+- **The mix is one room with the voice in front.** In one long session the builders wrote their own
+  mixer: every track in one shared room (a send reverb), the presence band of effects and music cut
+  under speech, the bed ducked under speech, the whole mix finished to a loudness target under a
+  true-peak limiter. The kit's bus now does the same, in per-role sub-buses so the narration can key
+  the processing: effects and music get a few early reflections (aecho, delays off any common
+  multiple so they don't comb on one pitch), a 1-4 kHz dip of about 3 dB while the narration speaks,
+  and music ducks 8 to 9 dB (`sidechaincompress`, 2:1, 20 ms attack, 500 ms release), with the key
+  brought to a fixed loudness so the thresholds hold at any voice level. The dip is the band
+  subtracted and its compressed copy added back, so a pause keeps the dry signal: a static EQ dip
+  would thin every effect in its pause, where effects belong, and ffmpeg's crossover filter hung
+  in front of a sidechain. Every sub-bus, the key among them, is padded to the video's length: a
+  sidechain stops where its key does, and after a narration shorter than the video the ducked music
+  went silent and the effects lost their whole presence band (found by an end-to-end test). A
+  narration alone, or with footage, is the plain sum it always was.
+- **Sound is measured, and the user listens once.** The same builders wrote an audio checker: sync
+  against the beat sheet, ducking, per-word masking in 1-4 kHz, loudness, and a guard that failed a
+  loud effect over a spoken word. `studio audio-check` measures these on stems the kit renders
+  itself (one role's sub-bus as in the mix, at the master's level), so nothing is unmixed; the
+  pauses guard runs in `studio check`, so publish stops on it. Taste stays the user's: a listening
+  receipt in the reviews registry, bound to the soundtrack's stamp, that publish asks for (a
+  warning) when there are effects or music.
+- **More voices, and a bed only on request.** Four effect voices sent builders to their own synths;
+  the kit has 24 neutral ones now, each a deterministic numpy synth with a line on what it is for,
+  and a build (riser, swell) ends on its cue. `studio music --bed` generates a quiet pad and pulse
+  that registers as music, so it ducks, and writes its beat grid. The plain default stays no music.
+
+| Still open | Done when |
+|---|---|
+| **Live parity for code explainers**: CodePanel, Terminal and the other code components are Remotion-only | a code explainer is built on the live engine |
+| **Desk on other machines**: the desk binds to 127.0.0.1 | a phone or second machine can follow a build safely |
+- **Comic is a tone, asked for, not a default.** The same session's video was comic, and much of its
+  craft (gags acting out the sentence, double takes, impact frames, layered sound) would be wrong in
+  a calm explainer. `tone: comic` in video.json is set only when the user asks for a comic, cartoon
+  or silly video, and only then is `references/styles/comic.md` read; "fun", "delightful" or
+  "engaging" ask for the plain polish done well. Two evals hold that line.
+
+## Sound, delivery and colour (0.10.0)
+
+One long session's builders and a public "sound layer" both found the synthesised beeps the weakest
+part of the soundtrack, so studio gains recorded CC0 sounds, each placed on its cue by its transient.
+Measurements of three reference explainers (3Blue1Brown, Kurzgesagt, Sebastian Lague) then showed a
+flat voice and an unchecked colour legend as the next gaps.
+
+- **One resolver, one placement.** An effect's sound was a synth's name, read straight from the
+  voice table, and the render, the cut's snapshot, the motion review and audio-check's sync each
+  worked out its time. Now `sfx.resolve` makes any cue's sound (its optional `sound` id, else its
+  type) into one record: samples, rate, the contact sample where the cue lands, where that is (start,
+  end for a build, peak for a recording) and a digest; the synths are its first provider. `sfx.place`
+  puts every cue on a timeline once, and all four read it. The track's cache key is the placements'
+  digests, times and gains, so an edit elsewhere in the kit no longer re-renders every video's
+  effects.
+- **Recordings are pinned, verified and copied in.** A public tool we studied fetched hundreds of
+  unpinned URLs with no checksums. The sound kit's manifest (`soundkit.json`, beside the kit's
+  modules, so `studio init` pins it) names each pack's URL, sha256, size, licence (CC0 only) and
+  creator. `studio doctor --fetch --sounds` downloads each once into `$STUDIO_HOME/cache/sounds/`:
+  one cache for every video and pinned kit, outside the plugin folder an update replaces, and named
+  by digest, so two kits' manifests coexist. A mismatch deletes the download and names both
+  digests; only whitelisted members are unpacked, and an archive with an absolute path, a `..` or
+  a link is refused whole. A video never reads the cache: `studio asset library` copies a sound
+  from the verified zip into `assets/sounds/` with a provenance row (pack, member, licence,
+  creator, sha256), so it renders without the cache and its page credits the packs. Git leaves the
+  sound out, and `studio asset restore` copies it back by its recorded digest.
+- **Picture motion is measured once.** The pacing check and the motion review sampled a rendered
+  stage ten times a second, and audio-check's sync decoded the cut's frames with its own ffmpeg
+  pipeline, threshold and edge logic. The sound tags coming next (`cut`, `move`, `land`, `appear`)
+  are judged against the picture frame by frame, so `motion.frame_signal` reads a window of a
+  rendered file at its own frame rate, from frame `first` exactly (a seek half a frame early),
+  through the same decoder and change measure as the sampled signal, and adds the share of the stage
+  that changed. Its helpers are the tags' vocabulary: where motion starts and ends, the frame of peak
+  speed, and cuts. A cut is a one-frame spike: at least 60% of the stage changes into a frame and less
+  into the frames either side. The kit's own fades and wipes change at most 48% of the stage a frame
+  on 109 rendered clips, but a flat full-stage fade, a flash or a fast pan changes all of it frame
+  after frame, and read as runs of cuts until the spike became the rule; a run of full-frame change
+  is motion, and so is a cut between two scenes on one background. Where motion starts and ends also
+  counts a frame where a small element visibly changes (0.05% of the stage over the window's
+  median), so a 40 px label fading in has a start.
+  The sampled signal keeps ffmpeg's fps filter, which picks a frame from within each tenth of a
+  second (at 30 fps the second of three, not the first), so the pacing check and the motion review
+  report what they did.
+- **A recording lands on its peak.** A recorded effect has a lead-in, so starting its file on the
+  cue puts the sound late by its attack (up to 180 ms in the kit's whooshes). `sound: "kit:ID"`
+  resolves to a Sound that lands at its transient peak: the first local peak of a 2 ms RMS
+  envelope within 6 dB of the loudest, so an attack wins over a louder ring unless the ring is
+  much louder, and a build lands on its loudest moment. It is measured once, from the audio decoded
+  to 48 kHz mono, and kept in the manifest's facts with the length, so placing needs neither the
+  file nor numpy and the digest holds the file's sha256. audio-check's sync times a recording the
+  same way; on a Kokoro-narrated test video a whoosh read 3 frames early by its onset and 0.2 by its
+  peak. `studio sfx` copies each named recording into `assets/sounds/`, and a render reads only
+  that copy. Recordings are opt-in per cue: a type alone keeps its synth voice, `"sound": "kit"`
+  plays the type's default, and there is no video.json switch, because audio/sfx.json then says on
+  its own what each effect plays, and one setting does not silently move every effect's file and
+  timing.
+- **Curated by measurement, not by ear.** No one could listen, so 174 of the five packs' 386 sounds
+  were mapped to types by their file names and measured (length, peak, lead-in, attack, tail,
+  centroid, floor, events); 22 were rejected (10 clipped, 12 with several events, 4 with long
+  silence, some for two reasons) and 152 kept across 28 types, adding question, page-turn, stack,
+  dice and toggle; swell has none and stays a synth. Each type's default has a crisp attack and is
+  nearest its synth voice in brightness and length. A test re-measures every sound from a fetched
+  kit against the committed facts.
+- **Every effect heard.** The "sound layer" we studied checked each effect's audibility but passed
+  one at -60 dBFS in a silent pause. audio-check's `audible` row measures each effect in a window
+  around its contact: masked when it lifts the narration and music by under 6 dB, wideband and an
+  octave either side of its centroid, and too quiet when its loudest 10 ms is more than 30 dB under
+  the voice's level. On fixtures a pop in a pause passes (over silence, 1 dB under the voice), the
+  same pop under an unducked pink-noise bed warns (a 0.8 dB lift), and one at -60 dBFS in silence
+  warns (45 dB under the voice).
+- **Tags say what the picture does, never when.** A cue's `visual` (`cut`, `move`, `land`, `appear`)
+  is judged on the cut's frame signal and reported in frames, as a warning only: the beat sheet stays
+  the one source of timing. On the test video a whoosh tagged `move` but placed on a slide's first
+  frame read 10 frames early, which is the kind of thing an ear catches and a frame count can too. A
+  cut between two scenes on one background changes too little to read as a cut, so `cut` also
+  accepts a change exactly at a clip seam. Reading the cut frame by frame exposed a decoder bug: with
+  an audio track, two seeks in three returned the frame before (fixed with `-fps_mode passthrough`).
+  A miss reports where the mark really is, up to a second away, and the picture is read at the frame
+  the cut's own timeline put the event on, saying so when the sources have moved it since.
+- **Recordings at their synth's level.** Kenney's sounds are mastered near -1 dBFS, so a kit confirm
+  at gain 0 came out 12.9 dB over the voice. Each kit sound's `trim_db` (from -15.9 to +8.7 dB) brings
+  its K-weighted loudest 10 ms to its synth voice's, and it is in the digest. The mix set effects at a
+  fixed -8 dB and the finish raised everything to its target, so a voice synthesised 8 dB quieter made
+  every effect 8 dB louder against it; the effects track now follows the narration's integrated
+  loudness against Kokoro's -25.6 LUFS, and the `loud` row compares an effect's K-weighted loudest
+  10 ms with the voice's integrated loudness. Against that fixed relation the synth voices at gain 0
+  sit from -3.5 dB (key-tick) to +12.2 dB (thump), so the line is 13.5 dB: every default passes at any
+  narration level, and +10 dB warns from confirm (+5) up. A first version compared with the voice's
+  99th-percentile 10 ms level, which moved with the voice's dynamics and left the thump 1.2 dB from
+  the line. With no narration the effects are measured against the music.
+- **A sheet to look at, timecodes to listen at.** The kit cannot hear, so audio-check draws the
+  soundtrack (waveform, spectrogram, sentence bands, one marker per effect, red where a row flagged
+  it; close-ups of the hero effects with the frame grid) with ffmpeg alone, and each motion-review
+  window with effects gets its own. It then picks about five moments for the user's one listen, each
+  with its reason, kept with the soundtrack's stamp so publish, the handoff and the listen receipt
+  name them only for that mix.
+- **Consistent narration (revised after 0.11.0).** The 0.10.0 experiment varied pauses and
+  Kokoro speed by sentence role and first vocabulary use, calibrated against reference explainers.
+  Listening to actual videos found it unnatural. It is removed, together with the warnings that
+  encouraged varied delivery. One configured voice and speed now runs throughout; paragraph
+  punctuation, explicit holds and chapter spacing remain. Old role markers and variation settings
+  are accepted without changing speech, so existing scripts remain usable. Re-narration can move
+  timing, while existing audio and pinned kits are untouched. The sentence-splitter fixes for
+  common abbreviations and the sentence audio cache remain.
+- **One colour, one meaning, checked.** All three references keep one colour legend for the whole
+  video, and a colour used for two things was the most common frame-review finding. The check needed
+  a machine-readable record of what a colour means, so a video declares `legend` in video.json,
+  elements carry `means` (or the meaning's words in their name), and the engines' boxes report each
+  element's resolved fill and stroke. It warns rather than fails, because tags and names are
+  heuristic; neutrals, blends mid-transition and tints never count, so a fade or a guide dimmed
+  below half opacity is not a misuse. The kit tags its own accent states, so a legend that follows
+  style.md passes the kit's components; editing the legend re-keys live clips, and elements below
+  half opacity are not counted.
+
+## 3D inside the live engine (0.11.0)
+
+The user asked for 3D that sits coherently next to the 2D explainers rather than as a gimmick. A spike
+(a 20 s narrated chapter: a hard-disk platter drawn flat, tilted into a stack of four, the arm landing
+on one cue, the cylinder lighting, back to flat) settled the shape before anything was built.
+
+- **3D earns its place by a sentence.** "The viewer needs to see ___, and the flat diagram hides it."
+  The spike's subject passed: "cylinder" means nothing until the stack is seen. Most of what studio
+  explains (code, flows, maps, tables) fails it, and stays 2D. The test is in style.md.
+- **One engine, one timeline: a stage under the SVG, not a second engine.** A separate 3D engine
+  would rebuild the lifecycle, boxes, look sheet, desk and cache, and one engine per video would
+  stop a chapter moving between flat and 3D, which is the point. The live engine gained `c.G`, an
+  immediate-mode three.js stage built like the SVG one (keyed nodes, all state from `t`, undrawn
+  nodes hidden), on a canvas under the SVG made the first time a scene asks for it; a 2D video
+  never makes a WebGL context. To make room for it the page now paints the background, which the
+  SVG stage drew as a full-frame rect; every 2D frame is the same as before.
+- **The flat diagram is the model seen from above.** Camera maths live in `shared/camera3d.js`
+  (shots `{target, az, el, span, fov}`, keyed as the 2D camera is), and the 3D stage loads its
+  matrices as they are, so SVG projected through the same numbers lands on WebGL's pixels.
+  `c.flatShot()` makes world `(x, 0, z)` the stage's pixel `(x, z)`: the hand-over between an SVG
+  diagram and its model measured 0.23 grey levels of mean difference, all antialiasing, once faces
+  sat a little behind their own outlines (a face had been winning the depth test against the line on
+  its edge, halving the rim). A diorama with the diagram painted onto a surface was considered and
+  left out: an SVG texture is asynchronous to make, blurs up close, and hides its text from the checks.
+- **No lights.** Faces take three tones of their palette colour from one fixed house light, so a lit
+  face shows the legend colour exactly (11,056 pixels of exactly `#8FD3FF` in a 3D frame) and a
+  washed-out grade can't happen. Shadows, bloom and depth of field cost 214, 292 and 667 ms a frame on
+  the CPU renderer against 156 for the house look, and none of them explains anything.
+- **CPU WebGL by default, the GPU on request, and the backend in the keys.** Studio's renderer runs
+  Chrome with `--disable-gpu`, which gives WebGL 2 on SwiftShader: 599 of 599 frames identical across
+  runs and render orders, at 156 ms a 3D frame against 45 for 2D. On Metal a 3D frame costs what a 2D
+  one does and is just as repeatable, but no frame matched the CPU's, 2D ones included (the GPU
+  rasterises SVG differently too). The spike reused a GPU-rendered clip for a CPU cut because the
+  backend wasn't in the key; now `render.engine_inputs` hashes the live engine's page and CLI, the
+  video's `gl` and the browser for both the clip keys and the look sheet's key (which hadn't hashed
+  the lock file either).
+- **The checks see 3D.** Named 3D nodes are reported like SVG ones, with projected bounds, colours,
+  meaning and `camera` while the shot moves, so `bounds`, `band`, `inframe` and `legend` work unchanged.
+  They also report `visible`, from object masks made only for boxes. The spike's first layout had seven
+  of eight heads invisible under "every head lands": a frame review might miss that, a measurement
+  doesn't. `occluded` warns at a sentence's samples and at each event; the name match learned that "head
+  2" is one of the heads a sentence names.
+- **Labels stay SVG**, on points projected from the model: upright, legible and read by every text
+  check. SDF text in 3D was left out.
+- **The desk reloads a fresh page when a module changes.** It re-imported chapter files in place, but a
+  browser keeps an imported module by URL, so an edited helper (or the engine) showed stale. It now
+  watches two groups and reloads the page for the second; it also serves video.json, so the legend on
+  the desk is the render's. Scenes import the engine as `@studio/`: an absolute `/engine/` import, as
+  `kit.js` once suggested, worked in the renderer and failed on the desk.
+- **Sound needs no new clock.** audio-check judged the landing's `land` tag on the 3D picture and was
+  right twice: once when an in-out ease crept into the stop (3 frames early), once when the tap sat on
+  the word it illustrated.
+
+| Still open | Done when |
+|---|---|
+| **A second 3D subject** of another shape (a molecule, an orbit) | built and checked without kit changes |
+| **SwiftShader on another CPU** | a frame compared between Apple silicon and x86 |
+| **Pacing reads a settle as a new move**, and motion-review strips are too small for small 3D parts | pacing treats a settle from the contact frame as part of the landing; a window crops to the named element |

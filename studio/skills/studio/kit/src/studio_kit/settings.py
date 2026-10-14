@@ -10,7 +10,7 @@ keys without a default are simply absent when unset (callers use .get).
   drive              author | learner (explainers)
   level              intro | deep-dive                                         default "intro"
   tone               plain | comic: comic only when the user asks for a comic, cartoon or silly
-                     video (references/styles/comic.md); "fun" or "engaging" is plain polish
+                     video (references/taste/comic.md); "fun" or "engaging" is plain polish
                      default "plain"
   destination        private-page | share | social | files                    default "private-page"
   engine             remotion | motion-canvas | live                           default "remotion" (studio new picks live for explainers)

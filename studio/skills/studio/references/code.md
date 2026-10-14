@@ -8,7 +8,7 @@ For exhaustive coverage, map source regions to the main story, sidebar or compan
 
 ## Typed, not revealed
 
-Code the story writes is the best hero moment a code video has (`style.md`, Delight): type it.
+Code the story writes is the best hero moment a code video has (`taste/delight.md`): type it.
 A caret, a readable rate that finishes each line by the words that discuss it, bursts and pauses,
 and a key texture that follows the typing, with accents on Enter, save and run. Show the editor
 and the running program together, so an edit lands as a visible change in the program on the

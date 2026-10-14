@@ -10,7 +10,7 @@ there is one). It also writes audio/beats.json with its grid, so `beat_N` and `d
 land on its pulse; a grid already there from `studio beats` is moved to audio/beats.user.json first,
 and put back by `--remove`, so the user's grid is never lost. A re-narration does not move the bed's level: run it again to re-level it.
 
-Off by default: an explainer has no music (style.md), and the bed is an opt-in for when the user
+Off by default: an explainer has no music (references/taste/look.md), and the bed is an opt-in for when the user
 asks for one. Melodic motifs are out of scope; they belong to a comic video, made by hand.
 `--remove` takes the bed, its track entry and its grid out again, restoring a user grid it set aside.
 """

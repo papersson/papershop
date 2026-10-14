@@ -7,13 +7,14 @@ video.json, or the user asks to follow along). In background mode nothing here w
 
 ## Setting up
 
-1. Run `studio desk VIDEO` in the background and give the user its address. On the live engine the
-   desk plays the current scenes with the narration and redraws the moment a scene, the timeline or
-   the boards change; on Remotion or Motion Canvas it plays the latest cut and swaps in each new cut
-   at the same moment.
+1. Run `studio desk VIDEO` in the background and give the user its address. On the live engine in
+   interactive mode the desk draws the current scenes with the whole mix (narration, effects, music)
+   and redraws the moment a scene, the timeline or the boards change; otherwise it plays the latest
+   cut, boards and animatic included, and swaps in each new cut at the same moment.
 2. Run `studio wait VIDEO` in the background. It returns when a note arrives, printing the note, its
    sentence, its kind (narration, picture or both), its id and any glossary words it uses; then
-   handle it and start `studio wait` again.
+   handle it and start `studio wait` again. Reading a sent round (`studio wait` or `studio notes`)
+   marks it received on the desk, which answers "did you get my notes?".
 3. Keep `studio status VIDEO "what you are doing" --busy` current; it is the line in the desk's
    header, and the user's answer to "is it stuck?". Clear it (`studio status VIDEO`) when idle.
 
@@ -62,12 +63,12 @@ order and resolve each. A note that asks a question ("is this the same log?") is
 video when the video should have answered it, and in the reply when it shouldn't.
 
 Under a cut's changes, the desk lists its known issues: the findings a motion review left on purpose
-when it stopped (`explainer.md`, Stage 11). A note on one of them is the user's call to fix it after
-all. If the user prefers to judge motion here rather than have a motion review, record their notes
-by id as the reason of a `studio review-status VIDEO motion waived` waiver (interactive mode only).
+when it stopped (`reviews.md`). A note on one of them is the user's call to fix it after all. When
+the user prefers to judge motion here, their notes can stand in for a motion review (`reviews.md`).
 
 ## Background runs and the desk
 
-A background builder never waits on the user. If the user opens the desk on a background video and
-leaves notes, `studio stage` lists them as open notes at each stage boundary; take them then, with
-the same per-note procedure, and resolve each.
+A background builder never waits on the user, but it does show them what it has: start the desk,
+give the user its address, and say when boards, the animatic or a cut are up (`gates.md`). If the
+user leaves notes, `studio stage` lists them as open notes at each stage boundary; take them then,
+with the same per-note procedure, and resolve each.

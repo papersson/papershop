@@ -4,6 +4,11 @@ Read `pedagogy.md` and `levels.md`. Settle what the viewer should learn before i
 and scenes. Use existing user authorization; a routine correction to an approved direction does
 not require another permission loop.
 
+When the user asks for a draft, an outline or a script first, that comes before everything below:
+a treatment in chat, from what you know, with each section's narration and what is on screen (the
+camera, the visual change, the sound), and the claims still to check marked. Create the folder and
+research after they have seen it (`gates.md`).
+
 1. Create the folder with `studio new NAME --drive author|learner [--source REPO] [--level …]`.
    Read `research/house.md` if present, the learner model, and any existing Decisions. House style
    is a creation-time snapshot; explicit video choices and the current user's instructions win.
@@ -39,8 +44,11 @@ Target: N minutes main story; M minutes optional reference
 - Transfer questions: three new cases (answers kept separately)
 
 ## Chain
-| Chapter | Question/limitation | New idea | New prediction | Local closure | Evidence | Time |
-|---|---|---|---|---|---|---|
+| Chapter | Question/limitation | New idea | On screen (picture, camera, sound) | New prediction | Local closure | Evidence | Time |
+|---|---|---|---|---|---|---|---|
+
+## Hero moments
+- The three to six events the picture performs with their sound (`taste/delight.md`)
 
 ## Cut on purpose
 - What is omitted or moved to reference, and why
@@ -52,7 +60,7 @@ Target: N minutes main story; M minutes optional reference
 - What will be run, captured or verified
 
 ## Decisions
-- Date, authorization, changes and reasons
+- Date, authorization and how far it reaches (`gates.md`), changes and reasons
 ```
 
 The build gets this narrative, sources and the learner model. SCRIPT.md's Argument snapshots the

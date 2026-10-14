@@ -2,16 +2,16 @@
 
 Read this only when video.json `tone` is `comic`, which is set only when the user asks for a comic,
 cartoon, silly or slapstick video. "Fun", "delightful" or "engaging" ask for the plain polish in
-`style.md`, not for this. The technique below came from one long session that made a polished comic
-explainer, where the builders invented it on top of the kit. Everything in `style.md` still holds
-unless a rule here says otherwise: comic adds gags, acting and sound to an explainer; it does not
+`look.md` and `delight.md`, not for this. The technique below came from one long session that made a
+polished comic explainer, where the builders invented it on top of the kit. Everything in the other
+taste files still holds unless a rule here says otherwise: comic adds gags, acting and sound to an explainer; it does not
 loosen what the explainer must get right.
 
 ## The gag serves the sentence
 
 - **Every gag acts out the sentence just spoken.** The viewer hears the idea, then sees it happen
   to someone. A gag about something else competes with the narration and loses the idea.
-- **A gag must not imply a wrong mechanism.** The `style.md` motion rule applies to jokes too: a
+- **A gag must not imply a wrong mechanism.** The motion rule in `delight.md` applies to jokes too: a
   record that a character drags out of the database and into the cache says the database lost it;
   for a copy, the character photocopies it and the original stays put. A wrong mechanism told as a
   joke is remembered better than a right one.
@@ -77,7 +77,7 @@ file; changing it re-renders every user.
 - **Layer each hit**: a transient (the click or crack), a body (the thud), a tail (the room), all
   in the same room so the layers read as one event. Stack voices on one cue in `studio sfx` (a
   `snap` or `tap` for the transient, `thump` or `low-hit` for the body); the mix's shared room is
-  the tail, and it is the same room for every effect and the music (`style.md`, Sound).
+  the tail, and it is the same room for every effect and the music (`../audio.md`).
 - **A small motif per character**: two or three notes or one signature sound, reused whenever it
   acts. It works like shape language for the ear.
 - **Time sounds from events, not by ear.** Name every contact in `cues.json`, anchored to the

@@ -12,8 +12,10 @@ Infer the minimum requirements from the requested task. A normal narrated explai
 engine, Remotion's shared renderer/browser, Kokoro and alignment. A silent motion piece needs its
 engine without speech packages (`preflight --engine remotion --silent`). ElevenLabs is only for
 an explicit request, needs the `audio` and `align` extras and the user's API key, and has usage costs.
-Effects, the recorded sound kit, Motion Canvas and 3D are optional. Do not install them just because
-doctor reports an optional warning.
+Motion Canvas and 3D are optional; do not install them just because doctor reports an optional
+warning. The recorded sound kit (`doctor --fetch --sounds`, CC0 recordings, a small download) is
+optional too, but a video with hero moments uses it (`taste/delight.md`): include it in the plan
+when the video will have effects.
 
 Tell the user what was found and what is missing, then ask one concrete setup question, for example:
 
