@@ -6,6 +6,18 @@ it. File order is useful only when it serves that reasoning. Signal key ideas, m
 and move language detail into optional sidebars. An empty main is an example, not a requirement.
 For exhaustive coverage, map source regions to the main story, sidebar or companion reference.
 
+## Typed, not revealed
+
+Code the story writes is the best hero moment a code video has (`style.md`, Delight): type it.
+A caret, a readable rate that finishes each line by the words that discuss it, bursts and pauses,
+and a key texture that follows the typing, with accents on Enter, save and run. Show the editor
+and the running program together, so an edit lands as a visible change in the program on the
+frame its sound plays: the colour typed and the window filling, the number changed and the square
+moving. Build then run is an event of its own: output ticks in, then the window opens with weight.
+Generate the keystroke cues from the recorded source text with a helper in `sims/`, rather than by
+hand, so they follow the code. The kit's `CodePanel` has no typed reveal yet (its `tokens` only
+fade colour onto a line), so build one in the video and report it as a missing capability.
+
 ## Recorded program steps
 
 `studio steps VIDEO STEPS.json` accepts version 1 manifests. Paths on the right of `files`,

@@ -19,7 +19,7 @@ This table is the one list of the explainer's stages; SKILL.md and the build pro
 | 4 Script | narration with screen notes | pedagogy self-check, `studio check --only script` | builder |
 | 5 Script review | review receipts | current student pass (plus expert and editor for learner drive or deep-dive) | fresh reviewers; the main session dispatches |
 | 6 Narration | audio, timeline with word times | voice-check scores under 0.8 inspected | builder |
-| 7 Boards | boards/boards.json, a boards cut | every sentence has a board or a screen note on screen | builder (user in interactive mode) |
+| 7 Boards | boards/boards.json, a boards cut, the hero moments named | every sentence has a board or a screen note on screen | builder (user in interactive mode) |
 | 8 Animatic | an animatic cut and its pacing report | runtime, unchanged stretches and empty sentences read and addressed | builder (user in interactive mode) |
 | 9 The look | the look sheet (`studio look-sheet`) and a stills-only cut | the user's pick, unless a house style already settles it | user |
 | 10 Scenes and cuts | cuts, chapter by chapter: the blocking (layout, moves timed on events) | `studio check` passes, pacing included; craft pass on changed chapters | builder; the user reviews cuts |
@@ -211,6 +211,11 @@ after stills on the review page when boards change. It reports sentences with ne
 a note. A chapter without a scene file renders its board in every cut, so boards stay useful as
 scenes replace them one chapter at a time.
 
+While boarding, hunt for the hero moments (`style.md`, Delight): the few events the picture can
+perform with a sound, such as code typed and run, or a contact. Name each in its sentence's screen
+note with what is shown, what is heard and what answers it, so the blocking leaves room for it and
+the polish starts from it. A video with code being written has at least one.
+
 ## Stage 8: The animatic
 
 `studio animatic VIDEO` holds each sentence's picture (scenes where they exist, boards elsewhere;
@@ -269,7 +274,9 @@ contact sheet does not establish font size. Fix the significant findings; polish
 
 ## Stage 11: Polish
 
-Polish is a stage of every explainer, with its own gate. On the blocked chapters, add what makes
+Polish is a stage of every explainer, with its own gate. Start from the hero moments named at the
+boards and give them the most time: performed, timed to the words, with their sound (`style.md`,
+Delight). Then, on the blocked chapters, add what makes
 motion read as physical (`style.md`, and for a comic `styles/comic.md`): secondary motion (`follow`
 for a label riding a moving token, `settle` for a heavy thing landing, `wobble` for a held picture
 that should feel alive), anticipation before a significant move (a small wind-up, or the camera

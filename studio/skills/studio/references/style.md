@@ -124,6 +124,36 @@ element or state goes on the sheet first. The motion review checks drawings are 
   anything the viewer must read while it moves, and off the map at rest: secondary motion is for
   the protagonist and the moment of contact, not decoration.
 
+## Delight: perform the subject's events
+
+Correct and clear was not enough. A finished eleven-minute video on writing a game showed its
+code, window and square appearing, with narration over silence for its first five and a half
+minutes. The user wanted the code typed with the sound of keys, and said the typing was the
+obvious opportunity. Game developers call this juice: abundant feedback on an action, so it feels
+physical. Film sound calls the effect synchresis: a sound and an image on the same frame fuse into
+one event. A video that shows states is correct; one that performs events is felt.
+
+- **Hunt for the hero moments.** Most subjects have a few events the picture can perform, with a
+  sound the viewer already knows: code being typed and run, a key pressed, a window opening, a
+  sector passing under a head, a packet arriving, a count ticking over, two things colliding. Look
+  for every event the narration says happens, and every one with a sound in the real world. Pick
+  the three to six that carry the argument, name them at the boards (`explainer.md`, Stage 7), and
+  give them more time than anything else in the polish.
+- **Cause and effect in one shot.** The strongest moment shows the action and its result together:
+  the edit typed in the editor and the window answering in the same frame, the click and the state
+  it changes. Keep both on screen rather than cutting from one to the other.
+- **Each event is set up, lands and settles**: anticipation, the contact on the cue's frame with
+  its sound, then follow-through (Motion, above). An event with no build-up and no aftermath reads
+  as a state change.
+- **Human rhythm, not a metronome.** Typing comes in bursts with pauses at punctuation and before a
+  hard line; footsteps follow the gait; a repeated sound varies in pitch and sample. Dense activity
+  (typing at speed, a stream of messages) becomes a texture whose density follows the activity, with
+  accents on the events that matter (Enter, save, run), not one identical click per item.
+- **Restraint keeps it from turning into Mickey-Mousing.** Perform the events the viewer should
+  notice and leave the rest still. It never goes on decoration, title cards or text the viewer is
+  reading, and the voice stays on top (Sound, below). Dry means no decoration; a performed event is
+  the subject, not decoration.
+
 ## Text on screen
 
 - **Labels, not captions.** On-screen text names things and shows real numbers. It never repeats a
@@ -196,8 +226,8 @@ audio settled it at once). Social destinations use -14 LUFS.
 
 ## Sound
 
-The voice carries an explainer; sound is optional and serves it. Effects and music are off by
-default, and "no music" stays the plain default.
+The voice carries an explainer; sound serves it. Effects go on the events a viewer should feel
+(Delight, above) and nowhere else; "no music" stays the plain default.
 
 - **Effects belong in pauses.** A loud effect decays before the next word; a quiet one under speech
   stays below -24 dBFS at the master's level. `studio check` fails on a louder one under a spoken

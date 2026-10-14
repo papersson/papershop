@@ -14,7 +14,8 @@ Go through every window in order. For each, check:
 5. On sheet: boxes, arrows, tokens and cards are drawn as the look sheet (look/) draws them, and the same way in every window (size, stroke, corner, colour, label style, outline heavier than inner lines); one that departs from the sheet, or changes between windows, without a reason is a finding.
 6. The bands: nothing crosses into the header or the caption band at the bottom while it moves.
 7. Picture and sound: where windows.json lists a sound effect, the picture's contact is on the same frame as the effect (within one frame). Name both frames when they differ.
-8. Regressions: when findings from the last round are given below, check each one (fixed, still there, or made worse) in the regressions block described below. A fix that broke something nearby is a finding of this round.
+8. Missed moments: an event the narration says happens that the picture only shows as a result, such as code that appears instead of being typed, a window or object that is simply there, or a contact or result with no sound. Name the moment and how it could be performed, set up, landing with its sound and settling. A missed moment that carries the argument is SHOULD FIX, otherwise NIT.
+9. Regressions: when findings from the last round are given below, check each one (fixed, still there, or made worse) in the regressions block described below. A fix that broke something nearby is a finding of this round.
 
 Report every problem of this round inside one fenced block labelled `findings`, one problem per line, in exactly this form, and nothing else in the block:
 
