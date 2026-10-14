@@ -59,7 +59,7 @@ def video(arg):
     """ARG as a path, when it is a video folder (one holding video.json)."""
     p = Path(arg).expanduser()
     if (p / "video.json").is_file():
-        return p
+        return p.resolve()
     import difflib
     from .env import studio_home
     home = studio_home()
@@ -78,8 +78,15 @@ def changed_video(arg):
     return video(arg)
 
 
+def path(arg):
+    """ARG as an absolute path, resolved against the caller's directory while parsing: a handler or a
+    script under `studio run` (which works in the video's folder) never reads it from another one."""
+    return Path(arg).expanduser().resolve()
+
+
 # --- the commands: name -> (help, [(argument names, options)], handler) ---------------------------
-# An argument is A (plain), V (a video folder that must exist) or W (one the command also changes).
+# An argument is A (plain), V (a video folder that must exist), W (one the command also changes) or
+# P (a file or folder path, made absolute).
 # A video the command makes (new NAME, variant SOURCE NAME, fork SOURCE NAME, import-tutor LESSON VIDEO)
 # is plain.
 
@@ -93,6 +100,10 @@ def V(*names, **kw):
 
 def W(*names, **kw):
     return A(*names, type=changed_video, **kw)
+
+
+def P(*names, **kw):
+    return A(*names, type=path, **kw)
 
 
 COMMANDS = {
@@ -113,13 +124,13 @@ COMMANDS = {
     ], "doctor:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),
-        A("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)"),
+        P("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)"),
         A("--title"),
         A("--drive", default="author", choices=["author", "learner"]),
         A("--genre", default="explainer", choices=["explainer", "motion", "launch", "pixel", "footage"]),
         V("--from", dest="from_video", help="inherit look and pronunciation from a series episode"),
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
-        A("--source", help="the repo or folder the video explains; its path and commit are recorded"),
+        P("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
         A("--engine", choices=["remotion", "motion-canvas", "live"], help="which engine renders the scenes (default: live for an explainer, else remotion)"),
         A("--mode", choices=["background", "interactive"],
@@ -131,11 +142,11 @@ COMMANDS = {
           help="plain (default): neutral polish; comic: only when the user asks for a comic or cartoon video"),
     ], "new:main"),
     "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
-        V("source"), A("name"), A("--dir"), A("--title"),
-        A("--learner", help="the new audience's learner model"), A("--vocabulary", help="the new audience's glossary"),
+        V("source"), A("name"), P("--dir"), A("--title"),
+        P("--learner", help="the new audience's learner model"), P("--vocabulary", help="the new audience's glossary"),
     ], "new:main_variant"),
     "fork": ("a copy of a video's sources with a history of its own, to take the same video elsewhere", [
-        V("source"), A("name"), A("--dir"), A("--title"),
+        V("source"), A("name"), P("--dir"), A("--title"),
     ], "new:main_fork"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         W("video"),
@@ -144,7 +155,7 @@ COMMANDS = {
         A("--list", action="store_true", help="print the sentence ids"),
         A("--fetch-only", action="store_true", help="elevenlabs: fill the response cache and stop"),
         A("--yes", action="store_true", help="elevenlabs: spend credits past the confirmation limit"),
-        A("--config", help="another settings file instead of narration.json"),
+        P("--config", help="another settings file instead of narration.json"),
     ], "narration:main"),
     "voice-check": ("transcribe every sentence and score it against the script", [
         W("video"), A("--model", default="small.en"),
@@ -176,12 +187,12 @@ COMMANDS = {
         A("--peak", type=float, default=-1.5, help="true-peak ceiling in dBTP"),
     ], "audio:main"),
     "ingest": ("a recording: transcript with word times, shot changes, filler marks, a paper edit", [
-        A("file"), W("video"), A("--name"), A("--model", default="small.en"),
+        P("file"), W("video"), A("--name"), A("--model", default="small.en"),
     ], "footage:main_ingest"),
-    "edit": ("keep an edit list of footage segments and build the timeline from it", [W("video"), A("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
-    "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), A("file")], "beats:main"),
+    "edit": ("keep an edit list of footage segments and build the timeline from it", [W("video"), P("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
+    "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), P("file")], "beats:main"),
     "sfx": ("effects from a cues file, on the timeline: synth voices, or sound kit recordings landing on their peak", [
-        W("video"), A("cues", help='JSON list of {"t": seconds | cue or beat name | anchor, "type": "click", '
+        W("video"), P("cues", help='JSON list of {"t": seconds | cue or beat name | anchor, "type": "click", '
                                    '"sound": "synth:NAME" | "kit:ID" | "kit" (the type\'s default recording), "gain": dB, '
                                    '"params": {freq, decay, length} (synths only), "visual": "cut" | "move" | "land" | '
                                    '"appear" (what the picture does on its frame, which audio-check judges)}; sound is '
@@ -207,12 +218,12 @@ COMMANDS = {
     ], "stage:main"),
     "review": ("one round of fresh-context reviewers on SCRIPT.md or a narrative", [
         V("video"), A("round", type=int),
-        A("--narrative", help="review this narrative file instead of the script"),
+        P("--narrative", help="review this narrative file instead of the script"),
         A("--only", default="expert,student,editor"),
     ], "review:main"),
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),
-    "steps": ("run program versions in scratch projects and record evidence", [W("video"), A("manifest")], "steps:main"),
+    "steps": ("run program versions in scratch projects and record evidence", [W("video"), P("manifest")], "steps:main"),
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [
         A("action", choices=["add"]), A("word"), A("--spoken"), A("--phonemes"),
     ], "preferences:main_lexicon"),
@@ -222,7 +233,7 @@ COMMANDS = {
     ], "workspace:main_lock"),
     "handoff": ("write research/handoff.md, a brief a fresh builder can resume from", [
         W("video"), A("--notes", help="what only the builder knows, for the brief's builder notes"),
-        A("--notes-file", metavar="FILE", help="the builder notes from a file"),
+        P("--notes-file", metavar="FILE", help="the builder notes from a file"),
     ], "handoff:main"),
     "run": ("run a builder's Python or node script with the kit, in the video's folder", [
         V("video"), A("script", help="a .py, .mjs or .js file inside the video (sims/, .studio/work, scenes)"),
@@ -233,11 +244,11 @@ COMMANDS = {
         V("video"), A("text", nargs="?"), A("--resolve", metavar="ID"),
     ], "workspace:main_request"),
     "review-frames": ("prepare a fresh frame-review bundle or import its result", [
-        V("video"), A("--cut", type=int), A("--result", help="review response including its REVISION and FRAMES verdict"),
+        V("video"), A("--cut", type=int), P("--result", help="review response including its REVISION and FRAMES verdict"),
     ], "review_state:main_frames"),
     "review-motion": ("prepare a motion-review bundle of a cut's frame sequences, or import its result", [
         V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
-        A("--result", help="review response including its REVISION and MOTION verdict"),
+        P("--result", help="review response including its REVISION and MOTION verdict"),
     ], "motion_review:main"),
     "review-status": ("record an unavailable or explicitly waived review, or the user's listening check", [
         V("video"), A("role", type=reviews.role, choices=reviews.ROLES,
@@ -248,19 +259,19 @@ COMMANDS = {
                        "studio audio-check chose for this mix"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
-        W("video"), A("clip"), A("t", type=float), A("--out", required=True),
+        W("video"), A("clip"), A("t", type=float), P("--out", required=True),
         A("--layers", default="all", choices=LAYERS), A("--scale", type=float, default=1.0),
     ], _engine_call),
     "boxes": ("pixel boxes of the labelled elements at clip time t", [V("video"), A("clip"), A("t", type=float)], _engine_call),
     "duration": ("a clip's length as the engine computes it", [V("video"), A("clip")], _engine_call),
     "render": ("render one clip as a silent video", [
-        W("video"), A("clip"), A("--out", required=True),
+        W("video"), A("clip"), P("--out", required=True),
         A("--quality", default="draft", choices=["draft", "final"]), A("--range", nargs=2, type=float, metavar=("A", "B")),
     ], _engine_call),
     "cut": ("make the next cut: stills, changed clips, composite", [
         W("video"), A("--quality", default="draft", choices=["draft", "final"]),
         A("--stills-only", action="store_true", help="stills only (a look gate, or a quick answer)"),
-        A("--changelog", help="JSON list of {note, change} answering the previous cut's notes"),
+        P("--changelog", help="JSON list of {note, change} answering the previous cut's notes"),
     ], _cut),
     "boards": ("a stills cut of every chapter's board (boards/boards.json, notes from the screen notes)", [
         W("video"),
@@ -284,9 +295,9 @@ COMMANDS = {
         A("--all", action="store_true", help="check every chapter, not only those changed since their last pass"),
     ], "check:main"),
     "sheets": ("contact sheets, a phone-width sheet, strips and full-resolution label crops", [
-        W("video"), A("outdir"), A("--cut", type=int),
+        W("video"), P("outdir"), A("--cut", type=int),
         A("--strip", nargs=2, action="append", metavar=("CLIP", "T"), help="12 consecutive frames around T (repeatable)"),
-        A("--windows", metavar="FILE", help="JSON list of strips {clip, t, frames?, fps?}"),
+        P("--windows", metavar="FILE", help="JSON list of strips {clip, t, frames?, fps?}"),
         A("--below", type=float, default=40, help="crop labels under this many px tall"),
     ], "sheets:main"),
     "look-sheet": ("the model sheet: every element in each state, in the video's theme, layout and engine, into out/look/", [
@@ -309,7 +320,7 @@ COMMANDS = {
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
     ], "page:main_status"),
     "publish": ("final cut, web encode, poster and the page in out/page/", [W("video")], "publish:main"),
-    "import-tutor": ("make a video from a tutor lesson: its narration, timings and timeline", [A("lesson"), A("video")], _import_tutor),
+    "import-tutor": ("make a video from a tutor lesson: its narration, timings and timeline", [P("lesson"), P("video")], _import_tutor),
 }
 
 

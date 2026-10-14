@@ -59,7 +59,8 @@ def test_new_still_creates_its_folder(home):
 
 
 def test_import_tutor_may_name_a_new_folder():
-    assert cli.build_parser().parse_args(["import-tutor", "lesson", "not-yet"]).video == "not-yet"
+    from pathlib import Path
+    assert cli.build_parser().parse_args(["import-tutor", "lesson", "not-yet"]).video == Path.cwd() / "not-yet"
 
 
 def test_import_tutor_makes_a_video_the_other_commands_accept(tmp_path):
@@ -141,3 +142,15 @@ def test_boxes_waits_but_needs_no_owner(home, monkeypatch):
     assert cli.main(["boxes", str(v), "s1", "1"]) == 0 and seen == ["boxes"]
     with pytest.raises(SystemExit, match="video owned by b"):
         cli.main(["still", str(v), "s1", "1", "--out", "x.png"])
+
+
+def test_paths_are_resolved_against_the_callers_folder_while_parsing(home):
+    # A path given relative to where `studio` was called means that folder, even once a handler or a
+    # script under `studio run` (in the video's folder) reads it: a builder's still once landed in
+    # the wrong tree this way.
+    elsewhere = home.parent / "elsewhere"
+    args = cli.build_parser().parse_args(["still", "../home/myvideo", "s1", "1.5", "--out", "out/s1.png"])
+    assert args.video == home / "myvideo" and args.video.is_absolute()
+    assert args.out == elsewhere / "out" / "s1.png"
+    sheets = cli.build_parser().parse_args(["sheets", str(home / "myvideo"), "sheets", "--windows", "w.json"])
+    assert sheets.outdir == elsewhere / "sheets" and sheets.windows == elsewhere / "w.json"
