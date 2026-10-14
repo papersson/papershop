@@ -110,6 +110,54 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     return video, learner
 
 
+def starter_scenes(engine, genre):
+    """The template scenes `studio new` copies for an engine and genre."""
+    if engine == "motion-canvas":
+        mc = TEMPLATES / "motion-canvas"
+        return (mc / genre if (mc / genre).is_dir() else mc) / "scenes"
+    if engine == "live":
+        return TEMPLATES / "live" / "scenes"
+    own = TEMPLATES / genre / "scenes"
+    return own if genre != "explainer" and own.is_dir() else TEMPLATES / "scenes"
+
+
+def restructure(video, summary, engine=None, archive=()):
+    """Reshape a video in place: move `archive` (the scenes, by default, when the engine changes) to
+    research/archive/<stamp>/, switch the engine (seeding its starter scenes), and mark a structural
+    revision, which starts new review counts and a structural budget. Returns the archive folder."""
+    import time
+    from . import stage
+    video = Path(video).resolve()
+    cfg = settings.load(video)
+    switching = engine and engine != cfg["engine"]
+    paths = list(archive) or (["scenes"] if switching else [])
+    dest = video / "research" / "archive" / time.strftime("%Y%m%d-%H%M%S")
+    for rel in paths:
+        src = (video / rel).resolve()
+        if not src.is_relative_to(video) or src == video or not src.exists():
+            raise SystemExit(f"restructure: {rel} is not a file or folder in the video")
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(src), str(dest / rel))
+    if paths:
+        (dest / "README.md").write_text(f"Archived by `studio restructure` before: {summary}\n")
+    if switching:
+        settings.update(video, engine=engine)
+        (video / "scenes").mkdir(exist_ok=True)
+        for f in starter_scenes(engine, cfg["genre"]).iterdir():
+            if not (video / "scenes" / f.name).exists():
+                shutil.copyfile(f, video / "scenes" / f.name)
+    for line in stage.mark(video, "revision", kind="structural", summary=summary):
+        print(line)
+    return dest if paths else None
+
+
+def main_restructure(args):
+    dest = restructure(args.video, args.summary, args.engine, args.archive or ())
+    print(f"restructured{f'; the old sources are in {dest.relative_to(Path(args.video).resolve())}' if dest else ''}"
+          + (f"; engine {args.engine}" if args.engine else ""))
+    return 0
+
+
 def main(args):
     source_cfg = settings.raw(args.from_video) if args.from_video else {}
     # An explainer defaults to the live engine (instant reload on the desk); other genres, and code

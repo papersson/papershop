@@ -12,7 +12,9 @@ with one line saying what changed (it shows under the note, on the cut that answ
 note to the sentence/chapter of its cut. An empty note still means “here.”
 
 1. Read the narrative Decisions, current review findings and pending research/requests.md.
-2. Start a round: `studio stage VIDEO round --kind local|structural --summary "…"`. The summary
+2. Start a round: `studio stage VIDEO round --kind local|structural --summary "…"`. A change of
+   shape that replaces most scenes or the engine is `studio restructure VIDEO --summary "…"
+   [--engine E]`, which keeps the old version under `research/archive/` and marks it structural. The summary
    records repeated ideas, obsolete material, merges/trims, affected chapters and expected change
    in length. Classify a new chapter or a changed arc as structural. Honor already authorized notes;
    present a genuine scope change before applying it, not a new approval ritual for routine fixes.

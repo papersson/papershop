@@ -100,5 +100,19 @@ def load(video):
     return cfg
 
 
+def update(video, **values):
+    """Set keys in video.json, checked as load checks them (and an engine against the engines), and
+    write it back in the file's form; returns the file as written."""
+    from .engine import ENGINES
+    cfg = {**raw(video), **values}
+    for key, allowed in CHOICES.items():
+        if key in values and values[key] not in allowed:
+            raise SystemExit(f"video.json {key} must be one of {', '.join(allowed)} (got {values[key]!r})")
+    if "engine" in values and values["engine"] not in ENGINES:
+        raise SystemExit(f"video.json engine must be one of {', '.join(ENGINES)} (got {values['engine']!r})")
+    (Path(video) / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
+    return cfg
+
+
 def get(video, key):
     return load(video).get(key)

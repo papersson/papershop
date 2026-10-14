@@ -232,6 +232,11 @@ COMMANDS = {
         A("--quality", default="draft", choices=["draft", "final"]),
         A("--probe", type=int, nargs="?", const=6, help="render N frames spread over the clip and estimate the rest"),
     ], "plates:main"),
+    "restructure": ("reshape a video in place: archive old sources, switch the engine, mark a structural revision", [
+        W("video"), A("--summary", required=True, help="what changes and why (the stage log's revision entry)"),
+        A("--engine", choices=["live", "remotion", "motion-canvas"]),
+        A("--archive", nargs="*", help="files or folders to move into research/archive/<stamp>/ (default: scenes/, when the engine changes)"),
+    ], "new:main_restructure"),
     "typing": ("type code into an editor from a plan: the editor's steps (data/typing.json), cues and key sounds",
                [W("video"), P("plan", help="the plan: sources, bursts of edits, the run (typecode.py)")], "typecode:main"),
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [

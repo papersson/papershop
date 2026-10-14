@@ -188,3 +188,21 @@ def test_a_fork_goes_into_a_new_folder_of_its_own(tmp_path, monkeypatch):
     assert (busy / "SCRIPT.md").read_text() == "mine" and not (tmp_path / "home" / ".git").exists()
     (tmp_path / "empty").mkdir()
     assert (new.fork(src, "x", directory=tmp_path / "empty") / "video.json").exists()
+
+
+def test_a_video_is_restructured_in_place_with_its_old_scenes_kept(tmp_path, monkeypatch):
+    """The game-dev video changed shape and engine with a one-off script; restructure archives the old
+    scenes, switches the engine with its starter scenes, and marks a structural revision."""
+    import json
+    from studio_kit import stage
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    video, _ = new.create("shape", directory=tmp_path / "v", engine="live")
+    (video / "scenes" / "s1.js").write_text("export default c => {}\n")
+    dest = new.restructure(video, "from a blank window to a game, as a construction story", engine="remotion")
+    assert (dest / "scenes" / "s1.js").exists() and not (video / "scenes" / "s1.js").exists()
+    assert json.loads((video / "video.json").read_text())["engine"] == "remotion" and (video / "scenes" / "index.ts").exists()
+    last = stage.read(video)[-1]
+    assert last["kind"] == "structural" and "structural revision: from a blank window" in (video / "SCRIPT.md").read_text()
+    import pytest
+    with pytest.raises(SystemExit, match="engine must be one of"):
+        __import__("studio_kit.settings", fromlist=["update"]).update(video, engine="blender")

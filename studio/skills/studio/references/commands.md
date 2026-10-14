@@ -19,6 +19,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `new NAME --from VIDEO [--include RELATIVE_FILE]` | New series episode with look/lexicon and selected source/evidence dependencies |
 | `variant SOURCE NAME` | Adapt a source video's evidence and scenes for a different audience |
 | `fork SOURCE NAME [--title T]` | The same video taken elsewhere (another version or direction): its sources copied with a history of its own, no cuts, notes, requests, caches or the frame and motion receipts that judged those cuts. `variant` is for another audience and a new script |
+| `restructure VIDEO --summary TEXT [--engine E] [--archive PATH…]` | Reshape a video in place: move the old sources (the scenes, when the engine changes) to `research/archive/<stamp>/`, switch the engine with its starter scenes, and mark a structural revision (new review counts, the structural budget) |
 | `lock VIDEO acquire|release|status` · `request VIDEO [TEXT] [--resolve ID]` | One writer and a pending-request queue; `acquire --recover` prints the handoff |
 | `handoff VIDEO [--notes TEXT \| --notes-file FILE]` | `research/handoff.md`: a brief a fresh builder resumes from (state, reviews in flight, requests, next commands, builder notes) |
 | `stage VIDEO NAME [--kind local|structural] [--summary TEXT]` · `stage VIDEO --report` · `stage VIDEO --check` | Timing and revision refactoring log; `--check` reads the current stage without marking and exits 3 at a background hard stop |
