@@ -198,10 +198,44 @@ def _keep_befores(video, prev_n, d, record):
                 s["before"] = f"before/{src.name}"
 
 
+def estimate(video, timeline, quality, clips):
+    """How long rendering `clips` should take, from the seconds a frame the earlier cuts at this
+    quality took for the clips they rendered: {frames, per_frame, seconds, from: [cut numbers]}, or
+    None with nothing to go on. Chapters differ in cost (a 3D chapter costs more than a map), so it
+    is the median, said as an estimate."""
+    import statistics
+    rates, used = [], []
+    for n, rec in sorted(cuts.records(video).items()):
+        if rec.get("quality") != quality:
+            continue
+        for c in rec.get("clips", []):
+            if c.get("rendered") and c.get("frames") and c.get("seconds"):
+                rates.append(c["seconds"] / c["frames"])
+                used.append(n)
+    if not rates:
+        return None
+    frames = sum(tl.frames(timeline, c)[1] for c in clips)
+    per = statistics.median(rates)
+    return {"frames": frames, "per_frame": round(per, 3), "seconds": round(frames * per, 1), "from": sorted(set(used))}
+
+
+def _minutes(seconds):
+    return f"{seconds / 60:.0f} min" if seconds >= 90 else f"{seconds:.0f} s"
+
+
 def render_clips(video, timeline, engine, quality="draft", fmt=None):
-    """Render the clips whose cached video is missing (or stale) in `fmt`; returns ([files], [records])."""
+    """Render the clips whose cached video is missing (or stale) in `fmt`; returns ([files], [records]).
+    Before rendering, it says how long that should take (estimate)."""
     files, records = [], []
-    for cid, key, cached in plan(video, timeline, quality, fmt):
+    rows = plan(video, timeline, quality, fmt)
+    todo = [cid for cid, _, cached in rows if cached is None]
+    if todo:
+        est = estimate(video, timeline, quality, todo)
+        frames = sum(tl.frames(timeline, c)[1] for c in todo)
+        log(f"render: {len(todo)} clip(s), {frames} frames at {quality}; " + (
+            f"about {_minutes(est['seconds'])} ({est['per_frame']:.2f} s a frame in cut {', '.join(map(str, est['from'][-3:]))})"
+            if est else "no earlier render at this quality to estimate from"))
+    for cid, key, cached in rows:
         f = keys.clip_file(video, cid, quality, key, fmt)
         f.parent.mkdir(parents=True, exist_ok=True)
         started = time.monotonic()
@@ -213,7 +247,8 @@ def render_clips(video, timeline, engine, quality="draft", fmt=None):
             log(f"  {r.get('frames', '?')} frames in {r.get('seconds', 0):.0f} s")
         else:
             log(f"render {cid} ({quality}): unchanged, cached")
-        records.append({"id": cid, "key": key, "rendered": cached is None, "seconds": round(time.monotonic() - started, 1)})
+        records.append({"id": cid, "key": key, "rendered": cached is None, "seconds": round(time.monotonic() - started, 1),
+                        "frames": tl.frames(timeline, cid)[1]})
         files.append(f)
     return files, records
 

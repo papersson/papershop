@@ -292,3 +292,19 @@ def test_a_live_clip_is_keyed_on_its_webgl_backend_and_the_engines_page(tmp_path
     hashed.clear()
     clip_keys.clip_key(tmp_path, t, "s1", "draft", engine="remotion")
     assert not {"cli.mjs", "render.html"} & set(hashed)
+
+
+def test_a_render_is_estimated_from_the_cuts_before_it(tmp_path):
+    # A final render took 4h54m against a guess of about two hours, and nobody knew before it began.
+    # The cut says up front how long the clips it is about to render took a frame last time.
+    t = make_video(tmp_path)
+    assert render.estimate(tmp_path, t, "draft", ["s1"]) is None          # nothing to go on yet
+    rec = {"cut": 1, "kind": "cut", "quality": "draft", "clips": [
+        {"id": "s1", "key": "a", "rendered": True, "seconds": 30.0, "frames": 60},
+        {"id": "s2", "key": "b", "rendered": False, "seconds": 0.0, "frames": 45}]}
+    cuts.allocate(tmp_path)
+    cuts.write(tmp_path, 1, rec)
+    est = render.estimate(tmp_path, t, "draft", ["s1", "s2"])
+    frames = sum(tl.frames(t, c)[1] for c in ("s1", "s2"))
+    assert est["frames"] == frames and est["per_frame"] == 0.5 and est["seconds"] == frames * 0.5 and est["from"] == [1]
+    assert render.estimate(tmp_path, t, "final", ["s1"]) is None            # another quality is another cost

@@ -33,7 +33,7 @@ is refused, with the nearest videos in `$STUDIO_HOME` suggested, so pass the ful
 | `voice-check VIDEO [--all]` · `align VIDEO` | Recognition check and word alignment |
 | `timeline VIDEO [--events]` | Rebuild timeline.json from its sources, after editing `cues.json`, `captions.json` or `audio/tracks.json`; `--events` lists the beat sheet: every cue's time, frame, clip and anchor |
 | `lexicon add WORD --spoken TEXT [--phonemes IPA]` | Promote a pronunciation for future videos |
-| `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; reports actual output dimensions. Chapters without a scene show their boards |
+| `cut VIDEO [--stills-only] [--quality final] [--changelog FILE]` | Stills, changed clips and composite; says how long the clips it renders should take (from earlier cuts at that quality) before rendering, and reports actual output dimensions. Chapters without a scene show their boards. `--quality final` needs the user's approval of a cut |
 | `boards VIDEO` | A stills cut of every chapter's board (`boards/boards.json`, notes from the screen notes); reports sentences with nothing on screen |
 | `animatic VIDEO [--boards]` | Pictures held to the real narration with its audio, and a pacing report (runtime, chapter lengths, unchanged stretches, empty sentences) |
 | `open VIDEO [CUT]` · `desk VIDEO` · `notes VIDEO [--start ID \| --resolve ID --reply TEXT]` | Protected system playback; the desk (latest cut, sentence notes, live status and replies; `serve` is an alias); numbered notes and their marks |
