@@ -33,6 +33,12 @@ the timecodes listened at (--at, else the ones chosen for that mix), and one rec
 still stands. Its revision is the soundtrack's stamp (audio.revision), so it goes stale when the
 mix changes. Nothing requires it: publish warns when a video with effects or music has none standing
 (review_state.listening), and the handoff lists it as a next step.
+
+The approval is not a reviewer either: it is the user's word that a cut they watched is ready for its
+final render, in their words (review-status VIDEO approval passed --cut N --reason "…"). Its revision
+is the frames revision that cut recorded, so it lapses as soon as the picture moves on; a final cut
+and publish require it (review_state.require_approval). Agreeing to a stage of work is not approving
+a final: previews go on until the user names the cut.
 """
 import re
 from dataclasses import dataclass, field
@@ -151,6 +157,10 @@ KINDS = {
                    "timecodes studio audio-check chose, and record it with studio review-status {video} listen passed "
                    "--reason \"…\" (or waived)",
                    records=("passed", "waived")),
+    "approval": Kind("approval", ("approval",), "frames", None,
+                     "show the user the latest cut on the desk and, when they say it is ready, record their words with "
+                     "studio review-status {video} approval passed --cut N --reason \"…\"",
+                     records=("passed",)),
 }
 
 ROLES = tuple(r for k in KINDS.values() for r in k.roles)

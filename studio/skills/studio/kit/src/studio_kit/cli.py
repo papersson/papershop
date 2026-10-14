@@ -35,6 +35,9 @@ def _engine_call(args):
 
 def _cut(args):
     from .render import make_cut
+    if args.quality == "final" and not args.stills_only:
+        from .review_state import require_approval
+        require_approval(args.video)
     log = json.loads(Path(args.changelog).read_text()) if args.changelog else None
     rec = make_cut(args.video, args.quality, args.stills_only, log)
     done = [c["id"] for c in rec["clips"] if c["rendered"]]
@@ -250,13 +253,17 @@ COMMANDS = {
         V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
         P("--result", help="review response including its REVISION and MOTION verdict"),
     ], "motion_review:main"),
-    "review-status": ("record an unavailable or explicitly waived review, or the user's listening check", [
+    "review-status": ("record an unavailable or explicitly waived review, the user's listening check, or the user's "
+                      "approval of a cut for its final render", [
         V("video"), A("role", type=reviews.role, choices=reviews.ROLES,
-                      help="a script reviewer, frames (alias frame), motion, or listen (the user listened to the finished mix)"),
-        A("status", choices=reviews.RECORDS, help="unavailable or waived for a reviewer; passed or waived for listen"),
-        A("--reason", help="the user's authorization for a waiver; what they heard, for a listening"),
+                      help="a script reviewer, frames (alias frame), motion, listen (the user listened to the finished "
+                           "mix) or approval (the user approved a cut for its final render)"),
+        A("status", choices=reviews.RECORDS, help="unavailable or waived for a reviewer; passed or waived for listen; "
+                                                  "passed for approval"),
+        A("--reason", help="the user's authorization for a waiver; what they heard, for a listening; their words, for an approval"),
         A("--at", help="listen: the timecodes listened at, comma-separated (m:ss.s or seconds); default: the ones "
                        "studio audio-check chose for this mix"),
+        A("--cut", type=int, help="approval: the cut the user approved (default: the latest rendered cut)"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
         W("video"), A("clip"), A("t", type=float), P("--out", required=True),

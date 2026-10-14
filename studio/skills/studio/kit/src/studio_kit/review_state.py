@@ -357,6 +357,8 @@ def main_status(args):
     at = getattr(args, "at", None)
     if at and kind.name != "listen":
         raise SystemExit("--at names the timecodes of a listening: review-status VIDEO listen passed --at …")
+    if kind.name == "approval":
+        return approve(args.video, getattr(args, "cut", None), args.reason)
     extra = motion_waiver(args.video, args.reason or "") if kind.name == "motion" else {}
     if kind.name == "listen":
         extra |= listened(args.video, at)
@@ -367,6 +369,34 @@ def main_status(args):
     print(f"{role}: {args.status}" + (f" (cut {extra['cut']}, its {extra['accepted']} known issue(s) accepted)"
                                        if extra.get("accepted") else "")
           + (f", at {', '.join(m['at'] for m in extra['timecodes'])}" if extra.get("timecodes") else ""))
+
+
+def approve(video, cut, words):
+    """Record the user's approval of cut N (the latest rendered one by default) in their words: the
+    frames revision the cut recorded is what they approved."""
+    if not words:
+        raise SystemExit("record the user's words in --reason: an approval is theirs, not the builder's")
+    n, rec = cuts.resolve(video, cut)
+    if rec is None or cuts.kind(rec) not in cuts.RENDERED or not rec.get("source_revision"):
+        raise SystemExit(f"cut {n or '?'} is not a rendered cut with a revision; the user approves a cut they watched")
+    record(video, "approval", rec["source_revision"], "passed", words, cut=n)
+    stale = rec["source_revision"] != revision(video, KINDS["approval"])
+    print(f"approval: cut {n}, in the user's words: {words}"
+          + ("\nwarn: the sources changed since that cut, so a final render still waits: cut again and show them" if stale else ""))
+
+
+def require_approval(video):
+    """The user's standing approval of the picture a final render would show, or SystemExit saying
+    how to get it. Agreeing to a stage of work is not approving a final."""
+    rec, current = read(video, "approval"), revision(video, KINDS["approval"])
+    if rec.get("status") == "passed" and rec.get("revision") == current:
+        return rec
+    why = (f"the approved cut {rec.get('cut')} is older than the sources" if rec.get("status") == "passed"
+           else "no cut has been approved")
+    v = quoted(video)
+    raise SystemExit(f"a final render waits for the user: {why}. Show them the latest cut on the desk (studio desk {v}) "
+                     f"and keep making previews until they say one is ready; then record their words with "
+                     f"studio review-status {v} approval passed --cut N --reason \"…\"")
 
 
 def _seconds(text, duration=None):

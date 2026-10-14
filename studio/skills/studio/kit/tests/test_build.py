@@ -402,7 +402,8 @@ def test_the_desk_clocks_an_estimate_silently(tmp_path):
     tl.build(v)
     assert page.state(v)["live"] == {"audio": None, "duration": tl.load(v)["duration"]}
     narrated(v)
-    assert page.state(v)["live"]["audio"] == "audio/narration.mp3"
+    heard = page.state(v)["live"]["audio"]            # the whole mix, else the narration alone
+    assert heard == "audio/narration.mp3" or heard.startswith(".cache/sound/") and (v / heard).is_file()
 
 
 def test_check_rebuilds_an_old_timeline_first(tmp_path):

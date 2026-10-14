@@ -243,3 +243,45 @@ def test_a_mix_that_cannot_be_built_is_reported_not_raised(tmp_path, monkeypatch
 def test_a_narration_alone_needs_no_listening(tmp_path):
     v = sounding(tmp_path, music=False)
     assert review_state.listening(v, tl.load(v)) is None
+
+
+def approved_video(tmp_path):
+    """A video with a draft cut 1 whose record names the current frames revision."""
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text("{}")
+    cut = tmp_path / "cuts" / "cut1"
+    cut.mkdir(parents=True)
+    (cut / "cut.json").write_text(json.dumps({"cut": 1, "kind": "cut", "quality": "draft", "video": "video.mp4",
+                                              "source_revision": review_state.fingerprint(tmp_path, frames=True)}))
+    return tmp_path
+
+
+def test_a_final_render_waits_for_the_users_word_on_a_cut(tmp_path):
+    # "why did you do a final one? we weren't done with the previews": a final render now needs the
+    # user's approval of the cut they watched, recorded in their words, and it lapses when the picture moves on.
+    v = approved_video(tmp_path)
+    with pytest.raises(SystemExit, match="waits for the user.*review-status .* approval passed --cut"):
+        review_state.require_approval(v)
+    with pytest.raises(SystemExit, match="the user's words"):
+        review_state.main_status(cli.build_parser().parse_args(["review-status", str(v), "approval", "passed", "--cut", "1"]))
+    review_state.main_status(cli.build_parser().parse_args(
+        ["review-status", str(v), "approval", "passed", "--cut", "1", "--reason", "looks great, do the final"]))
+    rec = review_state.require_approval(v)
+    assert rec["cut"] == 1 and rec["detail"] == "looks great, do the final"
+    t = tl.load(v)
+    t["tracks"]["narration"][1]["caption"] = "Two, reworded."
+    t["tracks"]["captions"] = tl.chunk_captions(t["tracks"]["narration"])
+    (v / "timeline.json").write_text(json.dumps(t))
+    with pytest.raises(SystemExit, match="approved cut 1 is older than the sources"):
+        review_state.require_approval(v)
+
+
+def test_publish_and_a_final_cut_refuse_without_approval(tmp_path, monkeypatch):
+    from studio_kit import audio, publish
+    v = approved_video(tmp_path)
+    monkeypatch.setattr(audio, "require_voice", lambda video, t: None)
+    monkeypatch.setattr(publish, "gate", lambda video: pytest.fail("approval comes before the gate"))
+    with pytest.raises(SystemExit, match="waits for the user"):
+        publish.build(v)
+    with pytest.raises(SystemExit, match="waits for the user"):
+        cli.main(["cut", str(v), "--quality", "final"])

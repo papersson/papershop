@@ -27,7 +27,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import settings
+from . import proc, settings
 from . import cuts
 from .workspace import locked
 from . import timeline as tl
@@ -98,14 +98,17 @@ def live_view(video, cut, latest):
 
 def live_audio(video, t):
     """What the live desk plays under the scenes: the whole mix, cached as a cut's is, else the
-    narration alone when the mix can't be made (an effect's cue gone, the sound tools missing)."""
+    narration alone when the mix can't be made (an effect's cue gone, the sound tools missing). An
+    estimate has no narration to clock the scenes by, and its effects are not placed yet: silence."""
     import contextlib
     import io
     from . import audio
+    if t.get("timing") == "estimate":
+        return None
     try:
         with contextlib.redirect_stdout(io.StringIO()):
             return str(audio.soundtrack(video, t).relative_to(video))
-    except (SystemExit, ImportError, OSError, ValueError):
+    except (SystemExit, ImportError, OSError, ValueError, proc.SubprocessError):
         return (tl.narration_audio(t) or {}).get("file")
 
 

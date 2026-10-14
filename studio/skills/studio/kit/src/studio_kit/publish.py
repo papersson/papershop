@@ -147,6 +147,8 @@ def gate(video):
 def build(video, skip_gate=False):
     video = Path(video).resolve()
     audio.require_voice(video, tl.build(video))   # the gate, the master and the page all read the current sources
+    from .review_state import require_approval
+    require_approval(video)                       # a final render is the user's call, not the builder's
     if not skip_gate:
         gate(video)
     cfg = settings.load(video)
@@ -159,7 +161,7 @@ def build(video, skip_gate=False):
     from . import cuts
     movie = cuts.cut_dir(video, rec["cut"]) / rec["video"]
     media = cuts.media_info(movie)
-    print(f"master: {media['width']}×{media['height']}, {media['fps']:g} fps, quality=final, final=true; user approval is separate")
+    print(f"master: {media['width']}×{media['height']}, {media['fps']:g} fps, quality=final, final=true")
     src = movie
     out, page = video / "out", video / "out" / "page"
     page.mkdir(parents=True, exist_ok=True)
