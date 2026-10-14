@@ -79,14 +79,24 @@ def test_keys_survive_moving_the_video(tmp_path):
     assert keys(b, t) == before
 
 
-def test_changing_data_rerenders_every_clip(tmp_path):
+def test_changing_data_rerenders_the_clips_that_read_it(tmp_path):
+    """A chapter's frames depend on the data its scene imports; rewriting data/typing.json used to
+    re-render every chapter, those without code too. A path built at run time reads anything."""
     t = make_video(tmp_path)
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "runs.json").write_text('{"n": 1}')
+    (tmp_path / "data" / "other.json").write_text('{"n": 1}')
+    (tmp_path / "scenes" / "s1.tsx").write_text("import runs from '../data/runs.json';\nexport default runs;\n")
     before = keys(tmp_path, t)
     (tmp_path / "data" / "runs.json").write_text('{"n": 2}')
     after = keys(tmp_path, t)
-    assert all(after[c] != before[c] for c in before)
+    assert after["s1"] != before["s1"] and after["s2"] == before["s2"]
+    (tmp_path / "data" / "other.json").write_text('{"n": 2}')
+    assert keys(tmp_path, t) == after                                # nobody reads it
+    (tmp_path / "scenes" / "s2.tsx").write_text("const f = (n) => import(`../data/${n}.json`);\nexport default f;\n")
+    computed = keys(tmp_path, t)
+    (tmp_path / "data" / "other.json").write_text('{"n": 3}')
+    assert keys(tmp_path, t)["s2"] != computed["s2"]
 
 
 def test_clips_without_narration_get_stills_at_even_intervals(tmp_path):
@@ -185,7 +195,8 @@ def test_the_engine_kits_read_cues_only_through_cue():
         lines = code.splitlines()
         for i, line in enumerate(lines):
             if re.search(r"\.cues\b|\[['\"]cues['\"]\]|\bcue\s*\(", line):
-                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]), f"{f}:{i + 1}: {line.strip()}"
+                # the typed code editor reads the cues data/typing.json names; scene_cues counts them
+                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]) or f.name == "editor.tsx", f"{f}:{i + 1}: {line.strip()}"
 
 
 def test_a_formats_key_holds_that_formats_caption_lines(tmp_path):

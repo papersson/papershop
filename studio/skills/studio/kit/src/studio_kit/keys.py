@@ -148,14 +148,41 @@ def scene_files(video, clip_id, clip_ids):
 
 def scene_cues(video, clip_id, clip_ids):
     """The cue names a clip's scene code reads (scene_files), or None for all cues when any of it
-    computes a cue name. The engine kits read cues only through their cue() helper."""
+    computes a cue name. The engine kits read cues only through their cue() helper, except the typed
+    code editor (editor.tsx), which reads the cues data/typing.json names: a scene that imports that
+    file reads them all."""
     names = set()
+    typing = False
     for f in scene_files(video, clip_id, clip_ids):
-        found = _cue_names(f.read_text(errors="replace"))
+        text = f.read_text(errors="replace")
+        found = _cue_names(text)
         if found is None:
             return None
         names |= found
+        typing |= "data/typing.json" in text
+    if typing and (Path(video) / "data" / "typing.json").exists():
+        for b in json.loads((Path(video) / "data" / "typing.json").read_text()).values():
+            names |= {b["cue"]} | {f"{b['cue']}-{k}" for k in ("save", "run", "pop")}
     return names
+
+
+# A path into the video's data/ as scene code names it: an import ('../data/typing.json'), a fetch or a
+# string handed to a helper ("data/steps/run/results.json"). A path built at run time can't be followed.
+_DATA = re.compile(r"""['"`](?:\.\./|\./)*(data/[^'"`\s]*)['"`]""")
+_DYNAMIC = re.compile(r"""\bimport\s*\(|\bfetch\s*\(|['"`](?:\.\./)*data/[^'"`]*\$\{""")
+
+
+def scene_data(video, clip_id, clip_ids):
+    """The data/ files and folders a clip's scene code reads (scene_files), or None when it may read
+    one by a path it builds (a template string, a dynamic import or fetch): then every file counts.
+    A video that rewrites data/typing.json re-rendered every chapter, those without code too."""
+    found = set()
+    for f in scene_files(video, clip_id, clip_ids):
+        text = f.read_text(errors="replace")
+        if _DYNAMIC.search(text):
+            return None
+        found |= set(_DATA.findall(text))
+    return found
 
 
 # useClip's beat, downbeat, hits and bpm (Remotion), or the timeline's beats read directly (any engine).
@@ -184,7 +211,12 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
             _hash_tree(h, f, root)
     if quality == "boards" or not has_scene(video, clip_id, engine):
         _hash_tree(h, video / "boards")  # the chapter renders its board
-    _hash_tree(h, video / "data")       # scenes import their numbers from data/
+    read = scene_data(video, clip_id, clip_ids)       # scenes import their numbers from data/
+    if read is None:
+        _hash_tree(h, video / "data")
+    else:
+        for rel in sorted(read):
+            _hash_tree(h, video / rel, video)
     _hash_assets(h, video / "assets")
     c = tl.clip(timeline, clip_id)
     first, count = tl.frames(timeline, clip_id)
