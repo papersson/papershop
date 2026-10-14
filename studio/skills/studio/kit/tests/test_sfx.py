@@ -206,3 +206,71 @@ def test_a_pool_varies_a_repeated_sound_and_never_repeats_it_twice_running(tmp_p
     assert np.isfinite(sfx._mix(placed, 3.0)).all()
     steady = sfx.place([{**c, "jitter": False} for c in cues], t)
     assert all("@" not in p.sound.id for p in steady) and {p.gain for p in steady} == {0}
+
+
+def stream_cue(events, sounds=None, **kw):
+    return {"t": 1.0, "type": "key-tick", "stream": "typing:s1", "events": events,
+            "sounds": sounds or {"key": "synth:key-tick", "enter": "synth:click"}, **kw}
+
+
+def hits(buf, times, width=0.006):
+    """The peak of the track around each time."""
+    return [float(np.abs(buf[int((t - width) * sfx.RATE):int((t + width + 0.02) * sfx.RATE)]).max()) for t in times]
+
+
+def test_a_stream_plays_every_event_on_its_own_frame_as_one_effect():
+    # Typing is hundreds of keystrokes: too many to be cues (each would get a still and a review
+    # window), so one effect carries them as a stream, landing each key at its time after the cue.
+    events = [[0.0, "key"], [0.12, "key"], [0.25, "key"], [0.6, "enter"]]
+    t = {"duration": 3.0, "cues": {}, "beats": {}, "tracks": {"narration": []}}
+    p = sfx.place([stream_cue(events)], t)[0]
+    assert p.contact == sfx.RATE and p.sound.id == "stream:typing:s1"
+    buf = sfx._mix([p], 3.0)
+    assert min(hits(buf, [1.0 + e[0] for e in events])) > 0.003
+    assert float(np.abs(buf[int(1.4 * sfx.RATE):int(1.55 * sfx.RATE)]).max()) < 1e-4       # silence between keys
+    assert np.array_equal(buf, sfx._mix(sfx.place([stream_cue(events)], t), 3.0))           # the same every render
+
+
+def test_dense_typing_thins_out_and_keys_under_a_word_step_back():
+    # Fifteen identical clicks a second is noise: a stream's events get quieter as they crowd, and
+    # quieter again under a spoken word, so the voice stays on top and keys in a pause come forward.
+    sparse = [[0.5 * i, "key"] for i in range(4)]
+    dense = [[2.5 + 0.07 * i, "key"] for i in range(12)]          # fourteen keys a second
+    words = [{"start": 4.3, "end": 4.6, "word": "now"}]
+    t = {"duration": 6.0, "cues": {}, "beats": {}, "tracks": {"narration": [{"id": "s1_01", "words": words}]}}
+    quiet = [[4.0, "key"], [3.4, "key"]]      # after the cue at 1.0: 5.0 s in a pause, 4.4 s in "now"
+    cue = stream_cue(sparse + dense + quiet, {"key": "synth:click"}, jitter=False)
+    buf = sfx._mix(sfx.place([cue], t), 6.0)
+    loud_sparse = np.median(hits(buf, [1.0 + e[0] for e in sparse]))
+    loud_dense = np.median(hits(buf, [1.0 + e[0] for e in dense[3:9]], width=0.002))
+    assert loud_dense < loud_sparse * 0.7
+    in_pause, under_word = hits(buf, [5.0, 4.4])
+    assert under_word < in_pause * 0.7
+
+
+def test_a_stream_cuts_its_keys_from_a_take_and_never_plays_one_twice_running(tmp_path):
+    from studio_kit import assets
+    import soundfile as sf
+    take = np.zeros(int(2.0 * sfx.RATE), dtype=np.float32)
+    for k in range(12):                               # twelve keys of different brightness
+        i = int((0.1 + 0.15 * k) * sfx.RATE)
+        n = np.arange(int(0.03 * sfx.RATE))
+        take[i:i + len(n)] = np.sin(n * (0.2 + 0.05 * k)) * np.exp(-n / 300.0) * 0.7
+    (tmp_path / "src").mkdir()
+    sf.write(tmp_path / "src" / "take.wav", take, sfx.RATE)
+    assets.add(tmp_path, tmp_path / "src" / "take.wav", "supplied", "recorded", name="sounds/take.wav")
+    cue = sfx.pinned(stream_cue([[0.1 * i, "key"] for i in range(10)], {"key": "grains:asset:sounds/take.wav"}), tmp_path)
+    assert cue["sounds"]["key"]["params"]["samples"] == len(take)
+    t = {"duration": 3.0, "cues": {}, "beats": {}, "tracks": {"narration": []}}
+    placed = sfx.place([cue], t, video=tmp_path)
+    from studio_kit import streams
+    picks = streams.picks(placed[0])
+    assert len(set(picks)) > 3 and all(a != b for a, b in zip(picks, picks[1:]))
+    assert min(hits(sfx._mix(placed, 3.0), [1.0 + 0.1 * i for i in range(10)])) > 0.002
+
+
+def test_a_stream_names_an_event_kind_it_has_no_sound_for():
+    t = {"duration": 3.0, "cues": {}, "beats": {}, "tracks": {"narration": []}}
+    with pytest.raises(SystemExit, match="'back'"):
+        sfx.check([stream_cue([[0.0, "key"], [0.1, "back"]])], t)
+    sfx.check([stream_cue([[0.0, "key"], [0.1, "back"]], {"key": "synth:key-tick", "*": "synth:tap"})], t)

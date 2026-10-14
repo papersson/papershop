@@ -23,7 +23,9 @@ for), the kit (`Kit`), the sound kit's curated CC0 recordings (soundkit.json), a
 recordings (`Asset`, "asset:PATH" under assets/, measured when `studio sfx` keeps the cue). A cue's
 `sound` may also be a pool, a list of sounds: each cue plays one, never the one the cue before it
 with the same pool played, at a little pitch and gain jitter unless `"jitter": false` (`varied`),
-so a repeated event (a footstep, a key) doesn't sound like one sample on a loop. A synth build
+so a repeated event (a footstep, a key) doesn't sound like one sample on a loop. An effect with
+`events` is a stream (streams.py): many small events after its cue (a burst of typing), each from
+its kind's sounds, played as one effect so it needs one cue, not one per keystroke. A synth build
 (riser, swell) ends on its cue and every other voice starts on it; a recording lands on its
 transient peak, measured once at curation, since a recording has a lead-in. Recordings are opt-in:
 a cue's type alone keeps its synth voice (a type only the kit has, such as question or dice, plays
@@ -702,10 +704,13 @@ def place(cues, timeline, strict=True, video=None):
     a build's end, else its first sample). `strict` stops on a time the timeline doesn't have (a
     render needs every one); otherwise that cue is placed nowhere (a snapshot lists it). `video`:
     where recordings' samples come from, for a render. A pool picks its member per cue (`_pooled`)."""
+    from . import streams
     out, last = [], {}
     for c in cues:
         at = resolve_time(c["t"], timeline) if strict else _time(c["t"], timeline)
-        if isinstance(c.get("sound"), list):
+        if "events" in c:
+            s, gain = streams.sound(c, at, timeline, video), c.get("gain", 0)
+        elif isinstance(c.get("sound"), list):
             s, gain = _pooled(c, at, last, video)
         else:
             s, gain = resolve(c, video=video), c.get("gain", 0)
@@ -804,7 +809,14 @@ def check(cues, timeline):
         if "duration" in timeline and not 0 <= at <= timeline["duration"]:
             raise SystemExit(f"effect at {c['t']!r}: {at:.2f} s is outside the video (0 to {timeline['duration']:.2f} s), "
                              "where nobody hears it")
-        if isinstance(c.get("sound"), list):
+        if "events" in c:
+            from . import streams
+            why = streams.problem(c)
+            if why:
+                raise SystemExit(f"effect at {c['t']!r}: {why}")
+            for m in streams.refs(c):
+                resolve({**m, "type": c.get("type")}, at=c["t"])
+        elif isinstance(c.get("sound"), list):
             if not c["sound"]:
                 raise SystemExit(f"effect at {c['t']!r}: a pool lists at least one sound")
             for m in c["sound"]:
@@ -860,6 +872,9 @@ def pinned(cue, video=None):
     """The cue as audio/sfx.json keeps it: a recording named by its id ("kit:ID"), so `"sound": "kit"`
     and a type only the kit has say which recording they play, whatever a later manifest's default; a
     video's own recording with its measured facts (Asset); a pool with each member so."""
+    if "events" in cue:
+        from . import streams
+        return streams.pin(cue, lambda m: _pin_member(m, video))
     if isinstance(cue.get("sound"), list):
         return {**cue, "sound": [_pin_member(m, video) for m in cue["sound"]]}
     p, name = source(cue)
@@ -885,7 +900,9 @@ def copy_in(video, cues):
     import hashlib
     from . import assets
     kit, done = PROVIDERS["kit"], []
-    refs = [pool_ref(m) for c in cues for m in (c["sound"] if isinstance(c.get("sound"), list) else [c])]
+    from . import streams
+    refs = [m for c in cues for m in (streams.refs(c) if "events" in c else
+                                       [pool_ref(m) for m in (c["sound"] if isinstance(c.get("sound"), list) else [c])])]
     for sid in dict.fromkeys(name for p, name in map(source, refs) if p is kit):
         e = kit.entry(sid)
         f = Path(video) / "assets" / library_file(e)
