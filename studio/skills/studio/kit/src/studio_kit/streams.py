@@ -127,7 +127,7 @@ def sound(c, at, timeline, video=None):
         last, chosen = {}, []
         for off, kind in events:
             k = kind if kind in kinds else "*"
-            pool, (_, gain, part) = variants[k], kinds[k]
+            pool, gain = variants[k], kinds[k][1]
             j = rng.randrange(len(pool))
             if len(pool) > 1 and j == last.get(k):
                 j = (j + 1) % len(pool)

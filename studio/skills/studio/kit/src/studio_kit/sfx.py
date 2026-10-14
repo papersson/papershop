@@ -921,11 +921,17 @@ def main(args):
     except ImportError:
         raise SystemExit(NEEDS)
     cues = [pinned(c, video) for c in cues]       # kit defaults named, the video's own recordings measured
+    # Effects a generator made (`studio typing`: "source": "typing") stay unless this list has its own.
+    f = video / "audio" / "sfx.json"
+    given = {c.get("source") for c in cues}
+    kept = [e for e in (json.loads(f.read_text()) if f.exists() else []) if e.get("source") and e["source"] not in given]
+    cues = cues + kept
     check(cues, tl.build(video, quiet=True))      # cue and beat names resolve against the current sources
     copied = copy_in(video, cues)
     atomic_json(video / "audio" / "sfx.json", cues)
     rendered(video, tl.build(video))
     print(f"{len(cues)} effects → audio/sfx.json (each mix places them on the current timeline)"
+          + (f"; kept {len(kept)} from {', '.join(sorted({e['source'] for e in kept}))}" if kept else "")
           + "".join(f"\n  copied in assets/{f} from the sound kit" for f in copied))
     return 0
 
