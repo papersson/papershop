@@ -42,6 +42,15 @@ def plain(name, what="--name"):
     return name
 
 
+def inside(name, what="--name"):
+    """`name` when it is a path inside assets/: relative, without `..` or a backslash, so a builder can
+    keep sounds in assets/sounds/door/ and a hand-edited row can't send a file anywhere else."""
+    parts = (name or "").split("/")
+    if not name or name.startswith("/") or any(c in name for c in "\\\0") or any(p in ("", ".", "..") for p in parts):
+        raise SystemExit(f"{what} {name!r} must be a path inside assets/ (folders allowed, no .. and nothing absolute)")
+    return name
+
+
 def library_path(video, file):
     """assets/FILE for a library row's FILE, which must be sounds/STEM.EXT: a hand-edited
     provenance.json can't send a copy outside assets/sounds/."""
@@ -80,17 +89,25 @@ def record(video, file, kind, source, license="", params=None):
     rows.append({"file": file, "kind": kind, "source": source, "created": time.strftime("%Y-%m-%d %H:%M:%S"),
                  "bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                  "license": license, "params": params or {}})
-    (dir_of(video) / "provenance.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False) + "\n")
+    _write(dir_of(video) / "provenance.json", (json.dumps(rows, indent=1, ensure_ascii=False) + "\n").encode())
     return rows[-1]
+
+
+def record_generated(video, file, source, params=None, license="CC0-1.0"):
+    """The row for a file a video's own script made in assets/ (a rendered texture, a synthesised
+    sound): what made it and from what, so a generator never hand-writes provenance."""
+    return record(video, inside(file, "file"), "generated", source, license, params)
 
 
 def add(video, src, kind, source, license="", name=None):
     src = Path(src).expanduser()
     if not src.is_file():
         raise SystemExit(f"{src} is not a file")
-    dst = dir_of(video) / plain(name or src.name, "--name" if name else "the file's name")
+    rel = inside(name or src.name, "--name" if name else "the file's name")
+    dst = dir_of(video) / rel
+    dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, dst)
-    return record(video, dst.name, kind, source, license)
+    return record(video, rel, kind, source, license)
 
 
 def _kit_sound(name):

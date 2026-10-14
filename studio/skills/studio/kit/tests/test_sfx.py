@@ -156,3 +156,53 @@ def test_the_track_re_renders_when_an_effect_changes_and_only_then(tmp_path, mon
         fx.write_text(json.dumps([change] + EFFECTS[4:6]))
         sfx.rendered(tmp_path, MIXED)
     assert made == [3, 3, 3, 3]
+
+
+def knock(path, at=0.03, rate=48_000):
+    """A wav with a short burst `at` seconds in: a recording with a lead-in, as a door latch has."""
+    import soundfile as sf
+    y = np.zeros(int(0.2 * rate), dtype=np.float32)
+    i = int(at * rate)
+    y[i:i + 400] = np.sin(np.arange(400) / 3.0) * np.exp(-np.arange(400) / 80.0) * 0.8
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(path, y, rate)
+    return path
+
+
+def test_a_videos_own_recording_is_an_effect_on_a_cue(tmp_path):
+    # The game-dev builder placed its door and footstep sounds in tracks.json at absolute seconds, so
+    # they never moved with the narration and audio-check could not see them. "asset:PATH" plays a
+    # file in assets/ on a cue, landing on its transient, measured when `studio sfx` keeps it.
+    from studio_kit import assets
+    knock(tmp_path / "src" / "latch.wav")
+    assets.add(tmp_path, tmp_path / "src" / "latch.wav", "supplied", "recorded by hand", name="sounds/door/latch.wav")
+    assert (tmp_path / "assets" / "sounds" / "door" / "latch.wav").is_file()
+    cue = sfx.pinned({"t": 1.0, "type": "thump", "sound": "asset:sounds/door/latch.wav"}, tmp_path)
+    assert set(cue["params"]) == {"sha256", "samples", "contact"} and abs(cue["params"]["contact"] - 0.03 * sfx.RATE) < 200
+    t = {"duration": 2.0, "cues": {}, "beats": {}}
+    p = sfx.place([cue], t, video=tmp_path)[0]
+    assert p.contact == sfx.RATE and p.start == sfx.RATE - cue["params"]["contact"]
+    buf = sfx._mix([p], 2.0)
+    assert np.abs(buf[p.contact - 50:p.contact + 300]).max() > 0.3          # the burst lands on the cue
+    with pytest.raises(SystemExit, match="studio sfx"):
+        sfx.resolve({"t": 1.0, "sound": "asset:sounds/door/latch.wav"})          # unmeasured: not placed blind
+    for bad in ("../outside.wav", "/etc/passwd", "sounds/../../x.wav"):
+        with pytest.raises(SystemExit):
+            assets.add(tmp_path, tmp_path / "src" / "latch.wav", "supplied", "x", name=bad)
+
+
+def test_a_pool_varies_a_repeated_sound_and_never_repeats_it_twice_running(tmp_path):
+    # Robot footsteps played one sample at every step; a pool picks a variant per cue, with a little
+    # pitch and gain jitter, never the same one twice running, and the same way every render.
+    pool = ["synth:tap", "synth:click", "synth:soft-tick"]
+    cues = [{"t": 0.2 * i + 0.1, "type": "tap", "sound": pool} for i in range(12)]
+    t = {"duration": 3.0, "cues": {}, "beats": {}}
+    placed = sfx.place(cues, t)
+    names = [p.sound.id.split("@")[0] for p in placed]
+    assert len(set(names)) == 3 and all(a != b for a, b in zip(names, names[1:]))
+    assert len({p.sound.id for p in placed}) > 3 and len({p.gain for p in placed}) > 1       # pitch and gain vary
+    again = sfx.place(cues, t)
+    assert [p.sound.id for p in again] == [p.sound.id for p in placed] and [p.gain for p in again] == [p.gain for p in placed]
+    assert np.isfinite(sfx._mix(placed, 3.0)).all()
+    steady = sfx.place([{**c, "jitter": False} for c in cues], t)
+    assert all("@" not in p.sound.id for p in steady) and {p.gain for p in steady} == {0}

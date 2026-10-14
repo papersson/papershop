@@ -17,9 +17,13 @@ picture and sound one time on the frame grid.
 
 An effect's sound comes from one resolver (`resolve`): the cue's `sound` id, else its type as a
 synth's name, is made by a provider into a Sound, which says where in it the cue lands (`contact`)
-and carries a digest for cache keys. Two providers: the synths, small numpy voices (VOICES: click,
+and carries a digest for cache keys. Three providers: the synths, small numpy voices (VOICES: click,
 pop, thump, whoosh and twenty neutral ones for an explainer's moves, each with a line on what it is
-for), and the kit (`Kit`), the sound kit's curated CC0 recordings (soundkit.json). A synth build
+for), the kit (`Kit`), the sound kit's curated CC0 recordings (soundkit.json), and the video's own
+recordings (`Asset`, "asset:PATH" under assets/, measured when `studio sfx` keeps the cue). A cue's
+`sound` may also be a pool, a list of sounds: each cue plays one, never the one the cue before it
+with the same pool played, at a little pitch and gain jitter unless `"jitter": false` (`varied`),
+so a repeated event (a footstep, a key) doesn't sound like one sample on a loop. A synth build
 (riser, swell) ends on its cue and every other voice starts on it; a recording lands on its
 transient peak, measured once at curation, since a recording has a lead-in. Recordings are opt-in:
 a cue's type alone keeps its synth voice (a type only the kit has, such as question or dice, plays
@@ -500,12 +504,69 @@ class Kit:
         return out
 
 
+class Asset:
+    """The video's own recordings, by their path under assets/ ("asset:sounds/door/latch.wav"): a sound
+    the builder recorded, found or made, with its provenance row. Like a kit recording it lands on its
+    transient peak. Its facts (sha256, samples, contact at RATE) are measured when `studio sfx` keeps
+    the cue (`pinned` puts them in the cue's params), so placing it needs neither the file nor numpy;
+    a render reads the file and refuses one whose digest moved. Its gain is the cue's."""
+    name = "asset"
+    FACTS = ("sha256", "samples", "contact")
+
+    def names(self):
+        return ()
+
+    def has(self, name):
+        from .assets import inside
+        try:
+            return bool(inside(name))
+        except SystemExit:
+            return False
+
+    def about(self, name):
+        return f"the video's own recording, assets/{name}"
+
+    def problem(self, name, params):
+        if set(params) != set(self.FACTS):
+            return f"assets/{name} has not been measured: keep the cue with `studio sfx`, which measures it"
+        return None
+
+    def measure(self, video, name):
+        """The facts a cue keeps for assets/NAME, from the file."""
+        import hashlib
+        from . import soundkit
+        f = Path(video) / "assets" / name
+        if not f.is_file():
+            raise SystemExit(f"asset:{name}: no file at {f} (add it with `studio asset add VIDEO FILE --name {name}`)")
+        data = f.read_bytes()
+        y = soundkit.decode(data)[0]
+        return {"sha256": hashlib.sha256(data).hexdigest(), "samples": len(y), "contact": soundkit.contact(y, RATE)}
+
+    def sound(self, name, params, video=None):
+        def make():
+            import hashlib
+            import numpy as np
+            from . import soundkit
+            if video is None:
+                raise SystemExit(f"asset:{name} plays from a video's assets/; no video was given")
+            data = (Path(video) / "assets" / name).read_bytes()
+            if hashlib.sha256(data).hexdigest() != params["sha256"]:
+                raise SystemExit(f"assets/{name} changed since `studio sfx` measured it; run `studio sfx` again")
+            y = soundkit.decode(data)[0]
+            return np.pad(y, (0, max(0, params["samples"] - len(y))))[:params["samples"]].astype(np.float32)
+        return Sound(f"asset:{name}", "peak", params["contact"], params["samples"],
+                     _digest(self.name, name, params["sha256"], params["contact"], params["samples"]), make)
+
+    def candidates(self):
+        return {}
+
+
 def library_file(entry):
     """Where a curated sound sits in a video's assets/ (assets.add_library puts it there)."""
     return f"sounds/{entry['id']}{Path(entry['member']).suffix.lower()}"
 
 
-PROVIDERS = {"synth": Synth(), "kit": Kit()}
+PROVIDERS = {"synth": Synth(), "kit": Kit(), "asset": Asset()}
 
 
 def _names(p):
@@ -528,8 +589,8 @@ def source(ref):
     p = PROVIDERS.get(kind or "synth")
     if p is None:
         raise SystemExit(f"unknown effect {ref!r}: no sound provider {kind!r} ({', '.join(PROVIDERS)})")
-    if name not in p.names():
-        raise SystemExit(f"unknown effect {ref!r}: {_names(p)}")
+    if not (p.has(name) if hasattr(p, "has") else name in p.names()):
+        raise SystemExit(f"unknown effect {ref!r}: {_names(p) if p.names() else 'a path inside assets/'}")
     return p, name
 
 
@@ -597,21 +658,63 @@ class Placement:
     sound: Sound
 
 
+JITTER = {"pitch": 0.04, "gain": 1.5}      # a pool's variation: +-4% pitch, +-1.5 dB
+
+
+def varied(sound, pitch):
+    """`sound` played `pitch` times faster: shorter, higher, its contact moved with it."""
+    if pitch == 1:
+        return sound
+
+    def make():
+        import numpy as np
+        y = sound.samples
+        return np.interp(np.arange(0, len(y) - 1, pitch), np.arange(len(y)), y).astype(np.float32)
+    return Sound(f"{sound.id}@{pitch:.3f}", sound.lands, int(sound.contact / pitch), max(0, math.ceil((sound.length - 1) / pitch)),
+                 _digest(sound.digest, round(pitch, 4)), make, sound.rate)
+
+
+def pool_ref(entry):
+    """A pool's member as a cue the resolver takes: "kit:ID", or {"sound", "params"} (an asset with its facts)."""
+    return entry if isinstance(entry, dict) else {"sound": entry}
+
+
+def _pooled(c, at, last, video):
+    """(Sound, gain) for cue `c` whose `sound` is a pool: the member a seeded draw picks for this cue
+    and time, never `last[pool]`, jittered unless the cue says `"jitter": false`."""
+    import random
+    pool = c["sound"]
+    key = json.dumps(pool, sort_keys=True)
+    rng = random.Random(f"{SEED}:{key}:{at!r}")
+    i = rng.randrange(len(pool))
+    if len(pool) > 1 and i == last.get(key):
+        i = (i + 1) % len(pool)
+    last[key] = i
+    s = resolve({**pool_ref(pool[i]), "type": c.get("type")}, video=video)
+    if c.get("jitter", True) is False:
+        return s, c.get("gain", 0)
+    j = {**JITTER, **(c["jitter"] if isinstance(c.get("jitter"), dict) else {})}
+    return varied(s, round(1 + rng.uniform(-j["pitch"], j["pitch"]), 3)), round(c.get("gain", 0) + rng.uniform(-j["gain"], j["gain"]), 2)
+
+
 def place(cues, timeline, strict=True, video=None):
     """Every cue placed on this timeline, its sound's contact on the cue's time (a recording's peak,
     a build's end, else its first sample). `strict` stops on a time the timeline doesn't have (a
     render needs every one); otherwise that cue is placed nowhere (a snapshot lists it). `video`:
-    where recordings' samples come from, for a render."""
-    out = []
+    where recordings' samples come from, for a render. A pool picks its member per cue (`_pooled`)."""
+    out, last = [], {}
     for c in cues:
-        s = resolve(c, video=video)
         at = resolve_time(c["t"], timeline) if strict else _time(c["t"], timeline)
+        if isinstance(c.get("sound"), list):
+            s, gain = _pooled(c, at, last, video)
+        else:
+            s, gain = resolve(c, video=video), c.get("gain", 0)
         if at is None:
-            out.append(Placement(c, None, None, None, None, c.get("gain", 0), s))
+            out.append(Placement(c, None, None, None, None, gain, s))
             continue
         contact = int(at * RATE)
         first = contact - s.contact
-        out.append(Placement(c, at, max(0, first), first + s.length, contact, c.get("gain", 0), s))
+        out.append(Placement(c, at, max(0, first), first + s.length, contact, gain, s))
     return out
 
 
@@ -701,7 +804,13 @@ def check(cues, timeline):
         if "duration" in timeline and not 0 <= at <= timeline["duration"]:
             raise SystemExit(f"effect at {c['t']!r}: {at:.2f} s is outside the video (0 to {timeline['duration']:.2f} s), "
                              "where nobody hears it")
-        resolve(c, at=c["t"])
+        if isinstance(c.get("sound"), list):
+            if not c["sound"]:
+                raise SystemExit(f"effect at {c['t']!r}: a pool lists at least one sound")
+            for m in c["sound"]:
+                resolve({**pool_ref(m), "type": c.get("type")}, at=c["t"])
+        else:
+            resolve(c, at=c["t"])
         if not isinstance(c.get("gain", 0), (int, float)):
             raise SystemExit(f"effect at {c['t']!r}: gain must be dB")
         if "visual" in c and c["visual"] not in VISUALS:
@@ -747,11 +856,25 @@ def rendered(video, timeline):
     return out
 
 
-def pinned(cue):
+def pinned(cue, video=None):
     """The cue as audio/sfx.json keeps it: a recording named by its id ("kit:ID"), so `"sound": "kit"`
-    and a type only the kit has say which recording they play, whatever a later manifest's default."""
+    and a type only the kit has say which recording they play, whatever a later manifest's default; a
+    video's own recording with its measured facts (Asset); a pool with each member so."""
+    if isinstance(cue.get("sound"), list):
+        return {**cue, "sound": [_pin_member(m, video) for m in cue["sound"]]}
     p, name = source(cue)
-    return {**cue, "sound": f"kit:{name}"} if p.name == "kit" else cue
+    if p.name == "kit":
+        return {**cue, "sound": f"kit:{name}"}
+    if p.name == "asset":
+        if video is None:
+            raise SystemExit(f"asset:{name} is measured from a video's assets/; no video was given")
+        return {**cue, "params": p.measure(video, name)}
+    return cue
+
+
+def _pin_member(m, video):
+    c = pinned(pool_ref(m), video)
+    return c["sound"] if set(c) == {"sound"} else {"sound": c["sound"], "params": c["params"]}
 
 
 def copy_in(video, cues):
@@ -762,7 +885,8 @@ def copy_in(video, cues):
     import hashlib
     from . import assets
     kit, done = PROVIDERS["kit"], []
-    for sid in dict.fromkeys(name for p, name in map(source, cues) if p is kit):
+    refs = [pool_ref(m) for c in cues for m in (c["sound"] if isinstance(c.get("sound"), list) else [c])]
+    for sid in dict.fromkeys(name for p, name in map(source, refs) if p is kit):
         e = kit.entry(sid)
         f = Path(video) / "assets" / library_file(e)
         row = next((r for r in assets.read(video) if r["file"] == library_file(e)), None)
@@ -779,8 +903,8 @@ def main(args):
         import numpy, soundfile  # noqa: F401  (every mix renders the effects)
     except ImportError:
         raise SystemExit(NEEDS)
+    cues = [pinned(c, video) for c in cues]       # kit defaults named, the video's own recordings measured
     check(cues, tl.build(video, quiet=True))      # cue and beat names resolve against the current sources
-    cues = [pinned(c) for c in cues]
     copied = copy_in(video, cues)
     atomic_json(video / "audio" / "sfx.json", cues)
     rendered(video, tl.build(video))
