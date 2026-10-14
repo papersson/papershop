@@ -26,6 +26,7 @@ from pathlib import Path
 from . import proc
 from . import settings
 from . import audio
+from . import cuts
 from . import moments
 from . import timeline as tl
 from .engine import Engine
@@ -234,21 +235,6 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     return h.hexdigest()[:16]
 
 
-def cuts_dir(video):
-    return Path(video) / "cuts"
-
-
-def latest_cut(video):
-    """The highest cut number with a cut.json, or 0."""
-    nums = [int(p.name[3:]) for p in cuts_dir(video).glob("cut*") if (p / "cut.json").exists() and p.name[3:].isdigit()]
-    return max(nums, default=0)
-
-
-def read_cut(video, n):
-    p = cuts_dir(video) / f"cut{n}" / "cut.json"
-    return json.loads(p.read_text()) if p.exists() else None
-
-
 def plan(video, timeline, quality, fmt=None):
     """[(clip id, key, cached file or None)] for every clip in order."""
     cache = Path(video) / ".cache" / "clips"
@@ -339,14 +325,9 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         if quality == "final":
             audio.require_voice(video, timeline)   # a draft may play without its voice; a final may not
     engine = engine or Engine(video)
-    from . import cuts
     prev_n = cuts.latest(video, ("boards",) if boards else cuts.SCENE_STILLS)
-    prev = read_cut(video, prev_n) if prev_n else None
-    n = latest_cut(video) + 1
-    d = cuts_dir(video) / f"cut{n}"
-    if d.exists():
-        shutil.rmtree(d)
-    (d / "stills").mkdir(parents=True)
+    prev = cuts.read(video, prev_n) if prev_n else None
+    n, d = cuts.allocate(video)
     timings = {}
 
     rows = plan(video, timeline, quality)
@@ -368,9 +349,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     else:
         clips = [{"id": cid, "key": key, "rendered": False, "seconds": 0} for cid, key, _ in rows]
 
-    from .cuts import media_info
     from .workspace import atomic_json
-    media = media_info(d / "video.mp4") if not stills_only else {
+    media = cuts.media_info(d / "video.mp4") if not stills_only else {
         "width": round(tl.layout(video)["width"] * STILL_SCALE),
         "height": round(tl.layout(video)["height"] * STILL_SCALE), "fps": timeline["fps"]}
     notes = bd.notes(video)
@@ -408,7 +388,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         record["known_issues"] = prev["known_issues"]     # what a motion review left on purpose, until the next one ends
     if prev:
         _keep_befores(video, prev_n, d, record)
-    (d / "cut.json").write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
+    cuts.write(video, n, record)
     from .clean import keep_cuts, prune_cuts
     freed = prune_cuts(video)
     if freed:
@@ -421,7 +401,7 @@ def _keep_befores(video, prev_n, d, record):
     before = d / "before"
     for s in record["stills"]:
         if s["clip"] in record["changed"]:
-            src = cuts_dir(video) / f"cut{prev_n}" / s["file"]
+            src = cuts.cut_dir(video, prev_n) / s["file"]
             if src.exists() and src.read_bytes() != (d / s["file"]).read_bytes():
                 before.mkdir(exist_ok=True)
                 shutil.copyfile(src, before / src.name)

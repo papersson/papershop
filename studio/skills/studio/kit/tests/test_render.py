@@ -3,7 +3,7 @@ import json
 import re
 from pathlib import Path
 
-from studio_kit import render
+from studio_kit import cuts, render
 from studio_kit import timeline as tl
 
 
@@ -65,7 +65,7 @@ def test_latest_cut_ignores_folders_without_a_record(tmp_path):
         d.mkdir(parents=True)
         (d / "cut.json").write_text(json.dumps({"cut": n}))
     (tmp_path / "cuts" / "cut3").mkdir()
-    assert render.latest_cut(tmp_path) == 2
+    assert cuts.last(tmp_path) == 2
 
 
 def test_keys_survive_moving_the_video(tmp_path):

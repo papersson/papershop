@@ -15,7 +15,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import reviews, settings
+from . import cuts, reviews, settings
 from .env import ROOT
 from .reviews import KINDS, kind_of
 from .workspace import atomic_json, now
@@ -129,8 +129,7 @@ def _logged(video, kind):
 def cut_keys(video, cut=None):
     """The review keys cut N recorded, or (None) the current sources' ({} when there are none)."""
     if cut is not None:
-        p = Path(video) / "cuts" / f"cut{cut}" / "cut.json"
-        return (json.loads(p.read_text()).get("review_keys") or {}) if p.exists() else {}
+        return (cuts.read(video, cut) or {}).get("review_keys") or {}
     if not (Path(video) / "timeline.json").exists():
         return {}
     from . import timeline
@@ -151,7 +150,7 @@ def substantial(then, now):
 def cut_time(video, n):
     """When cut N was made, in epoch seconds: its record's "t", else its local "created" (to the
     second, for a cut made before records had "t"), else its file's time."""
-    p = Path(video) / "cuts" / f"cut{n}" / "cut.json"
+    p = cuts.cut_dir(video, n) / "cut.json"
     try:
         rec = json.loads(p.read_text())
         return float(rec["t"]) if "t" in rec else time.mktime(time.strptime(rec["created"], "%Y-%m-%d %H:%M:%S"))
@@ -234,8 +233,7 @@ def start_round(video, kind, number, revision, cfg, unit=None, cut=None):
 def changed_since(video, cut):
     """What a frame shows that changed since cut N, in a few words: the clips whose review keys
     differ from those the cut recorded, or just the fact for a cut that recorded none."""
-    p = Path(video) / "cuts" / f"cut{cut}" / "cut.json"
-    then = json.loads(p.read_text()).get("review_keys") if p.exists() else None
+    then = (cuts.read(video, cut) or {}).get("review_keys")
     if not then or not (Path(video) / "timeline.json").exists():
         return "the sources"
     from . import timeline
@@ -449,12 +447,10 @@ def main_frames(args):
     revision, so an older cut can be reviewed; under the frames kind's freshness policy its result
     is then recorded as stale, and the receipt stays short of the current revision `require` asks for."""
     video = Path(args.video).resolve()
-    from . import cuts
-    n = args.cut or cuts.latest(video, cuts.RENDERED)
-    cut = video / "cuts" / f"cut{n}"
-    if not (cut / "cut.json").exists():
+    n, rec = cuts.resolve(video, args.cut)
+    if rec is None:
         raise SystemExit("make a cut before preparing its frame review")
-    rec = json.loads((cut / "cut.json").read_text())
+    cut = cuts.cut_dir(video, n)
     kind = KINDS["frames"]
     judged, current = rec.get("source_revision"), revision(video, kind)
     if not judged:

@@ -84,7 +84,7 @@ def source(video, n, rec, t, clip):
     """(file, the clip's first frame in it) holding the cut's frames of `clip`: the cut's own
     video.mp4, which spans every clip, else its clip render cached under the key the cut recorded,
     else None."""
-    movie = Path(video) / "cuts" / f"cut{n}" / "video.mp4"
+    movie = cuts.cut_dir(video, n) / "video.mp4"
     if movie.exists():
         return movie, tl.frames(t, clip)[0]
     f = clip_render(video, rec, clip)
@@ -399,7 +399,7 @@ def write_known_issues(video, n, issues):
     that ends replaces the last one's, fixed or not."""
     for m, rec in cuts.records(video).items():
         if m >= n and rec:
-            atomic_json(Path(video) / "cuts" / f"cut{m}" / "cut.json", {**rec, "known_issues": issues})
+            cuts.write(video, m, {**rec, "known_issues": issues})
 
 
 def previous(video, current):
@@ -485,11 +485,10 @@ def prompt(cfg, judged, prior, dropped=(), sheet_status="current", sounds=False)
 def main(args):
     video = Path(args.video).resolve()
     cfg = settings.load(video)
-    n = args.cut or cuts.latest(video, cuts.RENDERED)
-    cut = video / "cuts" / f"cut{n}"
-    if not n or not (cut / "cut.json").exists():
+    n, rec = cuts.resolve(video, args.cut)
+    if rec is None:
         raise SystemExit("make a cut (studio cut VIDEO) before preparing its motion review")
-    rec = json.loads((cut / "cut.json").read_text())
+    cut = cuts.cut_dir(video, n)
     if cuts.kind(rec) not in cuts.RENDERED:
         raise SystemExit(f"cut {n} is a {cuts.kind(rec)} cut: a motion review needs a rendered one (studio cut VIDEO)")
     judged, current = rec.get("source_revision"), revision(video, KIND)

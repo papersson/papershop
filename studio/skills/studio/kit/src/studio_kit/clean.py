@@ -28,7 +28,7 @@ def stale_cuts(video):
     movies = sorted(n for n in recs if cuts.playable(video, n))
     previews = sorted(n for n in recs if not cuts.playable(video, n))
     keep = cuts.protected(video, recs) | set(movies[-keep_cuts(video):]) | set(previews[-keep_cuts(video):])
-    return [Path(video) / "cuts" / f"cut{n}" for n in sorted(recs) if n not in keep]
+    return [cuts.cut_dir(video, n) for n in sorted(recs) if n not in keep]
 
 
 def cut_plan(video, videos=False):

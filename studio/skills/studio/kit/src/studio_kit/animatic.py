@@ -7,12 +7,10 @@ Each sentence's still holds from that sentence's start until the next sentence s
 still of a chapter also covers the chapter's lead-in). The animatic is a cut of kind "animatic":
 it is shown on the review page and never chosen by publish or frame review.
 """
-import json
-import shutil
 import time
 from pathlib import Path
 
-from . import audio, proc, render, settings
+from . import audio, cuts, proc, render, settings
 from . import timeline as tl
 
 SCALE = 0.5               # animatic stills: 960×540 from a 1080p layout
@@ -96,11 +94,7 @@ def make(video, boards=False):
     from . import boards as bd
     from .engine import Engine
     bd.write_notes(video)
-    n = render.latest_cut(video) + 1
-    d = render.cuts_dir(video) / f"cut{n}"
-    if d.exists():
-        shutil.rmtree(d)
-    (d / "stills").mkdir(parents=True)
+    n, d = cuts.allocate(video)
     t0 = time.monotonic()
     # Its own stills, at half resolution so text stays readable: scenes where they exist, boards
     # elsewhere (or boards throughout), cached like any other stills.
@@ -138,7 +132,7 @@ def make(video, boards=False):
         "clips": [], "changed": [], "stills": stills, "changelog": [], "pacing": report,
         "seconds": {"animatic": round(time.monotonic() - t0, 1), "stills_rendered": made, "stills_reused": reused},
     }
-    (d / "cut.json").write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n")
+    cuts.write(video, n, record)
     return record
 
 

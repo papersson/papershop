@@ -763,7 +763,7 @@ def _stale(video, rec, n):
 
 def run(video, cut=None):
     """All rows. `cut`: a cut's number for the picture notes (default: the latest rendered cut)."""
-    from . import cuts, render
+    from . import cuts
     video = Path(video)
     timeline = tl.load(video)
     audio.require_voice(video, timeline)
@@ -774,9 +774,8 @@ def run(video, cut=None):
         raise SystemExit(NEEDS)
     record = finished(video, timeline)
     stems = Stems(video, timeline, record)
-    n = cut or cuts.latest(video, cuts.RENDERED)
-    rec = render.read_cut(video, n) if n else None
-    movie = render.cuts_dir(video) / f"cut{n}" / rec["video"] if rec and rec.get("video") else None
+    n, rec = cuts.resolve(video, cut)
+    movie = cuts.cut_dir(video, n) / rec["video"] if rec and rec.get("video") else None
     if cut and movie is None:
         raise SystemExit(f"cut {cut} has no rendered video")
     estimate = tl.timing(video, timeline) == "estimate"

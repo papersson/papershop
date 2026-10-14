@@ -27,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import settings
-from . import cuts, render
+from . import cuts
 from .workspace import locked
 from . import timeline as tl
 
@@ -87,13 +87,13 @@ def live_engine(video):
 
 def state(video, cut=None):
     video = Path(video)
-    latest = render.latest_cut(video)
+    latest = cuts.last(video)
     n = cut or latest
-    record = render.read_cut(video, n) if n else None
+    record = cuts.read(video, n) if n else None
     # A live-engine video plays its current scenes on the desk, so the latest view follows the
     # current timeline; an older cut shows the cut as it was.
     live = live_engine(video) and (cut is None or cut == latest)
-    snapshot = video / "cuts" / f"cut{n}" / "timeline.json"
+    snapshot = cuts.cut_dir(video, n) / "timeline.json"
     t = tl.load(video) if live or not snapshot.exists() else json.loads(snapshot.read_text())
     if live and not record:
         record = {"cut": 0, "kind": "live", "created": "", "quality": "live", "stills": [], "changelog": [],
@@ -102,16 +102,15 @@ def state(video, cut=None):
         record = {**record, "video": None}
     if record:
         record = {**record, "kind": cuts.kind(record), "stills": [s for s in record.get("stills", [])
-                                      if (video / "cuts" / f"cut{n}" / s["file"]).exists()]}
+                                      if (cuts.cut_dir(video, n) / s["file"]).exists()]}
     # Replies made since the previous cut show here, whether the builder resolved before or after cutting.
-    prev = render.read_cut(video, n - 1) if n and n > 1 else None
+    prev = cuts.read(video, n - 1) if n and n > 1 else None
     notes, rounds = fold(read_log(video), n, (prev or {}).get("created") or (record or {}).get("created"))
     title = t.get("title") or video.name
     title = settings.raw(video).get("title", title)
     return {
         "title": title, "latest": latest, "cut": record,
-        "cuts": sorted(int(p.name[3:]) for p in render.cuts_dir(video).glob("cut*")
-                       if p.name[3:].isdigit() and (p / "cut.json").exists()),
+        "cuts": sorted(cuts.records(video)),
         "narration": [{k: s[k] for k in ("id", "clip", "start", "end", "caption")} for s in t["tracks"]["narration"]],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in t["tracks"]["scene"]],
         "notes": notes, "rounds": rounds, "status": read_status(video),
@@ -164,7 +163,7 @@ def wait(video, timeout=None, poll=0.5, settle=1.5):
 
 def notes_text(video, cut=None):
     """The notes for a cut as numbered plain text, the form the agent works from."""
-    n = cut or render.latest_cut(video)
+    n = cut or cuts.last(video)
     notes, rounds = fold(read_log(video), n)
     count = f"{len(notes)} note" + ("" if len(notes) == 1 else "s")
     lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else ", round not sent")]
@@ -223,7 +222,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._live(path[len("/live/"):])
         m = re.fullmatch(r"/cut(\d+)/([\w./-]+)", path)
         if m and ".." not in m.group(2):
-            f = render.cuts_dir(self.video) / f"cut{m.group(1)}" / m.group(2)
+            f = cuts.cut_dir(self.video, m.group(1)) / m.group(2)
             if f.is_file():
                 if f.name == "video.mp4":
                     cuts.mark_watched(self.video, int(m.group(1)))
@@ -291,7 +290,7 @@ class Handler(BaseHTTPRequestHandler):
         def now_state():
             in_place, page = live_inputs(self.video)
             return {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
-                    "cut": render.latest_cut(self.video), "scenes": inventory(in_place), "page": inventory(page)}
+                    "cut": cuts.last(self.video), "scenes": inventory(in_place), "page": inventory(page)}
         # The state is taken before the client hears it is subscribed: a note it adds the moment the
         # headers arrive must count as new.
         seen = now_state()

@@ -6,11 +6,43 @@ movie), "boards" (frames drawn from the boards, before scene code), "animatic" (
 held to the narration, with its audio), "cut" (the scenes rendered at draft quality) and "final".
 Only "cut" and "final" are the video itself; publish and frame review choose among those."""
 import json
+import shutil
 import sys
 from pathlib import Path
 
 from . import proc
 from .workspace import atomic_json, locked, now
+
+
+def cut_dir(video, n):
+    """Cut N's folder."""
+    return Path(video) / "cuts" / f"cut{n}"
+
+
+def read(video, n):
+    """Cut N's record, or None when it has none."""
+    p = cut_dir(video, n) / "cut.json"
+    return json.loads(p.read_text()) if p.exists() else None
+
+
+def write(video, n, record):
+    atomic_json(cut_dir(video, n) / "cut.json", record)
+
+
+def last(video):
+    """The highest cut number with a record, of any kind (0 when there is none)."""
+    return max((int(p.parent.name[3:]) for p in (Path(video) / "cuts").glob("cut*/cut.json")
+                if p.parent.name[3:].isdigit()), default=0)
+
+
+def allocate(video):
+    """(N, folder) for the next cut: one past the highest record, its folder emptied, with stills/."""
+    n = last(video) + 1
+    d = cut_dir(video, n)
+    if d.exists():
+        shutil.rmtree(d)
+    (d / "stills").mkdir(parents=True)
+    return n, d
 
 
 def records(video):
@@ -45,8 +77,14 @@ def latest(video, kinds=KINDS, playable_only=False, recs=None):
     return max((n for n, r in recs.items() if kind(r) in kinds and (not playable_only or playable(video, n))), default=0)
 
 
+def resolve(video, n=None, kinds=RENDERED):
+    """(N, record) for cut N, else for the latest cut of one of `kinds`; (0, None) when there is none."""
+    n = n or latest(video, kinds)
+    return n, (read(video, n) if n else None)
+
+
 def playable(video, n):
-    return (Path(video) / "cuts" / f"cut{n}" / "video.mp4").is_file()
+    return (cut_dir(video, n) / "video.mp4").is_file()
 
 
 def protected(video, recs=None):
@@ -76,7 +114,7 @@ def protected(video, recs=None):
 
 def mark_watched(video, n):
     with locked(video):
-        p = Path(video) / "cuts" / f"cut{n}" / "cut.json"
+        p = cut_dir(video, n) / "cut.json"
         if not p.exists() or not playable(video, n):
             raise SystemExit(f"cut {n} has no playable video")
         rec = json.loads(p.read_text())
@@ -88,7 +126,7 @@ def main_open(args):
     recs = records(args.video)
     n = args.cut or latest(args.video, ("animatic", "cut", "final"), playable_only=True, recs=recs)
     mark_watched(args.video, n)
-    p = (Path(args.video) / "cuts" / f"cut{n}" / "video.mp4").resolve()
+    p = (cut_dir(args.video, n) / "video.mp4").resolve()
     command = ["open" if sys.platform == "darwin" else "xdg-open", str(p)]
     try:
         proc.run(command, check=True, timeout=30)

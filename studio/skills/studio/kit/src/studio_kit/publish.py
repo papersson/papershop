@@ -114,8 +114,7 @@ def final_cut(video):
     """The latest cut when it is final and its pictures and sound are current (the sound just
     finished, say, makes a new one), else a new final cut."""
     from . import cuts
-    n = cuts.latest(video, cuts.RENDERED)
-    rec = render.read_cut(video, n) if n else None
+    _, rec = cuts.resolve(video)
     if rec and rec["quality"] == "final" and rec["video"] and len(rec["clips"]) == len(tl.load(video)["tracks"]["scene"]) and not any(
             c["key"] != k for c, (_, k, _) in zip(rec["clips"], render.plan(video, tl.load(video), "final"))) \
             and rec.get("sound") == audio.soundtrack(video, tl.load(video)).name:
@@ -157,11 +156,11 @@ def build(video, skip_gate=False):
     if finish:
         print(f"audio: {finish['lufs']:.1f} LUFS, true peak {finish['true_peak_dbtp']:.1f} dBTP (the whole mix)")
     rec = final_cut(video)
-    from .cuts import media_info
-    movie = render.cuts_dir(video) / f"cut{rec['cut']}" / rec["video"]
-    media = media_info(movie)
+    from . import cuts
+    movie = cuts.cut_dir(video, rec["cut"]) / rec["video"]
+    media = cuts.media_info(movie)
     print(f"master: {media['width']}×{media['height']}, {media['fps']:g} fps, quality=final, final=true; user approval is separate")
-    src = render.cuts_dir(video) / f"cut{rec['cut']}" / rec["video"]
+    src = movie
     out, page = video / "out", video / "out" / "page"
     page.mkdir(parents=True, exist_ok=True)
     # the master: the final cut at full quality (1080p), for downloads and re-encodes

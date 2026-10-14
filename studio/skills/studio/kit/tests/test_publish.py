@@ -75,8 +75,8 @@ def test_a_final_cut_is_redone_when_its_sound_is_stale(tmp_path, monkeypatch):
     monkeypatch.setattr(tl, "load", lambda v: t)
     monkeypatch.setattr(cuts, "latest", lambda v, kinds: 3)
     monkeypatch.setattr(render, "plan", lambda v, t, q: [("s1", "k1", None)])
-    monkeypatch.setattr(render, "read_cut", lambda v, n: {"cut": 3, "quality": "final", "video": "video.mp4",
-                                                         "clips": [{"id": "s1", "key": "k1"}], "sound": "raw.m4a"})
+    monkeypatch.setattr(cuts, "read", lambda v, n: {"cut": 3, "quality": "final", "video": "video.mp4",
+                                                     "clips": [{"id": "s1", "key": "k1"}], "sound": "raw.m4a"})
     monkeypatch.setattr(render, "make_cut", lambda v, q: {"cut": 4})
     monkeypatch.setattr(audio, "soundtrack", lambda v, t: tmp_path / "raw.m4a")
     assert publish.final_cut(tmp_path)["cut"] == 3

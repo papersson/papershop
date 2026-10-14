@@ -47,12 +47,11 @@ def tile(files, out, cols, width=None):
 
 def chapter_sheets(video, out, cut=None):
     video, out = Path(video), Path(out)
-    n = cut or cuts.latest(video, cuts.SCENE_STILLS)
-    rec = render.read_cut(video, n)
+    n, rec = cuts.resolve(video, cut, cuts.SCENE_STILLS)
     (out / "chapters").mkdir(parents=True, exist_ok=True)
     made = []
     for c in tl.load(video)["tracks"]["scene"]:
-        files = [render.cuts_dir(video) / f"cut{n}" / s["file"] for s in rec["stills"] if s["clip"] == c["id"]]
+        files = [cuts.cut_dir(video, n) / s["file"] for s in rec["stills"] if s["clip"] == c["id"]]
         if tile(files, out / "chapters" / f"{c['id']}.png", 4):
             made.append(c["id"])
     return made
