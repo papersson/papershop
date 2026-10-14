@@ -133,6 +133,7 @@ def bounds(video, samples=3, engine=None, boxes=None):
     """Captions inside the band and its margins, and every other named element inside the frame. An
     element under a camera that has moved (a push-in, a pan: the engine marks its box "camera") may be
     cropped or left out of the shot: that is the camera's doing, and in_frame checks the narrated one.
+    So may a 3D element its view crops (the engine marks its box "clipped").
     A box with no name of its own (a Remotion Rect given no name: "named" false) is never bounds' to
     fail, as the live engine reports no unnamed shape at all; a box a clip cuts is reported cut."""
     engine = engine or Engine(video)
@@ -147,7 +148,7 @@ def bounds(video, samples=3, engine=None, boxes=None):
                     bad.append(f"caption line {b['w']:.0f} px wide leaves the {SIDE_MARGIN} px margins")
                 if b["y"] < band - SLACK or b["y"] + b["h"] > H + SLACK:
                     bad.append("caption outside the band")
-            elif not b.get("camera") and b.get("named", True) and (b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK):
+            elif not b.get("camera") and not b.get("clipped") and b.get("named", True) and (b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK):
                 bad.append(f"{b['name']!r} leaves the frame")
         rows.append({"check": "bounds", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad)})
     return rows
@@ -229,8 +230,9 @@ class Narration:
 def in_frame(video, samples=3, engine=None, boxes=None):
     """At each sentence's check sample, every shown element the sentence (or its screen note in
     boards/notes.json) names lies inside the visible stage: inside the frame (the camera's view, as
-    boxes are measured after it), below the layout's header and above the caption band. An element
-    wholly inside the header strip is header content and is left alone. A warning, not a failure."""
+    boxes are measured after it), below the layout's header and above the caption band, and not cut by
+    its 3D view ("clipped"). An element wholly inside the header strip is header content and is left
+    alone. A warning, not a failure."""
     engine = engine or Engine(video)
     t = tl.load(video)
     lay, frames = boxes or _boxes(video, samples, engine)
@@ -251,6 +253,8 @@ def in_frame(video, samples=3, engine=None, boxes=None):
                 continue
             where = [side for side, out in (("left", x0 < -SLACK), ("right", x1 > W + SLACK),
                                             ("top" if not header else "header", y0 < header - SLACK), ("band", y1 > band + SLACK)) if out]
+            if b.get("clipped") and not where:
+                where = ["cut by its view"]
             if x1 <= 0 or x0 >= W or y1 <= header or y0 >= band:
                 where = ["out of frame"]
             if where:

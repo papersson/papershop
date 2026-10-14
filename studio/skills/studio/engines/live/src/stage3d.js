@@ -285,7 +285,9 @@ export class Stage3D {
 
   /**
    * The engine's boxes for named 3D nodes: projected geometry bounds in output pixels (clipped at the
-   * camera's near plane: `behind` says some of it is behind the camera), the legend's fill, stroke and
+   * camera's near plane: `behind` says some of it is behind the camera; and to the view's rect, which
+   * crops it on screen: `clipped` says the box is the part inside, or, wholly outside, the unclipped
+   * bounds the checks report as out of frame), the legend's fill, stroke and
    * means, `camera` while the view's shot is moving (as a moving 2D camera's boxes are marked), and
    * `visible`, the share of its pixels no opaque node covers, from object masks (a quarter-resolution
    * pass of the node alone, and one with every opaque node of its view in front of it). The masks cost
@@ -298,11 +300,14 @@ export class Stage3D {
       if (!this.drawn.has(key) || !rec.info?.name || rec.info.op <= 0.001) continue
       const v = this.view(rec.info.view), b = this.bounds(rec, v)
       if (!b) continue
+      const [, , rw, rh] = v.rect, c = { x0: Math.max(b.x0, 0), y0: Math.max(b.y0, 0), x1: Math.min(b.x1, rw), y1: Math.min(b.y1, rh) }
+      const inside = c.x1 > c.x0 && c.y1 > c.y0, clipped = !inside || c.x0 > b.x0 || c.y0 > b.y0 || c.x1 < b.x1 || c.y1 < b.y1
+      const k = inside ? c : b
       const col = cssRgb(rec.info.color)
-      out.push({ name: rec.info.name, kind: '3d', x: b.x0 + v.rect[0], y: b.y0 + v.rect[1], w: b.x1 - b.x0, h: b.y1 - b.y0,
+      out.push({ name: rec.info.name, kind: '3d', x: k.x0 + v.rect[0], y: k.y0 + v.rect[1], w: k.x1 - k.x0, h: k.y1 - k.y0,
         opacity: rec.info.op, camera: !!v.shot.moving, fill: rec.info.kind === 'line' ? 'none' : col,
         stroke: rec.info.kind === 'line' ? col : rec.info.stroke ? cssRgb(rec.info.stroke) : 'none',
-        ...(rec.info.means ? { means: rec.info.means } : {}), ...(b.behind ? { behind: true } : {}), rec })
+        ...(rec.info.means ? { means: rec.info.means } : {}), ...(b.behind ? { behind: true } : {}), ...(clipped ? { clipped: true } : {}), rec })
     }
     if (masks) this.visibility(out)
     return out.map(({ rec, ...b }) => b)

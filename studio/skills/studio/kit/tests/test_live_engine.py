@@ -369,3 +369,28 @@ export default function draw(c) {
     assert right["x"] - left["x"] == pytest.approx(960, abs=1) and right["w"] == pytest.approx(left["w"], abs=0.5)
     with pytest.raises(EngineError, match="no camera for the view \"nowhere\""):
         Engine(tmp_path).still("s1", 1.5, tmp_path / "x.png")
+
+
+@needs_engine
+@needs_3d
+def test_a_3d_box_is_clipped_to_its_view_and_bounds_leaves_it_to_inframe(tmp_path):
+    """A model that overfills its panel is cropped there on screen, so its box is the part in the
+    panel, marked clipped; bounds leaves the view's crop alone (as a camera's), and inframe warns when
+    the narration names the part the view cuts."""
+    scene = """
+export default function draw(c) {
+  const { G, kit } = c
+  const shot = { target: [0, 0, 0], az: -20, el: 30, span: 160, fov: 30 }
+  G.camera(shot, { view: 'left', rect: [0, 0, 960, 920] })
+  G.mesh('a', 'box', { size: [600, 120, 120] }, { view: 'left', color: kit.C.hot, box: 'slab' })
+  G.mesh('b', 'box', { size: [20, 20, 20] }, { view: 'left', color: kit.C.cold, box: 'gear' })
+}
+"""
+    video_3d(tmp_path, scene)
+    boxes = {b["name"]: b for b in Engine(tmp_path).boxes("s1", 0.5)["boxes"]["boxes"]}
+    slab, gear = boxes["slab"], boxes["gear"]
+    assert slab["clipped"] is True and slab["x"] >= 0 and slab["x"] + slab["w"] <= 960 and slab["y"] + slab["h"] <= 920
+    assert "clipped" not in gear
+    from studio_kit import check
+    assert all(r["ok"] for r in check.bounds(tmp_path, samples=1))
+    assert any("'slab'" in r["detail"] for r in check.in_frame(tmp_path, samples=1))
