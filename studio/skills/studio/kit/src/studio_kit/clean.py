@@ -120,6 +120,33 @@ def _bundles_stale(video):
     return out
 
 
+def _plates_stale(video, t):
+    """Plate frame stores (plates.py) not under a plated clip's current key for draft or final: an
+    older version of the scene, or a clip that no longer has a plate. One film kept 20 GB of these."""
+    from . import plates
+    root = Path(video) / ".cache" / "plates"
+    if not root.is_dir():
+        return []
+    ids = {c["id"] for c in t["tracks"]["scene"]}
+    current = {f"{c}-{q}-{plates.key(video, t, c, q)}" for c in plates.config(video) if c in ids for q in ("draft", "final")}
+    return [d for d in root.iterdir() if d.is_dir() and d.name not in current]
+
+
+REVIEW_IMAGES = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+def _review_images_stale(video):
+    """The frame images in review bundles older than each kind's newest: copies of a cut's frames,
+    which the cut can make again. The manifest, the prompt and the reviewer's result stay."""
+    out = []
+    for kind in ("motion_review", "frame_review"):
+        root = Path(video) / "research" / kind
+        bundles = sorted((d for d in root.iterdir() if d.is_dir()), key=lambda d: d.stat().st_mtime) if root.is_dir() else []
+        for d in bundles[:-1]:
+            out += [f for f in d.rglob("*") if f.is_file() and f.suffix.lower() in REVIEW_IMAGES]
+    return out
+
+
 def _sound_stale(video, t):
     d = Path(video) / ".cache" / "sound"
     if not d.is_dir():
@@ -137,7 +164,9 @@ def plan(video, videos=False):
         t = tl.load(video)
         items += [(f, "cache entry for an older version") for f in _keyed_stale(video, t)]
         items += [(f, "older soundtrack mix") for f in _sound_stale(video, t)]
+        items += [(d, "plate frames for an older version") for d in _plates_stale(video, t)]
     items += [(d, "older bundle") for d in _bundles_stale(video)]
+    items += [(f, "review images of an older bundle (its manifest and result stay)") for f in _review_images_stale(video)]
     for p, why in ((video / "out" / "sheets", "sheets (studio sheets rebuilds them)"),
                    (video / "out" / "web.mp4", "copy of out/page/video.mp4"),
                    (video / "audio" / "final.wav", "loudness pass (publish redoes it)")):

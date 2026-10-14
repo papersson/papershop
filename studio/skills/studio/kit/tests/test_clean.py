@@ -120,3 +120,29 @@ def test_a_newer_animatic_keeps_the_last_real_cut_protected(tmp_path):
         (d / "cut.json").write_text(json.dumps({"quality": "draft", "video": "video.mp4", **r}))
         (d / "video.mp4").write_bytes(b"x")
     assert {1, 2} <= cuts.protected(tmp_path)
+
+
+def test_clean_reaches_old_plates_and_old_review_images(tmp_path):
+    """A Blender film kept 20 GB of frame folders and decoded review frames that clean couldn't see."""
+    import json, os, sys, time
+    from studio_kit import plates
+    t = make_video(tmp_path)
+    (tmp_path / "sims").mkdir()
+    (tmp_path / "sims" / "r.py").write_text("# a renderer\n")
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "plates": {"s1": {
+        "renderer": "command", "command": [sys.executable, "sims/r.py", "{request}"], "script": "sims/r.py"}}}))
+    live = plates.store(tmp_path, "s1", "draft", plates.key(tmp_path, t, "s1", "draft"))
+    old = plates.store(tmp_path, "s1", "draft", "0123456789abcdef")
+    for d in (live, old):
+        d.mkdir(parents=True)
+        (d / "f00000.png").write_bytes(b"png")
+    for i, name in enumerate(("cut1-aaa", "cut2-bbb")):
+        b = tmp_path / "research" / "motion_review" / name
+        (b / "sheets").mkdir(parents=True)
+        (b / "sheets" / "w1.png").write_bytes(b"png")
+        (b / "manifest.json").write_text("{}")
+        os.utime(b, (time.time() - 100 + i * 50,) * 2)
+    removed = {str(p.relative_to(tmp_path)) for p, _ in clean.plan(tmp_path)}
+    assert str(old.relative_to(tmp_path)) in removed and str(live.relative_to(tmp_path)) not in removed
+    assert "research/motion_review/cut1-aaa/sheets/w1.png" in removed
+    assert not any(r.startswith("research/motion_review/cut2-bbb") or r.endswith("manifest.json") for r in removed)
