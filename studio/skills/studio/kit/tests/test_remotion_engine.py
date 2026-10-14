@@ -245,3 +245,43 @@ def test_the_kits_own_accent_states_pass_a_legend_that_follows_style_md(tmp_path
             "code line 1", "terminal row 1", "c group 0", "token", "ghost", "node server", "minimap"} <= kit
     warned = [r["detail"] for r in check.run(tmp_path, only=["legend"], samples=1) if r.get("severity")]
     assert len(warned) == 1 and "'stray'" in warned[0] and "kit" not in warned[0]
+
+
+EDITOR = """
+import React from 'react';
+import {Chapter, Editor, RunTerminal} from '@studio';
+import typing from '../data/typing.json';
+
+export const S1: React.FC = () => <Chapter>
+	<Editor typing={typing} ids={['x']} at={[-2, 0.5]} w={8} rows={6} title="" />
+	<RunTerminal typing={typing} ids={['x']} at={[5, -2]} w={5} rows={3} />
+</Chapter>;
+"""
+
+TYPED = {"x": {"cue": "type-x", "clip": "s1", "file": "main.c", "before": ["int main(void) {", "}"],
+               "after": ["int main(void) {", "    return 0;", "}"], "end": 12,
+               "steps": [[0, "key", [["mode", "INSERT"], ["ins", 1, ["    "]], ["caret", 1, 4]]],
+                         [4, "key", [["set", 1, "    return"], ["caret", 1, 10]]],
+                         [8, "key", [["set", 1, "    return 0;"], ["caret", 1, 13]]],
+                         [12, "key", [["mode", "NORMAL"], ["caret", 1, 12]]]],
+               "run": {"cmd": "$ cc main.c && ./a.out", "up": 16, "enter": 20, "pop": 30, "log": [[28, "ok"]]}}}
+
+
+@needs_engine
+def test_the_editor_types_what_data_typing_says_on_its_frames(tmp_path):
+    """Code is typed, not revealed: before its cue the editor shows the file as it was; after it, each
+    step on its own frame, the mode line saying where it is; the terminal recalls the run and prints."""
+    t = make_video(tmp_path)
+    t["cues"] = {"type-x": 0.5}
+    (tmp_path / "timeline.json").write_text(json.dumps(t))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "remotion"}))
+    (tmp_path / "data").mkdir(exist_ok=True)
+    (tmp_path / "data" / "typing.json").write_text(json.dumps(TYPED))
+    (tmp_path / "scenes" / "s1.tsx").write_text(EDITOR)
+    (tmp_path / "scenes" / "index.ts").write_text("import {S1} from './s1';\nexport default {s1: S1} as Record<string, import('react').FC>;\n")
+    (tmp_path / "scenes" / "kit.tsx").unlink()
+    before, typing, ran = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 0.2}, {"clip": "s1", "t": 0.5 + 6 / 30}, {"clip": "s1", "t": 0.5 + 31 / 30}])
+    names = lambda f: {b["name"] for b in f["boxes"]}
+    assert "editor line 3" not in names(before) and {"editor line 1", "editor line 2", "editor line 3", "editor mode"} <= names(typing)
+    assert "editor caret" in names(typing) and "terminal row 1" in names(ran)
+    assert min(b["h"] for b in typing["boxes"] if b["name"].startswith("editor line ")) >= 18
