@@ -183,6 +183,16 @@ def layout(video, fmt=None):
     return {**base, **over, "band": {**base["band"], **over.get("band", {})}, "format": fmt}
 
 
+def has_band(lay):
+    """Whether the layout reserves a caption band (a height of 0 is a video without one)."""
+    return lay["band"].get("height", 0) > 0
+
+
+def band_top(lay):
+    """The y where the caption band starts: the frame's height when there is no band."""
+    return lay["height"] - lay["band"].get("height", 0)
+
+
 def layout_file(video, fmt):
     """A layout.json for the engine: the video's own for the default format, else a generated one."""
     if not fmt or fmt == "16:9":

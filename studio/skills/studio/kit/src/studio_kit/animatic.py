@@ -54,7 +54,7 @@ def pacing(video, timeline, cut_dir, stills, segs, boards=False):
     """The numbers worth reading before animating."""
     cfg = settings.load(video)
     lay = tl.layout(video)
-    stage = (lay["height"] - lay["band"]["height"]) / lay["height"]
+    stage = tl.band_top(lay) / lay["height"]
     digest = {}
     for s in stills:
         p = cut_dir / s["file"]

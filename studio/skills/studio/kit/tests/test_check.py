@@ -4,6 +4,7 @@ import zlib
 from pathlib import Path
 
 from studio_kit import check, sheets
+from studio_kit import timeline as tl
 from test_render import make_video
 
 
@@ -236,3 +237,21 @@ def test_occluded_warns_when_a_narrated_3d_element_is_hidden_at_a_sample_or_an_e
     seen = [box("head 2", 0.45)]
     assert all("severity" not in r for r in check.occluded(tmp_path, engine=Live(seen), boxes=(LAYOUT, [{**sample[1][0], "boxes": seen}])))
     assert [r["t"] for r in check.occluded(tmp_path, engine=FakeEngine({}), boxes=sample)] == [1.35]   # no event boxes off live
+
+
+def test_a_layout_without_a_caption_band_skips_the_band_pixels(tmp_path):
+    # A video with no band (height 0) made ffmpeg crop a zero-height strip, and check --all crashed.
+    make_video(tmp_path)
+    bandless = {**LAYOUT, "band": {"height": 0}}
+
+    class NoStills:
+        def layout(self):
+            return bandless
+
+        def stills(self, requests):
+            raise AssertionError("no band, so no band pixels to read")
+
+    assert check.band_pixels_check(tmp_path, engine=NoStills()) == []
+    assert not tl.has_band(bandless) and tl.has_band(LAYOUT) and tl.band_top(LAYOUT) == 920
+    item = {"name": "label", "x": 100, "y": 1000, "w": 200, "h": 40}
+    assert check.band_guard(tmp_path, boxes=(bandless, boxes(tmp_path, [item])[1]))[0]["ok"]

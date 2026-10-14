@@ -179,7 +179,7 @@ def _seek(first, fps):
 
 def _crop(lay):
     """Rows of a PACING_SIZE frame above the caption band, even."""
-    return int(PACING_SIZE[1] * (lay["height"] - lay["band"]["height"]) / lay["height"]) // 2 * 2
+    return int(PACING_SIZE[1] * tl.band_top(lay) / lay["height"]) // 2 * 2
 
 
 def _diffs(frames, crop):

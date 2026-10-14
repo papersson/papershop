@@ -138,7 +138,7 @@ def bounds(video, samples=3, engine=None, boxes=None):
     fail, as the live engine reports no unnamed shape at all; a box a clip cuts is reported cut."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)
-    W, H, band = lay["width"], lay["height"], lay["height"] - lay["band"]["height"]
+    W, H, band = lay["width"], lay["height"], tl.band_top(lay)
     rows = []
     for f in frames:
         bad = []
@@ -236,7 +236,7 @@ def in_frame(video, samples=3, engine=None, boxes=None):
     engine = engine or Engine(video)
     t = tl.load(video)
     lay, frames = boxes or _boxes(video, samples, engine)
-    W, band, header = lay["width"], lay["height"] - lay["band"]["height"], (lay.get("header") or {}).get("height", 0)
+    W, band, header = lay["width"], tl.band_top(lay), (lay.get("header") or {}).get("height", 0)
     said = Narration(video, t, samples)
     rows = []
     for f in frames:
@@ -315,7 +315,7 @@ def band_guard(video, samples=3, engine=None, boxes=None):
     """Named scene elements must end above the band, unless the band hides them (hidden_by_band)."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)
-    band = lay["height"] - lay["band"]["height"]
+    band = tl.band_top(lay)
     rows = []
     for f in frames:
         bad = [f"{b['name']!r} reaches y={b['y'] + b['h']:.0f} (band starts at {band})"
@@ -360,7 +360,7 @@ def brightest(pixels):
 def scene_in_band(scene, bare, lay, hidden=()):
     """How many band pixels differ between the scene alone and the bare background, leaving out those
     inside a box in `hidden` (boxes the band hides, with CAMERA_EDGE round them)."""
-    W, top, e = lay["width"], lay["height"] - lay["band"]["height"], CAMERA_EDGE
+    W, top, e = lay["width"], tl.band_top(lay), CAMERA_EDGE
     n = 0
     for i in range(0, min(len(scene), len(bare)), 3):
         if scene[i:i + 3] != bare[i:i + 3]:
@@ -372,12 +372,12 @@ def scene_in_band(scene, bare, lay, hidden=()):
 def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
     """The scene alone against the bare background, over the band's pixels: any difference is
     scene content in the band, except inside a box the band hides (hidden_by_band). Then the caption
-    contrast against what is under the band."""
+    contrast against what is under the band. A layout without a band has neither."""
     engine = engine or Engine(video)
     t, lay = tl.load(video), engine.layout()
     times = sample_times(t, samples, clips)
     rows = []
-    if not times:
+    if not times or not tl.has_band(lay):
         return rows
     hidden = {}
 
