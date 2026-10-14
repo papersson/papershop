@@ -24,6 +24,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { frameOf } from '../shared/timing.js'
+import { reply } from '../shared/reply.js'
 
 const ENGINE = path.dirname(fileURLToPath(import.meta.url))
 const SHARED = path.join(ENGINE, '..', 'shared') // the engines' shared modules, which the kit imports as ../../shared/
@@ -215,10 +216,7 @@ if (!ops[op]) {
 }
 opt.video = path.resolve(opt.video)
 ops[op]().then(
-  r => {
-    console.log(JSON.stringify(r))
-    process.exit(0)
-  },
+  r => reply(opt.reply, r),
   e => {
     log(e.stack || String(e))
     process.exit(1)

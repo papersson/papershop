@@ -1,7 +1,8 @@
 """The engine interface: still, render, boxes and duration for one clip of a video.
 
-Every engine is a CLI under engines/<name>/ that prints one JSON object per call; this module is
-the only place the kit calls it, so a second engine only needs a second `_command`.
+Every engine is a CLI under engines/<name>/ that answers each call with one JSON object, written
+to the file named by --reply (engines/shared/reply.js); this module is the only place the kit calls
+it, so a second engine only needs a second `_command`.
 """
 import json
 import tempfile
@@ -60,12 +61,16 @@ class Engine:
         return cmd
 
     def _call(self, op, *args):
-        run = proc.run(self._command(op, *map(str, args)), capture_output=True, text=True)
-        if run.returncode != 0:
-            cause = run.stderr.strip()[-3000:]
-            hint = launch_hint(cause)
-            raise EngineError(f"{self.name} {op} failed:\n{cause}" + (f"\n{hint}" if hint else ""))
-        return json.loads(run.stdout.strip().splitlines()[-1])
+        with tempfile.TemporaryDirectory(prefix="studio-reply-") as d:
+            answer = Path(d) / "reply.json"
+            run = proc.run(self._command(op, *map(str, args), "--reply", str(answer)), capture_output=True, text=True)
+            if run.returncode != 0:
+                cause = run.stderr.strip()[-3000:]
+                hint = launch_hint(cause)
+                raise EngineError(f"{self.name} {op} failed:\n{cause}" + (f"\n{hint}" if hint else ""))
+            if not answer.exists():
+                raise EngineError(f"{self.name} {op} wrote no reply")
+            return json.loads(answer.read_text())
 
     def still(self, clip, t, out, layers="all", scale=1.0):
         """The exact frame at clip time t, rendered alone."""

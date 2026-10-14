@@ -1,5 +1,5 @@
 // The Remotion engine's side of the studio's engine interface. The Python kit calls it; each call
-// prints one JSON object on stdout (logs go to stderr).
+// answers with one JSON object, written to the --reply file (stdout without one; logs go to stderr).
 //
 //   node cli.mjs still    --video DIR --clip ID --t SEC --out PNG [--layers L] [--scale S]
 //   node cli.mjs stills   --video DIR --requests JSON        [{clip, t, out, layers?, scale?, boards?}], one browser
@@ -23,6 +23,7 @@ import {availableParallelism, tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {frameOf} from '../shared/timing.js';
+import {reply} from '../shared/reply.js';
 
 const ENGINE = path.dirname(fileURLToPath(import.meta.url));
 const QUALITY = {
@@ -307,7 +308,7 @@ if (!ops[op]) {
 }
 opt.video = path.resolve(opt.video);
 ops[op]().then(
-	(r) => console.log(JSON.stringify(r)),
+	(r) => reply(opt.reply, r),
 	(e) => {
 		log(e.stack || String(e));
 		process.exit(1);
