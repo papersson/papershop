@@ -153,6 +153,10 @@ draw what is on the sheet; the motion review checks drawings are on sheet. A liv
 chapter (only when the admission test in `taste/look.md` holds) puts its model on the sheet too, each
 item in its own view, flat and oblique, in each state.
 
+A chapter of a physical object also picks its look here: flat, lit (`G.lit()`) or a Blender plate
+(`taste/look.md`); show the user a still of the hero shot in it before animating, since a plate's
+final frames cost seconds each (`studio plate VIDEO CLIP --probe`).
+
 Make real static scenes for the main picture and a close-up; `studio cut --stills-only` records
 these without displacing playable cuts. Get the user's choice before animation unless already
 settled/authorized. Existing house style can supply a direction rather than requiring alternatives.
@@ -179,7 +183,8 @@ a reveal after an inline hold, and an event of your own goes in `cues.json`, the
 Stage coordinates are centered, y up, eight units high, above the reserved caption band.
 
 Use `@studio` primitives and the explainer components documented in `code.md`: CodePanel,
-Terminal, JsonTree, RowTable, ColumnStrips, GeoMap, VarCard and Thread. These new components are
+Terminal, JsonTree, RowTable, ColumnStrips, GeoMap, VarCard and Thread, and for code the story
+writes, the typed Editor, RunTerminal and ProgramWindow (`studio typing`). These new components are
 Remotion components; the data contracts are portable, but Motion Canvas scenes use its own kit.
 Name important text/boxes for checks. Keep shared helpers small; changing one invalidates its users.
 Motion must preserve the meaning of identity, copying, references and location (`taste/delight.md`).

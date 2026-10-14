@@ -3,6 +3,37 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Performed events, plates, and instructions by job (0.12.0)
+
+Two videos made by another agent, a hard-drive film and an introduction to game development,
+showed where the studio stopped being used. The hard-drive film moved to Blender and about fifty
+scripts of its own replaced the desk, cut records, reviews and publish; the game-dev video worked
+around three kit bugs and built its own typed-code editor and key sounds. The user's corrections
+were mostly gates: a final rendered before they were done with previews, a draft not shown first,
+"go ahead" read as more than it said, a desk they had to ask about, an animatic nobody showed them.
+
+- **Gates.** A final cut and publish need the user's recorded approval of a cut, which lapses when
+  the picture changes. The desk shows a background build's boards, animatic and cuts with the whole
+  mix, and says when the builder read a round of notes. `references/gates.md` lists every decision.
+- **Performed events.** `studio typing` types code from a plan of edits between recorded versions,
+  for a Remotion `Editor`, `RunTerminal` and `ProgramWindow`, with one key stream for the sound. An
+  effect can be a stream of many events (grains of real typing, thinning when dense, stepping back
+  under a word), a pool of variants, or the video's own recording; the sound kit has keyboard
+  recordings. `taste/delight.md` says what to aim for: hero moments, cause and effect in one shot.
+- **Realism.** `G.lit()` gives the 3D stage light, soft shadows and materials. Plates let Blender
+  render the picture behind a live chapter, with labels on the points it projects, so the checks,
+  desk and publish still work; frames render on demand, resume, and can be probed for an estimate.
+- **Reliability.** Engines reply through a file (a pipe cut replies at 64 KiB); paths are made
+  absolute when parsed; 3D boxes are clipped to their view; a band of height 0 means no captions;
+  Pillow ships with the kit; cuts say how long their render should take; clean reaches plate frames
+  and old review images; a clip's key hashes only the data its scenes read; `studio steps` keeps a
+  program's captures and checks they replay the same; `studio restructure` reshapes a video in
+  place; `studio archive` keeps a master with its colophon.
+- **Instructions by job.** SKILL.md is a router with a reading list per job. Each rule has one home:
+  gates, reviews, ownership, audio, commands, a kit map, and `taste/` for the look, text on screen,
+  motion and delight, and the narration. The editor reviewer looks for narration that repeats the
+  picture and for lines that sound written by a model. This file took DESIGN.md's release history.
+
 ## What the next three productions changed (0.6.0)
 
 A 26-minute line-by-line Rust tour failed even though its facts were correct. A construction story

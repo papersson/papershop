@@ -30,6 +30,15 @@ a one-line reply under your note. Explainers use the live engine, whose scenes a
 from time, so a change shows on the desk the moment it is saved; the motion glossary gives you
 words for motion ("stagger", "overshoot", "blur together"). Narration is Kokoro, local and free,
 from first draft to the published video; ElevenLabs on request, with its balance checked first.
+In background mode the desk still shows each boards cut, animatic and cut as it is made, with the
+whole mix; and the final render waits for you to say a cut is ready.
+
+The subject's events are performed, not just shown: a contact lands with its sound on the same
+frame, repeated sounds vary, and code is typed (`studio typing`) in a Vim-style editor, with key
+sounds cut from a recording of real typing, a typo put right, and the program's window answering
+each run. For a physical object you want to feel, a 3D chapter can be lit (soft shadows,
+materials), or Blender can render the picture behind it (`plates`) while the labels, checks and
+desk stay the studio's.
 
 ## Environment
 
@@ -67,8 +76,10 @@ videos. `studio new NAME --from VIDEO --include data/example.json` starts a rela
 Cuts and MP4s are preserved by default. `studio open VIDEO` protects a player handoff; explicit
 `clean --videos` still excludes watched, final and noted cuts. Existing pinned videos need an
 explicit `studio init VIDEO --update` to get the new retention policy; protect their cuts first.
-`studio commit` checkpoints source separately from generated media. See the skill command index
-for steps, inline pauses, ownership, review bundles and setup diagnostics.
+`studio commit` checkpoints source separately from generated media. `studio archive` keeps a
+finished master with a colophon in `$STUDIO_HOME/references/`. See the
+[command index](skills/studio/references/commands.md) for steps, inline pauses, ownership, review
+bundles and setup diagnostics, and [where things live](skills/studio/references/kit-map.md).
 
 See [`skills/studio/SKILL.md`](skills/studio/SKILL.md), and [`DESIGN.md`](skills/studio/DESIGN.md)
 for why it is shaped this way.
