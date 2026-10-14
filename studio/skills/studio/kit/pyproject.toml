@@ -3,7 +3,7 @@ name = "studio-kit"
 version = "0.2.0"
 description = "The studio plugin's kit: the timeline contract, engine calls, cuts and the review page."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["pillow"]
 
 [project.optional-dependencies]
 # Narration audio and the voice check, for any engine.
