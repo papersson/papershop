@@ -49,10 +49,12 @@ def video(tmp_path):
 
 def test_the_committed_manifest_is_valid_cc0_and_pinned_by_digest():
     m = soundkit.load()
-    assert soundkit.problems(m) == [] and 3 <= len(m["packs"]) <= 6
+    assert soundkit.problems(m) == [] and 3 <= len(m["packs"]) <= 10
     for p in m["packs"].values():
-        assert p["license"] == "CC0-1.0" and p["url"].startswith("https://kenney.nl/media/pages/assets/")
+        assert p["license"] == "CC0-1.0" and p["url"].startswith(("https://kenney.nl/media/pages/assets/",
+                                                                   "https://cdn.freesound.org/previews/"))
         assert len(p["sha256"]) == 64 and p["bytes"] > 0 and "*.url" not in p["unpack"]
+    assert {"key-take", "key-enter", "key-press"} <= set(soundkit.types(m))
 
 
 @pytest.mark.parametrize("change, problem", [
@@ -274,3 +276,26 @@ def test_doctor_net_checks_the_sound_kits_host(monkeypatch):
     monkeypatch.setattr(doctor, "check_launch", lambda: (doctor.OK, "launch", "", ""))
     doctor.checks(net=True)
     assert "https://kenney.nl/" in seen and set(doctor.HOSTS) <= set(seen)
+
+
+def test_a_pack_can_be_one_pinned_file(kit, tmp_path):
+    # The keyboard recordings are single CC0 files (freesound previews), not zips: a pack of kind
+    # "file" is that file, pinned by digest and size, and its one member is itself.
+    f = tmp_path / "remote" / "enter.mp3"
+    f.write_bytes(b"ID3 enter")
+    kit["packs"]["one-key"] = {**PACK, "kind": "file", "url": f.as_uri(), "sha256": sha(f.read_bytes()),
+                               "bytes": f.stat().st_size, "unpack": ["enter.mp3"]}
+    kit["sounds"].append({"id": "enter", "pack": "one-key", "member": "enter.mp3", "type": "key-enter",
+                          "sha256": sha(b"ID3 enter")})
+    soundkit.MANIFEST.write_text(json.dumps(kit))
+    assert soundkit.problems(kit) == []
+    soundkit.fetch_kit(progress=io.StringIO())
+    assert soundkit.archive("one-key", kit["packs"]["one-key"]).suffix == ".mp3"
+    assert soundkit.read_member("one-key", "enter.mp3")[0] == b"ID3 enter"
+    with pytest.raises(SystemExit, match="not one of"):
+        soundkit.read_member("one-key", "other.mp3")
+    bad = copy.deepcopy(kit)
+    bad["packs"]["one-key"]["unpack"] = ["*.mp3"]
+    assert any("one file" in p for p in soundkit.problems(bad))
+    bad["packs"]["one-key"]["kind"] = "tar"
+    assert any("kind" in p for p in soundkit.problems(bad))

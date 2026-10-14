@@ -3,9 +3,10 @@
 soundkit.json sits beside this module, so `studio init` pins it with the kit and a pinned video's
 library never moves. It lists:
 
-  packs   {id: {title, version, url, sha256, bytes, license, creator, homepage, unpack}}: a zip,
-          pinned by digest and size, CC0 only, and `unpack` the glob patterns of the members a
-          sound may be (the audio; never the shortcuts a pack also ships)
+  packs   {id: {title, version, url, sha256, bytes, license, creator, homepage, unpack, kind?}}: a
+          zip, pinned by digest and size, CC0 only, and `unpack` the glob patterns of the members a
+          sound may be (the audio; never the shortcuts a pack also ships). A pack of kind "file" is
+          one recording rather than a zip (a freesound preview): `unpack` names that one member
   sounds  [{id, pack, member, type, default?, sha256, facts?}]: the curated sounds, one a line, each a
           member of a pack with its own digest, a type (what it is for; one sound of each type is its
           default) and measured facts (`measure`: its length and contact in samples at sfx.RATE, peak,
@@ -72,6 +73,10 @@ def problems(manifest):
             out.append(f"{where}: title and creator must not be empty")
         if not p["unpack"] or not all(isinstance(m, str) and m for m in p["unpack"]):
             out.append(f"{where}: unpack must list glob patterns")
+        if p.get("kind", "zip") not in ("zip", "file"):
+            out.append(f"{where}: kind must be zip or file")
+        elif p.get("kind") == "file" and (len(p["unpack"]) != 1 or any(c in p["unpack"][0] for c in "*?[")):
+            out.append(f"{where}: a file pack's unpack names its one file, without patterns")
     sounds = manifest.get("sounds")
     if not isinstance(sounds, list):
         return out + ["sounds must be a list"]
@@ -137,8 +142,11 @@ def allowed_member(pack, member):
 
 
 def archive(pid, pack):
-    """Where a pack's zip is cached: named by its digest, so manifests of two kits never collide."""
-    return fetch.cache_root() / "sounds" / f"{pid}-{pack['sha256'][:12]}.zip"
+    """Where a pack is cached (its zip, or its one file): named by its digest, so manifests of two
+    kits never collide."""
+    from urllib.parse import urlsplit
+    suffix = Path(urlsplit(pack["url"]).path).suffix if pack.get("kind") == "file" else ".zip"
+    return fetch.cache_root() / "sounds" / f"{pid}-{pack['sha256'][:12]}{suffix}"
 
 
 def state(pid, pack):
@@ -212,8 +220,10 @@ def read_member(pid, member, manifest=None):
         raise SystemExit(f"{member} is not one of {pid}'s sounds (members matching {', '.join(pack['unpack'])})")
     z = archive(pid, pack)
     if not fetch.verified(z, pack["sha256"]):
-        raise SystemExit(f"the sound kit's {pid} is {'not fetched' if not z.exists() else 'not the pinned zip'}; "
+        raise SystemExit(f"the sound kit's {pid} is {'not fetched' if not z.exists() else 'not the pinned file'}; "
                          f"run `{repair()}`")
+    if pack.get("kind") == "file":
+        return z.read_bytes(), pack
     with zipfile.ZipFile(z) as f:
         try:
             return f.read(member), pack

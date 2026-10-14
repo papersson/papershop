@@ -1,6 +1,6 @@
 {
  "version": 1,
- "note": "Curated by measurement, not by ear: each pack member was mapped to an effect type by its Kenney file name, decoded at 48 kHz (mono), and measured (soundkit.measure). Rejected: a decoded peak at or over full scale (clipped), over 150 ms of silence before it or 300 ms after it, more than one event, a floor within 12 dB of its loudest over 0.1 s (steady noise), a peak under -20 dBFS. Each type's default (\"default\": true) has a crisp attack (30 ms or less, except moves and builds) and is the closest to the synth voice of that type in brightness and length; facts.contact and facts.samples are at 48 kHz. facts.trim_db is the gain that brings a sound to the level of the synth voice of its type (soundkit.trim: the K-weighted loudest 10 ms, soundkit.level; a type only the kit has goes to the synth voices' median), since Kenney normalises its files near -1 dBFS.",
+ "note": "Curated by measurement, not by ear: each pack member was mapped to an effect type by its Kenney file name, decoded at 48 kHz (mono), and measured (soundkit.measure). Rejected: a decoded peak at or over full scale (clipped), over 150 ms of silence before it or 300 ms after it, more than one event, a floor within 12 dB of its loudest over 0.1 s (steady noise), a peak under -20 dBFS. Each type's default (\"default\": true) has a crisp attack (30 ms or less, except moves and builds) and is the closest to the synth voice of that type in brightness and length; facts.contact and facts.samples are at 48 kHz. facts.trim_db is the gain that brings a sound to the level of the synth voice of its type (soundkit.trim: the K-weighted loudest 10 ms, soundkit.level; a type only the kit has goes to the synth voices' median), since Kenney normalises its files near -1 dBFS. The keyboard sounds are freesound CC0 recordings, each a pack of kind file: an Enter key (key-enter) and a hard key (key-press), and a take of continuous typing (key-take), which is no single effect but the source a typing stream cuts its key grains from (streams.py).",
  "packs": {
   "kenney-impact-sounds": {
    "title": "Impact Sounds",
@@ -71,6 +71,48 @@
     "Audio/*.ogg",
     "License.txt"
    ]
+  },
+  "freesound-638035": {
+   "title": "Mechanical Keyboard Typing Cherry Blue Switches",
+   "version": "hq preview",
+   "kind": "file",
+   "url": "https://cdn.freesound.org/previews/638/638035_2278166-hq.mp3",
+   "sha256": "92386b0b0d956578ac70ed9740739cc9ef0ec97d760337d9dc7660852573635e",
+   "bytes": 922848,
+   "license": "CC0-1.0",
+   "creator": "simeonradivoev (freesound.org)",
+   "homepage": "https://freesound.org/people/simeonradivoev/sounds/638035/",
+   "unpack": [
+    "638035_2278166-hq.mp3"
+   ]
+  },
+  "freesound-627647": {
+   "title": "Enter Key Press Mechanical Keyboard",
+   "version": "hq preview",
+   "kind": "file",
+   "url": "https://cdn.freesound.org/previews/627/627647_13684433-hq.mp3",
+   "sha256": "bc86b5849da5b66aae8a4be128c39de4d74370fde9b233e210132dd2c4a9169d",
+   "bytes": 7008,
+   "license": "CC0-1.0",
+   "creator": "alpinemesh (freesound.org)",
+   "homepage": "https://freesound.org/people/alpinemesh/sounds/627647/",
+   "unpack": [
+    "627647_13684433-hq.mp3"
+   ]
+  },
+  "freesound-378085": {
+   "title": "mechanical key hard",
+   "version": "hq preview",
+   "kind": "file",
+   "url": "https://cdn.freesound.org/previews/378/378085_6260145-hq.mp3",
+   "sha256": "7688572248f8f58e33db6986410ad5d03ed4a777ea0c3e39313d5c1d55c8eb02",
+   "bytes": 10020,
+   "license": "CC0-1.0",
+   "creator": "bigmonmulgrew (freesound.org)",
+   "homepage": "https://freesound.org/people/bigmonmulgrew/sounds/378085/",
+   "unpack": [
+    "378085_6260145-hq.mp3"
+   ]
   }
  },
  "sounds": [
@@ -118,6 +160,9 @@
   {"id": "interface-glitch-002", "type": "glitch", "pack": "kenney-interface-sounds", "member": "Audio/glitch_002.ogg", "sha256": "1da06a2e63ce131f5e0316ca27c75fc0d672db7a8f9b986c70693f2bd992eabc", "facts": {"seconds": 0.03, "samples": 1442, "contact": 118, "peak_dbfs": -1.0, "lead_ms": 0.0, "attack_ms": 2.5, "tail_ms": 0.0, "centroid_hz": 1385, "floor_db": -10.0, "events": 1, "trim_db": -8.9}},
   {"id": "interface-glitch-003", "type": "glitch", "pack": "kenney-interface-sounds", "member": "Audio/glitch_003.ogg", "sha256": "d55e0c64aee9f1ab2ba9523d0e256ca76639c3ec2f230405e2ff25aff36020b3", "facts": {"seconds": 0.01, "samples": 482, "contact": 49, "peak_dbfs": -0.5, "lead_ms": 0.0, "attack_ms": 1.0, "tail_ms": 0.0, "centroid_hz": 3953, "floor_db": 0.0, "events": 1, "trim_db": -10.1}},
   {"id": "interface-glitch-004", "type": "glitch", "pack": "kenney-interface-sounds", "member": "Audio/glitch_004.ogg", "sha256": "d0f4db4d12f88592bc328bd621d356d099eaa2dda37bab37a6cf17891c5026d1", "facts": {"seconds": 0.023, "samples": 1100, "contact": 49, "peak_dbfs": -0.6, "lead_ms": 0.0, "attack_ms": 1.0, "tail_ms": 0.0, "centroid_hz": 4103, "floor_db": -0.8, "events": 1, "trim_db": -9.3}},
+  {"id": "keys-enter-press", "type": "key-enter", "default": true, "pack": "freesound-627647", "member": "627647_13684433-hq.mp3", "sha256": "bc86b5849da5b66aae8a4be128c39de4d74370fde9b233e210132dd2c4a9169d", "facts": {"seconds": 0.183, "samples": 8772, "contact": 836, "peak_dbfs": -7.9, "lead_ms": 5.3, "attack_ms": 12.1, "tail_ms": 0.0, "centroid_hz": 5249, "floor_db": -31.1, "events": 2, "trim_db": 4.3}},
+  {"id": "keys-mechanical-hard", "type": "key-press", "default": true, "pack": "freesound-378085", "member": "378085_6260145-hq.mp3", "sha256": "7688572248f8f58e33db6986410ad5d03ed4a777ea0c3e39313d5c1d55c8eb02", "facts": {"seconds": 0.308, "samples": 14780, "contact": 5048, "peak_dbfs": -3.2, "lead_ms": 99.8, "attack_ms": 5.4, "tail_ms": 0.1, "centroid_hz": 2470, "floor_db": -46.1, "events": 1, "trim_db": -0.0}},
+  {"id": "keys-typing-cherry-blue", "type": "key-take", "default": true, "pack": "freesound-638035", "member": "638035_2278166-hq.mp3", "sha256": "92386b0b0d956578ac70ed9740739cc9ef0ec97d760337d9dc7660852573635e", "facts": {"seconds": 37.397, "samples": 1795072, "contact": 48349, "peak_dbfs": -1.3, "lead_ms": 621.7, "attack_ms": 385.5, "tail_ms": 0.0, "centroid_hz": 6155, "floor_db": -49.1, "events": 54, "trim_db": -2.1}},
   {"id": "ui-switch13", "type": "key-tick", "default": true, "pack": "kenney-ui-audio", "member": "Audio/switch13.ogg", "sha256": "54d1e63b907274bb415a8de7f652194756a8eeab4079a7cf769ec153b93a436a", "facts": {"seconds": 0.028, "samples": 1326, "contact": 287, "peak_dbfs": -2.4, "lead_ms": 2.9, "attack_ms": 3.1, "tail_ms": 0.0, "centroid_hz": 7940, "floor_db": -9.8, "events": 1, "trim_db": -9.4}},
   {"id": "interface-click-002", "type": "key-tick", "pack": "kenney-interface-sounds", "member": "Audio/click_002.ogg", "sha256": "adcd1f4adc35f1b41bc1b5bbefeff7aa44f2f3f0d96d3199b544140c7c1e761c", "facts": {"seconds": 0.01, "samples": 482, "contact": 49, "peak_dbfs": -0.8, "lead_ms": 0.0, "attack_ms": 1.0, "tail_ms": 0.0, "centroid_hz": 1958, "floor_db": 0.0, "events": 1, "trim_db": -7.7}},
   {"id": "interface-click-003", "type": "key-tick", "pack": "kenney-interface-sounds", "member": "Audio/click_003.ogg", "sha256": "2fa929138bc3a0f432696588f66eac94b8f6d463905ec8808c6461ce4b054292", "facts": {"seconds": 0.01, "samples": 482, "contact": 49, "peak_dbfs": -1.4, "lead_ms": 0.0, "attack_ms": 1.0, "tail_ms": 0.0, "centroid_hz": 2158, "floor_db": 0.0, "events": 1, "trim_db": -7.5}},

@@ -238,9 +238,13 @@ def test_the_curated_kit_has_a_default_per_type_and_a_line_per_sound():
     assert {"click", "pop", "thump", "whoosh", "confirm", "error", "chime", "key-tick"} <= set(soundkit.types(m))
     for s in m["sounds"]:
         f = s["facts"]
-        assert 0 <= f["contact"] < f["samples"] and f["events"] == 1 and f["peak_dbfs"] >= -20, s["id"]
+        assert 0 <= f["contact"] < f["samples"] and f["peak_dbfs"] >= -20, s["id"]
+        if s["type"] == "key-take":         # a take of typing: the grains a typing stream cuts, not one effect
+            continue
         assert -16 <= f["trim_db"] <= 9, s["id"]                       # Kenney's files are hot: most come down
-        assert s["member"].startswith("Audio/") and s["id"].split("-")[0] in ("impact", "interface", "ui", "rpg", "casino")
+        assert f["events"] == 1 or s["type"].startswith("key-"), s["id"]    # a key has its press and its release
+        if m["packs"][s["pack"]].get("kind") != "file":
+            assert s["member"].startswith("Audio/") and s["id"].split("-")[0] in ("impact", "interface", "ui", "rpg", "casino")
 
 
 def test_two_defaults_or_a_contact_past_the_end_is_invalid(kit):
