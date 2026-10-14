@@ -218,7 +218,7 @@ def test_other_asset_names_and_hand_edited_rows_stay_inside_assets(kit, tmp_path
     v = video(tmp_path)
     src = tmp_path / "logo.png"
     src.write_bytes(b"png")
-    with pytest.raises(SystemExit, match="plain file name"):
+    with pytest.raises(SystemExit, match="a path inside assets/"):
         assets.add(v, src, "supplied", "me", name="../logo.png")
     soundkit.fetch_kit(progress=io.StringIO())
     assets.add_library(v, "thud")
