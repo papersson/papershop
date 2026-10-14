@@ -196,6 +196,57 @@ def build(video, skip_gate=False):
     return page
 
 
+def colophon(video, master):
+    """How the video was made, as Markdown: its cut, picture, sound and voice, the engines and the
+    renderer, the sounds and their credits, and the kit, read from the video's own files."""
+    import hashlib
+    from . import cuts, plates
+    from .assets import page_credits
+    from .env import ROOT
+    video = Path(video)
+    cfg, t = settings.load(video), tl.load(video)
+    m = cuts.media_info(master)
+    nr = json.loads((video / "narration.json").read_text()) if (video / "narration.json").exists() else {}
+    voice = nr.get("engine", "kokoro")
+    voice += f" {nr.get(voice, {}).get('voice', '')}".rstrip() + (f" at speed {nr[voice]['speed']:g}" if nr.get(voice, {}).get("speed") else "")
+    kit = json.loads((ROOT.parent.parent / ".claude-plugin" / "plugin.json").read_text()).get("version", "?") \
+        if (ROOT.parent.parent / ".claude-plugin" / "plugin.json").exists() else "?"
+    plated = list(plates.config(video))
+    final = cuts.latest(video, ("final",))
+    lines = [f"# {cfg.get('title', video.name)}", "",
+             f"- {t['duration'] // 60:.0f}:{t['duration'] % 60:04.1f}, {len(t['tracks']['scene'])} chapters; "
+             f"{m['width']}×{m['height']} at {m['fps']:g} fps; cut {final or '?'}",
+             f"- Scenes: the {cfg['engine']} engine" + (f"; plates for {', '.join(plated)} rendered in Blender" if plated else ""),
+             f"- Voice: {voice}",
+             f"- Studio kit {kit}; master sha256 {hashlib.sha256(Path(master).read_bytes()).hexdigest()}"]
+    lines += [f"- {c}" for c in page_credits(video)]
+    return "\n".join(lines) + "\n"
+
+
+def archive(video, name=None):
+    """Keep the published master, its poster and a colophon in $STUDIO_HOME/references/<name>/: the
+    videos the user wants kept at full quality, apart from the working folder that a cleanup trims."""
+    from .env import studio_home
+    video = Path(video).resolve()
+    master = video / "out" / "master.mp4"
+    if not master.exists():
+        raise SystemExit("archive keeps a published master: run `studio publish VIDEO` first")
+    slug = name or "".join(c if c.isalnum() else "-" for c in settings.raw(video).get("title", video.name).lower()).strip("-")
+    dest = studio_home() / "references" / slug
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(master, dest / f"{slug}.mp4")
+    if (video / "out" / "page" / "poster.jpg").exists():
+        shutil.copyfile(video / "out" / "page" / "poster.jpg", dest / "poster.jpg")
+    (dest / "colophon.md").write_text(colophon(video, master))
+    return dest
+
+
+def main_archive(args):
+    dest = archive(args.video, args.name)
+    print(f"archived → {dest} (the master as published, its poster and colophon.md)")
+    return 0
+
+
 def chapters_html(t):
     out = []
     for i, c in enumerate(t["tracks"]["scene"]):

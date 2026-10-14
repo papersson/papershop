@@ -82,3 +82,22 @@ def test_a_final_cut_is_redone_when_its_sound_is_stale(tmp_path, monkeypatch):
     assert publish.final_cut(tmp_path)["cut"] == 3
     monkeypatch.setattr(audio, "soundtrack", lambda v, t: tmp_path / "finished.m4a")
     assert publish.final_cut(tmp_path)["cut"] == 4
+
+
+def test_archive_keeps_the_master_with_a_colophon(tmp_path, monkeypatch):
+    """The user copied a finished master to ~/studio/references by hand and asked what made it."""
+    import json, subprocess
+    from test_render import make_video
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    v = tmp_path / "v"
+    v.mkdir()
+    make_video(v)
+    (v / "video.json").write_text(json.dumps({"title": "Inside a Hard Drive", "engine": "live"}))
+    (v / "out" / "page").mkdir(parents=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=320x180:d=1", "-r", "30", str(v / "out" / "master.mp4")], check=True)
+    (v / "out" / "page" / "poster.jpg").write_bytes(b"jpg")
+    dest = publish.archive(v)
+    assert dest == tmp_path / "home" / "references" / "inside-a-hard-drive"
+    assert (dest / "inside-a-hard-drive.mp4").stat().st_size == (v / "out" / "master.mp4").stat().st_size
+    text = (dest / "colophon.md").read_text()
+    assert text.startswith("# Inside a Hard Drive") and "320×180 at 30 fps" in text and "live engine" in text and "sha256" in text

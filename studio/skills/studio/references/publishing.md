@@ -89,6 +89,12 @@ say so. To update, republish with the same `url`, so the link and the notes surv
 no database, so ask the user for notes in chat or on the local review page. Say that notes aren't
 collected automatically.
 
+**Keeping it.** `studio archive VIDEO` copies the published master and poster to
+`$STUDIO_HOME/references/<title>/` with `colophon.md`, which says how it was made (the engines, any
+Blender plates, the voice, the sounds and their credits, the kit's version) for a post or a
+description. The master is about 30 MB for ten minutes; the working folder is what grows (plate
+frames, review images), and `studio clean` trims it.
+
 **destination: files:** finish with `studio publish VIDEO` locally, then hand over `out/master.mp4`
 and the poster (plus the smaller web copy when useful). Report both resolutions; no external upload
 is required for a files-only deliverable.

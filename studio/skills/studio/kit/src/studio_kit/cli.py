@@ -338,6 +338,8 @@ COMMANDS = {
     "status": ("set the builder's status line on the desk (no text clears it)", [
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
     ], "page:main_status"),
+    "archive": ("keep the published master, its poster and a colophon in $STUDIO_HOME/references/NAME/", [
+        V("video"), A("--name", help="the folder and file name (default: the title, as a slug)")], "publish:main_archive"),
     "publish": ("final cut, web encode, poster and the page in out/page/", [W("video")], "publish:main"),
     "import-tutor": ("make a video from a tutor lesson: its narration, timings and timeline", [P("lesson"), P("video")], _import_tutor),
 }
