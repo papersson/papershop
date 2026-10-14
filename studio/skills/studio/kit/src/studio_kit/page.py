@@ -12,6 +12,7 @@ note arrives, so a builder running it in the background is woken by each note.
   {"type": "round", "cut", "notes": [ids], "created"}     "Send round": the batch is ready
   {"type": "start", "id", "created"}                      the builder is working on a note
   {"type": "resolve", "id", "reply", "created"}           done, with a one-line reply shown under it
+  {"type": "received", "cut", "created"}                  the builder read the cut's latest round
 
 `studio notes VIDEO` folds the log into the current notes for a cut; review/status.json is the
 builder's status line ({text, busy}), written by `studio status`.
@@ -72,17 +73,40 @@ def fold(log, cut=None, since=None):
         elif e["type"] == "delete":
             notes.pop(e["id"], None)
         elif e["type"] == "round":
-            rounds.append(e)
+            rounds.append(dict(e))
+        elif e["type"] == "received":
+            sent = [r for r in rounds if r["cut"] == e["cut"] and "received" not in r]
+            if sent:
+                sent[-1]["received"] = e["created"]
     kept = [n for n in notes.values() if cut is None or n["cut"] == cut
             or ((n["cut"] or 0) < cut and (n["status"] != "done" or (since and n.get("resolved", "") >= since)))]
     return kept, [r for r in rounds if cut is None or r["cut"] == cut]
 
 
-def live_engine(video):
+def live_view(video, cut, latest):
+    """Whether the desk draws the current scenes instead of playing a cut: a live-engine video's latest
+    view, in interactive mode (the builder works chapter by chapter in front of the user) or before
+    any cut plays. A background build shows the user what it made: its latest animatic or cut."""
     try:
-        return settings.load(video).get("engine") == "live"
+        cfg = settings.load(video)
     except SystemExit:
         return False
+    if cfg.get("engine") != "live" or (cut is not None and cut != latest):
+        return False
+    return cfg.get("mode") == "interactive" or not cuts.latest(video, ("animatic",) + cuts.RENDERED, playable_only=True)
+
+
+def live_audio(video, t):
+    """What the live desk plays under the scenes: the whole mix, cached as a cut's is, else the
+    narration alone when the mix can't be made (an effect's cue gone, the sound tools missing)."""
+    import contextlib
+    import io
+    from . import audio
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return str(audio.soundtrack(video, t).relative_to(video))
+    except (SystemExit, ImportError, OSError, ValueError):
+        return (tl.narration_audio(t) or {}).get("file")
 
 
 def state(video, cut=None):
@@ -90,9 +114,8 @@ def state(video, cut=None):
     latest = cuts.last(video)
     n = cut or latest
     record = cuts.read(video, n) if n else None
-    # A live-engine video plays its current scenes on the desk, so the latest view follows the
-    # current timeline; an older cut shows the cut as it was.
-    live = live_engine(video) and (cut is None or cut == latest)
+    # The live view follows the current timeline; an older cut shows the cut as it was.
+    live = live_view(video, cut, latest)
     snapshot = cuts.cut_dir(video, n) / "timeline.json"
     t = tl.load(video) if live or not snapshot.exists() else json.loads(snapshot.read_text())
     if live and not record:
@@ -114,10 +137,8 @@ def state(video, cut=None):
         "narration": [{k: s[k] for k in ("id", "clip", "start", "end", "caption")} for s in t["tracks"]["narration"]],
         "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in t["tracks"]["scene"]],
         "notes": notes, "rounds": rounds, "status": read_status(video),
-        # The desk's clock: the narration, else a silent clock (another track would play from its
-        # own first sample, its start and in ignored, and an estimate's effects are not rendered yet).
-        "live": {"audio": (tl.narration_audio(t) or {}).get("file"),
-                 "duration": t.get("duration", 0)} if live else None,
+        # The desk's clock: the mix (or the narration), else a silent clock.
+        "live": {"audio": live_audio(video, t), "duration": t.get("duration", 0)} if live else None,
     }
 
 
@@ -161,9 +182,18 @@ def wait(video, timeout=None, poll=0.5, settle=1.5):
     return None
 
 
+def acknowledge(video, cut):
+    """Record that the builder read cut N's latest round, once, so the desk can say so."""
+    _, rounds = fold(read_log(video), cut)
+    if rounds and "received" not in rounds[-1]:
+        append(video, {"type": "received", "cut": cut})
+
+
 def notes_text(video, cut=None):
-    """The notes for a cut as numbered plain text, the form the agent works from."""
+    """The notes for a cut as numbered plain text, the form the agent works from; reading them
+    acknowledges the cut's round."""
     n = cut or cuts.last(video)
+    acknowledge(video, n)
     notes, rounds = fold(read_log(video), n)
     count = f"{len(notes)} note" + ("" if len(notes) == 1 else "s")
     lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else ", round not sent")]
@@ -245,7 +275,8 @@ class Handler(BaseHTTPRequestHandler):
             f = self.video / "layout.json"
         elif rel.startswith("video/"):
             sub = rel[len("video/"):]
-            ok = sub in ("timeline.json", "layout.json", "video.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
+            ok = (sub in ("timeline.json", "layout.json", "video.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
+                  or sub.startswith(".cache/sound/"))
             f = self.video / sub if ok else None
         else:
             f = None
@@ -413,6 +444,8 @@ def main_wait(args):
     if new is None:
         print(f"no new note in {args.timeout:g} s")
         return 2
+    for c in sorted({n["cut"] for n in new if n.get("cut")}):
+        acknowledge(args.video, c)
     print(f"{len(new)} new note" + ("" if len(new) == 1 else "s") + ":")
     print("\n".join(describe(new)))
     return 0

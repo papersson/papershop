@@ -184,3 +184,57 @@ def test_the_live_page_can_read_video_json_for_the_legend(tmp_path):
         assert got["legend"] == {"request": "warm"}
     finally:
         server.shutdown()
+
+
+def live_video(tmp_path, mode):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "mode": mode}))
+    cut = tmp_path / "cuts" / "cut1"
+    cut.mkdir(parents=True)
+    (cut / "cut.json").write_text(json.dumps({"cut": 1, "kind": "animatic", "stills": [], "changelog": [], "video": "video.mp4"}))
+    (cut / "video.mp4").write_bytes(b"mp4")
+    return tmp_path
+
+
+def test_a_background_build_shows_its_latest_cut_and_interactive_mode_draws_the_scenes(tmp_path):
+    # The user asked "how long until I have video" while an animatic sat unseen: a live-engine desk
+    # always drew the current scenes. In background mode the desk plays the latest cut it was given.
+    s = page.state(live_video(tmp_path / "bg", "background"))
+    assert s["live"] is None and s["cut"]["kind"] == "animatic" and s["cut"]["video"] == "video.mp4"
+    assert page.state(live_video(tmp_path / "fg", "interactive"))["live"] is not None
+
+
+def test_the_live_desk_plays_the_whole_mix(tmp_path, monkeypatch):
+    # The desk played the narration alone, so a builder's effects were heard only in a rendered cut.
+    from studio_kit import audio
+    video = live_video(tmp_path, "interactive")
+    mix = video / ".cache" / "sound" / "abc.m4a"
+    mix.parent.mkdir(parents=True)
+    mix.write_bytes(b"m4a")
+    monkeypatch.setattr(audio, "soundtrack", lambda v, t: mix)
+    assert page.state(video)["live"]["audio"] == ".cache/sound/abc.m4a"
+    server, base = serve(video)
+    try:
+        assert urllib.request.urlopen(base + "/live/video/.cache/sound/abc.m4a").read() == b"m4a"
+    finally:
+        server.shutdown()
+
+    def unavailable(v, t):
+        raise audio.MixUnavailable("an effect's cue is gone")
+    monkeypatch.setattr(audio, "soundtrack", unavailable)
+    assert page.state(video)["live"]["audio"] != ".cache/sound/abc.m4a"     # the narration, as before
+
+
+def test_the_builder_reading_a_round_marks_it_received(tmp_path):
+    # "Did you get my round of notes?": the desk now says when the builder read the round.
+    make_video(tmp_path)
+    page.append(tmp_path, {"type": "note", "id": "a", "cut": 1, "t": 1.0, "clip": "s1", "sentence_id": "s1_01",
+                           "sentence": "One.", "previous_id": None, "previous": None, "kind": "picture", "note": "x"})
+    page.append(tmp_path, {"type": "round", "cut": 1, "notes": ["a"]})
+    assert "received" not in page.fold(page.read_log(tmp_path), 1)[1][0]
+    page.notes_text(tmp_path, 1)
+    _, rounds = page.fold(page.read_log(tmp_path), 1)
+    assert rounds[0]["received"]
+    page.notes_text(tmp_path, 1)
+    assert sum(e["type"] == "received" for e in page.read_log(tmp_path)) == 1    # once a round

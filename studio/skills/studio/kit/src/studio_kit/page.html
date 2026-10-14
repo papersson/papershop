@@ -246,6 +246,7 @@ function renderNotes() {
   var fresh = S.notes.filter(function (n) { return !round || round.notes.indexOf(n.id) < 0; }).length;
   $('send').disabled = !S.notes.length || !fresh || cutN !== S.latest;
   $('sentline').textContent = round ? 'Round sent ' + round.created.slice(11, 16) + ' with ' + plural(round.notes.length) +
+    (round.received ? ', received by the builder ' + round.received.slice(11, 16) : ', not yet read by the builder') +
     (fresh ? '; ' + fresh + ' new since' : '') : '';
 }
 function renderBuilder() {
