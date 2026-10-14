@@ -7,7 +7,10 @@
 // against one fixed house light, in three steps (1, 0.8, 0.62 of its colour), so a face lit from above
 // shows the palette colour exactly and a flat top view matches the SVG diagram of the same thing.
 // Outlines are screen-space lines in pixels, so an outer contour can be 3 px over 1.5 px inner detail,
-// as in 2D. The camera is shared/camera3d.js's: its matrices are loaded as they are, so SVG projected
+// as in 2D. A scene that calls G.lit() opts into the lit look instead, for a physical object the
+// viewer should feel: physically based materials (roughness, metalness), a key light with soft
+// shadows, a fill and a sky light, the same outlines. It costs more a frame and moves colours off the
+// legend's exact values, so it is for the chapter that needs it (references/taste/look.md). The camera is shared/camera3d.js's: its matrices are loaded as they are, so SVG projected
 // through camera3d.project lands on the pixels WebGL draws.
 
 import * as THREE from 'three'
@@ -104,13 +107,46 @@ export class Stage3D {
     this.views = new Map()      // name -> {shot, rect, cam}
     this.drawn = new Set()
     this.area = [0, 0, width, height]
+    this.lights = null          // the lit look's lights, made the first time a scene asks for them
+    this.litMode = false
   }
 
   /** A new frame: nothing drawn yet. `area` is where the main view centres its shots (c.view). */
   begin(area) {
     this.drawn = new Set()
     this.views = new Map()
+    this.litMode = false
+    if (this.lights) for (const l of this.lights.all) l.visible = false
     if (area) this.area = area
+  }
+
+  /**
+   * The lit look for this frame's solids (call it before drawing them): a key light from `key`
+   * (a direction, default above, front and right) casting soft shadows, a fill from the other side
+   * and a sky light, at `intensity` (1 is the default balance). Solids drawn after it take their
+   * `roughness` (0.45) and `metalness` (0) from their options.
+   */
+  lit({ key = [0.6, 1, 0.8], intensity = 1, shadows = true } = {}) {
+    if (!this.lights) {
+      const keyLight = new THREE.DirectionalLight(0xffffff, 1)
+      keyLight.shadow.mapSize.set(2048, 2048)
+      keyLight.shadow.bias = -0.0005
+      keyLight.shadow.radius = 4
+      const fill = new THREE.DirectionalLight(0xffffff, 1)
+      const sky = new THREE.HemisphereLight(0xffffff, 0x404850, 1)
+      this.scene.add(keyLight, keyLight.target, fill, fill.target, sky)
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      this.lights = { key: keyLight, fill, sky, all: [keyLight, fill, sky] }
+    }
+    const L = this.lights
+    L.key.intensity = 2.2 * intensity
+    L.fill.intensity = 0.6 * intensity
+    L.sky.intensity = 0.9 * intensity
+    L.key.castShadow = shadows
+    L.dir = new THREE.Vector3(...key).normalize()
+    for (const l of L.all) l.visible = true
+    this.renderer.shadowMap.enabled = shadows
+    this.litMode = true
   }
 
   /**
@@ -176,13 +212,16 @@ export class Stage3D {
    * built again only when the kind, params or edge width change; everything else is set every frame.
    */
   mesh(key, kind, params, o = {}) {
-    const rec = this.node(key, `${kind}:${JSON.stringify(params)}:${o.edges ? o.edges.width : ''}`, () => {
+    const lit = this.litMode
+    const rec = this.node(key, `${kind}:${JSON.stringify(params)}:${o.edges ? o.edges.width : ''}:${lit}`, () => {
       const geo = geometryOf(kind, params)
-      const mat = new THREE.ShaderMaterial({ vertexShader: TONE_VERT, fragmentShader: TONE_FRAG,
-        uniforms: { color: { value: new THREE.Color() }, opacity: { value: 1 }, light: { value: LIGHT } },
-        // Faces sit a little behind their own outlines, or a face wins the depth test against the line on its edge.
-        polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 })
+      // Faces sit a little behind their own outlines, or a face wins the depth test against the line on its edge.
+      const offset = { polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 }
+      const mat = lit ? new THREE.MeshStandardMaterial(offset) : new THREE.ShaderMaterial({ vertexShader: TONE_VERT,
+        fragmentShader: TONE_FRAG, uniforms: { color: { value: new THREE.Color() }, opacity: { value: 1 }, light: { value: LIGHT } },
+        ...offset })
       const m = new THREE.Mesh(geo, mat)
+      m.castShadow = m.receiveShadow = lit
       if (o.edges) {
         const lg = new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(geo, 30))
         const line = new LineSegments2(lg, new LineMaterial({ linewidth: o.edges.width, worldUnits: false }))
@@ -198,8 +237,15 @@ export class Stage3D {
     Array.isArray(s) ? m.scale.set(...s) : m.scale.setScalar(s)
     const color = o.color ?? 'var(--tray)'
     const mat = m.material
-    mat.uniforms.color.value.copy(colourOf(color))
-    mat.uniforms.opacity.value = op
+    if (mat.uniforms) {
+      mat.uniforms.color.value.copy(colourOf(color))
+      mat.uniforms.opacity.value = op
+    } else {
+      mat.color.copy(colourOf(color))
+      mat.opacity = op
+      mat.roughness = o.roughness ?? 0.45
+      mat.metalness = o.metalness ?? 0
+    }
     mat.transparent = op < 1
     mat.depthWrite = op >= 1
     mat.side = kind === 'tube' || kind === 'ring' ? THREE.DoubleSide : THREE.FrontSide
@@ -243,6 +289,7 @@ export class Stage3D {
     this.active = used.size > 0
     this.canvas.style.display = this.active ? 'block' : 'none'
     if (!this.active) return false
+    if (this.litMode) this.aimLights()
     const r = this.renderer
     r.setRenderTarget(null)
     r.setScissorTest(false)
@@ -252,6 +299,26 @@ export class Stage3D {
     for (const name of used) this.renderView(name, null)
     r.getContext().finish()
     return true
+  }
+
+  /** Point the lit look's lights at what this frame drew, the key's shadow camera fitted around it. */
+  aimLights() {
+    const box = new THREE.Box3()
+    for (const key of this.drawn) {
+      const rec = this.nodes.get(key)
+      if (rec.obj.isMesh && rec.obj.visible) box.expandByObject(rec.obj)
+    }
+    if (box.isEmpty()) return
+    const centre = box.getCenter(new THREE.Vector3()), r = Math.max(1, box.getSize(new THREE.Vector3()).length() / 2)
+    const L = this.lights, sc = L.key.shadow.camera
+    L.key.position.copy(centre).addScaledVector(L.dir, r * 3)
+    L.key.target.position.copy(centre)
+    L.fill.position.copy(centre).add(new THREE.Vector3(-L.dir.x, L.dir.y * 0.5, -L.dir.z).multiplyScalar(r * 3))
+    L.fill.target.position.copy(centre)
+    Object.assign(sc, { left: -r * 1.2, right: r * 1.2, top: r * 1.2, bottom: -r * 1.2, near: r * 0.5, far: r * 6 })
+    sc.updateProjectionMatrix()
+    L.key.target.updateMatrixWorld()
+    L.fill.target.updateMatrixWorld()
   }
 
   /** Load a view's camera into three's, and show only that view's drawn nodes. */

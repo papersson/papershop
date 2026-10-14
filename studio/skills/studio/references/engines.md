@@ -174,6 +174,12 @@ timeline, with the same cues, legend, checks, look sheet and desk. The admission
   line-weight rule: outer contours heavier than inner detail, in screen pixels. There are no shadows,
   bloom, depth of field or textures; they cost 1.4-5.8x a frame on the CPU renderer and turn one
   legend colour into many.
+- **The lit look, opt-in.** `G.lit({key, intensity, shadows})`, called before a frame's solids, lights
+  them instead: physically based materials (a solid's `roughness`, 0.45, and `metalness`, 0, from its
+  options), a key light from `key` with a soft shadow, a fill from the other side and a sky light,
+  fitted around what the frame drew. Outlines, labels, boxes and the checks are as in the flat look.
+  It costs more a frame and moves colours off the legend's exact values, so it is for a chapter whose
+  object the viewer should feel, and a chapter calls it on every frame it wants it (`taste/look.md`).
 - **Shots.** A 3D camera is a shot `{target: [x, y, z], az, el, span, fov}` (world units, y up; `az`
   0 looks along -z, `el` 90 straight down; `span` is half the view's height in world units at the
   target, the 3D form of zoom). `c.shot([[t0, shot], [t1, shot2, 'heavy'], ...])` is one declaration

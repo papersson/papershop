@@ -404,3 +404,36 @@ def test_a_layout_without_a_band_draws_no_captions(tmp_path):
     (tmp_path / "layout.json").write_text(json.dumps({"width": 1920, "height": 1080, "fps": 30, "band": {"height": 0}}))
     frame = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.5}])[0]
     assert "caption" not in {b["name"] for b in frame["boxes"]} and "title" in {b["name"] for b in frame["boxes"]}
+
+
+LIT = """
+export default function draw(c) {
+  const { G, W, kit } = c
+  const cy = c.view[1] + c.view[3] / 2
+  c.shot([[0, { target: [W / 2, 0, cy], az: -30, el: 35, span: 260, fov: 30 }]])
+  if (LIT) G.lit({ key: [0.2, 1, 0.1] })
+  G.mesh('floor', 'box', { size: [900, 10, 600] }, { at: [W / 2, -5, cy], color: kit.C.bg3, box: 'floor' })
+  G.mesh('block', 'box', { size: [120, 120, 120] }, { at: [W / 2, 60, cy], color: kit.C.cold, box: 'block', roughness: 0.3 })
+}
+"""
+
+
+@needs_engine
+@needs_3d
+def test_the_lit_look_casts_shadows_and_the_flat_look_stays_flat(tmp_path):
+    """G.lit() is the opt-in look for a physical object the viewer should feel: a key light with a
+    soft shadow under the block. Without it the floor is one flat tone, as the house look is."""
+    from PIL import Image
+    shots = {}
+    for lit in (True, False):
+        d = tmp_path / ("lit" if lit else "flat")
+        d.mkdir()
+        video_3d(d, LIT.replace("LIT)", "true)" if lit else "false)"))
+        Engine(d).stills([{"clip": "s1", "t": 1.0, "out": d / "a.png"}])
+        boxes = {b["name"]: b for b in Engine(d).boxes("s1", 1.0)["boxes"]["boxes"]}
+        shots[lit] = (Image.open(d / "a.png").convert("L"), boxes)
+    def floor_spread(img, boxes):
+        b = boxes["block"]
+        y = int(b["y"] + 0.72 * b["h"])                # beside the block's foot, where the key light's shadow falls
+        return img.getpixel((int(b["x"] - 150), y)) - img.getpixel((int(b["x"] - 10), y))
+    assert floor_spread(*shots[True]) > 12 and abs(floor_spread(*shots[False])) <= 2
