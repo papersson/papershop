@@ -1,6 +1,6 @@
 import json
 
-from studio_kit import clean, render
+from studio_kit import clean, keys, render
 from test_narration import SCRIPT
 from test_render import make_video
 
@@ -65,7 +65,7 @@ def test_clean_removes_regenerable_files_only_and_dry_run_removes_nothing(tmp_pa
             f.write_text({"narration.json": "{}", "review/notes.jsonl": "", "SCRIPT.md": SCRIPT}.get(p, "keep"))
     cuts(tmp_path, 5)
     cache = tmp_path / ".cache"
-    current = f"s1-draft-{render.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
+    current = f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
     (cache / "clips").mkdir(parents=True)
     (cache / "clips" / current).write_bytes(b"c" * 100)
     (cache / "clips" / "s1-draft-0000000000000000.mp4").write_bytes(b"c" * 100)

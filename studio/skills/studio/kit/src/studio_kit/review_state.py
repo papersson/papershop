@@ -22,9 +22,9 @@ from .workspace import atomic_json, now
 
 
 def review_keys(video, t):
-    """Each clip's review key (render.clip_key): what a frame of that clip shows."""
-    from . import render
-    return {c["id"]: render.clip_key(video, t, c["id"], "review") for c in t["tracks"]["scene"]}
+    """Each clip's review key (keys.clip_key): what a frame of that clip shows."""
+    from .keys import clip_key
+    return {c["id"]: clip_key(video, t, c["id"], "review") for c in t["tracks"]["scene"]}
 
 
 def fingerprint(video, frames=False, keys=None):

@@ -48,6 +48,7 @@ from pathlib import Path
 from . import cuts, motion, proc, settings
 from . import timeline as tl
 from .env import ROOT, engine_dir
+from .keys import clip_file
 from .review_state import changed_since, check_cap, cut_time, next_round, quoted, read, record, revision, stands, start_round
 from .reviews import KINDS
 from .workspace import atomic_json
@@ -76,8 +77,10 @@ def bundle_root(video):
 def clip_render(video, rec, clip):
     """The clip's render cached under the key cut `rec` recorded, or None."""
     key = next((x["key"] for x in rec.get("clips", []) if x["id"] == clip), None)
-    f = Path(video) / ".cache" / "clips" / f"{clip}-{rec.get('quality', 'draft')}-{key}.mp4"
-    return f if key and f.exists() else None
+    if not key:
+        return None
+    f = clip_file(video, clip, rec.get("quality", "draft"), key)
+    return f if f.exists() else None
 
 
 def source(video, n, rec, t, clip):

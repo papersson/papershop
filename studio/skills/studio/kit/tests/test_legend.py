@@ -129,10 +129,10 @@ def test_the_check_runs_from_studio_check(tmp_path):
 def test_a_legend_edit_changes_a_live_clips_key_and_the_legend_check_samples_it_again(tmp_path):
     """Live scenes draw with c.legend, so a cached clip or a cached check from the old legend was stale:
     `step: hot` to `step: cold` kept the clip key and the check still read the old colour."""
-    from studio_kit import render
+    from studio_kit.keys import clip_key
     v = video(tmp_path, {"step": "hot"})
     t = json.loads((v / "timeline.json").read_text())
-    keys = lambda: {c["id"]: render.clip_key(v, t, c["id"], "check", engine="live") for c in t["tracks"]["scene"]}
+    keys = lambda: {c["id"]: clip_key(v, t, c["id"], "check", engine="live") for c in t["tracks"]["scene"]}
     before = keys()
     e = FakeEngine({"s1": [box("card", HOT, means="step")]})
     assert warnings(legend.check(v, engine=e, keys=before)) == [] and set(e.asked) == {"s1", "s2"}
@@ -142,7 +142,7 @@ def test_a_legend_edit_changes_a_live_clips_key_and_the_legend_check_samples_it_
     e = FakeEngine({"s1": [box("card", COLD, means="step")]})          # the clip as the new legend draws it
     assert warnings(legend.check(v, engine=e, keys=after)) == [] and set(e.asked) == {"s1", "s2"}
     # Remotion scenes don't read the legend, and a video without one keeps its keys
-    assert render.clip_key(v, t, "s1", "check", engine="remotion") == render.clip_key(video(tmp_path / "b"), t, "s1", "check", engine="remotion")
+    assert clip_key(v, t, "s1", "check", engine="remotion") == clip_key(video(tmp_path / "b"), t, "s1", "check", engine="remotion")
 
 
 def test_the_kits_own_accent_states_unnamed_shapes_and_dimmed_elements_are_left_alone(tmp_path):

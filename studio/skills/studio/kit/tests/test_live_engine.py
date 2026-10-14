@@ -6,7 +6,7 @@ import shutil
 
 import pytest
 
-from studio_kit import render, settings
+from studio_kit import keys, render, settings
 from studio_kit import timeline as tl
 from studio_kit.engine import Engine, EngineError
 from studio_kit.env import engine_dir, resolve_browser
@@ -45,7 +45,7 @@ def live_video(tmp_path, scene=SCENE):
 def test_live_is_an_engine_and_a_chapter_without_a_scene_file_shows_its_board(tmp_path):
     live_video(tmp_path)
     assert settings.load(tmp_path)["engine"] == "live"
-    assert render.has_scene(tmp_path, "s1") and not render.has_scene(tmp_path, "s2")
+    assert keys.has_scene(tmp_path, "s1") and not keys.has_scene(tmp_path, "s2")
 
 
 def test_new_explainers_default_to_the_live_engine(tmp_path):

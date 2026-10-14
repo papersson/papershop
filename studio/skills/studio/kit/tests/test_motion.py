@@ -1,7 +1,7 @@
 import json
 import subprocess
 
-from studio_kit import assets, check, motion, render
+from studio_kit import assets, check, keys, motion, render
 from test_render import make_video
 
 
@@ -109,7 +109,7 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
     for cid, (a, b) in {"s1": (0.5, 0.8), "s2": (0.5, 1.2)}.items():
-        f = cache / f"{cid}-draft-{render.clip_key(tmp_path, t, cid, 'draft')}.mp4"
+        f = cache / f"{cid}-draft-{keys.clip_key(tmp_path, t, cid, 'draft')}.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(a, b), "-pix_fmt", "yuv420p", str(f)], check=True)
     eng = StageEngine({})
     rows = motion.pacing(tmp_path, eng)
@@ -168,7 +168,7 @@ def test_the_pacing_check_and_the_motion_review_measure_what_they_did(tmp_path):
     t = make_video(tmp_path)
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
-    f = cache / f"s1-draft-{render.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
+    f = cache / f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(0.5, 0.8, 4), "-pix_fmt", "yuv420p", str(f)], check=True)
     for first, count in ((0, 60), (7, 60), (31, 80)):
         assert [s[:3] for s in motion.file_signal(f, t, LAY, first, count)] == old_signal(f, 30, first, count)

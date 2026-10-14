@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from studio_kit import cuts, render
+from studio_kit import keys as clip_keys
 from studio_kit import timeline as tl
 
 
@@ -25,7 +26,7 @@ def make_video(tmp_path):
 
 
 def keys(video, t, quality="draft"):
-    return {c["id"]: render.clip_key(video, t, c["id"], quality) for c in t["tracks"]["scene"]}
+    return {c["id"]: clip_keys.clip_key(video, t, c["id"], quality) for c in t["tracks"]["scene"]}
 
 
 def test_editing_a_chapter_scene_changes_only_that_chapter(tmp_path):
@@ -177,7 +178,7 @@ def test_the_engine_kits_read_cues_only_through_cue():
     name a scene passed it, would go unseen."""
     engines = Path(render.__file__).parents[3] / "engines"
     for f in [*engines.glob("*/src/**/*"), *engines.glob("shared/**/*")]:
-        if f.suffix not in render.SCENE_CODE:
+        if f.suffix not in clip_keys.SCENE_CODE:
             continue
         code = re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), f.read_text(), flags=re.S)
         code = re.sub(r"(^|\s)//.*", r"\1", code, flags=re.M)        # the kits' own comments, not a parser
@@ -197,7 +198,7 @@ def test_a_formats_key_holds_that_formats_caption_lines(tmp_path):
 
 
 def keys_in(video, t, fmt):
-    return {c["id"]: render.clip_key(video, t, c["id"], "draft", fmt=fmt) for c in t["tracks"]["scene"]}
+    return {c["id"]: clip_keys.clip_key(video, t, c["id"], "draft", fmt=fmt) for c in t["tracks"]["scene"]}
 
 
 def test_editing_the_engines_shared_modules_changes_every_chapter(tmp_path, monkeypatch):
@@ -205,7 +206,7 @@ def test_editing_the_engines_shared_modules_changes_every_chapter(tmp_path, monk
     for f in ("remotion/src/kit/time.ts", "shared/motion.js"):
         (engines / f).parent.mkdir(parents=True, exist_ok=True)
         (engines / f).write_text(f"// {f}\n")
-    monkeypatch.setattr(render, "engine_dir", lambda name: engines / name)
+    monkeypatch.setattr(clip_keys, "engine_dir", lambda name: engines / name)
     (tmp_path / "v").mkdir()
     t = make_video(tmp_path / "v")
     before = keys(tmp_path / "v", t)
@@ -223,14 +224,14 @@ def test_jsx_text_that_looks_like_a_comment_hides_no_cue(tmp_path):
         (tmp_path / "scenes" / "s1.tsx").write_text("const { t, cue } = useClip();\n" + code)
         assert cue_keys(tmp_path, t, {"boom": 3.5})["s1"] != cue_keys(tmp_path, t, {"boom": 3.6})["s1"], code
     (tmp_path / "scenes" / "s1.tsx").write_text("const {t, cue} = useClip();\nconst el = <p>see https://x.dev {names.map(n => cue(n))}</p>;\n")
-    assert render.scene_cues(tmp_path, "s1", {"s1", "s2"}) is None
+    assert clip_keys.scene_cues(tmp_path, "s1", {"s1", "s2"}) is None
 
 
 def test_a_helper_imported_from_another_clips_file_is_read(tmp_path):
     t = make_video(tmp_path)
     (tmp_path / "scenes" / "index.ts").write_text("import {S1} from './s1';\nimport {S2} from './s2';\nexport default {s1: S1, s2: S2};\n")
     (tmp_path / "scenes" / "s2.tsx").write_text("export const S2 = () => { const {t, cue} = useClip(); return ramp(t, cue('own')); };\n")
-    assert render.scene_cues(tmp_path, "s1", {"s1", "s2"}) == set()            # the clip list imports both
+    assert clip_keys.scene_cues(tmp_path, "s1", {"s1", "s2"}) == set()            # the clip list imports both
     for helper in ("s2.tsx", "s2/parts.tsx"):
         (tmp_path / "scenes" / helper).parent.mkdir(exist_ok=True)
         (tmp_path / "scenes" / helper).write_text("export const Boom = () => { const {t, cue} = useClip(); return ramp(t, cue('boom')); };\n")
@@ -280,14 +281,14 @@ def test_a_live_clip_is_keyed_on_its_webgl_backend_and_the_engines_page(tmp_path
     the import map). A Remotion video's keys don't depend on either."""
     t = make_video(tmp_path)
     (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
-    cpu = render.clip_key(tmp_path, t, "s1", "draft")
+    cpu = clip_keys.clip_key(tmp_path, t, "s1", "draft")
     (tmp_path / "video.json").write_text(json.dumps({"engine": "live", "gl": "gpu"}))
-    assert render.clip_key(tmp_path, t, "s1", "draft") != cpu
+    assert clip_keys.clip_key(tmp_path, t, "s1", "draft") != cpu
     hashed = []
-    real = render._hash_tree
-    monkeypatch.setattr(render, "_hash_tree", lambda h, p, root=None: (hashed.append(Path(p).name), real(h, p, root)))
-    render.clip_key(tmp_path, t, "s1", "draft")
+    real = clip_keys._hash_tree
+    monkeypatch.setattr(clip_keys, "_hash_tree", lambda h, p, root=None: (hashed.append(Path(p).name), real(h, p, root)))
+    clip_keys.clip_key(tmp_path, t, "s1", "draft")
     assert {"cli.mjs", "render.html", "package-lock.json"} <= set(hashed)
     hashed.clear()
-    render.clip_key(tmp_path, t, "s1", "draft", engine="remotion")
+    clip_keys.clip_key(tmp_path, t, "s1", "draft", engine="remotion")
     assert not {"cli.mjs", "render.html"} & set(hashed)

@@ -19,9 +19,10 @@ import shutil
 from pathlib import Path
 
 from . import proc
-from . import cuts, moments, render
+from . import cuts, moments
 from . import timeline as tl
 from .engine import Engine
+from .keys import clip_key
 
 PHONE_WIDTH = 360
 PHONE_FRAMES = 15
@@ -144,7 +145,7 @@ def crops(video, out, below=40, ids=None, engine=None):
     out.mkdir(parents=True, exist_ok=True)
     cache = video / ".cache" / "crops"
     cache.mkdir(parents=True, exist_ok=True)
-    keys = {c["id"]: render.clip_key(video, t, c["id"], "crops") for c in t["tracks"]["scene"]}
+    keys = {c["id"]: clip_key(video, t, c["id"], "crops") for c in t["tracks"]["scene"]}
     # the threshold is in the key: a frame measured under another --below kept other labels
     reqs = [{"clip": m["clip"], "t": m["t"], "id": m["id"],
              "key": f"{m['clip']}-{keys[m['clip']]}-{tl.half_up(m['t'] * t['fps'])}-b{below:g}"}

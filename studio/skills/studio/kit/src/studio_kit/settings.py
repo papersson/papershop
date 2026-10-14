@@ -52,7 +52,7 @@ keys without a default are simply absent when unset (callers use .get).
                      Chrome's CPU renderer: identical frames run after run on a machine, about 3.5x
                      slower per 3D frame than the GPU. gpu is this machine's GPU (Metal on macOS):
                      3D frames cost what 2D ones do, but its pixels differ from the CPU's, 2D ones
-                     included, so clips are keyed on it (render.engine_inputs)     default "cpu"
+                     included, so clips are keyed on it (keys.engine_inputs)     default "cpu"
   sound              {"room": 1.0, "duck": true, "presence": true}: the mix's processing of effects
                      and music (audio.py): room scales their shared room's reflections (0 or false:
                      off, up to 2), duck lowers music under the narration, presence dips their 1-4 kHz

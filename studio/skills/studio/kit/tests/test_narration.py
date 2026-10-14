@@ -174,7 +174,8 @@ def test_a_longer_chapter_shifts_later_chapters_by_whole_frames_and_milliseconds
 
 def test_moved_chapters_keep_identical_relative_times_and_clip_keys(tmp_path):
     """Float drift in absolute times once changed a later chapter's key by 1 ms; offsets are exact."""
-    from studio_kit import render, timeline as tl
+    from studio_kit import timeline as tl
+    from studio_kit.keys import clip_key
     v = video(tmp_path)
     (v / "scenes").mkdir()
     (v / "scenes" / "s1.tsx").write_text("//")
@@ -186,7 +187,7 @@ def test_moved_chapters_keep_identical_relative_times_and_clip_keys(tmp_path):
     for extra in (0.0, 0.456, 1.2345):
         d = {**durs, "s1_02": durs["s1_02"] + extra}
         t = tl.from_timings(nr.layout(S, chapters, d))
-        keys.append(render.clip_key(v, t, "s2", "draft"))
+        keys.append(clip_key(v, t, "s2", "draft"))
     assert keys[0] == keys[1] == keys[2]
 
 

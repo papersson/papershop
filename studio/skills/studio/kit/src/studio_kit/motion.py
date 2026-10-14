@@ -152,10 +152,9 @@ VISIBLE_SHARE = 0.0005
 
 def rendered_clip(video, t, cid, fmt=None):
     """A clip video `studio cut` (or export) rendered for the current scenes, or None."""
-    from . import render
-    tag = f"-{fmt.replace(':', 'x')}" if fmt and fmt != "16:9" else ""
+    from . import keys
     for q in ("final", "draft"):
-        f = Path(video) / ".cache" / "clips" / f"{cid}-{q}{tag}-{render.clip_key(video, t, cid, q, fmt=fmt)}.mp4"
+        f = keys.clip_file(video, cid, q, keys.clip_key(video, t, cid, q, fmt=fmt), fmt)
         if f.exists():
             return f
     return None

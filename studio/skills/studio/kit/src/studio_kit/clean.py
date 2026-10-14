@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 from . import settings
-from . import cuts, render
+from . import cuts, keys
 from .workspace import atomic_json, locked, now
 from . import timeline as tl
 
@@ -81,7 +81,7 @@ def _keyed_stale(video, t):
     clips = {}
     for q in ("draft", "final"):
         for cid in ids:
-            clips[f"{cid}-{q}-{render.clip_key(video, t, cid, q)}"] = True
+            clips[f"{cid}-{q}-{keys.clip_key(video, t, cid, q)}"] = True
     fmts = {}
     for f in (cache / "clips").glob("*.mp4") if (cache / "clips").is_dir() else []:
         parts = f.stem.split("-")
@@ -92,21 +92,21 @@ def _keyed_stale(video, t):
             fmt = tag.replace("x", ":")
             fmts.setdefault(fmt, {})
             if cid in ids and q in ("draft", "final"):
-                fmts[fmt].setdefault((cid, q), render.clip_key(video, t, cid, q, fmt=fmt))
+                fmts[fmt].setdefault((cid, q), keys.clip_key(video, t, cid, q, fmt=fmt))
                 if fmts[fmt][(cid, q)] == key:
                     continue
             out.append(f)
         else:
             out.append(f)
-    finals = {f"{cid}-final-{render.clip_key(video, t, cid, 'final')}" for cid in ids}
+    finals = {f"{cid}-final-{keys.clip_key(video, t, cid, 'final')}" for cid in ids}
     for f in (cache / "web").glob("*.mp4") if (cache / "web").is_dir() else []:
         if not any(f.stem.startswith(s + "-") for s in finals):
             out.append(f)
     for kind, folder in (("still", "stills"), ("crops", "crops")):
-        keys = {f"{cid}-{render.clip_key(video, t, cid, kind)}-" for cid in ids}
+        current = {f"{cid}-{keys.clip_key(video, t, cid, kind)}-" for cid in ids}
         d = cache / folder
         for f in d.iterdir() if d.is_dir() else []:
-            if not any(f.name.startswith(k) for k in keys):
+            if not any(f.name.startswith(k) for k in current):
                 out.append(f)
     return out
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from studio_kit import check, narration, render, script, script_check, timeline
+from studio_kit import check, keys, narration, render, script, script_check, timeline
 from test_narration import SCRIPT, video
 
 
@@ -58,7 +58,7 @@ def test_prediction_cues_and_pause_metadata_do_not_invalidate_shifted_chapter(tm
     a = timeline.from_timings(narration.layout(S, chapters, durations))
     durations["s1_01"] = 2.3
     b = timeline.from_timings(narration.layout(S, chapters, durations))
-    assert render.clip_key(v, a, "s2", "draft") == render.clip_key(v, b, "s2", "draft")
+    assert keys.clip_key(v, a, "s2", "draft") == keys.clip_key(v, b, "s2", "draft")
 
 
 def test_script_check_runs_without_timeline_engine_or_audio(tmp_path, monkeypatch):

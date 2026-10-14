@@ -18,8 +18,8 @@ def test_new_video_is_ready_for_a_script_and_an_estimate(tmp_path, monkeypatch):
     assert script.load(video)[0][0] == "s1"
     narration.narrate(video, estimate=True)
     assert (video / "timeline.json").exists() and (video / "scenes" / "index.ts").exists()
-    from studio_kit import render
-    assert not render.has_scene(video, "s1")          # a new explainer starts on boards
+    from studio_kit import keys
+    assert not keys.has_scene(video, "s1")          # a new explainer starts on boards
 
 
 def test_new_refuses_an_existing_video(tmp_path):

@@ -430,9 +430,9 @@ def _warnings_file(video, fmt, samples):
 
 def changed_clips(video, kinds, samples=3, fmt=None):
     """({clip: key}, {kind: clip ids whose key changed for that kind since it last passed})."""
-    from . import render
+    from .keys import clip_key
     t = tl.load(video)
-    keys = {c["id"]: render.clip_key(video, t, c["id"], "check", fmt=fmt) for c in t["tracks"]["scene"]}
+    keys = {c["id"]: clip_key(video, t, c["id"], "check", fmt=fmt) for c in t["tracks"]["scene"]}
     f = _cache_file(video, fmt, samples)
     passed = json.loads(f.read_text()) if f.exists() else {}
     from .motion import rendered_clip

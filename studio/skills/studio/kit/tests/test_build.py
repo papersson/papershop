@@ -604,12 +604,12 @@ def test_a_bad_or_lost_anchor_stops_the_build_naming_the_cue(tmp_path, spec, err
 
 
 def test_an_anchored_cue_counts_only_for_the_clips_that_read_it(tmp_path):
-    from studio_kit import render
+    from studio_kit.keys import clip_key
     v = explainer(tmp_path)
     narration.narrate(v, estimate=True)
     (v / "scenes").mkdir()
     (v / "scenes" / "s2.js").write_text("export default c => c.P(c.cue('quiet'), 0.4)\n")
-    keys = lambda t: {c["id"]: render.clip_key(v, t, c["id"], "draft") for c in t["tracks"]["scene"]}
+    keys = lambda t: {c["id"]: clip_key(v, t, c["id"], "draft") for c in t["tracks"]["scene"]}
     (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "goes quiet"}}))
     before = keys(tl.build(v))
     (v / "cues.json").write_text(json.dumps({"quiet": {"sentence": "s1_02", "phrase": "goes quiet", "offset": 0.2}}))

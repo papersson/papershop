@@ -11,7 +11,7 @@ templates/live/scenes/example-look.js and templates/scenes/example-look.tsx show
 
 Output: out/look/look-<n>.png, one per page, and out/look/look.json, the record a review bundle
 includes (`latest`). Another format's sheet goes to out/look/<format>/. The record's key covers what
-the engine's pixels depend on (render.engine_inputs: its source, packages, page and WebGL backend),
+the engine's pixels depend on (keys.engine_inputs: its source, packages, page and WebGL backend),
 the layout, the legend, the video's assets and its look file, so a stale sheet is told apart from a
 current one. Live and Remotion only.
 """
@@ -40,7 +40,7 @@ def own_file(video):
 
 def look_files(video):
     """The video's look file and every scenes/ file it imports, followed as render follows a scene's."""
-    from .render import _imports
+    from .keys import _imports
     own = own_file(video)
     if own is None:
         return []
@@ -55,12 +55,12 @@ def look_files(video):
 
 def key(video, engine, fmt=None):
     """A hash of what the sheet is drawn from: the engine and what its pixels depend on
-    (render.engine_inputs), the layout, the colour legend, the assets, and the video's look file with
+    (keys.engine_inputs), the layout, the colour legend, the assets, and the video's look file with
     the scene files it imports."""
-    from . import render, settings
+    from . import keys, settings
     h = hashlib.sha256(engine.encode())
-    render.engine_inputs(h, engine, video)
-    render._hash_assets(h, Path(video) / "assets")
+    keys.engine_inputs(h, engine, video)
+    keys._hash_assets(h, Path(video) / "assets")
     h.update(json.dumps(tl.layout(video, fmt), sort_keys=True).encode())
     legend = settings.raw(video).get("legend")
     if legend:

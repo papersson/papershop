@@ -10,7 +10,7 @@ it is shown on the review page and never chosen by publish or frame review.
 import time
 from pathlib import Path
 
-from . import audio, cuts, proc, render, settings
+from . import audio, cuts, keys, proc, render, settings
 from . import timeline as tl
 
 SCALE = 0.5               # animatic stills: 960×540 from a 1080p layout
@@ -73,7 +73,7 @@ def pacing(video, timeline, cut_dir, stills, segs, boards=False):
     chapters = [{"id": c["id"], "title": c["title"], "seconds": round(c["end"] - c["start"], 1)} for c in timeline["tracks"]["scene"]]
     from . import boards as bd
     cov = bd.coverage(video, timeline)
-    on_board = {c["id"] for c in timeline["tracks"]["scene"] if boards or not render.has_scene(video, c["id"])}
+    on_board = {c["id"] for c in timeline["tracks"]["scene"] if boards or not keys.has_scene(video, c["id"])}
     clip_of = {s["id"]: s["clip"] for s in timeline["tracks"]["narration"]}
     report = {
         "seconds": round(timeline["duration"], 1),
