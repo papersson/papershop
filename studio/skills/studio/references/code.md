@@ -48,7 +48,12 @@ still access the host: this is working-directory isolation, not a security sandb
 }
 ```
 
-A step may override `commands`, `timeout` and `cwd`. A command object
+A step may override `commands`, `timeout` and `cwd`. A program that draws (a game, a simulation)
+declares its captures as `outputs` (glob patterns: `["capture/*.png", "trace.jsonl"]`), kept under
+`data/steps/<run>/<step>/` with their digests for the scene to show. Drive it with a fixed time step
+and a replayed input (an `inputs` file), and set `"determinism": true`: the step runs twice and its
+outputs must match byte for byte, or the run fails naming the files that differed. A capture that
+can't be replayed is a picture, not evidence. A command object
 `{"argv": ["…"], "expected_exit": 1}` records an intentional failure. Unexpected failures or
 timeouts stop the sequence and preserve diagnostics. Declare dependency/lock files in inputs;
 include version commands when the toolchain matters. Full-file versions are supported; diffs

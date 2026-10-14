@@ -74,3 +74,28 @@ def test_rust_build_and_run_is_language_neutral(tmp_path):
     manifest.write_text(json.dumps(spec))
     result, _ = steps.run(tmp_path, manifest)
     assert result["ok"] and result["steps"][0]["commands"][-1]["stdout"] == "record 7\n"
+
+
+def test_a_capture_is_kept_and_must_come_out_the_same_twice(tmp_path):
+    """A native program's capture (frames, a trace) is evidence only when a replayed run draws the same:
+    declared outputs are kept with their digests, and with determinism on, a step whose outputs differ
+    between two runs fails, naming them."""
+    import sys
+    v = tmp_path / "v"
+    (v / "real").mkdir(parents=True)
+    fixed = "import pathlib; pathlib.Path('cap').mkdir(); pathlib.Path('cap/f1.txt').write_text('frame 1')\n"
+    noisy = "import pathlib, time; pathlib.Path('cap').mkdir(); pathlib.Path('cap/f1.txt').write_text(str(time.time_ns()))\n"
+    for name, text in (("game.py", fixed), ("noisy.py", noisy)):
+        (v / "real" / name).write_text(text)
+    def manifest(src):
+        m = v / f"{src}.json"
+        m.write_text(json.dumps({"version": 1, "source": {"game.py": f"real/{src}.py"}, "determinism": True,
+                                 "commands": [[sys.executable, "game.py"]],
+                                 "steps": [{"id": "capture", "files": {"game.py": f"real/{src}.py"}, "outputs": ["cap/*.txt"]}]}))
+        return m
+    result, path = steps.run(v, manifest("game"))
+    rec = result["steps"][0]
+    assert result["ok"] and rec["deterministic"] and set(rec["outputs"]) == {"cap/f1.txt"}
+    assert (path.parent / "capture" / "cap" / "f1.txt").read_text() == "frame 1"
+    result, _ = steps.run(v, manifest("noisy"))
+    assert not result["ok"] and result["steps"][0]["nondeterministic"] == ["cap/f1.txt"]

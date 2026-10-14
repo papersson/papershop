@@ -1,4 +1,12 @@
-"""Execute language-neutral full-file program versions; scenes consume the captured artifacts."""
+"""Execute language-neutral full-file program versions; scenes consume the captured artifacts.
+
+A step may declare `outputs`, glob patterns of files its commands write (a native program's
+captured frames, its state trace, a recording), which are kept under data/steps/<run>/<step>/ with
+their digests, so a scene shows what the program really drew. With `"determinism": true` (on the
+manifest or a step) the step runs twice in fresh folders and its outputs must be byte for byte the
+same: a capture driven by a fixed time step and a replayed input is evidence; one that differs run to
+run is recorded as not deterministic and fails the run. Replayed input is an `inputs` file like any
+other, hashed with the run."""
 import hashlib
 import json
 import os
@@ -76,32 +84,17 @@ def run(video, manifest):
         timeout = float(step.get("timeout", spec.get("timeout", 30)))
         if not 0 < timeout <= 3600:
             raise SystemExit("step timeout must be in (0, 3600] seconds")
-        with tempfile.TemporaryDirectory(prefix="studio-step-") as scratch:
-            for name, data in {**input_files, **files}.items():
-                p = inside(scratch, name)
-                p.parent.mkdir(parents=True, exist_ok=True)
-                p.write_bytes(data)
-            cwd = Path(scratch) if step.get("cwd", ".") == "." else inside(scratch, step["cwd"])
-            commands = step.get("commands", spec.get("commands"))
-            if not commands:
-                raise SystemExit(f"step {step['id']} has no commands")
-            rec["ok"] = True
-            for i, command in enumerate(commands):
-                command = {"argv": command} if isinstance(command, list) else command
-                try:
-                    run, stdout, stderr = execute(command["argv"], cwd, timeout)
-                except OSError as e:
-                    run, stdout, stderr = {"argv": command["argv"], "exit": None, "timeout": False, "seconds": 0,
-                                           "stdout": "", "stderr": str(e)}, b"", str(e).encode()
-                run["expected_exit"] = command.get("expected_exit", 0)
-                run["ok"] = not run["timeout"] and run["exit"] == run["expected_exit"]
-                prefix = f"{step['id']}-{i}"
-                (outdir / f"{prefix}.stdout").write_bytes(stdout)
-                (outdir / f"{prefix}.stderr").write_bytes(stderr)
-                rec["commands"].append(run)
-                rec["ok"] &= run["ok"]
-                if not run["ok"]:
-                    break
+        rec["ok"], outputs = _run(step, spec, files, input_files, timeout, rec, outdir)
+        if rec["ok"] and step.get("outputs"):
+            rec["outputs"] = {n: {"sha256": digest(data), "bytes": len(data)} for n, data in sorted(outputs.items())}
+            if not outputs:
+                rec["ok"], rec["outputs_missing"] = False, step["outputs"]
+            elif step.get("determinism", spec.get("determinism")):
+                again = _run(step, spec, files, input_files, timeout, {"commands": []}, None)[1]
+                differ = sorted(n for n in set(outputs) | set(again) if outputs.get(n) != again.get(n))
+                rec["deterministic"] = not differ
+                if differ:
+                    rec["ok"], rec["nondeterministic"] = False, differ[:20]
         result["steps"].append(rec)
         result["ok"] &= rec["ok"]
         if not rec["ok"]:
@@ -112,6 +105,51 @@ def run(video, manifest):
     atomic_json(outdir / "results.json", result)
     atomic_json(root / "index.json", {"results": f"{key}/results.json", "sha256": digest((outdir / "results.json").read_bytes())})
     return result, outdir / "results.json"
+
+
+def _run(step, spec, files, input_files, timeout, rec, outdir):
+    """Run a step's commands in a fresh scratch folder: (ok, {output path: bytes}). Each command's
+    stdout and stderr are kept in `outdir` (None for a determinism rerun), and its declared outputs
+    copied to outdir/<step id>/."""
+    with tempfile.TemporaryDirectory(prefix="studio-step-") as scratch:
+        for name, data in {**input_files, **files}.items():
+            p = inside(scratch, name)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(data)
+        cwd = Path(scratch) if step.get("cwd", ".") == "." else inside(scratch, step["cwd"])
+        commands = step.get("commands", spec.get("commands"))
+        if not commands:
+            raise SystemExit(f"step {step['id']} has no commands")
+        ok = True
+        for i, command in enumerate(commands):
+            command = {"argv": command} if isinstance(command, list) else command
+            try:
+                run, stdout, stderr = execute(command["argv"], cwd, timeout)
+            except OSError as e:
+                run, stdout, stderr = {"argv": command["argv"], "exit": None, "timeout": False, "seconds": 0,
+                                       "stdout": "", "stderr": str(e)}, b"", str(e).encode()
+            run["expected_exit"] = command.get("expected_exit", 0)
+            run["ok"] = not run["timeout"] and run["exit"] == run["expected_exit"]
+            if outdir is not None:
+                prefix = f"{step['id']}-{i}"
+                (outdir / f"{prefix}.stdout").write_bytes(stdout)
+                (outdir / f"{prefix}.stderr").write_bytes(stderr)
+            rec["commands"].append(run)
+            ok &= run["ok"]
+            if not run["ok"]:
+                break
+        outputs = {}
+        if ok:
+            for pattern in step.get("outputs", []):
+                for f in sorted(Path(scratch).glob(pattern)):
+                    if f.is_file() and f.resolve().is_relative_to(Path(scratch).resolve()):
+                        rel = str(f.relative_to(scratch))
+                        outputs[rel] = f.read_bytes()
+                        if outdir is not None:
+                            dst = outdir / step["id"] / rel
+                            dst.parent.mkdir(parents=True, exist_ok=True)
+                            dst.write_bytes(outputs[rel])
+        return ok, outputs
 
 
 def check(video):
