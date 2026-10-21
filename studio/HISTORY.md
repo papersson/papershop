@@ -3,6 +3,15 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A narrative from a present-your-work story (0.12.1)
+
+An article and a video about three weeks of autonomous research passed every check and lost their
+reader: the video's narrative was drafted from the article, which had been built bottom-up from a
+journal and a ledger of claims. When the `present-your-work` plugin has written a `STORY.md` for the
+work (the story card, the background chain and the vocabulary), the narrative stage now starts from
+it instead of drafting its own, and the narrative is approved the same way (`references/propose.md`,
+steps 4 and 5).
+
 ## Performed events, plates, and instructions by job (0.12.0)
 
 Two videos made by another agent, a hard-drive film and an introduction to game development,
