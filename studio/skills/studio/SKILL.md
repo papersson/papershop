@@ -51,7 +51,7 @@ disagree, the one named here for the job wins.
 |---|---|
 | Any job with the user | `references/gates.md`: every decision that is theirs, and how to ask |
 | Setup | `references/setup.md` |
-| A new explainer | `references/propose.md`, `pedagogy.md`, `levels.md` |
+| A new explainer | `references/propose.md`, `pedagogy.md`, `levels.md`; a present-your-work `STORY.md` when the video presents finished work (`propose.md`, step 4) |
 | Build an explainer | `references/explainer.md` and the files its first paragraph names; code: `code.md` |
 | Build another genre | `references/genres/<genre>.md` |
 | Background build | spawn one builder with `prompts/build_agent.md` (fill VIDEO, STUDIO and SKILL_ROOT); relay its reports and the desk's address |

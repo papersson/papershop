@@ -1,0 +1,6 @@
+{
+  "name": "present-your-work",
+  "version": "0.1.0",
+  "description": "Present a stretch of autonomous work to a reader who was not there, at the size the work earned: a few paragraphs in chat after an hour or two, a one-page memo after a day, an article with an appendix and a story for a studio video after a multi-day milestone. The story is fixed on a card of at most 150 words before any prose; the text answers a thesis defense's five questions and ends on the distance to the goal and the ranked next steps; a separate pass only cuts; a standard-library script checks internal labels, definition order and the budgets for words, terms and numbers; a cold reader checks that the story can be retold. Starts from the raw records and the research-time pages GOAL.md, GLOSSARY.md and EXPLAINER.md, never from an earlier presentation.",
+  "author": { "name": "Patrik Persson" }
+}

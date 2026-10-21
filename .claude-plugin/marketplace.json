@@ -39,6 +39,10 @@
     {
       "name": "screenshot-pane",
       "source": "./screenshot-pane"
+    },
+    {
+      "name": "present-your-work",
+      "source": "./present-your-work"
     }
   ]
 }

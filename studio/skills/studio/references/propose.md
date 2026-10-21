@@ -19,10 +19,18 @@ research after they have seen it (`gates.md`).
    unfamiliar general subject, use independent research passes with neutral questions: standard
    examples, prerequisites, mechanisms, assumptions, misconceptions, disputed claims and sources.
    Use fresh contexts when available; record uncertainty rather than inventing independent review.
-4. Draft one learning brief and causal chain. For exhaustive requests, split main-story and
-   reference coverage explicitly. Estimate both durations and justify scope against the target.
+4. Draft one learning brief and causal chain. When the video presents finished work and a
+   present-your-work story file exists for it (`STORY.md` beside the article), start from that file
+   instead of drafting your own: its card gives the opening question and payoff (its question and
+   one-sentence answer) and the model delta's After (its takeaway: the distance to the goal and the
+   next step), its three results the key ideas, its background chain the Chain, its vocabulary the
+   Vocabulary, and its appendix list Cut on purpose. Add what only a video needs: what is on
+   screen, the hero moments and the time. Its numbers keep their sources as Evidence rows. For
+   exhaustive requests, split main-story and reference coverage explicitly. Estimate both
+   durations and justify scope against the target.
 5. Show the narrative and risks for the user's approval, unless they already authorized proceeding
-   without that gate. Author corrections are binding; learner drive additionally needs subject
+   without that gate; a narrative drafted from a story file is approved the same way. Author
+   corrections are binding; learner drive additionally needs subject
    verification. A narrative review may use `studio review VIDEO 1 --narrative FILE`; competing
    narratives are for an explicit thorough investigation, not the default.
 
