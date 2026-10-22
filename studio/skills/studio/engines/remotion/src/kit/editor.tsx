@@ -16,6 +16,18 @@ export type TypingBurst = {
 };
 export type Typing = Record<string, TypingBurst>;
 type Line = {text: string; born: number};
+
+/** data/codeview.json (kit/src/studio_kit/codeview.py is the model; this mirrors its `project`): how the
+ *  teaching shows the program. Times are cue names, or [name, offset seconds]. */
+type When = string | [string, number];
+export type CodeView = {
+	source?: string; open?: [When, When][]; payoff?: When;
+	folds?: {lines: [number, number]; label: string; from?: When; to?: When}[];
+	highlights?: {lines: [number, number]; from: When; to?: When; refer?: When}[];
+	helpers?: {id: string; title: string; text: string; from: When; to: When}[];
+};
+const whenAt = (w: When | undefined, cue: (name: string) => number): number | null =>
+	w === undefined ? null : typeof w === 'string' ? cue(w) : cue(w[0]) + w[1];
 export type EditorState = {
 	lines: Line[]; caret: [number, number] | null; mode: string; modeAt: number; lastKey: number; now: number;
 	burst: TypingBurst; started: boolean;
@@ -90,11 +102,27 @@ function typedLine(text: string, col: number | null) {
  */
 export const Editor: React.FC<{
 	typing: Typing; ids: string[]; at: XY; w: number; rows?: number; size?: number; from?: string[];
-	focus?: string[]; title?: string; opacity?: number; name?: string; means?: string;
-}> = ({typing, ids, at, w, rows = 14, size = 22, from = [], focus = [], title, opacity = 1, name = 'editor', means}) => {
+	focus?: string[]; title?: string; opacity?: number; name?: string; means?: string; view?: CodeView;
+}> = ({typing, ids, at, w, rows = 14, size = 22, from = [], focus = [], title, opacity = 1, name = 'editor', means, view}) => {
 	const s = useStage();
 	const {t, cue, fps} = useClip();
 	const st = editorAt(typing, ids, t, cue, fps);
+	const spans = view?.open;
+	if (spans && !spans.some(([a, b]) => t >= whenAt(a, cue)! && t < whenAt(b, cue)!)) {
+		// collapsed between uses: just the file's title bar, so the stage is free for what is being explained
+		return <>
+			<Panel at={[at[0], at[1] + 0.0]} w={w} h={0.6} opacity={opacity * 0.8} name={`${name} collapsed`} />
+			<Txt at={[at[0] - w / 2 + 0.3, at[1]]} anchor="left" size={16} color={MUTED} opacity={opacity * 0.8}
+				name={`${name} file`}>{title || st.burst.file}</Txt>
+		</>;
+	}
+	const complete = view?.payoff !== undefined && t >= whenAt(view.payoff, cue)!;      // the payoff: everything shows
+	const folds = complete ? [] : (view?.folds ?? []).filter((f) => (f.from === undefined || t >= whenAt(f.from, cue)!)
+		&& (f.to === undefined || t < whenAt(f.to, cue)!));
+	const litLines = new Set<number>();
+	if (!complete) for (const h of view?.highlights ?? []) {
+		if (t >= whenAt(h.from, cue)! && (h.to === undefined || t < whenAt(h.to, cue)!)) for (let n = h.lines[0]; n <= h.lines[1]; n++) litLines.add(n);
+	}
 	const longest = Math.max(20, ...ids.flatMap((id) => [...typing[id].after, ...typing[id].before]).map((l) => l.length));
 	const fit = (w - 1.4) * s.unit / (longest * MONO_ADVANCE * pt(s, 1));
 	const sz = Math.max(MIN_TEXT_PX / pt(s, 1), Math.min(size, fit));
@@ -116,22 +144,31 @@ export const Editor: React.FC<{
 	const msg = /^(WRITTEN|MSG):/.test(st.mode) && age < 2.5 * fps ? st.mode.replace(/^(WRITTEN|MSG):/, '') : null;
 	const written = st.mode.startsWith('WRITTEN:') ? clamp(1 - age / 8) : 0;
 	const base = (st.burst.first ?? 1) - 1;
-	const shown = st.lines.slice(first, first + rows);
+	// rows: each line, or one row for a fold (its label), always in the program's own order
+	type Row = {idx: number; text: string; fold: boolean};
+	const all: Row[] = [];
+	for (let i = 0; i < st.lines.length; i++) {
+		const f = folds.find((x) => x.lines[0] === i + 1 + base);
+		if (f) {all.push({idx: i, text: f.label, fold: true}); i += f.lines[1] - f.lines[0]; continue;}
+		all.push({idx: i, text: st.lines[i].text, fold: false});
+	}
+	const firstRow = Math.max(0, all.findIndex((r) => r.idx >= first));
+	const shown = all.slice(firstRow, firstRow + rows);
 	return <>
 		<Panel at={at} w={w} h={h} opacity={opacity} name={name} />
 		{title !== undefined && <Txt at={[left + 0.3, at[1] + h / 2 - bar / 2]} anchor="left" size={16} color={MUTED} opacity={opacity}
 			name={`${name} file`}>{title || st.burst.file}</Txt>}
-		{shown.map((line, i) => {
-			const n = first + i, y = top - (i + 0.5) * lh;
-			const caretHere = st.caret !== null && st.caret[0] === n && !cmd;
-			const lit = (typing_ && caretHere) || (!typing_ && focus.some((f) => line.text.includes(f)));
+		{shown.map((row, i) => {
+			const n = row.idx, line = row.fold ? {text: row.text, born: -1e6} : st.lines[n], y = top - (i + 0.5) * lh;
+			const caretHere = st.caret !== null && st.caret[0] === n && !cmd && !row.fold;
+			const lit = (typing_ && caretHere) || (!typing_ && (litLines.has(n + 1 + base) || focus.some((f) => line.text.includes(f))));
 			const grow = line.born > -1e5 ? clamp((st.now - line.born + 1) / 3) : 1;
 			return <React.Fragment key={n}>
 				{lit && <Rect at={[at[0], y]} w={w - 0.1} h={lh} fill={mix('#151B22', ICE, 0.12)} opacity={opacity} name={`${name} current line`} />}
 				<Txt at={[left + 0.85, y]} anchor="right" size={sz * 0.8} color={caretHere ? MUTED : FAINT} opacity={opacity * grow}
 					name={`${name} line number ${n + 1 + base}`}>{String(n + 1 + base)}</Txt>
-				<Txt at={[left + 1.1, y]} anchor="left" size={sz} color={INK} opacity={opacity * grow * (focus.length && !lit && !typing_ ? 0.62 : 1)}
-					name={`${name} line ${n + 1 + base}`} means={kitMeans(means, lit)}>{typedLine(line.text, insert && caretHere ? st.caret![1] : null)}</Txt>
+				<Txt at={[left + 1.1, y]} anchor="left" size={sz} color={INK} opacity={opacity * grow * ((focus.length || litLines.size) && !lit && !typing_ ? 0.62 : 1) * (row.fold ? 0.7 : 1)}
+					name={`${name} line ${n + 1 + base}`} means={kitMeans(means, lit)}>{row.fold ? <span style={{color: MUTED}}>{'▸ ' + row.text + ' …'}</span> : typedLine(line.text, insert && caretHere ? st.caret![1] : null)}</Txt>
 				{caretHere && <Rect at={[left + 1.1 + st.caret![1] * adv + (insert ? 0.01 : adv / 2), y]} w={insert ? 0.03 : adv} h={lh * 0.72}
 					fill={INK} opacity={opacity * blink * (insert ? 0.95 : 0.7)} name={`${name} caret`} />}
 			</React.Fragment>;
@@ -140,6 +177,25 @@ export const Editor: React.FC<{
 			opacity={opacity} name={`${name} mode line`} />
 		<Txt at={[left + 0.3, at[1] - h / 2 + bar / 2]} anchor="left" size={16} opacity={opacity} name={`${name} mode`}
 			color={cmd !== null ? INK : msg ? '#7FD18B' : insert ? AMBER : MUTED}>{cmd !== null ? cmd : msg ?? (insert ? '-- INSERT --' : 'NORMAL')}</Txt>
+	</>;
+};
+
+/**
+ * A helper card from data/codeview.json: what a folded or external piece does, shown only between its
+ * `from` and `to`, fading in and out. `id` picks the card.
+ */
+export const HelperCard: React.FC<{view: CodeView; id: string; at: XY; w: number; opacity?: number; name?: string}> =
+({view, id, at, w, opacity = 1, name = 'helper'}) => {
+	const {t, cue} = useClip();
+	const h = view.helpers?.find((x) => x.id === id);
+	if (!h) throw new Error(`no helper ${id} in data/codeview.json`);
+	const a = whenAt(h.from, cue)!, b = whenAt(h.to, cue)!;
+	const o = clamp((t - a) / 0.25) * clamp((b - t) / 0.25);
+	if (o <= 0) return null;
+	return <>
+		<Panel at={at} w={w} h={1.5} opacity={opacity * o} name={name} />
+		<Txt at={[at[0] - w / 2 + 0.3, at[1] + 0.4]} anchor="left" size={20} color={ICE} opacity={opacity * o} name={`${name} title`}>{h.title}</Txt>
+		<Txt at={[at[0] - w / 2 + 0.3, at[1] - 0.2]} anchor="left" size={18} color={INK} opacity={opacity * o} name={`${name} text`}>{h.text}</Txt>
 	</>;
 };
 

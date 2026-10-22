@@ -27,6 +27,16 @@ Remotion scene, `Editor`, `RunTerminal` and `ProgramWindow` from `@studio` repla
 shot shows. Keep the editor and the program window in one shot, and draw what the program shows in
 `ProgramWindow`'s children (a recorded capture, or the scene's own drawing of its state).
 
+### The code view
+
+For a session video (`session.md`) the editor follows `data/codeview.json` (the format and its
+model are at the top of `kit/src/studio_kit/codeview.py`): `<Editor view={codeview} …/>` collapses
+between its `open` spans, shows `folds` as one labelled row each (always in the program's own
+order), lights `highlights` ahead of the words that name them, and from `payoff` shows the whole
+program. `<HelperCard view={codeview} id="…" …/>` draws a helper. `studio check` (code-view) holds
+the ranges, each highlight's lead, a payoff and the program's names closed (every name defined, named
+by a fold's label, or listed in `externals`). Without the file the editor behaves as before.
+
 ## Recorded program steps
 
 `studio steps VIDEO STEPS.json` accepts version 1 manifests. Paths on the right of `files`,

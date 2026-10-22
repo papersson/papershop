@@ -27,6 +27,8 @@
                during a spoken word (audio_check.guard; `studio audio-check` measures the rest of the sound)
   staging      with staging.json: introductions, replays, typing, questions and loops against the narration (staging.py): a
                failure for each named conflict (intro under voice, unsettled, question not held, loop runs on…)
+  code-view    with data/codeview.json: fold and highlight ranges, a highlight's lead before its words, the complete
+               program at the payoff, and every name closed (codeview.py)
   grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
   filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
@@ -499,7 +501,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
     always = ("legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses", "staging"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses", "staging", "code-view"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -515,7 +517,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if "staging" in only or (default and (Path(video) / "staging.json").exists()):
         from . import staging
         preflight += staging.check(video)
-    if only <= {"script", "code-source", "pauses", "staging"}:
+    if "code-view" in only or (default and (Path(video) / "data" / "codeview.json").exists()):
+        from . import codeview
+        preflight += codeview.check(video)
+    if only <= {"script", "code-source", "pauses", "staging", "code-view"}:
         return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))
