@@ -538,3 +538,35 @@ def test_a_close_up_near_the_end_keeps_its_time_scale_and_a_long_sheet_draws(tmp
     loud = np.nonzero((((abs(band[..., 0] - 0x8f) < 30) & (abs(band[..., 1] - 0xd3) < 30) & (band[..., 2] > 200)).sum(axis=0)) > 20)[0]
     assert abs(loud.min() - (9.8 - a) / (b - a) * 1200) < 10, loud
     assert ss.tick_step(25.6) == 2 and ss.tick_step(3000) == 300 and ss.tick_step(30_000) == 1260
+
+
+class SpanStems:
+    """Stems with a span(role, a, b) over one array per role, at 48 kHz."""
+    def __init__(self, **ys):
+        self.ys, self.roles = ys, set(ys)
+
+    def span(self, role, a, b):
+        return self.ys[role][int(a * 48_000):int(b * 48_000)]
+
+
+def test_a_reveal_wants_the_effects_and_music_to_dip_before_it():
+    bed = np.full(6 * 48_000, 0.1, "float32")
+    timeline = {"cues": {"reveal:s1_03": 4.0, "drop": 2.0}}
+    (row,) = audio_check.reveals(SpanStems(music=bed), timeline)
+    assert row["severity"] == "warning" and row["dip_db"] == 0 and row["t"] == 4.0
+    dipped = bed.copy()
+    dipped[int(3.5 * 48_000):int(4.0 * 48_000)] *= 0.1                  # 20 dB down for the last half second
+    (row,) = audio_check.reveals(SpanStems(music=dipped), timeline)
+    assert "severity" not in row and row["dip_db"] == pytest.approx(20, abs=0.5)
+    (row,) = audio_check.reveals(SpanStems(sfx=np.zeros(6 * 48_000, "float32")), timeline)
+    assert row["detail"] == "silent before the reveal at 4.0 s"
+    assert audio_check.reveals(SpanStems(music=bed), {"cues": {"drop": 2.0}}) == []
+
+
+def test_effects_near_a_chapter_cut_are_listed(tmp_path):
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "sfx.json").write_text(json.dumps([{"t": 2.7, "type": "whoosh"}, {"t": 1.0, "type": "click"}]))
+    timeline = {"fps": 30, "cues": {}, "tracks": {"scene": [{"id": "s1", "start": 0.0, "end": 3.0},
+                                                            {"id": "s2", "start": 3.0, "end": 6.0}]}}
+    (row,) = audio_check.crossings(tmp_path, timeline)
+    assert row["detail"] == "fx1 0.30 s before the cut to s2" and row["ok"] and "severity" not in row

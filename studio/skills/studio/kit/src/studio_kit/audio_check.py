@@ -36,6 +36,11 @@ named fxN, their place in audio/sfx.json (sfx.effect_id), in every row, sheet an
             music is what audible and loud measure against; with neither, a row says so
   ducking   music under speech against the music in the pauses (from 0.7 s after a sentence, once the
             duck has let go, in pauses of at least 1 s), warning under DUCK_MIN dB
+  reveal    before each reveal: cue (a prediction's answer), the effects and music in the REVEAL_SPAN s
+            before it against the REVEAL_BEFORE s before that, warning when they dip less than
+            REVEAL_DIP dB, so the answer lands into near-silence (taste/delight.md); silence there passes
+  crossing  each effect within CROSSING s of a chapter cut, before or after it: a sound that arrives
+            before the next chapter's picture carries the viewer over the cut. Listed, never a warning
   masking   per spoken word, the effects and music in 1-4 kHz against the narration in that band,
             warning when they come within MASK_MARGIN dB of it; the closest word is kept either way
   pauses    an effect rising over PAUSE_PEAK dBFS (in the effects stem, at the master's gain, before
@@ -97,6 +102,9 @@ VERBS = {"cut": "cut", "move": "move", "land": "land", "appear": "show something
 # and presence, so every default passes at LOUD_OVER, with 1.3 dB to spare, and a +10 dB gain warns on
 # every voice from confirm (+5.0) up. The untrimmed kit confirm sat at +15.
 LOUD_OVER = 13.5
+REVEAL_SPAN, REVEAL_BEFORE, REVEAL_DIP = 0.5, 1.5, 6.0   # seconds, seconds, dB
+REVEAL_SILENT = -60.0    # dBFS under which the effects and music before a reveal count as silent
+CROSSING = 0.5           # seconds either side of a chapter cut an effect is listed in
 
 
 def _mono(f):
@@ -427,6 +435,49 @@ def ducking(stems, timeline):
         row["severity"] = "warning"
         row["detail"] += f", under {DUCK_MIN:g} dB (video.json sound.duck, or the track's gain)"
     return [row]
+
+
+def reveals(stems, timeline):
+    """Rows: per reveal: cue, how far the effects and music dip in the beat before it."""
+    import numpy as np
+    at = sorted(v for k, v in timeline.get("cues", {}).items() if k.startswith("reveal:"))
+    roles = [r for r in ("sfx", "music") if r in stems.roles]
+    if not at or not roles:
+        return []
+    rows = []
+    for t in at:
+        def level(a, b):
+            y = np.concatenate([stems.span(r, max(0.0, a), b) for r in roles]) if b > max(0.0, a) else np.zeros(0)
+            return _db(float(np.mean(y ** 2))) if y.size else -200.0
+        last, before = level(t - REVEAL_SPAN, t), level(t - REVEAL_SPAN - REVEAL_BEFORE, t - REVEAL_SPAN)
+        row = {"check": "reveal", "clip": "audio", "t": round(t, 2), "ok": True, "dip_db": round(before - last, 1)}
+        if before < REVEAL_SILENT:
+            row["detail"] = f"silent before the reveal at {t:.1f} s"
+        elif before - last < REVEAL_DIP:
+            row |= {"severity": "warning", "detail": f"effects and music dip {before - last:.1f} dB in the {REVEAL_SPAN:g} s before "
+                    f"the reveal at {t:.1f} s; at least {REVEAL_DIP:g} dB lets the answer land into near-silence"}
+        else:
+            row["detail"] = f"effects and music dip {before - last:.1f} dB before the reveal at {t:.1f} s"
+        rows.append(row)
+    return rows
+
+
+def crossings(video, timeline):
+    """Rows: the effects within CROSSING s of a chapter cut, each with which side of it it sits on."""
+    from . import sfx
+    f = Path(video) / "audio" / "sfx.json"
+    cuts = [(c["start"], c["id"]) for c in timeline.get("tracks", {}).get("scene", [])[1:]]
+    if not f.exists() or not cuts:
+        return []
+    near = []
+    for i, p in enumerate(sfx.place(json.loads(f.read_text()), timeline, strict=False)):
+        for at, cid in cuts:
+            if p.time is not None and abs(p.time - at) <= CROSSING:
+                side = "before" if p.time < at else "after"
+                near.append(f"{sfx.effect_id(i)} {abs(p.time - at):.2f} s {side} the cut to {cid}")
+    return [{"check": "crossing", "clip": "audio", "ok": True,
+             "detail": "; ".join(near) if near else f"no effect within {CROSSING:g} s of a chapter cut: a sound "
+                       "arriving before the next chapter's picture carries the viewer over the cut (audio.md)"}]
 
 
 def masking(stems, timeline):
@@ -798,7 +849,7 @@ def run(video, cut=None):
         stale = _stale(video, rec, n)
     rows = (sync(stems, video, timeline, movie if movie and movie.exists() else None, shown, stale)
             + audibility(stems, video, timeline)
-            + ducking(stems, timeline)
+            + ducking(stems, timeline) + reveals(stems, timeline) + crossings(video, timeline)
             + ([] if estimate else masking(stems, timeline) + pauses(stems, timeline)) + loudness(video, record))
     return rows, n if movie else None
 

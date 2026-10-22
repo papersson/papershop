@@ -54,6 +54,10 @@ listening the user does.
   (`kit/src/studio_kit/streams.py`). `studio typing` writes these for typed code; a generator of
   your own (gait contacts, a counter) can too. Generated effects carry `"source"`, and `studio sfx`
   keeps them when it rewrites the rest.
+- **Sound may lead the picture into a chapter.** Editors carry a viewer over a cut by letting the
+  next scene's sound arrive first (a J cut). Anchor the next chapter's first event sound, or its
+  room, on that chapter's first sentence with a negative offset (`{"sentence": "s3_01", "offset":
+  -0.4}`), 0.3 to 0.5 s before its picture; `studio audio-check` lists the effects near each cut.
 - **A bed only when asked.** `studio music VIDEO --bed [--key Am] [--bpm 72]` generates a quiet pad of
   slow chords on a soft pulse, registers it as a music track 20 LU under the voice (so it ducks), and
   writes its beat grid, so `beat_N` and `downbeat_N` cues land on it. No melody: a motif per
@@ -93,6 +97,11 @@ role's sub-bus as it sits in the mix, at the master's level):
 - **ducking**: the music under speech against the music in the pauses; a warning under 6 dB.
 - **masking**: per spoken word, effects and music in 1-4 kHz against the narration there; a warning
   within 10 dB.
+- **reveal**: before each `reveal:` cue, the effects and music in the last 0.5 s against the 1.5 s
+  before; a warning when they dip less than 6 dB, so the answer lands into near-silence
+  (`taste/delight.md`). Silence there passes.
+- **crossing**: the effects within 0.5 s of a chapter cut, and which side of it; listed, never a
+  warning.
 - **pauses** (fails): an effect over -24 dBFS during a spoken word, at the master's gain before its
   limiter; the row names the part of the word it covers and its peak there. `studio check` runs this
   guard whenever there are effects (`audio/sfx.json`, or a `tracks.json` entry with role `sfx`) and
