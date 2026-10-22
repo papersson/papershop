@@ -208,7 +208,8 @@ def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
         elif ev["frame"] >= end or ev["clip"] is None:
             dropped.append({"name": ev["name"], "time": ev["time"], "reason": f"after the video's end ({t['duration']:g} s)"})
         else:
-            out.append(_window(t, unique(ev["name"]), "event", ev["frame"], WINDOW_FRAMES, LEAD, bounds(ev["frame"]), sfx))
+            out.append(_window(t, unique(ev["name"]), "event", ev["frame"], WINDOW_FRAMES, LEAD, bounds(ev["frame"]), sfx)
+                       | {k: ev[k] for k in ("weight", "hitstop") if k in ev})
     lay = lay or tl.layout(video)
     events = list(out)
     for c in t["tracks"]["scene"]:

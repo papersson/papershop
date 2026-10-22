@@ -312,6 +312,12 @@ def _event(c, timeline):
     return tl.describe_anchor(c["t"]) if isinstance(c["t"], dict) else None
 
 
+def _weight(c, cues):
+    """The weight of the cues.json event an effect is placed on (1 to 3), or None."""
+    spec = cues.get(c["t"]) if isinstance(c["t"], str) else c["t"] if isinstance(c["t"], dict) else None
+    return spec.get("weight") if isinstance(spec, dict) else None
+
+
 def _note(pic, frame):
     """An untagged effect's picture note: the nearest motion edge or cut, not judged."""
     if pic == "throughout":
@@ -632,6 +638,8 @@ def effects(video, timeline, rows):
     f = Path(video) / "audio" / "sfx.json"
     if not f.exists():
         return []
+    cf = Path(video) / "cues.json"
+    cues = json.loads(cf.read_text()) if cf.exists() else {}
     out = []
     for i, p in enumerate(sfx.place(json.loads(f.read_text()), timeline, strict=False)):
         if p.time is None:
@@ -653,8 +661,10 @@ def effects(video, timeline, rows):
             flags.append("PAUSE")
         over = next((r["over_loudness_db"] for r in mine if r["check"] == "audible" and "over_loudness_db" in r), None)
         mark = next((r["picture_frame"] for r in mine if "picture_frame" in r), None)
+        weight = _weight(p.cue, cues)
         out.append({"id": eid, "type": p.cue.get("type") or p.sound.id.split(":", 1)[-1], "t": round(p.time, 3),
                     **({"visual": p.cue["visual"]} if p.cue.get("visual") else {}),
+                    **({"weight": weight} if weight else {}),
                     "event": _event(p.cue, timeline) is not None, "flags": flags, "over": over,
                     **({"against": next(r["against"] for r in mine if "against" in r)} if over is not None else {}),
                     **({"picture_frame": mark} if mark is not None else {})})
@@ -662,14 +672,16 @@ def effects(video, timeline, rows):
 
 
 def heroes(found):
-    """The effects that get a close-up and a listen: the tagged ones (the author said the picture does
-    something there), or when none is tagged the ones on named events; and always the loudest. At
-    most HERO_MAX, loudest first."""
-    picked = [e for e in found if e.get("visual")] or [e for e in found if e["event"]]
+    """The effects that get a close-up and a listen: the ones on weight-3 events (the argument hangs on
+    them), the tagged ones (the author said the picture does something there), or when neither the
+    ones on named events; and always the loudest. At most HERO_MAX, weight 3 first, then loudest."""
+    weighty = [e for e in found if e.get("weight") == 3]
+    tagged = [e for e in found if e.get("visual") and e not in weighty]
+    picked = weighty + tagged or [e for e in found if e["event"]]
     loudest = max((e for e in found if e["over"] is not None), key=lambda e: e["over"], default=None)
     if loudest and loudest not in picked:
         picked.append(loudest)
-    return sorted(picked, key=lambda e: -(e["over"] if e["over"] is not None else -999))[:HERO_MAX]
+    return sorted(picked, key=lambda e: (e.get("weight") != 3, -(e["over"] if e["over"] is not None else -999)))[:HERO_MAX]
 
 
 def timecode(t):

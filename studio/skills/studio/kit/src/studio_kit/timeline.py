@@ -29,7 +29,10 @@ and the rest layer on:
                                          "start". A phrase also finds the sentence after a renumbering: the
                                          named sentence when it still says the phrase, else the one sentence
                                          that does. An anchor whose words are gone, or whose phrase several
-                                         sentences say, stops the build naming the cue (event_time)
+                                         sentences say, stops the build naming the cue (event_time).
+                                         An anchor may also carry "weight": 1 | 2 | 3, how much the
+                                         argument hangs on the event (taste/delight.md), and "hitstop":
+                                         frames (2 to 6) the contact holds; neither moves its time
   captions.json        the builder       caption chunks whose words are kept: [{text} or {lines,
                                          wrapped?}] (other formats wrapped from them), each either
                                          anchored, {anchor: {sentence, words?, text?}}, so it follows its
@@ -223,7 +226,9 @@ def half_up(x):
 # --- events: cues.json's named times ---------------------------------------------------------------
 
 AT = ("start", "end", "word", "phrase")
-ANCHOR_KEYS = {"sentence", "at", "word", "phrase", "offset"}
+ANCHOR_KEYS = {"sentence", "at", "word", "phrase", "offset", "weight", "hitstop"}
+WEIGHTS = (1, 2, 3)
+HITSTOP_FRAMES = (2, 6)             # a contact held longer than 6 frames reads as a pause, not a hit
 
 
 def frame_time(t, fps):
@@ -253,6 +258,11 @@ def anchor_problem(spec):
         return "at phrase needs a phrase"
     if not _num(spec.get("offset", 0)):
         return "offset must be seconds"
+    if "weight" in spec and spec["weight"] not in WEIGHTS:
+        return "weight must be 1, 2 or 3"
+    lo, hi = HITSTOP_FRAMES
+    if "hitstop" in spec and not (type(spec["hitstop"]) is int and lo <= spec["hitstop"] <= hi):
+        return f"hitstop must be {lo} to {hi} frames"
     return None
 
 
@@ -352,8 +362,8 @@ def describe_anchor(spec, resolved=None):
 
 
 def events(video, t=None):
-    """Every cue with its resolved time: [{name, time, frame, clip, t, anchor}], in time order.
-    cues.json's carry their anchor; reveal: cues are the timings' holds."""
+    """Every cue with its resolved time: [{name, time, frame, clip, t, anchor, weight?, hitstop?}], in
+    time order. cues.json's carry their anchor; reveal: cues are the timings' holds."""
     t = t or load(video)
     raw = _read(Path(video) / "cues.json") or {}
     rows = []
@@ -368,7 +378,8 @@ def events(video, t=None):
         c = next((c for c in t["tracks"]["scene"] if c["start"] <= at < c["end"]), None)
         rows.append({"name": name, "time": at, "frame": half_up(at * t["fps"]), "clip": c["id"] if c else None,
                      "t": round(at - c["start"], 3) if c else None,
-                     "anchor": "hold end" if name.startswith("reveal:") else describe_anchor(spec, sid) if spec is not None else "seconds"})
+                     "anchor": "hold end" if name.startswith("reveal:") else describe_anchor(spec, sid) if spec is not None else "seconds",
+                     **{k: spec[k] for k in ("weight", "hitstop") if isinstance(spec, dict) and k in spec}})
     return sorted(rows, key=lambda r: (r["time"], r["name"]))
 
 

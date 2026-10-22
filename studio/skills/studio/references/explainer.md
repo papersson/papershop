@@ -132,7 +132,8 @@ Post the boards cut on the desk and give the user the link (`gates.md`).
 While boarding, hunt for the hero moments (`taste/delight.md`): the few events the picture can
 perform with a sound, such as code typed and run, or a contact. Name each in its sentence's screen
 note with what is shown, what is heard and what answers it, so the blocking leaves room for it and
-the polish starts from it. A video with code being written has at least one.
+the polish starts from it, and give its cue `"weight": 3` in `cues.json` (weight 2 for the events
+that earn a consequence). A video with code being written has at least one.
 
 ## Stage 8: The animatic
 
@@ -199,8 +200,8 @@ contact sheet does not establish font size. Fix the significant findings; polish
 ## Stage 11: Polish
 
 Polish is a stage of every explainer, with its own gate. Start from the hero moments named at the
-boards and give them the most time: performed, timed to the words, with their sound
-(`taste/delight.md`). Then, on the blocked chapters, add what makes
+boards and give them the most time: performed, timed to the words, with their sound, and with the
+layers their weight allows (`taste/delight.md`, "Spend feel on meaning"). Then, on the blocked chapters, add what makes
 motion read as physical (`taste/delight.md`, and for a comic `taste/comic.md`): secondary motion (`follow`
 for a label riding a moving token, `settle` for a heavy thing landing, `wobble` for a held picture
 that should feel alive), anticipation before a significant move (a small wind-up, or the camera

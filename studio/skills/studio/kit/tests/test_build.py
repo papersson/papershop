@@ -595,6 +595,7 @@ def test_anchored_cues_resolve_on_the_frame_grid_and_follow_their_words(tmp_path
     ({"sentence": "s1_01", "at": "middle"}, "at must be one of"), ({"sentence": "s1_01", "offset": "1"}, "offset must be seconds"),
     ({"sentence": "s1_01", "when": 1}, "must be seconds or an anchor"), ({"sentence": "s9_01"}, "no sentence s9_01"),
     ({"phrase": "the"}, "'the' is said in s1_01, s1_02"), ({"sentence": "s1_01", "word": 40}, "s1_01 has 8 words, no word 40"),
+    ({"sentence": "s1_01", "weight": 4}, "weight must be 1, 2 or 3"), ({"sentence": "s1_01", "hitstop": 12}, "hitstop must be 2 to 6 frames"),
 ])
 def test_a_bad_or_lost_anchor_stops_the_build_naming_the_cue(tmp_path, spec, error):
     v = explainer(tmp_path)
@@ -602,6 +603,17 @@ def test_a_bad_or_lost_anchor_stops_the_build_naming_the_cue(tmp_path, spec, err
     (v / "cues.json").write_text(json.dumps({"hit": spec}))
     with pytest.raises(SystemExit, match=f"cues.json: (the cue 'hit'|hit) .*{error}"):
         tl.build(v)
+
+
+def test_an_events_weight_and_hitstop_ride_with_it_and_leave_its_time_alone(tmp_path):
+    v = explainer(tmp_path)
+    narration.narrate(v, estimate=True)
+    (v / "cues.json").write_text(json.dumps({"hit": {"sentence": "s1_02"}}))
+    plain = tl.build(v)["cues"]["hit"]
+    (v / "cues.json").write_text(json.dumps({"hit": {"sentence": "s1_02", "weight": 3, "hitstop": 3}}))
+    assert tl.build(v)["cues"]["hit"] == plain
+    ev = next(r for r in tl.events(v) if r["name"] == "hit")
+    assert (ev["weight"], ev["hitstop"]) == (3, 3)
 
 
 def test_an_anchored_cue_counts_only_for_the_clips_that_read_it(tmp_path):

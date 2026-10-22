@@ -367,6 +367,14 @@ def test_the_loud_audit_warns_an_effect_well_over_the_voice(tmp_path, effect, ga
         assert row["detail"].startswith("no effect more than 13.5 dB over the voice's loudness; the loudest, fx1")
 
 
+def test_weight_3_events_are_heroes_first():
+    found = [{"id": "fx1", "type": "pop", "t": 2.0, "event": True, "flags": [], "over": 6.0},
+             {"id": "fx2", "type": "thump", "t": 5.0, "weight": 3, "event": True, "flags": [], "over": -12.0},
+             {"id": "fx3", "type": "chime", "t": 9.0, "visual": "appear", "event": True, "flags": [], "over": -3.0},
+             {"id": "fx4", "type": "click", "t": 9.5, "weight": 1, "event": True, "flags": [], "over": -2.0}]
+    assert [e["id"] for e in audio_check.heroes(found)] == ["fx2", "fx1", "fx3"]     # weight 3, then the loudest and the tagged
+
+
 def test_the_heroes_and_the_listening_timecodes():
     found = [{"id": "fx1", "type": "pop", "t": 2.0, "event": True, "flags": [], "over": -4.0},
              {"id": "fx2", "type": "thump", "t": 5.0, "visual": "land", "event": True, "flags": ["PICTURE"], "over": 2.0},

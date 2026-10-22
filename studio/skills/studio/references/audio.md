@@ -101,7 +101,8 @@ role's sub-bus as it sits in the mix, at the master's level):
 - **loudness**: the master against its target and ceiling, and the web copy's true peak.
 
 It also draws `out/audio-sheet.png` (waveform, spectrogram, sentence bands and a marker per effect,
-red where a row flagged it) and close-ups of the featured effects (the tagged and the loudest) in
+red where a row flagged it) and close-ups of the featured effects (those on weight-3 events first,
+then the tagged and the loudest) in
 `out/audio-sheet/`, with the frame grid and the frame where the picture does what the tag says.
 Look at them before asking for the listen. And it picks about five timecodes for that listen, each
 with its reason: the tagged effect furthest from its picture, the closest masking margin, the

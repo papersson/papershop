@@ -70,3 +70,23 @@ corrected and the window answering each edit, the user's verdict was "much bette
   notice and leave the rest still. It never goes on decoration, title cards or text the viewer is
   reading, and the voice stays on top (`../audio.md`). Clean means no decoration; a performed event
   is the subject, not decoration.
+
+## Spend feel on meaning
+
+Every effect makes a claim. Weight says "this is heavy", a push-in says "look here, this matters",
+a consequence says "this caused that", a held frame says "this is the moment". A claim the subject
+does not make is decoration, however well it is made.
+
+- **Each effect must encode something true**: a cause, a magnitude, or what a thing is. Ask what it
+  encodes before adding it. A held frame on a disk head striking a platter says the strike is
+  physical; the same held frame on a packet claims a mass the packet does not have.
+- **Feel is a budget, spent by weight.** Give each event in `cues.json` a `weight` (an anchor field):
+  how much the argument hangs on it. Weight 1 (the default) is the performed event alone. Weight 2
+  adds a consequence. Weight 3, the hero moments named at the boards, may add proximity and, for a
+  physical subject, weight in time (a hitstop, below). A video where every event gets everything has
+  no emphasis left. `studio audio-check` features the weight-3 effects first, and the motion review
+  checks that each event carries the layers its weight allows, and that every layer passes the
+  encode test.
+- **When effects compete, emotion and story come first**, then rhythm, then where the eye goes
+  (Murch's order for cutting). In an explainer, read emotion as what the viewer must feel to care
+  about the question.
