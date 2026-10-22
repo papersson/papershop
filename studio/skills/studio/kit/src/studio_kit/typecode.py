@@ -357,7 +357,7 @@ def build(video, plan, report=None):
         item = {"cue": cue, "clip": spec["clip"], "file": spec["name"], "before": sources[spec["before"]] if spec.get("before") else [],
                 "after": b.after, "steps": [[rel(f), kind, fx] for f, kind, fx, _ in keys], "end": rel(keys[-1][0]),
                 "first": src.get("first", 1) if isinstance(src, dict) else 1}
-        events = [[round(s - keys[0][3], 4), kind] for _, kind, _, s in keys]
+        events = [[round((f - f0) / fps, 4), kind] for f, kind, _, _ in keys]       # the displayed frame is the time
         if run:
             cues[cue + "-run"] = sentence_anchor(T, run["enter"] / fps)
             cues[cue + "-pop"] = sentence_anchor(T, run["pop"] / fps)
@@ -366,7 +366,7 @@ def build(video, plan, report=None):
             events += [[round((run["up"] - f0) / fps, 4), "key"], [round((run["enter"] - f0) / fps, 4), "enter"]]
             events += [[round((f - f0) / fps, 4), "tick"] for f, _ in run["log"]]
         data[spec["id"]] = item
-        streams.append({"t": cue, "type": "key-tick", "stream": f"typing:{spec['id']}", "events": sorted(events),
+        streams.append({"t": cue, "type": "key-tick", "stream": f"typing:{spec['id']}", "events": sorted(events), "exact": True,
                         "sounds": plan.get("sounds", SOUNDS), "source": SOURCE})
         report.append(f"{spec['id']}: {sum(1 for k in keys if k[1] != 'tick')} keys, {keys[0][3]:.2f}-{keys[-1][3]:.2f} s"
                       + (f", run Enter {run['enter'] / fps:.2f} s, window {run['pop'] / fps:.2f} s" if run else ""))

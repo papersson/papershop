@@ -16,7 +16,7 @@ brightest, for a backspace). Either may be {"sound", "gain"} for its own level a
 
 How it sounds is the point (references/taste/delight.md): every event plays a different variant than
 the one before it of its kind, a little higher or lower and louder or softer, a few milliseconds off
-the grid; crowded events thin out (above DENSE events a second each is quieter, so fast typing is a
+the grid (not when the stream is "exact": true, as typed keys are, which sit on their frames); crowded events thin out (above DENSE events a second each is quieter, so fast typing is a
 texture, not a louder one); and an event under a spoken word steps back by `under_speech` dB, so the
 voice stays on top and keys in a pause come forward. The stream's sound is one Sound whose contact is
 its cue, so placing, the track's key and audio-check's sync treat it as one effect.
@@ -114,8 +114,9 @@ def sound(c, at, timeline, video=None):
     under = c.get("under_speech", UNDER_SPEECH)
     kinds = {k: spec(v) for k, v in c["sounds"].items()}
     jitter = c.get("jitter", True) is not False
+    exact = c.get("exact") is True        # events sit on their frames: pitch and gain vary, timing does not
     members = {k: [resolve({**m, "type": c.get("type")}, video=video) for m in ms] for k, (ms, _, _) in kinds.items()}
-    digest = _digest("stream", STREAM_VERSION, SEED, label, events, words, under, jitter,
+    digest = _digest("stream", STREAM_VERSION, SEED, label, events, words, under, jitter, exact,
                      {k: [[s.digest for s in members[k]], g, part] for k, (_, g, part) in kinds.items()})
 
     def make():
@@ -140,7 +141,7 @@ def sound(c, at, timeline, video=None):
                 y = np.interp(np.arange(0, len(y) - 1, p), np.arange(len(y)), y)
                 hit = int(hit / p)
                 level += rng.uniform(-GAIN, GAIN)
-                off = off + rng.uniform(-TIMING, TIMING)
+                off = off if exact else off + rng.uniform(-TIMING, TIMING)
             near = sum(1 for t in times if abs(t - off) <= 0.18)
             rate = near / 0.36
             level -= 6.0 * math.log2(rate / DENSE) if rate > DENSE else 0.0
@@ -179,7 +180,15 @@ def _variants(sounds, part):
     if g is None:
         raise SystemExit(f"grains selector #{part}: low, mid, high or none")
     peak = 10 ** (GRAIN_PEAK / 20)
-    return [(y / (np.abs(y).max() + 1e-9) * peak, int(TIMING * RATE)) for _, y in g]
+    return [(y / (np.abs(y).max() + 1e-9) * peak, attack(y)) for _, y in g]
+
+
+def attack(y, share=0.25):
+    """The sample where a grain's transient starts: the first to reach `share` of its peak. The grain
+    is cut a little before the detected onset, so its real attack is measured, not assumed."""
+    import numpy as np
+    a = np.abs(y)
+    return int(np.argmax(a >= share * (a.max() + 1e-12)))
 
 
 def onsets(x, rate):
