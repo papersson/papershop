@@ -74,7 +74,8 @@ disagree, the one named here for the job wins.
   "go ahead" covers the next gate only (`gates.md`). A final cut and publish need their recorded
   approval of a cut.
 - **The desk is how the user sees the video.** Start it early and give them its address; never
-  send a raw MP4 or a viewer of your own.
+  send a raw MP4 or a viewer of your own. Where no server may run, `studio review-export` writes the
+  sanctioned static page (`desk.md`).
 - **Evidence:** every asserted number or behavior has an Evidence row; recorded code and data
   drive the scenes.
 - **Independent review:** content is judged by fresh reviewers the main session dispatches, never

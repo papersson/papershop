@@ -3,6 +3,51 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Session videos (0.14.0)
+
+Three videos of the user's own game-programming sessions, the last rebuilt as a visual-first
+"two clocks", showed what a modest learning video needs and what the studio's defaults got in the
+way of: voice talking over a mechanism the first time it appeared, a perpetual loop behind the next
+idea, a polish stage and several review rounds for a cut nobody would publish, a fallback pipeline
+written beside the kit when no browser could start, and a hand-made typed-code editor with keys
+that did not land on their frames. The user's corrections were about pacing and staging far more
+than about animation.
+
+- **Session delivery.** `delivery: session` (`studio new --delivery session`; `references/session.md`
+  is its one home): one review cycle (`max_rounds` and `motion_rounds` default to 1), a 540p desk
+  cut, one beat preview in place of boards and animatic, polish and hero embellishments on request,
+  a beat table before the prose, full "we" narration over a settled picture. Delight and the motion
+  review now ask for introduce, settle, explain for a session video; an unconditional "motion starts
+  with its sentence" stays for polished work. The final viewing and listening is the user's, and the
+  receipt records who (`review-status … --by`).
+- **Timeline repairs.** Narrated and silent-clip timelines keep `layout.json`'s frame rate (they
+  restored 30 fps). The encoded soundtrack is written aside, checked against the video's length and
+  then promoted; a truncated file left by an interrupted run is no longer reused.
+- **Keys on their frames.** A typed key's sound time comes from its displayed frame, typing streams
+  are `"exact"` (pitch and level vary, timing does not), and each grain's attack is measured instead
+  of assumed.
+- **Staging checks.** `staging.json` declares introductions, replays, typing, questions and loops
+  with cues.json times; `studio check` names each conflict with the narration (intro under voice,
+  unsettled, question not held, loop runs on). The hundreds of pacing warnings become one per
+  stretch of crowded moves.
+- **The code view.** `data/codeview.json`: the Remotion `Editor` collapses between uses, shows folds
+  in source order, lights lines before the words that name them, draws helper cards (`HelperCard`)
+  and ends on the whole program. The `code-view` check holds ranges, highlight lead, the payoff
+  and the closure of every name.
+- **A cairo engine.** `"engine": "cairo"` draws still, render, boxes and duration natively (Python
+  scenes, pycairo, ffmpeg), with no browser and no local port, and declares what it does not do.
+  Engines list their capabilities; preflight checks pycairo and cached Kokoro weights without the
+  network (`STUDIO_OFFLINE=1`); reviewers can come from `STUDIO_REVIEW_COMMAND` and are recorded as
+  unavailable when there is none.
+- **Imported cuts.** `studio import-cut` takes an MP4 and timeline from elsewhere, checked to agree,
+  with an identity of media and timeline hashes. `review-export` writes a static review page, and
+  `notes-export`/`notes-import` carry notes only onto a cut with the same media. Approvals and
+  listenings of an imported cut lapse when its media is replaced.
+
+Not yet tried on a real video: the cairo scene API is minimal (rectangles, text, lines), the staging
+numbers (1 s settle, 2 s question, 0.6 s lead) are starting values, and the code view's Remotion
+changes are type-checked but unrendered.
+
 ## Feel spent on meaning (0.13.0)
 
 An analysis of studio against game feel, film editing, sound design and multimedia learning found

@@ -357,11 +357,17 @@ def main_status(args):
     at = getattr(args, "at", None)
     if at and kind.name != "listen":
         raise SystemExit("--at names the timecodes of a listening: review-status VIDEO listen passed --at …")
+    by = getattr(args, "by", None)
+    if kind.name in ("listen", "approval") and not by and settings.load(args.video).get("delivery") == "session":
+        raise SystemExit("a session video's receipt records who watched and listened: add --by NAME (the person, not the builder)")
     if kind.name == "approval":
-        return approve(args.video, getattr(args, "cut", None), args.reason)
+        return approve(args.video, getattr(args, "cut", None), args.reason, by)
     extra = motion_waiver(args.video, args.reason or "") if kind.name == "motion" else {}
     if kind.name == "listen":
-        extra |= listened(args.video, at)
+        extra |= listened(args.video, at) | {"by": by}
+        imported = imported_cut(args.video)
+        if imported:       # the listening is of this movie's sound; a replaced movie voids it
+            extra["media"] = imported["identity"]["media"]
     if kind.scope == "frames" and (Path(args.video) / "timeline.json").exists():
         from . import timeline      # what the frames showed, so a stale receipt can say which clips changed
         extra["review_keys"] = review_keys(args.video, timeline.load(args.video))
@@ -371,7 +377,13 @@ def main_status(args):
           + (f", at {', '.join(m['at'] for m in extra['timecodes'])}" if extra.get("timecodes") else ""))
 
 
-def approve(video, cut, words):
+def imported_cut(video):
+    """The latest rendered cut's record when it was imported (imported.py), else None."""
+    _, rec = cuts.resolve(video)
+    return rec if rec and rec.get("imported") else None
+
+
+def approve(video, cut, words, by=None):
     """Record the user's approval of cut N (the latest rendered one by default) in their words: the
     frames revision the cut recorded is what they approved."""
     if not words:
@@ -379,16 +391,23 @@ def approve(video, cut, words):
     n, rec = cuts.resolve(video, cut)
     if rec is None or cuts.kind(rec) not in cuts.RENDERED or not rec.get("source_revision"):
         raise SystemExit(f"cut {n or '?'} is not a rendered cut with a revision; the user approves a cut they watched")
-    record(video, "approval", rec["source_revision"], "passed", words, cut=n)
-    stale = rec["source_revision"] != revision(video, KINDS["approval"])
+    record(video, "approval", rec["source_revision"], "passed", words, cut=n, by=by)
+    stale = rec["source_revision"] != current_approval_revision(video)
     print(f"approval: cut {n}, in the user's words: {words}"
           + ("\nwarn: the sources changed since that cut, so a final render still waits: cut again and show them" if stale else ""))
+
+
+def current_approval_revision(video):
+    """What an approval must match to stand: the sources' frames revision, or for an imported cut the
+    cut's own identity (its media and timeline), so approving cut 6 never certifies a replaced cut 7."""
+    imported = imported_cut(video)
+    return imported["source_revision"] if imported else revision(video, KINDS["approval"])
 
 
 def require_approval(video):
     """The user's standing approval of the picture a final render would show, or SystemExit saying
     how to get it. Agreeing to a stage of work is not approving a final."""
-    rec, current = read(video, "approval"), revision(video, KINDS["approval"])
+    rec, current = read(video, "approval"), current_approval_revision(video)
     if rec.get("status") == "passed" and rec.get("revision") == current:
         return rec
     why = (f"the approved cut {rec.get('cut')} is older than the sources" if rec.get("status") == "passed"
@@ -442,6 +461,12 @@ def listening(video, timeline):
     listening recorded for this mix. A narration alone does not need one. Where to listen is
     audio_check.listen_hint's."""
     from . import timeline as tl
+    imported = imported_cut(video)
+    if imported:
+        rec = read(video, "listen")
+        if rec.get("status") in KINDS["listen"].settled and rec.get("media") == imported["identity"]["media"]:
+            return None
+        return "nobody has listened to this imported cut's sound" + (" (the recorded listening was of other media)" if rec else "")
     if not {tl.audio_role(e) for e in timeline["tracks"]["audio"]} & {"sfx", "music"}:
         return None
     from .audio import MixUnavailable

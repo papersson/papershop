@@ -110,6 +110,10 @@ publish refuses it.
 With effects or music, the user listens once to the finished mix at the timecodes audio-check
 chose, and the builder records it: `audio.md`, Heard once.
 
+Both the listening and the approval take `--by NAME`, the person who watched and listened, and the
+receipt keeps it with the time; a session video requires it. Nothing infers it from automated checks.
+For an imported cut (`desk.md`) both are bound to that cut's media and lapse when it is replaced.
+
 ## The user's approval
 
 A final render is the user's call. Agreeing to a stage of work ("go ahead with the expansion") is

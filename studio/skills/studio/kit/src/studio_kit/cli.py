@@ -267,6 +267,18 @@ COMMANDS = {
         V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
         P("--result", help="review response including its REVISION and MOTION verdict"),
     ], "motion_review:main"),
+    "import-cut": ("a cut rendered elsewhere: its MP4 and timeline, checked to agree and recorded with an identity", [
+        V("video"), P("movie"), P("--timeline", required=True), P("--provenance"), A("--producer"),
+    ], "imported:main_import"),
+    "review-export": ("a static page (no server) to watch a cut and write notes, with the cut's movie", [
+        V("video"), A("--cut", type=int), P("--out"),
+    ], "imported:main_review_export"),
+    "notes-export": ("a cut's notes with the cut's identity, as JSON", [
+        V("video"), A("--cut", type=int), P("--out"),
+    ], "imported:main_notes_export"),
+    "notes-import": ("notes from a notes-export, only onto a cut with the same media", [
+        V("video"), P("file"),
+    ], "imported:main_notes_import"),
     "review-status": ("record an unavailable or explicitly waived review, the user's listening check, or the user's "
                       "approval of a cut for its final render", [
         V("video"), A("role", type=reviews.role, choices=reviews.ROLES,
@@ -278,6 +290,7 @@ COMMANDS = {
         A("--at", help="listen: the timecodes listened at, comma-separated (m:ss.s or seconds); default: the ones "
                        "studio audio-check chose for this mix"),
         A("--cut", type=int, help="approval: the cut the user approved (default: the latest rendered cut)"),
+        A("--by", help="listen or approval: who watched and listened (required for a session video)"),
     ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
         W("video"), A("clip"), A("t", type=float), P("--out", required=True),

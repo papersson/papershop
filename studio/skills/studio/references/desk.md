@@ -5,6 +5,17 @@ shape on the desk, a local page beside the terminal, and leave notes on single s
 builder takes each note as it arrives and answers under it. It is opt-in (`"mode": "interactive"` in
 video.json, or the user asks to follow along). In background mode nothing here waits on the user.
 
+## Where the desk cannot run, or the cut was made elsewhere
+
+`studio import-cut VIDEO MOVIE --timeline FILE` takes an MP4 and the timeline it was made to from
+any renderer, checks that their length, frame rate and chapters agree, and records the cut with an
+identity (the media's hash and the timeline's). The desk plays it like any cut. Where no local
+server may run, `studio review-export VIDEO` writes a folder with the movie and a static page: the
+user watches, writes notes against the narration, and downloads `notes.json`; `studio notes-import
+VIDEO notes.json` adds them to the cut with the same media and refuses any other. Notes never move
+to a cut with different timing. Source-level regeneration is optional for an imported cut, and an
+approval or listening of an imported cut is void as soon as its media is replaced.
+
 ## Setting up
 
 1. Run `studio desk VIDEO` in the background and give the user its address. On the live engine in
