@@ -249,10 +249,11 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     from . import plates
     if clip_id in plates.config(video):
         part["plate"] = plates.key(video, timeline, clip_id, "final" if quality == "final" else "draft")
-    # The one part of video.json a scene reads as it draws: live scenes get the colour legend as
-    # c.legend. Left out when there is none, so a video without one keeps its keys.
-    if engine == "live" and settings.raw(video).get("legend"):
-        part["legend"] = settings.raw(video)["legend"]
+    # The parts of video.json a scene reads as it draws: live scenes get the colour legend as
+    # c.legend and the motion setting as c.motion. Each is left out when unset, so a video without
+    # it keeps its keys.
+    if engine == "live":
+        part |= {k: settings.raw(video)[k] for k in ("legend", "motion") if settings.raw(video).get(k)}
     h.update(json.dumps(part, sort_keys=True).encode())
     return h.hexdigest()[:16]
 

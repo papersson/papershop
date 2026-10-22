@@ -122,6 +122,18 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     assert [r.get("skipped") for r in motion.pacing(tmp_path, eng, stills=False)] == [None, True]
 
 
+def test_a_short_hold_at_a_hitstop_is_meant_and_not_a_warning(tmp_path, monkeypatch):
+    """A contact held for three frames stops the picture between two runs of change; the cue says so."""
+    pad = [0.0] * 8
+    sig = at(pad + [0.9, 1.0, 0.0, 0.9, 1.0] + pad)                 # moves at 0.8-1.0 and 1.1-1.3 s
+    monkeypatch.setattr(motion, "pacing_signal", lambda *a, **k: {"s1": sig})
+    events = [{"name": "hit", "clip": "s1", "t": 1.0}]
+    monkeypatch.setattr(motion.tl, "events", lambda video, t=None: events)
+    assert motion.pacing(tmp_path)[0]["severity"] == "warning"
+    events[0]["hitstop"] = 3
+    assert "severity" not in motion.pacing(tmp_path)[0]
+
+
 def test_pacing_samples_stills_where_no_clip_is_rendered(tmp_path):
     make_video(tmp_path)
     eng = StageEngine({"s1": stage(0.5, 0.8), "s2": stage(0.5, 1.2)})

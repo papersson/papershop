@@ -337,15 +337,18 @@ def is_cut(signal, frame):
 def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
     """Rows: a warning at every hold shorter than `hold` between two significant moves of a clip,
     else a passing row per clip; a clip with no rendered video, when stills are not to be rendered,
-    is skipped. Ground truth is the rendered stage (pacing_signal)."""
+    is skipped. A short hold with a hitstop cue in it is meant (a contact held a few frames), not a
+    warning. Ground truth is the rendered stage (pacing_signal)."""
     rows = []
+    held = [(e["clip"], e["t"]) for e in tl.events(video) if e.get("hitstop") and e["clip"]]
     for cid, signal in pacing_signal(video, engine, clips, stills).items():
         if signal is None:
             rows.append({"check": "pacing", "clip": cid, "ok": True, "skipped": True,
                          "detail": "no rendered clip for these scenes: `studio cut` renders one; `--only pacing` samples stills (slower)"})
             continue
         found = moves(signal)
-        short = [(a, b) for a, b in zip(found, found[1:]) if b[0] - a[1] < hold - 1e-6]
+        short = [(a, b) for a, b in zip(found, found[1:]) if b[0] - a[1] < hold - 1e-6
+                 and not any(c == cid and a[1] - 1 / PACING_FPS <= h <= b[0] + 1 / PACING_FPS for c, h in held)]
         for a, b in short:
             rows.append({"check": "pacing", "clip": cid, "t": a[1], "ok": True, "severity": "warning",
                          "detail": f"{b[0] - a[1]:.1f} s hold between the move at {a[0]:.1f}-{a[1]:.1f} s and the one "

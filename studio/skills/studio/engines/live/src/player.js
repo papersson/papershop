@@ -24,6 +24,8 @@
 //   cue(name, off)   a timeline cue; P(t0, d, ease) progress of a movement; kit: the helpers
 //   legend           the video's colour legend (video.json legend) as meaning -> CSS colour: draw a
 //                    meaning with {stroke: c.legend.request, means: 'request'} and the legend check sees it
+//   motion           'full' or 'reduced' (video.json motion): the feel helpers drop shake and hitstop
+//                    when reduced (templates/live/scenes/example-feel.js)
 //   clip, index, chapters, timeline, layout, asset(file)
 //   plate(o)         draw the chapter's plate behind everything (video.json plates: Blender renders it,
 //                    the kit's plates.py), filling the stage above the band; plate.at(name) is a projected
@@ -77,7 +79,7 @@ async function exists(url) {
 
 export async function boot({ svg, canvas, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
-  let T, L, scenes, overlay, boards, notes, legend, colours, plates, platePoints, version = 0
+  let T, L, scenes, overlay, boards, notes, legend, colours, motion, plates, platePoints, version = 0
   // Images a frame draws (a plate) are decoded before the frame counts as drawn, so a still never
   // catches a plate half loaded: draw() returns a promise while any is pending.
   const decoded = new Map()
@@ -89,7 +91,9 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     L = layoutUrl ? await json(layoutUrl, DEFAULT_LAYOUT) : DEFAULT_LAYOUT
     boards = await json(base + 'boards/boards.json', {})
     notes = await json(base + 'boards/notes.json', {})
-    legend = (await json(base + 'video.json', {})).legend ?? {}
+    const video = await json(base + 'video.json', {})
+    legend = video.legend ?? {}
+    motion = video.motion ?? 'full'
     colours = legendColours(legend)
     plates = await json(base + '.cache/plates/index.json', {})
     platePoints = {}
@@ -133,7 +137,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     const H = bandTop(), header = L.header?.height ?? 0
     return {
       S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: viewOf(), layout: L,
-      legend: colours,
+      legend: colours, motion,
       // S.cam centres the whole frame; a key's point goes to the middle of the view instead.
       camAt: (keys, e) => {
         const k = kit.camAt(t, keys, e)

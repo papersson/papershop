@@ -61,7 +61,8 @@ export const DEMOS = {
   'strike-through': (S, t) => ['replay grows', 'capped by memory', 'one machine'].forEach((x, i) => { S.text(`st${i}`, 60, 70 + i * 60, `✗ ${x}`, { size: 24, mono: true, fill: bad }); S.strike(`sl${i}`, 60, 60 + 14.5 * (x.length + 2), 70 + i * 60, prog(t, stagger(0.4, i, 0.6), 0.4), { stroke: good }) }),
   'pulse': (S, t) => S.circle('pl', 240, 135, 40 + 18 * pulse(t % 1.2, 0.2, 0.6), { fill: log }),
   'flash': (S, t) => { S.rect('fb', 80, 60, 320, 150, { fill: 'var(--bg3)', stroke: 'var(--line)', sw: 2, r: 10 }); S.rect('ff', 80, 60, 320, 150, { fill: '#fff', r: 10, op: pulse(t, 1.0, 0.5) * 0.85 }) },
-  'shake': (S, t) => { const d = Math.sin(t * 60) * 8 * pulse(t, 1.0, 0.8); S.rect('sk', 160 + d, 80, 160, 110, { fill: 'var(--bg3)', stroke: t > 1 ? bad : 'var(--line)', sw: 3, r: 12 }) },
+  'shake': (S, t) => { const tr = t < 1 || t > 1.5 ? 0 : (1 - (t - 1) / 0.5) ** 2, d = 12 * tr * wobble(t, 1, 8, 3); S.rect('sk', 160 + d, 80 + 12 * tr * wobble(t, 1, 8, 4), 160, 110, { fill: 'var(--bg3)', stroke: t > 1 ? bad : 'var(--line)', sw: 3, r: 12 }) },
+  'hitstop': (S, t) => { const hit = 1.0, held = t < hit ? t : t < hit + 0.1 ? hit : t < hit + 0.35 ? hit + (t - hit - 0.1) * 0.35 / 0.25 : t, y = 40 + 150 * clamp(held / hit) ** 2; S.rect('hf', 60, 210, 360, 8, { fill: 'var(--line)' }); S.rect('hs', 200, Math.min(y, 150), 80, 60, { fill: 'var(--bg3)', stroke: t > hit ? hot : 'var(--line)', sw: 3, r: 8 }) },
   'count-up': (S, t) => S.text('cu', 240, 140, countUp(t, 0.3, 2, 0, 6, v => `${v.toFixed(1)} h`), { size: 64, weight: 700, anchor: 'middle', mono: true, fill: bad }),
   'dim the rest': (S, t) => [0, 1, 2].forEach(i => S.rect(`dr${i}`, 60 + i * 140, 90, 110, 90, { fill: 'var(--bg3)', stroke: i === 1 ? hot : 'var(--line)', sw: 3, r: 10, op: i === 1 ? 1 : lerp(1, 0.2, prog(t, 0.6, 0.8)) })),
   'keyframe': (S, t) => {

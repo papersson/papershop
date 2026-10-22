@@ -53,6 +53,9 @@ keys without a default are simply absent when unset (callers use .get).
                      slower per 3D frame than the GPU. gpu is this machine's GPU (Metal on macOS):
                      3D frames cost what 2D ones do, but its pixels differ from the CPU's, 2D ones
                      included, so clips are keyed on it (keys.engine_inputs)     default "cpu"
+  motion             full | reduced: reduced takes shake and hitstop out of every scene that uses
+                     the feel helpers (templates/live/scenes/example-feel.js), for viewers sensitive to
+                     motion; live scenes read it as c.motion, so clips are keyed on it  default "full"
   sound              {"room": 1.0, "duck": true, "presence": true}: the mix's processing of effects
                      and music (audio.py): room scales their shared room's reflections (0 or false:
                      off, up to 2), duck lowers music under the narration, presence dips their 1-4 kHz
@@ -71,6 +74,7 @@ DEFAULTS = {
     "checkpoints": "few",
     "keep_cuts": 10,
     "gl": "cpu",
+    "motion": "full",
 }
 
 MODES = ("background", "interactive")
@@ -81,6 +85,7 @@ CHOICES = {
     "level": ("intro", "deep-dive"),
     "tone": ("plain", "comic"),
     "gl": ("cpu", "gpu"),
+    "motion": ("full", "reduced"),
 }
 
 
