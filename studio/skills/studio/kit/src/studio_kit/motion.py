@@ -395,6 +395,18 @@ def is_cut(signal, frame):
     return frame in cuts(signal)
 
 
+def _runs(short, gap=2.0):
+    """Short holds [(move, next move)] grouped into stretches: a hold starts a new stretch when the
+    move before it ended more than `gap` s after the last stretch's final move began."""
+    out = []
+    for pair in short:
+        if out and pair[0][1] - out[-1][-1][1][0] <= gap:
+            out[-1].append(pair)
+        else:
+            out.append([pair])
+    return out
+
+
 def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
     """Rows: a warning at every hold shorter than `hold` between two significant moves of a clip,
     else a passing row per clip; a clip with no rendered video, when stills are not to be rendered,
@@ -410,10 +422,16 @@ def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
         found = moves(signal)
         short = [(a, b) for a, b in zip(found, found[1:]) if b[0] - a[1] < hold - 1e-6
                  and not any(c == cid and a[1] - 1 / PACING_FPS <= h <= b[0] + 1 / PACING_FPS for c, h in held)]
-        for a, b in short:
-            rows.append({"check": "pacing", "clip": cid, "t": a[1], "ok": True, "severity": "warning",
-                         "detail": f"{b[0] - a[1]:.1f} s hold between the move at {a[0]:.1f}-{a[1]:.1f} s and the one "
-                                   f"at {b[0]:.1f} s; hold at least {hold} s after a move"})
+        for run in _runs(short):       # one warning per stretch of crowded moves, not one per gap
+            a, b = run[0][0], run[-1][1]
+            if len(run) == 1:
+                detail = (f"{b[0] - a[1]:.1f} s hold between the move at {a[0]:.1f}-{a[1]:.1f} s and the one "
+                          f"at {b[0]:.1f} s; hold at least {hold} s after a move")
+            else:
+                worst = min(y[0] - x[1] for x, y in run)
+                detail = (f"{len(run)} holds under {hold} s between {a[0]:.1f} and {b[0]:.1f} s (shortest {worst:.1f} s): "
+                          f"moves crowded together; space them or merge them into one")
+            rows.append({"check": "pacing", "clip": cid, "t": a[1], "ok": True, "severity": "warning", "detail": detail})
         if not short:
             rows.append({"check": "pacing", "clip": cid, "ok": True,
                          "detail": f"{len(found)} significant moves, each held at least {hold} s"})

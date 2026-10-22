@@ -55,6 +55,10 @@ instead of captioning movement.
   when the next concept starts, unless the repetition is the subject.
 - **No typing under speech.** Highlight the line to be discussed about 0.6 s before the sentence
   that refers to it; the voice never talks over keystrokes.
+- **Declare it in `staging.json`** (beside cues.json; the format is at the top of
+  `kit/src/studio_kit/staging.py`): intros, replays, typing, questions and loops with cues.json times.
+  `studio check` (or `--only staging`) names each conflict with the narration, and a re-voiced
+  narration reports what stopped fitting instead of passing.
 - These numbers are starting values for this policy, tuned by watching, not universal laws. Other
   genres keep their own grammar.
 
