@@ -2,7 +2,7 @@
 
 Query your Claude Code transcripts as a personal work history. worklog keeps an
 incremental DuckDB index of *distilled* transcript events — prose, files edited
-vs read, commands, session titles — and exposes it through reports, ranked
+vs read, commands, tool names (incl. MCP), session titles — and exposes it through reports, ranked
 search, and per-task dossiers. A companion skill drives the index and writes the
 synthesis.
 

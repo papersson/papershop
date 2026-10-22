@@ -37,7 +37,7 @@ PROJECTS = Path.home() / ".claude" / "projects"
 # DB location is overridable so the nix wrapper can point it at the XDG cache
 # while the uv/non-nix path keeps the default under ~/.claude.
 DB_PATH = Path(os.environ.get("WORKLOG_DB", Path.home() / ".claude" / "worklog.duckdb"))
-SCHEMA_VERSION = 3          # bump to force a full rebuild on distillation changes
+SCHEMA_VERSION = 4          # bump to force a full rebuild on distillation changes
 MAX_LINE_BYTES = 2 * 1024 * 1024
 TEXT_CAP = 4000
 HAY_CAP = 8000
@@ -59,13 +59,13 @@ CREATE TABLE IF NOT EXISTS events (
     id BIGINT DEFAULT nextval('events_id_seq'),
     path VARCHAR, session VARCHAR, project VARCHAR, branch VARCHAR,
     ts VARCHAR, role VARCHAR, is_sidechain BOOLEAN,
-    text VARCHAR, edits VARCHAR, reads VARCHAR, commands VARCHAR, hay VARCHAR
+    text VARCHAR, edits VARCHAR, reads VARCHAR, commands VARCHAR, tools VARCHAR, hay VARCHAR
 );
 CREATE TABLE IF NOT EXISTS titles   (session VARCHAR PRIMARY KEY, title VARCHAR);
 CREATE TABLE IF NOT EXISTS ingested (path VARCHAR PRIMARY KEY, mtime DOUBLE, size BIGINT);
 CREATE TABLE IF NOT EXISTS meta     (k VARCHAR PRIMARY KEY, v VARCHAR);
 """
-INSERT_COLS = "path,session,project,branch,ts,role,is_sidechain,text,edits,reads,commands,hay"
+INSERT_COLS = "path,session,project,branch,ts,role,is_sidechain,text,edits,reads,commands,tools,hay"
 
 FTS_OK = False
 
@@ -104,12 +104,12 @@ def strip_noise(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def unpack(content) -> tuple[str, list[str], list[str], list[str]]:
+def unpack(content) -> tuple[str, list[str], list[str], list[str], list[str]]:
     if isinstance(content, str):
-        return content.strip(), [], [], []
+        return content.strip(), [], [], [], []
     if not isinstance(content, list):
-        return "", [], [], []
-    prose, edits, reads, cmds = [], [], [], []
+        return "", [], [], [], []
+    prose, edits, reads, cmds, tools = [], [], [], [], []
     for b in content:
         if not isinstance(b, dict):
             continue
@@ -117,6 +117,8 @@ def unpack(content) -> tuple[str, list[str], list[str], list[str]]:
             prose.append(b.get("text", ""))
         elif b.get("type") == "tool_use":
             name, inp = b.get("name"), (b.get("input") or {})
+            if name:
+                tools.append(name)  # every tool, incl. MCP, which the lists below don't cover
             fp = inp.get("file_path")
             if name in EDIT_TOOLS and fp:
                 edits.append(fp)
@@ -124,7 +126,7 @@ def unpack(content) -> tuple[str, list[str], list[str], list[str]]:
                 reads.append(fp)
             elif name == "Bash" and inp.get("command"):
                 cmds.append(inp["command"])
-    return " ".join(p for p in prose if p).strip(), edits, reads, cmds
+    return " ".join(p for p in prose if p).strip(), edits, reads, cmds, tools
 
 
 def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
@@ -150,9 +152,9 @@ def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
                 continue
             msg = e.get("message")
             content = msg.get("content") if isinstance(msg, dict) else msg
-            prose, edits, reads, cmds = unpack(content)
+            prose, edits, reads, cmds, tools = unpack(content)
             prose = strip_noise(prose)
-            if not (prose or edits or reads or cmds):
+            if not (prose or edits or reads or cmds or tools):
                 continue  # pure slash-command / system-reminder turn -> drop
             project = short_path(e.get("cwd", ""))
             hay = " ".join(filter(None, [
@@ -160,7 +162,7 @@ def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
             rows.append((
                 str(path), e.get("sessionId", stem), project, e.get("gitBranch", ""),
                 ts, typ, bool(e.get("isSidechain", False)), prose[:TEXT_CAP],
-                json.dumps(edits), json.dumps(reads), json.dumps(cmds), hay,
+                json.dumps(edits), json.dumps(reads), json.dumps(cmds), json.dumps(tools), hay,
             ))
     return rows, title
 
@@ -190,7 +192,7 @@ def ensure_index(con) -> int:
         rows, title = distill_file(p)
         con.execute("DELETE FROM events WHERE path = ?", [str(p)])
         if rows:
-            con.executemany(f"INSERT INTO events ({INSERT_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+            con.executemany(f"INSERT INTO events ({INSERT_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
         if title and title[1]:
             con.execute("INSERT INTO titles VALUES (?,?) ON CONFLICT(session) "
                         "DO UPDATE SET title = excluded.title", list(title))
