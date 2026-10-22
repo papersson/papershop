@@ -9,14 +9,30 @@ experimentally established formula or universal runtime optimum.
 
 Before an outline, write the audience's prior knowledge and a model delta: **Before, they think
 or can do ___. After, they can explain, predict or do ___.** Then write the opening question and
-payoff, the key ideas (usually 3–4 for intro), one recurring example, the plausible wrong model
-or missing dependency, and three transfer questions. Keep expected answers in instructor material
+payoff, the protagonist's want, the key ideas (usually 3–4 for intro), one recurring example, the
+plausible wrong model or missing dependency, and three transfer questions. Keep expected answers in instructor material
 (`research/transfer-answers.md`), away from the student reviewer.
 
 The approved brief belongs in `research/narrative.md`. SCRIPT.md's Argument is its current
 snapshot for reviewers; revise both together when the direction changes and log the decision.
 Replace overlapping lists of objectives/takeaways with this brief. Depth means a more useful
 model, not more details.
+
+## Give the protagonist a stake
+
+The opening question is a curiosity stake; a concrete one makes the viewer care how it comes out.
+The protagonist (the request, the record, the payment the video follows, `taste/look.md`) wants
+something, something blocks it, and the payoff gives it on screen: a message stuck on "Sending…"
+that the fix finally delivers. Show the want on the protagonist's glyph, so its state is the
+question made visible and its last change is the answer.
+
+- **Plant what pays off.** The blocked state shown early is the state the payoff resolves; log the
+  pair in the Setups and payoffs ledger.
+- **Suspense over surprise.** Where it helps, let the viewer see what the protagonist cannot: the
+  queue filling behind it, the timeout coming. Knowing more than the protagonist makes the
+  viewer lean in.
+- **A subject with no agent still has one**: the input, or the person waiting on the result. A hash
+  function wants nothing; the password being checked, or the user at the login screen, does.
 
 ## Build the viewer's sequence of thoughts
 
@@ -88,6 +104,8 @@ Log each result in SCRIPT.md's Review log with a current sentence ID and short q
     survives into the end state.
 13. Canonical field terms throughout, related to neighbouring terms the viewer will meet elsewhere.
     At most one new structure per chapter, with its intermediate states shown.
+14. The protagonist's want is on screen by the end of chapter 1, and the payoff resolves it on
+    screen, on the protagonist's glyph.
 
 Recheck affected criteria after edits: sentence IDs are positional. Items 8–13 come from a
 learner's notes on a finished video that the earlier criteria passed. `studio check --only script`

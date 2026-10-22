@@ -7,6 +7,7 @@ Status: draft, before review round 1
 - **Audience.** {{background and prerequisites}}
 - **Model delta.** {{Before: current model or limitation. After: what they can explain, predict or do}}
 - **Opening question and payoff.** {{puzzle/capability and the compact model that resolves it}}
+- **Protagonist's want.** {{what the thing the video follows wants, what blocks it, and the frame where the payoff gives it}}
 - **Key ideas.** {{usually three or four; importance markers and recap positions}}
 - **Recurring example.** {{small visible case used throughout; real or explicitly synthetic}}
 - **Wrong model or missing link.** {{plausible intuition to test or dependency to supply}}
