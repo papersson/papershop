@@ -98,6 +98,8 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     elif engine == "live":
         # Plain JS scenes, one per chapter, drawn from t; chapters without one show their boards.
         scenes = TEMPLATES / "live" / "scenes"
+    elif engine == "cairo":
+        scenes = TEMPLATES / "cairo" / "scenes"       # Python scenes drawn natively (engines/cairo/cli.py)
     for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)
@@ -117,6 +119,8 @@ def starter_scenes(engine, genre):
         return (mc / genre if (mc / genre).is_dir() else mc) / "scenes"
     if engine == "live":
         return TEMPLATES / "live" / "scenes"
+    if engine == "cairo":
+        return TEMPLATES / "cairo" / "scenes"
     own = TEMPLATES / genre / "scenes"
     return own if genre != "explainer" and own.is_dir() else TEMPLATES / "scenes"
 

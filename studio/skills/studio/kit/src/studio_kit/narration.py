@@ -258,7 +258,17 @@ def kokoro_pipeline():
         from kokoro import KPipeline
     except ImportError:
         raise SystemExit("Kokoro is not installed: run `studio doctor --fetch --extra kokoro`")
-    return KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+    offline = os.environ.get("STUDIO_OFFLINE") == "1" or os.environ.get("HF_HUB_OFFLINE") == "1"
+    if offline:      # never reach the network: a model that is not cached is reported, not fetched
+        os.environ["HF_HUB_OFFLINE"] = "1"
+    try:
+        return KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+    except Exception as e:
+        if offline:
+            raise SystemExit("Kokoro's weights are not in the local cache and this run is offline (STUDIO_OFFLINE=1 or "
+                             f"HF_HUB_OFFLINE=1): fetch them with `studio doctor --fetch --extra kokoro` where there is "
+                             f"network, or copy ~/.cache/huggingface over ({type(e).__name__}: {e})")
+        raise
 
 
 def kokoro_key(S, full):

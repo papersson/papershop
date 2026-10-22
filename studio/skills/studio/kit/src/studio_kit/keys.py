@@ -16,6 +16,7 @@ import json
 import re
 from pathlib import Path
 
+from . import proc
 from . import settings
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
@@ -42,11 +43,31 @@ def _browser_identity():
     return f"{path}:{Path(path).stat().st_size}" if path and Path(path).is_file() else str(path)
 
 
+def _cairo_identity():
+    """pycairo's and cairo's versions and the font "Sans" resolves to, as the cairo engine will see them."""
+    import os
+    import sys
+    py = os.environ.get("STUDIO_CAIRO_PYTHON") or sys.executable
+    try:
+        lib = proc.run([py, "-c", "import cairo;print(cairo.version, cairo.cairo_version_string())"], capture_output=True, text=True, timeout=30).stdout.strip()
+    except (OSError, Exception):
+        lib = ""
+    try:
+        font = proc.run(["fc-match", "Sans", "--format=%{file}:%{fontversion}"], capture_output=True, text=True, timeout=30).stdout.strip()
+    except (OSError, Exception):
+        font = ""
+    return json.dumps({"cairo": lib or "unavailable", "font": font})
+
+
 def engine_inputs(h, engine, video):
     """Hash what an engine's pixels depend on outside the video: its source, the engines' shared
     modules and its lock file (a pinned package such as three.js), and for the live engine its CLI and
     page (launch flags, the import map), the video's WebGL backend (video.json gl) and the browser.
     The clip keys and the look sheet's key both use it, so neither goes stale where the other doesn't."""
+    if engine == "cairo":
+        _hash_tree(h, engine_dir("cairo") / "cli.py")
+        h.update(_cairo_identity().encode())      # the library and the font a scene draws with
+        return
     _hash_tree(h, engine_dir(engine) / "src")
     _hash_tree(h, engine_dir("shared"))  # the engines' shared modules: motion maths, narration times, cameras
     _hash_tree(h, engine_dir(engine) / "package-lock.json")
@@ -68,6 +89,8 @@ def has_scene(video, clip_id, engine=None):
     engine = engine or _engine_of(video)
     if engine == "live":
         return (video / "scenes" / f"{clip_id}.js").exists()
+    if engine == "cairo":
+        return (video / "scenes" / f"{clip_id}.py").exists()
     if engine != "remotion":
         return True
     index = next((p for p in (video / "scenes" / "index.ts", video / "scenes" / "index.tsx") if p.exists()), None)
@@ -99,7 +122,7 @@ def _hash_assets(h, p):
                     h.update(f"{f.relative_to(p)}:{st.st_size}:{int(st.st_mtime)}".encode())
 
 
-SCENE_CODE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+SCENE_CODE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"}
 # The engines' lists of every clip (Remotion's scenes/index.ts, Motion Canvas's scenes/project.ts)
 # import each clip's file without drawing it into the others.
 REGISTRIES = {"index", "project"}

@@ -20,6 +20,8 @@ verdict line are the script kind's policies (reviews.py).
 import json
 import os
 import re
+import shlex
+import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -129,7 +131,12 @@ def narrative_inputs(video, narrative):
 
 def run_reviewer(text, runner=None):
     """One reviewer in an empty folder; retried once. Returns its output or raises."""
-    runner = runner or (lambda t, cwd: proc.run(["claude", "-p"], input=t, capture_output=True, text=True,
+    command = shlex.split(os.environ.get("STUDIO_REVIEW_COMMAND") or "claude -p")
+    if runner is None and not shutil.which(command[0]):
+        raise RuntimeError(f"no reviewer is available here: {command[0]!r} is not installed. Set STUDIO_REVIEW_COMMAND to a "
+                           "command that reads the review prompt on stdin and prints the review (the host's fresh-reviewer "
+                           "mechanism), or record the role with `studio review-status VIDEO ROLE unavailable --reason …`")
+    runner = runner or (lambda t, cwd: proc.run(command, input=t, capture_output=True, text=True,
                                                 timeout=1800, cwd=cwd))
     last = None
     for _ in range(2):

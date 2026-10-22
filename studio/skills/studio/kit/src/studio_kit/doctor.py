@@ -336,6 +336,32 @@ def require_engines(rows, engines):
             for level, name, detail, fix in rows]
 
 
+def hf_cached(repo):
+    """Whether a Hugging Face model repo is in the local cache (no network): HF_HOME, else ~/.cache/huggingface."""
+    home = Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface")
+    return (home / "hub" / ("models--" + repo.replace("/", "--"))).is_dir()
+
+
+def check_cairo():
+    """pycairo, in the interpreter the cairo engine runs (STUDIO_CAIRO_PYTHON, else the kit's)."""
+    py = os.environ.get("STUDIO_CAIRO_PYTHON") or sys.executable
+    try:
+        ok = proc.run([py, "-c", "import cairo"], capture_output=True, timeout=30).returncode == 0
+    except (OSError, Exception):
+        ok = False
+    return (OK, "engine cairo", f"pycairo importable in {py}; no browser or listener needed", "") if ok else \
+        (FAIL, "engine cairo", f"pycairo is not importable in {py}", "install pycairo there, or set STUDIO_CAIRO_PYTHON to a Python that has it")
+
+
+def model_checks(extras):
+    """Speech models in the local cache, so an offline run (STUDIO_OFFLINE=1) can say what it lacks before it starts."""
+    rows = []
+    if "kokoro" in extras:
+        rows.append((OK, "kokoro weights", "cached", "") if hf_cached("hexgrad/Kokoro-82M") else
+                    (WARN, "kokoro weights", "not in the local cache", "studio doctor --fetch --extra kokoro on a machine with network, then copy ~/.cache/huggingface over; offline runs (STUDIO_OFFLINE=1) cannot fetch them"))
+    return rows
+
+
 def main_preflight(args):
     engine = args.engine or (settings.load(args.video)["engine"] if args.video else "live")
     if args.silent:
@@ -344,12 +370,15 @@ def main_preflight(args):
         extras = args.extra
     else:
         extras = required(args.video) if args.video else ("kokoro", "align")
-    rows = system_checks() + [check_engine(e) for e in dict.fromkeys(("remotion", engine))]
-    rows = require_engines(rows, ("remotion", engine)) + extra_checks(extras)
-    path, source = resolve_browser()
-    present = path and Path(path).is_file() and os.access(path, os.X_OK)
-    rows.append((OK if present else FAIL, "browser", f"{path} ({source}); not launched" if present else
-                 "no executable browser installed", "studio doctor --fetch, or set STUDIO_BROWSER to a working Chrome"))
+    if engine == "cairo":      # native: no node packages, no browser
+        rows = system_checks() + [check_cairo()] + extra_checks(extras) + model_checks(extras)
+    else:
+        rows = system_checks() + [check_engine(e) for e in dict.fromkeys(("remotion", engine))]
+        rows = require_engines(rows, ("remotion", engine)) + extra_checks(extras) + model_checks(extras)
+        path, source = resolve_browser()
+        present = path and Path(path).is_file() and os.access(path, os.X_OK)
+        rows.append((OK if present else FAIL, "browser", f"{path} ({source}); not launched" if present else
+                     "no executable browser installed", "studio doctor --fetch, or set STUDIO_BROWSER to a working Chrome"))
     if args.video:
         from . import plates
         if plates.config(args.video):

@@ -3,7 +3,7 @@
 Every engine implements the same four operations (still, render, boxes, duration) and reads the
 same `timeline.json` and `layout.json`, so cuts, checks, sheets, exports, the desk and publishing
 don't care which one draws. A video picks its engine in video.json (`"engine": "live"`,
-`"remotion"` or `"motion-canvas"`; `studio new --engine …`). One engine per video.
+`"remotion"`, `"motion-canvas"` or `"cairo"`; `studio new --engine …`). One engine per video.
 
 What the engines have in common is written once, in `engines/shared/`: the motion maths
 (`motion.js`: eases, springs, `track`, `pulse`, `keyed`, `follow`, `settle`, `wobble`, ...), the narration times (`timing.js`: `at`, `end`,
@@ -29,6 +29,24 @@ format and stored in timeline.json; an engine never wraps them.
 - **Motion Canvas** (work). Scenes are generators (`yield*` animations), written against Motion
   Canvas's 2D nodes. Use it where Remotion's licence is a problem, or where a scene is naturally a
   sequence of tweens. The kit has the same components (below).
+
+## Cairo scenes (native, no browser)
+
+For a place where a browser cannot start or a local port cannot be bound (a locked-down sandbox),
+`"engine": "cairo"` draws the same engine interface (still, stills, render, boxes, duration) with
+pycairo and ffmpeg alone: no Chromium, no listener. A chapter is `scenes/<clip>.py` defining
+`scene(c)`; `c` offers a cairo context, `rect`, `text`, `line` (named shapes become the boxes the
+checks read), `c.t` and `c.cue(name)`. Everything is a function of `c.t`, so frames can be asked for in
+any order. The contract is at the top of `engines/cairo/cli.py`; the starter is
+`templates/cairo/scenes/example.py`. pycairo comes from the Python in `STUDIO_CAIRO_PYTHON`
+(default: the kit's); `studio preflight --engine cairo` checks it.
+
+Declared as unsupported, never faked: boards for a chapter with no scene (it draws a plain
+background), the look sheet, 3D, plates, camera boxes and live preview on the desk. Clip keys include
+the cli, pycairo's and cairo's versions and the font "Sans" resolves to, so a change to any of them
+re-renders. Scene text is measured with cairo's own metrics, so geometry matches browser engines
+only to the extent of the font; compare timing and geometry contracts, not pixels. `Engine.capabilities`
+(`kit/src/studio_kit/engine.py`) lists what each engine needs and gives.
 
 ## Live scenes
 

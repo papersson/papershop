@@ -104,6 +104,16 @@ the requested video; keep the first preview small enough that the user can judge
 look before a long render. Reviewers are a separate capability: establish access to fresh review
 processes before promising required independent reviews, and report unavailable ones honestly.
 
+## Offline and sandboxed runs
+
+Setup (downloads) and execution are separate. With `STUDIO_OFFLINE=1` (or `HF_HUB_OFFLINE=1`),
+narration never reaches the network: Kokoro's weights must already be in the Hugging Face cache, and
+preflight reports whether they are (`kokoro weights`). Where a browser or a local port is not
+allowed, use the `cairo` engine (`engines.md`, `studio preflight --engine cairo`); it needs neither.
+Reviewers are dispatched by `claude -p` unless `STUDIO_REVIEW_COMMAND` names the host's own fresh
+reviewer command (prompt on stdin, review on stdout); with neither available, `studio review`
+records the role as unavailable rather than passing it. Do not work around a sandbox's limits.
+
 ## Existing videos and upgrades
 
 Passing a video to ordinary commands routes to its pinned `.studio/bin/studio`. The installed
