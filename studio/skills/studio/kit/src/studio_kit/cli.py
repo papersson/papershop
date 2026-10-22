@@ -143,6 +143,8 @@ COMMANDS = {
           help="intro: scaffold 3-4 key ideas (default); deep-dive: more detail and evidence"),
         A("--tone", choices=["plain", "comic"],
           help="plain (default): neutral polish; comic: only when the user asks for a comic or cartoon video"),
+        A("--delivery", choices=["polished", "session"],
+          help="polished (default): the full stages; session: a modest cut of the user's own learning or work session (references/session.md)"),
     ], "new:main"),
     "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
         V("source"), A("name"), P("--dir"), A("--title"),

@@ -29,6 +29,10 @@ This table is the one list of the explainer's stages; SKILL.md and the build pro
 | 12 Frame review | frame review receipt | required for deep-dive, shared or `frame_review` videos | fresh reviewer; the main session dispatches |
 | 13 Finish | local master, page | the user's approval of a cut (`reviews.md`), then the `studio publish` gate | user |
 
+A video with `delivery: session` (`session.md`) merges stages 7 and 8 into one beat preview built
+from the beat table, runs polish (11) and frame review (12) only on request, and has one review
+cycle. Everything else here holds.
+
 `mode` in video.json sets how the user takes part. In `background` (the default) an agent builds
 unattended: the user approves the narrative, picks the look and reviews cuts. Boards and the animatic
 are the builder's checks, but they go on the desk as soon as they exist, with a link to the user, so
@@ -202,7 +206,8 @@ contact sheet does not establish font size. Fix the significant findings; polish
 
 ## Stage 11: Polish
 
-Polish is a stage of every explainer, with its own gate. Start from the hero moments named at the
+Polish is a stage of every polished explainer, with its own gate; a session video skips it unless
+the user asks (`session.md`). Start from the hero moments named at the
 boards and give them the most time: performed, timed to the words, with their sound, and with the
 layers their weight allows (`taste/delight.md`, "Spend feel on meaning"). A weight-2 or weight-3 event gets its consequence, a reaction the mechanism causes beyond the
 contacted object, and a weight-3 one its framing (`taste/look.md`, "Close to feel, wide to explain").

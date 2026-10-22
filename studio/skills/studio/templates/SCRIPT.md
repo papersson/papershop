@@ -19,6 +19,14 @@ Status: draft, before review round 1
 |---|---|---|---|---|
 | 1 | {{...}} | {{...}} | {{...}} | {{...}} |
 
+## Beats
+
+{{Session videos only (`references/session.md`); delete otherwise. One row per beat, before any narration:}}
+
+| Beat | Question or concept | Becomes visible | What changes | Settles (hold) | The voice adds | Exit state |
+|---|---|---|---|---|---|---|
+| 1 | {{...}} | {{...}} | {{...}} | {{1 s}} | {{... (`over:` an earlier beat it replays, if any)}} | {{...}} |
+
 ## Format
 
 | Chapter | Format | Why |

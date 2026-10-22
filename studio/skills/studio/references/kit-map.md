@@ -10,7 +10,7 @@ SKILL_ROOT/
   SKILL.md, DESIGN.md        the router and the rationale
   bin/studio                 the one entry point (enters the pinned environment, then the kit's CLI)
   references/                procedures: explainer, propose, gates, reviews, ownership, audio, desk,
-                             publishing, setup, engines, code, pedagogy, levels, commands, this file;
+                             publishing, setup, engines, code, pedagogy, levels, session, commands, this file;
                              genres/ for motion, launch, pixel, footage; taste/ for the look, text on
                              screen, motion and delight, the narration, and the comic tone
   prompts/                   prompts for fresh contexts: build_agent, frame_review, motion_review,

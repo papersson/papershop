@@ -23,9 +23,11 @@ effects, the motion helpers) are in `../explainer.md` (Stages 10 and 11), `../au
   changing) in `cues.json`, anchored to the word it belongs to, and have the scene's `cue(name)` and
   the effect both use it: in one build every sound landed within a frame of its picture this way.
   Each event gets its own still, two frames after the contact, where its result should show.
-- **Motion lands with the words that explain it.** A seek that finished before the narration got to
-  the coil passed a motion review: the motion was smooth and the timing told the wrong story. Each
-  physical phase starts when the sentence that explains it starts.
+- **Motion and words.** A seek that finished before the narration got to the coil passed a motion
+  review: the motion was smooth and the timing told the wrong story. A phase the viewer meets for the
+  first time starts with the sentence that explains it (polished delivery), or, in a session video,
+  appears silent, settles, and is then explained (`../session.md`, Staging). A replay of something
+  already introduced may run under the sentence that describes exactly that motion.
 - **Secondary motion when something has weight or hangs on something.** A tag on a box, a cable,
   a label on a moving token follows through (`follow`); a heavy thing landing settles (`settle`);
   a held picture that should feel alive drifts (`wobble`, a few pixels). Leave it off type, data and

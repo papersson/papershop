@@ -206,3 +206,14 @@ def test_a_video_is_restructured_in_place_with_its_old_scenes_kept(tmp_path, mon
     import pytest
     with pytest.raises(SystemExit, match="engine must be one of"):
         __import__("studio_kit.settings", fromlist=["update"]).update(video, engine="blender")
+
+
+def test_new_records_the_delivery_and_a_series_episode_keeps_it(tmp_path, monkeypatch):
+    from studio_kit import cli
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    delivery = lambda name: json.loads((tmp_path / "home" / name / "video.json").read_text())["delivery"]
+    assert cli.main(["new", "full"]) == 0 and delivery("full") == "polished"
+    assert cli.main(["new", "quick", "--delivery", "session"]) == 0 and delivery("quick") == "session"
+    assert cli.main(["new", "quick-2", "--from", str(tmp_path / "home" / "quick")]) == 0 and delivery("quick-2") == "session"
+    with pytest.raises(SystemExit):
+        cli.main(["new", "slow", "--delivery", "instant"])

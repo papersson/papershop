@@ -6,6 +6,8 @@ contract, each kind of review and its stop rule, the user's listening and approv
 The stage each one gates is in the stage tables (`explainer.md`, the genre files); the receipts'
 policies are declared in `kit/src/studio_kit/reviews.py`.
 
+A `delivery: session` video has one review cycle: caps of 1 and the procedure in `session.md`.
+
 ## The reviewer contract
 
 - **The main session dispatches.** A background builder reports **ready for script review**,

@@ -563,3 +563,9 @@ def test_audio_checks_flags_reach_a_window_only_for_the_soundtrack_it_measured(v
         drawn.clear()
         motion_review.sound_sheets(video, 1, found, t, d, silent, {"sound": sound})
         assert drawn[0][0]["flags"] == flags and (drawn[0][0].get("picture_frame") == 31) == bool(flags)
+
+
+def test_the_motion_prompt_states_a_session_videos_staged_rule_only_for_one():
+    from studio_kit import motion_review as mr
+    assert "delivery is session" in mr.prompt({"delivery": "session"}, "rev", None)
+    assert "delivery is session" not in mr.prompt({"delivery": "polished"}, "rev", None)

@@ -12,6 +12,10 @@ keys without a default are simply absent when unset (callers use .get).
   tone               plain | comic: comic only when the user asks for a comic, cartoon or silly
                      video (references/taste/comic.md); "fun" or "engaging" is plain polish
                      default "plain"
+  delivery           polished | session: a session video is a modest cut of the user's own
+                     learning or work session: one review cycle (max_rounds and motion_rounds
+                     default to 1), a 540p desk cut, visual-first staging (references/session.md)
+                     default "polished"
   destination        private-page | share | social | files                    default "private-page"
   engine             remotion | motion-canvas | live                           default "remotion" (studio new picks live for explainers)
   mode               background | interactive: an agent builds the video unattended, or the user
@@ -69,6 +73,7 @@ DEFAULTS = {
     "genre": "explainer",
     "level": "intro",
     "tone": "plain",
+    "delivery": "polished",
     "destination": "private-page",
     "engine": "remotion",
     "checkpoints": "few",
@@ -84,6 +89,7 @@ CHOICES = {
     "mode": MODES,
     "level": ("intro", "deep-dive"),
     "tone": ("plain", "comic"),
+    "delivery": ("polished", "session"),
     "gl": ("cpu", "gpu"),
     "motion": ("full", "reduced"),
 }

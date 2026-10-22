@@ -38,6 +38,7 @@ Infer these choices, or ask only what changes the result; record them in video.j
 | Genre | `explainer`, `motion`, `launch`, `pixel`, `footage`; code construction is an explainer format |
 | Level | `intro` (default): scaffold a few key ideas; `deep-dive`: more mechanisms, assumptions and evidence |
 | Tone | `plain` (default): the polish in `references/taste/`. `comic` only when the user asks for a comic, cartoon, silly or slapstick video; "fun", "delightful" or "engaging" mean plain done well. When comic, read `references/taste/comic.md` before the narrative; otherwise never read it |
+| Delivery | `polished` (default): the full stages. `session`: a modest cut of the user's own learning or work session, one review cycle, 540p, visual-first staging (`references/session.md`) |
 | Destination | `private-page` (default), `share`, `social`, `files` |
 | Mode | `background` (default): a builder works unattended and posts each boards cut, animatic and cut on the desk. `interactive`: the user follows on the desk while the builder works in the foreground, chapter by chapter (`references/desk.md`); only when the user asks to follow or steer |
 | Engine | `live` (default for explainers): plain JS scenes drawn from t, hot-reloaded on the desk, with an optional 3D stage. `remotion`: code explainers (CodePanel, Terminal…), motion, launch and footage. `motion-canvas`: generator scenes (`references/engines.md`) |
@@ -52,6 +53,7 @@ disagree, the one named here for the job wins.
 | Any job with the user | `references/gates.md`: every decision that is theirs, and how to ask |
 | Setup | `references/setup.md` |
 | A new explainer | `references/propose.md`, `pedagogy.md`, `levels.md`; a present-your-work `STORY.md` when the video presents finished work (`propose.md`, step 4) |
+| A session video | `references/session.md`, then the explainer files |
 | Build an explainer | `references/explainer.md` and the files its first paragraph names; code: `code.md` |
 | Build another genre | `references/genres/<genre>.md` |
 | Background build | spawn one builder with `prompts/build_agent.md` (fill VIDEO, STUDIO and SKILL_ROOT); relay its reports and the desk's address |

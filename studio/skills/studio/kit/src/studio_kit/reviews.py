@@ -45,7 +45,8 @@ from dataclasses import dataclass, field
 
 # Rounds are the slowest loop in a build (one search video spent six rounds reaching the gate), so
 # the default is two rounds plus one more for an expert's blocking finding; "thorough" restores six.
-DEFAULT_MAX_ROUNDS = {"thorough": 6, "default": 3, "economy": 2}
+# A session video (references/session.md) has one review cycle.
+DEFAULT_MAX_ROUNDS = {"thorough": 6, "default": 3, "economy": 2, "session": 1}
 
 
 # Should-fix findings plateaued at 25 to 45 a round in one long session, so a motion review stops at
@@ -56,12 +57,14 @@ DEFAULT_MOTION_ROUNDS = 2
 def script_cap(cfg):
     """video.json's max_rounds, else the default for its pace (economy, default or thorough)."""
     pace = "thorough" if cfg.get("thorough") else "economy" if cfg.get("economy") else "default"
+    if cfg.get("delivery") == "session" and not (cfg.get("thorough") or cfg.get("economy")):
+        pace = "session"
     return cfg.get("max_rounds", DEFAULT_MAX_ROUNDS[pace])
 
 
 def motion_cap(cfg):
     """video.json's motion_rounds, else DEFAULT_MOTION_ROUNDS."""
-    return cfg.get("motion_rounds", DEFAULT_MOTION_ROUNDS)
+    return cfg.get("motion_rounds", 1 if cfg.get("delivery") == "session" else DEFAULT_MOTION_ROUNDS)
 
 
 @dataclass(frozen=True)

@@ -22,7 +22,7 @@ def test_file_values_override_defaults(tmp_path):
     assert settings.raw(tmp_path) == {"engine": "motion-canvas", "checkpoints": "many", "drive": "learner"}
 
 
-@pytest.mark.parametrize("key,value", [("checkpoints", "some"), ("level", "advanced"), ("tone", "fun"), ("gl", "metal")])
+@pytest.mark.parametrize("key,value", [("checkpoints", "some"), ("level", "advanced"), ("tone", "fun"), ("gl", "metal"), ("delivery", "quick")])
 def test_enumerated_values_are_checked(tmp_path, key, value):
     write(tmp_path, {key: value})
     with pytest.raises(SystemExit, match=key):
@@ -39,3 +39,9 @@ def test_webgl_renders_on_the_cpu_unless_the_video_asks_for_the_gpu(tmp_path):
     assert settings.load(tmp_path)["gl"] == "cpu"
     write(tmp_path, {"gl": "gpu"})
     assert settings.load(tmp_path)["gl"] == "gpu"
+
+
+def test_delivery_is_polished_unless_the_video_says_session(tmp_path):
+    assert settings.load(tmp_path)["delivery"] == "polished"
+    write(tmp_path, {"delivery": "session"})
+    assert settings.load(tmp_path)["delivery"] == "session"

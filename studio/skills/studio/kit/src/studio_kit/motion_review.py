@@ -468,6 +468,8 @@ def prompt(cfg, judged, prior, dropped=(), sheet_status="current", sounds=False)
         text += "\n\n" + SOUND_NOTE + "\n"
     if sheet_status in LOOK_NOTES:
         text += "\n\n" + LOOK_NOTES[sheet_status] + "\n"
+    if cfg.get("delivery") == "session":
+        text += "\n\nThis video's delivery is session: judge motion and words by item 9's staged rule.\n"
     if cfg.get("tone") == "comic":
         text += ("\n\nThis video's tone is comic. Answer these for the cut under review:\n\n" + comic_questions() +
                  "\n\nScore every gag on a line of its own inside the findings block: GAG | window name | n/5 | the "

@@ -45,7 +45,8 @@ def test_each_rule_has_one_home():
     homes = {"plateaued at 25 to 45": "references/reviews.md",
              "at twice that budget": "references/ownership.md",
              "Package first, then dispatch": "references/reviews.md",
-             "Go ahead\" covers the next gate": "references/gates.md"}
+             "Go ahead\" covers the next gate": "references/gates.md",
+             "Introduce, settle, explain, move on": "references/session.md"}
     for phrase, home in homes.items():
         found = [str(d.relative_to(ROOT)) for d in DOCS if phrase in d.read_text()]
         assert found == [home], (phrase, found)

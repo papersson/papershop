@@ -26,6 +26,15 @@ def test_the_script_cap_comes_from_video_json_and_frames_have_none():
     assert reviews.KINDS["frames"].rounds.cap is None and reviews.KINDS["frames"].freshness == "record-stale"
 
 
+def test_a_session_video_has_one_review_cycle_unless_the_user_raises_it():
+    cap, motion = reviews.KINDS["script"].rounds.cap, reviews.motion_cap
+    session = {"delivery": "session"}
+    assert (cap(session), motion(session)) == (1, 1)
+    assert (cap({"delivery": "polished"}), motion({"delivery": "polished"}), motion({})) == (3, 2, 2)
+    assert cap({**session, "max_rounds": 2}) == 2 and motion({**session, "motion_rounds": 3}) == 3
+    assert cap({**session, "thorough": True}) == 6      # an explicit effort setting still wins
+
+
 def test_review_status_takes_its_roles_from_the_registry_and_frame_as_an_alias(tmp_path, capsys):
     (tmp_path / "video.json").write_text("{}")
     args = cli.build_parser().parse_args(["review-status", str(tmp_path), "frame", "waived", "--reason", "user said so"])
