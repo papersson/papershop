@@ -43,6 +43,10 @@
     {
       "name": "present-your-work",
       "source": "./present-your-work"
+    },
+    {
+      "name": "elicit",
+      "source": "./elicit"
     }
   ]
 }

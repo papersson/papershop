@@ -1,0 +1,6 @@
+{
+  "name": "elicit",
+  "version": "0.1.0",
+  "description": "Do a task the way a leading practitioner of its domains would, without being told what they would care about. Before the work, write a one-page brief (purpose, audience and the effect wanted; every domain that could matter, ranked, plus the fields best at that effect; their standards and best works; unstated requirements; a pre-mortem and a best version; the few items that matter; cuts of scope but not craft; yes/no acceptance checks) and one self-contained prompt per verifier. Then either stop and show the brief as the elicited version of the prompt, or do the work and run fresh verifier subagents from those prompts, including one that judges the effect from the audience's side.",
+  "author": { "name": "Patrik Persson" }
+}
