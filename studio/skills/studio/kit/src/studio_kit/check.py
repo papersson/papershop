@@ -19,6 +19,8 @@
                from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
                samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
                hold is a warning, not a failure
+  flash        no more than three general flashes in any second (motion.flashes, WCAG 2.3.1): read from
+               the cut's rendered clips, a chapter with none skipped. A failure: a flash can trigger a seizure
   legend       with a colour legend in video.json: no colour stands for two meanings, no meaning is drawn
                in two colours, and a colour the legend reserves is on nothing else (legend.py). Warnings
   pauses       with effects (audio/sfx.json, or an audio entry with role sfx) and a narration: no effect peaks over -24 dBFS, at the master's level,
@@ -29,7 +31,7 @@
 Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
 Incremental by default: the per-chapter checks (length, determinism, bounds, band, contrast,
-legible, overlap, pacing, inframe, occluded) re-run only for chapters whose clip key changed since they last passed
+legible, overlap, pacing, flash, inframe, occluded) re-run only for chapters whose clip key changed since they last passed
 there; a pass is remembered per chapter, check and format in .cache/check/ (a warning is a pass; a
 pacing check skipped for want of a rendered clip runs again once a cut renders one). A warning is
 remembered with its pass and printed again by each check that skips the chapter, until the chapter
@@ -57,7 +59,8 @@ SIDE_MARGIN = 80                         # px kept free either side of a caption
 SLACK = 1.0                              # px of tolerance on box edges
 
 
-PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing", "inframe", "occluded")
+RENDERED = ("pacing", "flash")      # per-chapter checks that read the cut's rendered clips
+PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing", "flash", "inframe", "occluded")
 OVERLAP = 0.3                            # share of the smaller text box another text box may cover
 
 
@@ -407,7 +410,7 @@ def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
 
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
-MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), "
+MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), flash (at most three flashes a second), "
         "inframe (the narrated element stays in frame), occluded (a narrated 3D element is not hidden), legend (one colour, one meaning; with video.json legend), "
         "provenance (assets used are recorded), dead and loop (motion)")
 
@@ -437,8 +440,8 @@ def changed_clips(video, kinds, samples=3, fmt=None):
     passed = json.loads(f.read_text()) if f.exists() else {}
     from .motion import rendered_clip
 
-    def want(cid, kind):      # a pacing check skipped for want of a rendered clip runs once a cut renders one
-        return keys[cid] + ("+skipped" if kind == "pacing" and rendered_clip(video, t, cid, fmt) is None else "")
+    def want(cid, kind):      # a check of the rendered clip skipped for want of one runs once a cut renders one
+        return keys[cid] + ("+skipped" if kind in RENDERED and rendered_clip(video, t, cid, fmt) is None else "")
     return keys, {kind: {cid for cid in keys if passed.get(cid, {}).get(kind) != want(cid, kind)} for kind in kinds}
 
 
@@ -492,9 +495,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     default = only is None
     extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
              "motion": ("dead",), "launch": ()}.get(genre(video), ())
-    always = ("legible", "overlap", "pacing", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
+    always = ("legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "inframe", "occluded", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -513,9 +516,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     kinds = sorted(only & set(PER_CLIP))
     keys, by_kind = changed_clips(video, kinds, samples, fmt)
     todo = set().union(*by_kind.values())
-    # pacing reads the cut's clips, so a cut can make it due alone: it doesn't re-run the others
-    clips = None if everything else set().union(*(v for k, v in by_kind.items() if k != "pacing"))
+    # pacing and flash read the cut's clips, so a cut can make them due alone: they don't re-run the others
+    clips = None if everything else set().union(*(v for k, v in by_kind.items() if k not in RENDERED))
     pacing_clips = None if everything else by_kind.get("pacing", set())
+    flash_clips = None if everything else by_kind.get("flash", set())
     if not everything:
         skipped = sorted(set(keys) - todo, key=lambda c: list(keys).index(c))
         print(f"check: {len(todo)} chapter(s) changed since their last pass"
@@ -554,6 +558,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if "pacing" in only:
         from . import motion
         rows += motion.pacing(video, engine, pacing_clips, stills=not default)
+    if "flash" in only:
+        from . import motion
+        rows += motion.flashes(video, flash_clips, fmt)
     if "dead" in only:
         from . import motion
         rows += motion.dead_beats(video, engine=engine)

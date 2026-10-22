@@ -7,6 +7,7 @@
   legible   every text box is at least 18 px tall at 1080p (a phone shows the frame at 360 px wide)
   provenance  every asset a scene refers to is in assets/ with a provenance row
   pacing    after a significant move, the picture holds at least HOLD_MIN before the next one starts
+  flash     no more than FLASH_MAX general flashes in any second (WCAG 2.2 SC 2.3.1, approximately)
             (pacing_signal, moves)
 
 Picture motion is measured one way: a rendered stage decoded grey at PACING_SIZE, the caption band
@@ -148,6 +149,66 @@ CUT_SHARE = 0.6
 # life). Calibrated on a live-engine "1 ms" label fading in at 540p: 0.0009 to 0.0013 of the stage a
 # frame, against 0 for a held frame's encoding noise.
 VISIBLE_SHARE = 0.0005
+
+
+# A general flash (WCAG 2.2 SC 2.3.1, three flashes or below): a pair of opposing changes in relative
+# luminance of at least FLASH_DELTA where the darker state is under FLASH_DARK, over at least FLASH_AREA
+# of the frame; more than FLASH_MAX of them in any one second can trigger a seizure. WCAG's area is a
+# quarter of a 10 degree field at typical viewing distance; a quarter of the frame is the stricter
+# reading for a phone held close. Read at FLASH_SIZE: a flash that large shows whole at 48x27.
+FLASH_DELTA, FLASH_DARK, FLASH_AREA, FLASH_MAX = 0.1, 0.8, 0.25, 3
+FLASH_SIZE = (48, 27)
+_LUM = [((v / 255 + 0.055) / 1.055) ** 2.4 if v / 255 > 0.04045 else v / 255 / 12.92 for v in range(256)]
+
+
+def flash_changes(frames, fps):
+    """[(seconds, +1 or -1)]: each change of the frame's luminance, brighter or darker over FLASH_AREA
+    of it, that reverses the one before (a fade over several frames is one change, not several)."""
+    out, last = [], 0
+    for i, (x, y) in enumerate(zip(frames, frames[1:])):
+        up = down = 0
+        for a, b in zip(x, y):
+            la, lb = _LUM[a], _LUM[b]
+            if abs(lb - la) >= FLASH_DELTA and min(la, lb) < FLASH_DARK:
+                up, down = (up + 1, down) if lb > la else (up, down + 1)
+        share = max(up, down) / len(x)
+        sign = 0 if share < FLASH_AREA else (1 if up > down else -1)
+        if sign and sign != last:
+            out.append((round((i + 1) / fps, 3), sign))
+            last = sign
+    return out
+
+
+def most_flashes(changes):
+    """(flashes, at seconds): the most general flashes (pairs of opposing changes) in any one second."""
+    best = (0, 0.0)
+    for i, (t0, _) in enumerate(changes):
+        n = sum(1 for t, _ in changes[i:] if t < t0 + 1) // 2
+        best = max(best, (n, t0))
+    return best
+
+
+def flashes(video, clips=None, fmt=None):
+    """Rows: per clip with a rendered video, a failure when more than FLASH_MAX general flashes fall
+    in any one second; a clip with none is skipped (`studio cut` renders one)."""
+    t, rows = tl.load(video), []
+    w, h = FLASH_SIZE
+    for c in t["tracks"]["scene"]:
+        if clips is not None and c["id"] not in clips:
+            continue
+        f = rendered_clip(video, t, c["id"], fmt)
+        if f is None:
+            rows.append({"check": "flash", "clip": c["id"], "ok": True, "skipped": True,
+                         "detail": "no rendered clip for these scenes: `studio cut` renders one"})
+            continue
+        raw = proc.ffmpeg("-i", str(f), "-vf", f"scale={w}:{h},format=gray", "-fps_mode", "passthrough",
+                          "-f", "rawvideo", "-", capture_output=True).stdout
+        frames = [raw[i:i + w * h] for i in range(0, len(raw), w * h)]
+        n, at = most_flashes(flash_changes(frames, t["fps"]))
+        rows.append({"check": "flash", "clip": c["id"], "ok": n <= FLASH_MAX, **({"t": at} if n else {}),
+                     "detail": f"{n} general flash(es) in the second from {at:.1f} s; at most {FLASH_MAX} (WCAG 2.3.1)"
+                               if n > FLASH_MAX else f"at most {n} general flash(es) in any second"})
+    return rows
 
 
 def rendered_clip(video, t, cid, fmt=None):

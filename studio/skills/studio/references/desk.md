@@ -52,7 +52,7 @@ engine a cut is for the record and the publish gate, not for the user to see the
    - a note on timing at a contact ("the thud is early"): move the event in `cues.json`, which moves
      its picture, its effect and its still together (`studio timeline VIDEO --events` lists them).
 4. Check before answering: `studio check VIDEO` (determinism, bounds, band, legible, overlap, pacing
-   once a cut has rendered the chapter and, on the live engine, any scene error, for the changed
+   and flash once a cut has rendered the chapter and, on the live engine, any scene error, for the changed
    chapter) and look at a still of the changed
    moment (`studio still VIDEO CLIP T --out …`). Never resolve a note whose change fails a check.
 5. `studio notes VIDEO --resolve ID --reply "one line saying what changed"`. The reply shows under

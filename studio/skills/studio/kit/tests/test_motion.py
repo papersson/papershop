@@ -281,3 +281,21 @@ def test_a_small_label_fading_in_starts_and_ends(tmp_path):
     gray_clip(f, [frame(0)] * 30 + [frame(20 * k) for k in range(1, 10)] + [frame(180)] * 30)
     s = motion.frame_signal(f, LAY, 30, 20, 30)
     assert motion.moving(s, 30) == [] and motion.starts(s, 30) == [30] and motion.ends(s, 30) == [38]
+
+
+def test_three_flashes_a_second_pass_and_four_fail_and_a_fade_is_one_change(tmp_path):
+    """WCAG 2.3.1: more than three general flashes in any second fail. A white-black alternation every
+    four frames at 30 fps is 3.75 flashes a second; every five frames, 3. A slow fade is one change."""
+    def clip(name, frames, fps=30):
+        f = tmp_path / f"{name}.mp4"
+        gray_clip(f, flat_frames(frames, 64, 36), 64, 36, fps)
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(f), "-vf", "format=gray", "-f", "rawvideo", "-"],
+                             capture_output=True, check=True).stdout
+        n = 64 * 36
+        return motion.most_flashes(motion.flash_changes([raw[i:i + n] for i in range(0, len(raw), n)], fps))[0]
+    fast = ([20] * 2 + [235] * 2) * 15
+    slow = ([20] * 5 + [235] * 5) * 6
+    fade = [min(235, 20 + 8 * i) for i in range(60)]
+    assert clip("fast", fast) > motion.FLASH_MAX
+    assert clip("slow", slow) <= motion.FLASH_MAX
+    assert clip("fade", fade) == 0
