@@ -397,6 +397,16 @@ def encode(src, out, ceiling, *args):
     raise RuntimeError(f"could not encode {out} under {ceiling} dBTP")
 
 
+def sound_ok(path, duration, slack=0.5):
+    """Whether an encoded soundtrack reads back as audio about `duration` seconds long: a truncated or
+    empty file left by an interrupted run is not reused."""
+    try:
+        got = float(proc.ffprobe(path, "-show_entries", "format=duration")["format"]["duration"])
+    except Exception:
+        return False
+    return abs(got - duration) <= slack
+
+
 def soundtrack(video, timeline):
     """The video's sound as AAC, cached under .cache/sound/ by its inputs, so a cut that changed only
     pictures doesn't re-mix it: the finished master while audio/final.json was finished from these
@@ -409,15 +419,21 @@ def soundtrack(video, timeline):
     cache = video / ".cache" / "sound"
     cache.mkdir(parents=True, exist_ok=True)
     f = cache / f"{hashlib.sha1((done['stamp'] if finished else stamp_in).encode()).hexdigest()[:16]}.m4a"
-    if f.exists():
+    if f.exists() and sound_ok(f, timeline["duration"]):
         print("soundtrack: unchanged, cached", flush=True)
         return f
     for old in cache.glob("*.m4a"):
         old.unlink()
+    part = f.with_name(f.stem + ".part.m4a")      # promoted only once it decodes at the video's length
+    part.unlink(missing_ok=True)
     if finished:
-        encode(video / "audio" / "final.wav", f, done["ceiling_dbtp"], "-b:a", "160k")
+        encode(video / "audio" / "final.wav", part, done["ceiling_dbtp"], "-b:a", "160k")
     else:
-        mix(video, timeline, f, files)
+        mix(video, timeline, part, files)
+    if not sound_ok(part, timeline["duration"]):
+        part.unlink(missing_ok=True)
+        raise RuntimeError(f"the soundtrack for {video} did not come out at {timeline['duration']:.1f} s; nothing was cached")
+    part.replace(f)
     return f
 
 

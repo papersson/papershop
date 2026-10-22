@@ -625,7 +625,7 @@ def _interpolate(script, times):
 
 # --- building a timeline --------------------------------------------------------------------------
 
-def from_timings(t, engine="remotion", audio_file="audio/narration.mp3"):
+def from_timings(t, engine="remotion", audio_file="audio/narration.mp3", fps=None):
     """A timeline from laid-out narration timings (what `studio narrate` and the tutor kit write):
     each chapter becomes a scene clip, each sentence a narration entry with its words."""
     scenes, narration = [], []
@@ -637,7 +637,7 @@ def from_timings(t, engine="remotion", audio_file="audio/narration.mp3"):
                               "caption": line["caption"], "paragraph": line["paragraph"],
                               "start": line["start"], "end": line["end"], "words": line.get("words", []),
                               **({"pause": line["pause"]} if "pause" in line else {})})
-    fps = DEFAULT_LAYOUT["fps"]
+    fps = fps or DEFAULT_LAYOUT["fps"]       # the video's layout.json frame rate, when the caller has it
     return {"version": 1, "fps": fps, "duration": t["total"],
             "voice": {k: t[k] for k in ("engine", "voice", "model", "speed", "mode", "credit") if t.get(k) is not None},
             "tracks": {"scene": scenes, "narration": narration,
@@ -673,7 +673,7 @@ def _base(video, cfg):
         from .footage import compose
         return compose(video, edl), "footage/edit.json"
     if timings is not None:
-        t = from_timings(timings, cfg["engine"])
+        t = from_timings(timings, cfg["engine"], fps=layout(video).get("fps"))
         t["timing"] = timings.get("timing", "narrated")      # only real narrations kept timings before
         if t["timing"] == "estimate":
             t["tracks"]["audio"] = []
@@ -687,7 +687,7 @@ def _base(video, cfg):
             at = end
         if cfg.get("clips") and cfg.get("duration") and abs(float(cfg["duration"]) - at) > 1e-6:
             raise SystemExit(f"video.json: duration {cfg['duration']} s and clips ({at} s) disagree; keep one")
-        return {"version": 1, "fps": DEFAULT_LAYOUT["fps"], "duration": at, "cues": {},
+        return {"version": 1, "fps": layout(video).get("fps", DEFAULT_LAYOUT["fps"]), "duration": at, "cues": {},
                 "tracks": {"scene": scenes, "narration": [], "captions": [], "audio": []}}, \
             "video.json clips" if cfg.get("clips") else "video.json duration"
     raise SystemExit(f"nothing to build {video / 'timeline.json'} from: narrate the script, `studio edit` "
