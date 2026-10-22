@@ -9,6 +9,14 @@ import {Rect, Txt, useStage, CORAL, ICE, MUTED, AMBER, PANEL, type XY} from '@st
 // component the scenes import too, so the sheet and the scenes stay the same. A page is drawn alone,
 // on the stage above the band, at frame 0; it has no clip, so no useClip() times.
 
+// What each element is made of, so everything it does agrees: how it springs and settles when it
+// lands, and what it sounds like (taste/look.md, "The look sheet"). Scenes pass these to the kit's
+// motion helpers, spring(t, ...m.spring) and settle(t, t0, ...m.settle), and effects take the pool,
+// instead of each scene choosing its own numbers.
+export const materials = {
+	protagonist: {spring: [170, 26], settle: [6, 3, 5], sound: ['pop-small']},   // {{light and springy}}
+} satisfies Record<string, {spring: [number, number]; settle: [number, number, number]; sound: string[]}>;
+
 type State = 'idle' | 'ok' | 'bad' | 'wait';
 const LOOK: Record<State, [string, string]> = {idle: ['○', MUTED], ok: ['✓', ICE], bad: ['✕', CORAL], wait: ['…', AMBER]};
 

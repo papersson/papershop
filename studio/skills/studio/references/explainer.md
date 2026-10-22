@@ -154,6 +154,9 @@ draw what is on the sheet; the motion review checks drawings are on sheet. A liv
 chapter (only when the admission test in `taste/look.md` holds) puts its model on the sheet too, each
 item in its own view, flat and oblique, in each state.
 
+Give the protagonist and every object that lands a material in the look file (`materials` in the
+template: its spring, settle and sound pool, `taste/look.md`), so scenes take their numbers from it.
+
 A chapter of a physical object also picks its look here: flat, lit (`G.lit()`) or a Blender plate
 (`taste/look.md`); show the user a still of the hero shot in it before animating, since a plate's
 final frames cost seconds each (`studio plate VIDEO CLIP --probe`).
@@ -201,7 +204,9 @@ contact sheet does not establish font size. Fix the significant findings; polish
 
 Polish is a stage of every explainer, with its own gate. Start from the hero moments named at the
 boards and give them the most time: performed, timed to the words, with their sound, and with the
-layers their weight allows (`taste/delight.md`, "Spend feel on meaning"). Then, on the blocked chapters, add what makes
+layers their weight allows (`taste/delight.md`, "Spend feel on meaning"). A weight-2 or weight-3 event gets its consequence, a reaction the mechanism causes beyond the
+contacted object, and a weight-3 one its framing (`taste/look.md`, "Close to feel, wide to explain").
+Then, on the blocked chapters, add what makes
 motion read as physical (`taste/delight.md`, and for a comic `taste/comic.md`): secondary motion (`follow`
 for a label riding a moving token, `settle` for a heavy thing landing, `wobble` for a held picture
 that should feel alive), anticipation before a significant move (a small wind-up, or the camera

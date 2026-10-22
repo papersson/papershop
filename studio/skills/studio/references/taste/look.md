@@ -45,6 +45,11 @@ clutter: by minute eight one frame held a category list, a table, a record's fie
 - **Move toward what you introduce.** "This is the piece we want to read" over a still wide shot
   left the user asking to be taken there: when the narration singles something out, the camera goes
   to it (or it comes to the camera) before the sentence ends.
+- **Close to feel, wide to explain.** On a weight-3 event (`delight.md`) go close when what the
+  viewer should feel is part of the idea (the protagonist's stake lost or won, `../pedagogy.md`) or
+  when the contact is too small to read wide; explain the system wide, and come back wide after.
+  On a journey the camera may ride with the protagonist (`follow` on its position), so the token
+  holds still and the world slides past. A close shot needs that reason: "more cinematic" is not one.
 - Zooming back out returns to the same map with one state change. Nothing from the close-up stays.
 - Hypothetical content is marked by the narration ("suppose", "if the reviewer approves"), not by
   tags or dashed outlines, which were tried and removed as clutter. A value on screen that is
@@ -116,6 +121,12 @@ may be heavier still, since that weight is state, not structure. The look sheet 
 The model sheet (`studio look-sheet`, `../engines.md`) is drawn at the look stage, before scenes:
 every element in each of its states, in the video's theme and layout. Scenes draw what is on it; a new
 element or state goes on the sheet first. The motion review checks drawings are on sheet.
+
+The look file also says what the protagonist and every object that lands is made of: `materials`
+in the template, each with the spring and settle it lands with and the sound pool it plays.
+Everything a thing does should agree on what it is made of, so a disk platter springs, settles and
+sounds heavy and a packet light; scenes pass the material's numbers to the motion helpers instead
+of choosing their own, and the motion review checks each moves and sounds as its material.
 
 ## Banned defaults
 

@@ -90,3 +90,24 @@ does not make is decoration, however well it is made.
 - **When effects compete, emotion and story come first**, then rhythm, then where the eye goes
   (Murch's order for cutting). In an explainer, read emotion as what the viewer must feel to care
   about the question.
+- **The world reacts (weight 2 and up).** A contact that matters moves something besides its object,
+  and only what the mechanism really causes: a neighbour nudged (`follow`), light spilling onto what
+  is near, a counter elsewhere ticking over, dust or sparks of the thing's material. Game designers
+  call this context: an event with consequences reads as real, one that changes only itself reads
+  as an animation. A reaction the mechanism does not cause is a false implication (Motion, above).
+- **Cut when the viewer can close the gap.** When the before and after are both clear and the
+  in-between teaches nothing, cut: the viewer fills the gap, and a gap they fill is held better than
+  a move they watch (McCloud's gutter). A prediction pause is the same gap held open on purpose.
+  Animate the in-between when it is the mechanism.
+- **Silence by contrast.** A sound's weight comes from what surrounds it (Chion). Before a reveal
+  (the `reveal:` cue after a prediction), let effects and any bed drop away for a beat, so the answer
+  lands into near-silence; `studio audio-check` reports the dip. A bed ends or resolves on the
+  payoff rather than running under it.
+- **Weight in time and shake, for physical subjects only.** A heavy contact can hold for a few
+  frames (a hitstop: `"hitstop": frames` on its cue) and kick the camera with noise scaled by the
+  square of its trauma, decaying fast, never a fixed sine. Both pass the encode test only when the
+  subject has mass and impact. The helpers are scenes templates
+  (`templates/live/scenes/example-feel.js`, `templates/scenes/example-feel.ts`): copy one into the
+  video's scenes as feel.js or feel.ts. Shake stays under 12 px and 1° at 1080p, under 0.5 s, its
+  noise under 10 Hz, never under a label being read, and a video with `"motion": "reduced"` gets
+  none of either.

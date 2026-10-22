@@ -10,6 +10,14 @@
 
 export const pages = ['{{the protagonist}}']
 
+// What each element is made of, so everything it does agrees: how it springs and settles when it
+// lands, and what it sounds like (taste/look.md, "The look sheet"). Scenes pass these to the kit's
+// motion helpers, kit.spring(t, ...m.spring) and kit.settle(t, t0, ...m.settle), and effects take
+// the pool, instead of each scene choosing its own numbers.
+export const materials = {
+  token: { spring: [170, 26], settle: [6, 3, 5], sound: ['pop-small'] },   // {{light and springy}}
+}
+
 /** {{The thing the video follows}}, in one state: a box with a glyph. Scenes import this. */
 export function drawToken(c, key, x, y, state) {
   const { S, C } = c
