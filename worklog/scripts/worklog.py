@@ -37,8 +37,7 @@ PROJECTS = Path.home() / ".claude" / "projects"
 # DB location is overridable so the nix wrapper can point it at the XDG cache
 # while the uv/non-nix path keeps the default under ~/.claude.
 DB_PATH = Path(os.environ.get("WORKLOG_DB", Path.home() / ".claude" / "worklog.duckdb"))
-SCHEMA_VERSION = 4          # bump to force a full rebuild on distillation changes
-MAX_LINE_BYTES = 2 * 1024 * 1024
+SCHEMA_VERSION = 5          # bump to force a full rebuild on distillation changes
 TEXT_CAP = 4000
 HAY_CAP = 8000
 
@@ -59,13 +58,21 @@ CREATE TABLE IF NOT EXISTS events (
     id BIGINT DEFAULT nextval('events_id_seq'),
     path VARCHAR, session VARCHAR, project VARCHAR, branch VARCHAR,
     ts VARCHAR, role VARCHAR, is_sidechain BOOLEAN,
-    text VARCHAR, edits VARCHAR, reads VARCHAR, commands VARCHAR, tools VARCHAR, hay VARCHAR
+    text VARCHAR, edits VARCHAR, reads VARCHAR, commands VARCHAR, tools VARCHAR, hay VARCHAR,
+    event_uuid VARCHAR, user_kind VARCHAR, tool_ids VARCHAR, path_refs VARCHAR
 );
 CREATE TABLE IF NOT EXISTS titles   (session VARCHAR PRIMARY KEY, title VARCHAR);
 CREATE TABLE IF NOT EXISTS ingested (path VARCHAR PRIMARY KEY, mtime DOUBLE, size BIGINT);
 CREATE TABLE IF NOT EXISTS meta     (k VARCHAR PRIMARY KEY, v VARCHAR);
+-- Audit annotations survive transcript/schema rebuilds. Hosts are explicitly
+-- recorded, never guessed from a laptop issuing an SSH command.
+CREATE TABLE IF NOT EXISTS session_runs (
+    session VARCHAR PRIMARY KEY, execution_host VARCHAR, task_id VARCHAR,
+    fallback_reason VARCHAR
+);
+CREATE TABLE IF NOT EXISTS repositories (root VARCHAR PRIMARY KEY);
 """
-INSERT_COLS = "path,session,project,branch,ts,role,is_sidechain,text,edits,reads,commands,tools,hay"
+INSERT_COLS = "path,session,project,branch,ts,role,is_sidechain,text,edits,reads,commands,tools,hay,event_uuid,user_kind,tool_ids,path_refs"
 
 FTS_OK = False
 
@@ -93,7 +100,9 @@ def iso_z(dt: datetime) -> str:
 
 def short_path(cwd: str) -> str:
     home = str(Path.home())
-    return cwd.replace(home, "~") if cwd else "(unknown)"
+    if not cwd:
+        return "(unknown)"
+    return "~" + cwd[len(home):] if cwd == home or cwd.startswith(home + "/") else cwd
 
 
 # ----------------------------------------------------------------------------- distill
@@ -119,14 +128,66 @@ def unpack(content) -> tuple[str, list[str], list[str], list[str], list[str]]:
             name, inp = b.get("name"), (b.get("input") or {})
             if name:
                 tools.append(name)  # every tool, incl. MCP, which the lists below don't cover
-            fp = inp.get("file_path")
+            fp = inp.get("file_path") or inp.get("notebook_path")
             if name in EDIT_TOOLS and fp:
                 edits.append(fp)
             elif name in READ_TOOLS and fp:
                 reads.append(fp)
-            elif name == "Bash" and inp.get("command"):
-                cmds.append(inp["command"])
+            elif name in {"Bash", "bash", "Shell", "shell"}:
+                command = inp.get("command") or inp.get("cmd")
+                if isinstance(command, str):
+                    cmds.append(command)
     return " ".join(p for p in prose if p).strip(), edits, reads, cmds, tools
+
+
+def user_kind(event: dict, content, prose: str) -> str:
+    """Separate human requests from tool results, SDK jobs and harness messages."""
+    if event.get("type") != "user":
+        return ""
+    if isinstance(content, list) and any(
+        isinstance(b, dict) and b.get("type") == "tool_result" for b in content
+    ):
+        return "tool_result"
+    if event.get("isSidechain"):
+        return "agent"
+    if prose.startswith("[Request interrupted by user"):
+        return "system"
+    origin = event.get("origin") or {}
+    kind = origin.get("kind", "") if isinstance(origin, dict) else ""
+    if event.get("isMeta") or event.get("isCompactSummary") or event.get("promptSource") == "system":
+        return "system"
+    if kind == "human" or event.get("turnOrigin") == "human":
+        return "human"
+    if event.get("promptSource") == "sdk" or event.get("turnOrigin") == "sdk":
+        return "sdk"
+    if kind or re.match(r"\s*<(task-notification|agent-message|cross-session-message)", prose):
+        return "system"
+    return "human" if prose else "system"
+
+
+def tool_provenance(content, cwd: str) -> tuple[list[str], list[dict]]:
+    """Keep tool IDs and explicit path arguments without copying file bodies.
+
+    Search roots and generic MCP path arguments are references, not proof of a
+    file read. Shell paths are extracted separately by the SQL audit and remain
+    explicitly labelled as lexical references.
+    """
+    ids, refs = [], []
+    for b in content if isinstance(content, list) else []:
+        if not isinstance(b, dict) or b.get("type") != "tool_use":
+            continue
+        ids.append(b.get("id", ""))
+        name, inp = b.get("name", ""), b.get("input") or {}
+        access = "write" if name in EDIT_TOOLS else "read" if name in READ_TOOLS else "reference"
+        if name in {"Glob", "Grep"}:
+            refs.append({"tool": name, "path": inp.get("path") or cwd, "access": "search"})
+        else:
+            for key in ("file_path", "notebook_path", "path", "paths", "directory", "root_path"):
+                value = inp.get(key)
+                for p in value if isinstance(value, list) else [value]:
+                    if isinstance(p, str) and p:
+                        refs.append({"tool": name, "path": p, "access": access})
+    return ids, refs
 
 
 def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
@@ -135,8 +196,6 @@ def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
     stem = path.stem
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            if len(line) > MAX_LINE_BYTES:
-                continue
             try:
                 e = json.loads(line)
             except (json.JSONDecodeError, ValueError):
@@ -153,16 +212,19 @@ def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
             msg = e.get("message")
             content = msg.get("content") if isinstance(msg, dict) else msg
             prose, edits, reads, cmds, tools = unpack(content)
+            kind = user_kind(e, content, prose)
+            tool_ids, path_refs = tool_provenance(content, e.get("cwd", ""))
             prose = strip_noise(prose)
-            if not (prose or edits or reads or cmds or tools):
+            if not (prose or edits or reads or cmds or tools or kind in {"tool_result", "human"}):
                 continue  # pure slash-command / system-reminder turn -> drop
             project = short_path(e.get("cwd", ""))
             hay = " ".join(filter(None, [
                 prose, project, " ".join(edits), " ".join(reads), " ".join(cmds)]))[:HAY_CAP]
             rows.append((
                 str(path), e.get("sessionId", stem), project, e.get("gitBranch", ""),
-                ts, typ, bool(e.get("isSidechain", False)), prose[:TEXT_CAP],
+                ts, typ, bool(e.get("isSidechain", False) or "subagents" in path.parts), prose[:TEXT_CAP],
                 json.dumps(edits), json.dumps(reads), json.dumps(cmds), json.dumps(tools), hay,
+                e.get("uuid", ""), kind, json.dumps(tool_ids), json.dumps(path_refs),
             ))
     return rows, title
 
@@ -178,21 +240,22 @@ def ensure_index(con) -> int:
     con.execute(SCHEMA)
     con.execute("INSERT INTO meta VALUES ('schema_version', ?) "
                 "ON CONFLICT(k) DO UPDATE SET v = excluded.v", [str(SCHEMA_VERSION)])
+    con.execute("INSERT INTO meta VALUES ('home', ?) "
+                "ON CONFLICT(k) DO UPDATE SET v = excluded.v", [str(Path.home())])
 
     prior = {r[0]: (r[1], r[2]) for r in con.execute("SELECT path, mtime, size FROM ingested").fetchall()}
     changed = 0
     for p in PROJECTS.rglob("*.jsonl"):
-        # Skip subagent sidechains: they hold agent-generated output (incl. worklog's
-        # own runbooks/reports), which would otherwise re-enter and pollute searches.
-        if "subagents" in p.parts:
-            continue
+        # Keep sidechains for quantitative audits; retrieval below excludes them
+        # so worklog's own generated reports do not pollute search results.
         st = p.stat()
         if prior.get(str(p)) == (st.st_mtime, st.st_size):
             continue
         rows, title = distill_file(p)
         con.execute("DELETE FROM events WHERE path = ?", [str(p)])
         if rows:
-            con.executemany(f"INSERT INTO events ({INSERT_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+            placeholders = ",".join("?" for _ in INSERT_COLS.split(","))
+            con.executemany(f"INSERT INTO events ({INSERT_COLS}) VALUES ({placeholders})", rows)
         if title and title[1]:
             con.execute("INSERT INTO titles VALUES (?,?) ON CONFLICT(session) "
                         "DO UPDATE SET title = excluded.title", list(title))
@@ -201,6 +264,17 @@ def ensure_index(con) -> int:
                     [str(p), st.st_mtime, st.st_size])
         changed += 1
 
+    # Current filesystem evidence for the path audit; historical paths whose
+    # checkout has disappeared remain unclassified rather than invented repos.
+    for (project,) in con.execute("SELECT DISTINCT project FROM events").fetchall():
+        if not project or project == "(unknown)":
+            continue
+        cwd = Path(project).expanduser()
+        for directory in (cwd, *cwd.parents):
+            if (directory / ".git").exists():
+                con.execute("INSERT INTO repositories VALUES (?) ON CONFLICT DO NOTHING",
+                            [short_path(str(directory))])
+                break
     _ensure_fts(con, rebuild=changed > 0)
     return changed
 
@@ -241,7 +315,8 @@ def fetch_window(con, start: str, end: str) -> list[dict]:
         """SELECT e.session, e.project, e.branch, e.ts, e.role, e.is_sidechain,
                   e.text, e.edits, e.reads, e.commands, t.title
            FROM events e LEFT JOIN titles t USING(session)
-           WHERE e.ts >= ? AND e.ts <= ? ORDER BY e.ts""",
+           WHERE NOT e.is_sidechain AND e.user_kind NOT IN ('tool_result', 'system', 'agent')
+             AND e.ts >= ? AND e.ts <= ? ORDER BY e.ts""",
         [start, end],
     ).fetchall()
     return [{"session": r[0], "project": r[1], "branch": r[2], "ts": r[3], "role": r[4],
@@ -334,7 +409,8 @@ def _score_bm25(con, query: str, since: str | None) -> dict[str, dict]:
               SELECT e.session, e.project, e.branch, e.ts, e.role, e.is_sidechain,
                      e.text, e.edits, e.reads, e.commands, t.title,
                      fts_main_events.match_bm25(e.id, ?) AS score
-              FROM events e LEFT JOIN titles t USING(session))
+              FROM events e LEFT JOIN titles t USING(session)
+              WHERE NOT e.is_sidechain AND e.user_kind NOT IN ('tool_result', 'system', 'agent'))
             SELECT * FROM scored WHERE score IS NOT NULL {extra}
             ORDER BY score DESC LIMIT 4000""",
         params,
@@ -355,7 +431,8 @@ def _score_like(con, query: str, since: str | None) -> dict[str, dict]:
         f"""SELECT e.session, e.project, e.branch, e.ts, e.role, e.is_sidechain,
                    e.text, e.edits, e.reads, e.commands, t.title, lower(e.hay) AS hay
             FROM events e LEFT JOIN titles t USING(session)
-            WHERE ({" OR ".join("hay LIKE '%'||?||'%'" for _ in terms)}) {extra}
+            WHERE NOT e.is_sidechain AND e.user_kind NOT IN ('tool_result', 'system', 'agent')
+              AND ({" OR ".join("hay LIKE '%'||?||'%'" for _ in terms)}) {extra}
             ORDER BY e.ts""",
         params,
     ).fetchall()
