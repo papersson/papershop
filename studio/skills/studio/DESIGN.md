@@ -162,6 +162,7 @@ passed.
 |---|---|
 | **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |
 | **Boards in Motion Canvas**: a Remotion chapter without a scene renders its board; Motion Canvas still requires every scene | the Motion Canvas project falls back to a board scene |
+| **The 0.13 feel rules on a real video**: weights, consequence, proximity, stakes, materials, hitstop | one video's stake beat and a weight-3 event rebuilt as is, with the stake only, and with stake and consequence, compared blind on the desk, and the motion review's new items finding the old cut's gaps |
 
 ## The instructions are organized by job, not by release
 
@@ -171,6 +172,17 @@ lived in six files. So SKILL.md is a router with a reading list per job; each ru
 locks, budgets and handoffs, `audio.md` for sound, `taste/` for what good looks and sounds like,
 `commands.md` and `kit-map.md` for where things are); and the release history lives outside the
 skill, in HISTORY.md. A rule cites the incident behind it in a sentence, so it can be bent knowingly.
+
+## Feel is spent on meaning
+
+Studio already performed each event, timed picture and sound from one cue and kept effects off
+decoration. A 20-second film made outside studio showed what that still left plain: the same
+physics and captions read far better once a stake, consequences, a camera that came close and a
+material rule were added. Game feel names the missing layers (context, harmony, proximity, time),
+but in an explainer every effect is also a claim about the subject, so each layer must encode a
+cause, a magnitude or what a thing is, and the layers are a budget spent by an event's weight
+rather than given to every event. Hitstop and shake are scenes templates, not engine code, because
+every file in engines/shared is in every clip's key, and they stay off subjects without mass.
 
 ## A feature ships when it makes a real video better
 

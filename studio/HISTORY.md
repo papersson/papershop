@@ -3,6 +3,36 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Feel spent on meaning (0.13.0)
+
+An analysis of studio against game feel, film editing, sound design and multimedia learning found
+that studio already performed each event: set up, landing on its sound, settling, with one cue
+for both. What it lacked was a rule for how much feel an event gets and what the feel may claim,
+and the layers around an event. A 20-second film made outside studio, plain until a stake,
+consequences, proximity and materials were added, was the worked case. Two independent reviews of
+the analysis cut it back: a boolean hero flag became a graded weight beside the `visual` tag,
+hitstop and shake moved out of the engine into scenes templates and behind a test of what they
+encode, and safety came before the effects that need it.
+
+- **Stakes.** The learning brief names the protagonist's want, what blocks it and the frame the
+  payoff gives it, shown on its glyph (`references/pedagogy.md`, self-check item 14).
+- **Weights.** A `cues.json` anchor takes `weight` 1 to 3 and `hitstop` frames. audio-check features
+  weight-3 effects first; the motion review checks each event's layers against its weight and that
+  every layer encodes something true (`references/taste/delight.md`, "Spend feel on meaning").
+- **Rules around the event.** Consequence (the world reacts, as the mechanism causes), close to feel
+  and wide to explain, cut when the viewer can close the gap, silence before a reveal, sound that
+  leads the picture into a chapter, and a material per landing element in the look file. The motion
+  review gains items for each.
+- **Hitstop and trauma shake** as `example-feel.js` and `example-feel.ts` scenes templates, capped at
+  12 px and 1 degree, and `"motion": "reduced"` in video.json, which turns both off and keys live
+  clips. The glossary's shake is the trauma kick; hitstop is a term. Pacing reads a hitstop's hold
+  as meant.
+- **Checks.** `studio check` fails more than three general flashes in any second (WCAG 2.3.1,
+  approximately). audio-check measures the dip before each reveal and lists effects near chapter
+  cuts.
+
+Not yet tried on a real video; DESIGN.md's Still open says what would show they help.
+
 ## A narrative from a present-your-work story (0.12.1)
 
 An article and a video about three weeks of autonomous research passed every check and lost their
