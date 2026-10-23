@@ -1,7 +1,6 @@
 # Where the rules come from
 
-Each rule in the skill traces to a source below, to the corrections described in `../DESIGN.md`,
-or to the test run described there. The sources are summarized only as far as the skill uses
+Each rule in the skill traces to a source below or to the tests described in `../DESIGN.md`. The sources are summarized only as far as the skill uses
 them. Numbers come from the papers' own text and tables, read in October 2026.
 
 ## Answering only the question asked
@@ -18,8 +17,8 @@ them. Numbers come from the papers' own text and tables, read in October 2026.
   the correct programs were exploitable. Models are "capable but not attending" to security; a
   reminder naming the scenario's CWEs gave the best security but cost functional correctness.
 
-Used for: step 4 (unstated requirements), step 2 (unnamed domains), and pairing each hardening
-check with a functional one in step 9.
+Used for: settling the questions an expert would ask first, reaching the fields the request does not
+name, and keeping functional checks beside hardening ones.
 
 ## Self-critique works only against something
 
@@ -37,8 +36,8 @@ check with a functional one in step 9.
   Naming specific CWEs cut weaknesses about 60%; a security-focused critique-and-revise pass cut
   them 78% for GPT-4. Recognizing a known weakness class is easier than finding a reasoning error.
 
-Used for: the brief before the work, yes/no checks, executable checks first, and checks that name
-specific weakness classes.
+Used for: criteria written into the brief before the work, and checks that name specific weakness
+classes rather than asking generally for care.
 
 ## Personas and the prompter's apparent level
 
@@ -53,31 +52,6 @@ specific weakness classes.
 - Poole-Dayan, Roy and Kabbara (2024, arXiv:2406.17737) and Perez et al. (2022, arXiv:2212.09251).
   Answer quality drops for users who appear less educated or less fluent.
 
-Used for: writing the content of an expert's attention instead of a persona, and naming the
-purpose and audience in step 1. None of these studies tests open-ended thoroughness, which is the
-case this skill targets.
-
-## Judges and verifiers
-
-- Zheng et al., Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena (NeurIPS 2023,
-  arXiv:2306.05685). Position, verbosity and self-enhancement biases. A judge that solved the
-  problem first and graded against its own answer accepted a wrong answer 15% of the time, against
-  70% with the default prompt.
-- Wang et al., Large Language Models are not Fair Evaluators (ACL 2024, arXiv:2305.17926).
-  Reordering answers flipped verdicts; explanation before score and both orders reduced it.
-- Panickssery, Bowman and Feng, LLM Evaluators Recognize and Favor Their Own Generations (NeurIPS
-  2024, arXiv:2404.13076). Self-recognition correlates with self-preference.
-- Du et al., Multiagent Debate (2023, arXiv:2305.14325), with Choi, Zhu and Li, Debate or Vote
-  (NeurIPS 2025, arXiv:2508.17536). Debate's gains are mostly explained by majority voting.
-
-Used for: verifiers that write what an excellent result contains before seeing the work, get no
-reasoning or authorship, run fresh, use a different model when available, and cite evidence.
-
-## Practice
-
-- Gary Klein, "Performing a Project Premortem", Harvard Business Review (2007). Imagining the
-  project has failed and explaining why surfaces risks that forward planning misses. Step 5.
-- Atul Gawande, The Checklist Manifesto (2009). A checklist works when it holds the few items that
-  are both critical and commonly missed, not everything. Step 7.
-- METR, Guidelines for capability elicitation (2024). Common, easily fixed failures include
-  submitting without checking while budget remains. Section 4.
+Used for: the panel's principles written into the brief instead of a role given to the doer, and
+naming the purpose and audience first. None of these studies tests open-ended thoroughness, which is
+the case this skill targets.

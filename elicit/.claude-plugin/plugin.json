@@ -1,6 +1,8 @@
 {
   "name": "elicit",
-  "version": "0.1.0",
-  "description": "Do a task the way a leading practitioner of its domains would, without being told what they would care about. Before the work, write a one-page brief (purpose, audience and the effect wanted; every domain that could matter, ranked, plus the fields best at that effect; their standards and best works; unstated requirements; a pre-mortem and a best version; the few items that matter; cuts of scope but not craft; yes/no acceptance checks) and one self-contained prompt per verifier. Then either stop and show the brief as the elicited version of the prompt, or do the work and run fresh verifier subagents from those prompts, including one that judges the effect from the audience's side.",
-  "author": { "name": "Patrik Persson" }
+  "version": "0.2.0",
+  "description": "Rewrite a prompt into the brief a leading practitioner would write for themselves before starting, from what the model already knows: who it is for and how it should land, whether it is the right thing to make, what to start from, the principles of every field that matters, what is uncertain, and above all what would make it exceptional. It convenes a panel of masters (the fields the result depends on, the fields best at each quality of the effect in any medium, someone who questions the premise, someone who tries to break it, a master of method), shows that roster, then writes the brief in full sentences with reasons, with delight and taste given the most room and checks someone other than the doer could make. Lightweight: no research, no files, no review agents, and it never carries the prompt out.",
+  "author": {
+    "name": "Patrik Persson"
+  }
 }

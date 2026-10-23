@@ -1,88 +1,81 @@
 # Why elicit is shaped this way
 
-The skill exists for one gap: a capable model knows far more about a field than it shows unless
-an expert asks for the specific thing. An expert plus a model beats a layperson plus the same model
-because the expert supplies the important context. The skill has the model write that context
-itself, before the work, and has someone who did not do the work check against it.
+A capable model knows far more about a field than it shows unless someone who knows the field asks
+for the specific thing. An expert plus a model beats a layperson plus the same model because the
+expert supplies what to attend to. Elicit has the model write that down itself, from what it already
+knows, as the brief a leading practitioner would write before starting. Each choice below says what
+it answers and what it gives up. The evidence is in `references/sources.md`.
 
-Two kinds of evidence shaped it. The first is 34 corrections mined from about 790 of the author's
-Claude Code sessions, each one a case where the author supplied expertise the model plausibly
-already had. The second is the literature in `references/sources.md`. Each choice below says what
-it answers and what it gives up.
+## Content of attention, not a persona
 
-## Four causes, not missing knowledge
+"Act as an expert" adds nothing or harms in every study that tested it; a description of what an
+expert would attend to, specific to the task, is what helps. So the skill never assigns a role to
+the doer. It gets the experts' principles, with reasons, into the prompt. It gives up the brevity
+of a persona line.
 
-The corrections sorted by main cause as follows: no standard in view during a single pass (19),
-answering only the question asked (6), writing to the apparent level of the prompt (4), other (4),
-and holding back to stay in scope (1). About 9 of the 34 also showed a review that ran but checked
-what was easy to check instead of what the work was for. The literature agrees on the first two
-and on the review failure, and finds "act as an expert" adds nothing or harms. A test run of the
-first version added a fourth cause: work aimed at avoiding mistakes comes out correct and plain.
-So the skill writes down the content of an expert's attention, both what they guard against and
-what they reach for. It gives up the brevity of a persona line.
+## Five failures fixed, the remedies left open
 
-## The brief comes before the work
+An uninstructed model fails in a few stable ways: it solves the request as stated when something
+else would serve better, it works shallowly from digested sources and its own judgement, it is
+correct and forgettable, it states shaky things as fact, and it adds more instead of better. Methods
+for framing a task well are many, and no fixed list of them is complete. So the skill names the
+failures and leaves open who prevents them: it convenes a panel of the masters best placed to, with
+seats that cover each failure (the fields the result depends on, the fields best at each quality of
+the effect in any medium, someone who questions the premise, someone who tries to break it, a master
+of method). The model knows these people and their principles; the skill only makes it name them. It
+gives up predictability: a panel is a judgement, and can miss someone.
 
-Criteria in the generation context beat the same criteria applied in a later critique, and
-generic self-critique without an external signal rarely finds errors. So the brief, with its
-standards and checks, exists before the first line of work. It gives up the discovery that
-sometimes happens while working; when the work shows the brief is wrong, the report says so.
+## The panel is shown
 
-## List domains generously, go deep on few
+The roster comes before the brief, one line each, so a missing lens is visible and the user can add
+one before the prompt runs. It gives up a clean output that is only the prompt.
 
-A missed domain was the commonest failure in the corrections and the cost of listing one is a
-line. A long checklist, though, spreads attention thin and gives each domain only its basics. So
-the map lists every field that could matter and ranks them by how much each moves the effect,
-the top three or four get depth, and every other listed domain contributes its single most
-critical floor check. It gives up depth in the domains ranked low.
+## Delight and taste are the largest part
 
-## Borrow from the field best at the effect
+Briefs that covered rigour well still produced work that was correct and plain: a tunnel explainer
+whose physics and captions were right read as a diagram until stakes, consequences, a camera that came
+close and sound locked to each event were added. Asked only for breadth, the model named the right
+fields and stopped at their basics. Asked to make delight and taste the point, it described the
+moments the audience would remember, beat by beat, and drew on the fields best at those feelings. So
+correctness is the floor and most of the brief goes to the best of its kind, the memorable moments,
+the line between delightful and tacky, and one stretch idea. It gives up shorter briefs.
 
-In the test run, the brief named the right authorities for its domains and used only their
-basics. What lifted the work came from a field the result did not depend on: asked to apply game
-feel principles to a 20-second explainer video, the same model added impacts, mass, a camera that
-moved close, a stake for the viewer and one material rule across sound and picture, and the result
-was far better. No step had asked which other field is best at the effect wanted. Step 2 now does.
-It gives up some predictability: the borrowed field is a judgement, and can be the wrong one.
+## Breadth through the qualities of the effect
 
-## A best version beside the pre-mortem, and cuts of scope only
+The obvious field for a request is rarely the one that lifts it. Breaking the wanted effect into the
+qualities the audience feels, and asking who in any medium is best at each, is what reaches past the
+obvious: stage magic for a reveal, sound design for a contact, hospitality for a trip. A field counts
+only with its principles; a name alone adds nothing.
 
-A pre-mortem finds the floor. On its own it produced a checklist of measurable floor items, and
-the one item about looking cheap dropped out because it had no yes/no check. So step 6 asks what
-would impress, the checklist carries at least as many of those items as floor items, and they get
-rubric checks too. Cuts remove scope (topics, features, formats) but never craft on the main
-moments. It gives up the guarantee that every checklist item is machine-checkable.
+## Prose with reasons, not labelled fields
 
-## Taste is never handed to the user unexamined
+A brief of labelled fragments reads as a form and invites literal compliance; it drops the reasons
+and the priorities. A brief in full sentences, as a senior practitioner hands work to a capable
+colleague, teaches: a reason lets the doer handle cases the brief did not foresee. Length is fine.
+The checks at the end may be a list, because they are meant to be checked.
 
-The first version marked fields without a formal standard as "rubric and the user's judgment",
-and the test run read that as permission not to pursue "cool". Now a field's best works stand in
-for its standard: the brief names exemplars, says what makes them land, and writes a rubric. It
-gives up the honesty of saying "this is taste" without effort; the rubric is still judgement, and
-the report says so.
+## Start from raw material, end with outside checks
 
-## Verifier prompts are written before the work, and run fresh
+Experts start from primary material rather than summaries, and judge by evidence other than their
+own opinion. The brief names the rawest material and ends with checks someone other than the doer
+could make, including one for delight. Stating criteria before the work beats critique after it.
 
-LLM judges favour their own outputs and outputs whose authorship they recognize, and a judge that
-solves the problem first and grades against its own answer is wrong far less often. So each
-verifier's prompt, including what an excellent result contains, is written before the work exists,
-gets no reasoning or authorship, and runs in a fresh subagent from its file verbatim. Executable
-checks come first because external signals are what make critique work. When the request names an
-effect, one verifier judges that effect from the audience's side and says what would raise it.
-Verifiers cost money, so each must earn its place. It gives up verifier prompts that can react to
-specifics only visible in the finished work, beyond the paths filled in at run time.
+## Question the premise, then write the brief anyway
 
-## Two modes and files in the scratchpad
+A request is sometimes not the best way to its goal. The brief says so in one sentence and still
+serves what was asked, so the user decides.
 
-The brief is a prompt in its own right, so the skill can stop after writing it and hand it over,
-or carry on and do the work. Files live in the session scratchpad because subagents need
-self-contained prompts and a person may want to read or edit them, and nothing outside the
-scratchpad is written unless asked. It gives up keeping briefs across sessions by default.
+## Lightweight on purpose
+
+No research, no files, no verifier agents, no doing the work. Elicit draws only on what the model
+already knows, which is the point: the knowledge is there and goes unused. Checking the result
+belongs to whoever runs the brief. It gives up the facts research would add and the independent
+check a reviewer would give; the brief's uncertainty step marks what must be checked against a
+primary source.
 
 ## What is not yet known
 
-The current version is untested. The first version ran once, on the 20-second video, and passed
-its floor checks while producing plain work; the changes above came from that run. The next step
-is a benchmark: tasks sampled from an occupation taxonomy so the skill does not overfit to software
-security and animation, each run bare, with the skill, and with an expert's must-haves written in,
-scored against must-haves sealed from the skill's author.
+The skill has been tried on a handful of prompts in fresh agents, and two videos were made from its
+briefs, one shot each. That shows what its briefs look like, not that they reliably beat a bare
+prompt. A fair test runs tasks sampled from many occupations three ways (bare, with the skill, with
+an expert's context written in) against criteria sealed from whoever tunes the skill.
