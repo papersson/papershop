@@ -2,7 +2,7 @@
 import shlex
 from pathlib import Path
 
-from . import chapter, narration, script, timeline as tl
+from . import chapter, narration, script, settings, timeline as tl
 from .env import ROOT
 
 
@@ -26,6 +26,7 @@ def prepare(video):
         cues = video / 'cues' / f'{cid}.json'
         if not cues.exists():
             cues.write_text('{}\n')
+        scene = f"scenes/{cid}." + ("tsx" if settings.load(video)["engine"] == "remotion" else "js")
         commands = [f'studio check {shlex.quote(str(video))} --chapter {cid}',
                     f'studio run {shlex.quote(str(video))} data/{cid}/build.py']
         lines = [f'# Shoot {cid}: {c["title"]}', '',
@@ -36,11 +37,12 @@ def prepare(video):
             if s['clip'] == cid:
                 words = s.get('caption', s['text']).replace('|', '\\|')
                 lines.append(f'| {s["id"]} | {s["start"]:.3f} | {s["end"]:.3f} | {words} |')
-        lines += ['', '## Beats and hero moments', '', beats, '', '### Chapter screen notes', '']
+        own_beats = '\n'.join(line for line in beats.splitlines() if not line.startswith('|') or line.startswith('| Chapter') or line.startswith('|---') or line.split('|')[1].strip() == cid)
+        lines += ['', '## Beats and hero moments', '', own_beats, '', '### Chapter screen notes', '']
         lines += [f'- {n.start}–{n.end}: {n.text}' for n in chapters[cid].screen]
         lines += ['', '## Your workspace', '',
                   f'Read {ROOT / "references/taste.md"} and {ROOT / "references/kit.md"}.', '',
-                  f'Write only scenes/{cid}.js, cues/{cid}.json and data/{cid}/. Use absolute timeline seconds or narration anchors in your cues. Prefix cue names with {cid}-.',
+                  f'Write only {scene}, cues/{cid}.json and data/{cid}/. Use absolute timeline seconds or narration anchors in your cues. Prefix cue names with {cid}-.',
                   'Treat every shared file as read-only. Report any needed change to the main session. Put proposed sound and typing plans in your data folder for the main session to apply.',
                   'Keep the agreed voice, story and timing. Perform the hero moment, fill the frame and leave time for it to settle.', '',
                   'Run these commands from the main session’s environment:', '', '```sh', *commands, '```', '',

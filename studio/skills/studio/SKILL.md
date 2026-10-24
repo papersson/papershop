@@ -1,97 +1,95 @@
 ---
 name: studio
 description: >
-  Make, revise and publish narrated explainers, code lessons, motion graphics, launch films,
-  pixel art and transcript-based edits of recordings. Settle the narrative, build scenes on a
-  shared timeline, review cuts on the desk and revise incrementally. Use for video creation,
-  watching or annotating a cut, re-voicing, rendering, publishing, or studio setup. Not for a
-  plain chat explanation, slide deck, still image or document.
+  Create and revise narrated explainer videos. Develop the story with the user, shoot chapters
+  in parallel on one timeline, and review versions on a local desk with notes on sentences.
+  Use for video creation, narration, rendering, desk feedback, publishing and Studio setup.
 ---
 
-# studio
+# Studio
 
-Make one video and improve it in rounds. The user approves the direction, chooses a look, watches
-cuts on the desk and says when one is ready; you do the rest. The narrative decides what the viewer
-learns; the timeline and recorded evidence keep narration, scenes and revisions consistent; the
-subject's events are performed, with their sound, not just shown. Re-render only what changed.
+Make the explanation clear, perform its important events with sound, and get it onto the desk
+quickly. The user develops the story with you and judges the video by watching it.
 
-Paths below are relative to this file's folder (SKILL_ROOT); use them as absolute paths. Every
-command runs through `SKILL_ROOT/bin/studio`.
+Use the absolute path to this folder as SKILL_ROOT. Run commands through `SKILL_ROOT/bin/studio`.
+VIDEO is a folder containing `video.json`; new videos go under `$STUDIO_HOME`, default `~/studio`.
+Run `studio preflight [VIDEO]` once before production. It reads prerequisites without installing
+anything. If something is missing, use the setup guidance in `references/kit.md`.
 
-## Check setup first
+## Develop the story, with the user
 
-At every invocation, before `new`, narration or rendering, run `bin/studio preflight [VIDEO]`. It
-only inspects prerequisites: no installs, downloads or browser launches. Infer the engine and speech
-needs from the request or the video (`--engine`, `--extra`, `--silent`); new explainers default to
-live, Kokoro and alignment. Run it once per invocation. If anything is missing, this is a first run,
-or the user asks for setup, follow `references/setup.md`: say what is missing and what it costs,
-ask once, install what was agreed, and verify a render and a speech sample. Never silently switch to
-paid narration or waive reviews to finish setup.
+Read `references/taste.md` and `references/story.md`. Ask only what changes the story and cannot
+be inferred. Default to an undergraduate explanation with three or four ideas, one small example
+and few numbers. Put the level and tone into ordinary sentences in the brief.
 
-## Route the work
+Show a draft quickly. If the user asked for a draft first, show it in chat before production.
+Write `research/brief.md`: the viewer, one question, ideas, protagonist and stake, hero moments
+with picture and sound, omissions, length and level. Write `SCRIPT.md` with a beat table,
+narration and screen notes. Draw rough boards that make the picture and its scale visible.
 
-Infer these choices, or ask only what changes the result; record them in video.json:
+Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start
+`studio desk VIDEO` and give the user its address within minutes of the first draft. Run
+`studio panel VIDEO` once: expert, viewer and editor read the brief and script in parallel.
+Bring their findings and uncertainties to the user alongside the reel. Revise the story together.
 
-| Choice | Meaning |
-|---|---|
-| Drive | `author`: the user can judge the subject; `learner`: independent subject verification is needed |
-| Genre | `explainer`, `motion`, `launch`, `pixel`, `footage`; code construction is an explainer format |
-| Level | `intro` (default): scaffold a few key ideas; `deep-dive`: more mechanisms, assumptions and evidence |
-| Tone | `plain` (default): the polish in `references/taste/`. `comic` only when the user asks for a comic, cartoon, silly or slapstick video; "fun", "delightful" or "engaging" mean plain done well. When comic, read `references/taste/comic.md` before the narrative; otherwise never read it |
-| Delivery | `polished` (default): the full stages. `session`: a modest cut of the user's own learning or work session, one review cycle, 540p, visual-first staging (`references/session.md`) |
-| Destination | `private-page` (default), `share`, `social`, `files` |
-| Mode | `background` (default): a builder works unattended and posts each boards cut, animatic and cut on the desk. `interactive`: the user follows on the desk while the builder works in the foreground, chapter by chapter (`references/desk.md`); only when the user asks to follow or steer |
-| Engine | `live` (default for explainers): plain JS scenes drawn from t, hot-reloaded on the desk, with an optional 3D stage. `remotion`: code explainers (CodePanel, Terminal…), motion, launch and footage. `motion-canvas`: generator scenes (`references/engines.md`) |
+**Decision 1 is story lock.** Record the user's agreement in the brief. Existing authorization
+counts. Once the story is locked, shoot it without further routine approval stops.
 
-## Read for the job
+## Shoot, in one go
 
-Read the files for the job at hand, not all of them. Each rule has one home; when two files seem to
-disagree, the one named here for the job wins.
+Read `references/shoot.md`; use `references/kit.md` for commands and scene APIs. Run
+`studio shoot VIDEO`. It narrates with the configured voice, rebuilds the timeline and writes
+one short chapter job in `research/shoot/<clip>.md`.
 
-| Job | Read |
-|---|---|
-| Any job with the user | `references/gates.md`: every decision that is theirs, and how to ask |
-| Setup | `references/setup.md` |
-| A new explainer | `references/propose.md`, `pedagogy.md`, `levels.md`; a present-your-work `STORY.md` when the video presents finished work (`propose.md`, step 4) |
-| A session video | `references/session.md`, then the explainer files |
-| Build an explainer | `references/explainer.md` and the files its first paragraph names; code: `code.md` |
-| Build another genre | `references/genres/<genre>.md` |
-| Background build | spawn one builder with `prompts/build_agent.md` (fill VIDEO, STUDIO and SKILL_ROOT); relay its reports and the desk's address |
-| Taste: look, text, motion, voice | `references/taste/look.md`, `references/taste/screen-text.md`, `references/taste/delight.md`, `references/taste/narration.md` |
-| Sound | `references/audio.md` |
-| Reviews, the listening, the approval | `references/reviews.md` |
-| Locks, budgets, handoffs, scratch | `references/ownership.md` |
-| The desk and notes | `references/desk.md`, `references/publishing.md` (the revision procedure) |
-| Publish, re-voice, versions | `references/publishing.md` |
-| A command's arguments | `references/commands.md` |
-| Where a file or module is | `references/kit-map.md` |
-| Status or resume | `research/handoff.md` (`studio handoff` writes it; `lock acquire --recover` prints it), the narrative's Decisions, SCRIPT.md, receipts, pending requests, cuts, `studio stage VIDEO --report` |
-| Why something is the way it is | `DESIGN.md` |
+Use the main session's Agent tool to spawn one agent per chapter in parallel, each with that
+job and the taste file. Each agent writes only `scenes/<clip>.js`, `cues/<clip>.json` and
+`data/<clip>/`, runs `studio check VIDEO --chapter CLIP`, and inspects its rendered frames.
+A needed shared change comes back to you to apply. Remotion remains available when its code
+components are needed; you register those chapter components in its shared index.
 
-## Rules that hold everywhere
+Build the performed hero moments during the shoot. Picture and sound use the same named cue.
+Keep one voice and speed, readable subjects that fill the frame, and time for each idea to settle.
 
-- **The user decides** the draft, the narrative, the look and when a cut is ready for its final;
-  "go ahead" covers the next gate only (`gates.md`). A final cut and publish need their recorded
-  approval of a cut.
-- **The desk is how the user sees the video.** Start it early and give them its address; never
-  send a raw MP4 or a viewer of your own. Where no server may run, `studio review-export` writes the
-  sanctioned static page (`desk.md`).
-- **Evidence:** every asserted number or behavior has an Evidence row; recorded code and data
-  drive the scenes.
-- **Independent review:** content is judged by fresh reviewers the main session dispatches, never
-  by the builder's own pass (`reviews.md`). Caps leave findings open; they never make them pass.
-- **One writer per video folder**, holding the lock (`ownership.md`).
-- **Scratch in `VIDEO/.studio/work/`, never /tmp**; helpers the build depends on in `sims/`, run
-  with `studio run`.
-- **Commit only at authorized stages** through `studio commit`; never push or upload without
-  authorization.
-- **Keep the kit unchanged during a video's work**: work around a missing capability in the video
-  and report it.
-- **Keep production out of the narration**: no tools, briefs or sessions; the subject's own code
-  and product names are fine.
-- **A feature ships when it makes a real video better** (`DESIGN.md`): try a change to what the
-  viewer sees or hears on one real video before making it a default.
+As chapters land, apply their reported shared changes and sound plans. Run the voice check,
+build the timeline and make one `studio cut VIDEO`. Aim for a first playable version on the desk
+10–15 minutes after story lock. Measure with `studio stage`; report actual elapsed time.
 
-`$STUDIO_HOME` defaults to `~/studio`; videos, the sound kit cache, the learner model, `house.md`
-and `lexicon.json` live there (`kit-map.md`). Explicit video choices win over series, house and kit
-defaults.
+Make `studio review-pack VIDEO --chapter CLIP` for every chapter. Dispatch one reviewer per
+chapter in parallel to inspect motion and frames together, once. Import their findings with
+`studio suggest VIDEO FILE`. They appear as suggested notes that the user accepts or dismisses.
+Review findings are plain files under `research/reviews/`; they never authorize production.
+
+## Review on the desk
+
+Read `references/desk.md`. Keep the desk open on the computer. The user watches, leaves notes
+on sentences and sees your replies. Keep `studio wait VIDEO` running in the background while
+working so new notes reach you. A whole-story comment in chat deserves a whole-story response.
+
+Take each accepted note, make the smallest coherent change, run the relevant checks and put a
+new version on the desk in minutes. Use cached narration and incremental cuts. Keep your status
+current and answer the note with what changed. Continue through the requested work.
+
+**Decision 2 is ship it.** After the user says it, run `studio publish VIDEO --by "NAME"`.
+This records who decided and when in `SHIP.md`, renders the final, finishes the mix and writes
+the local master, web page, poster and colophon. Upload only to a destination the user requested.
+
+## Keep the work understandable
+
+Keep `timeline.json` generated. Its sources are narration, chapter cues, captions and audio
+tracks. Keep source evidence and asset provenance in the video, and keep production details out
+of the spoken explanation. Frames are pure functions of time, so stills, cuts and checks agree.
+
+The main session owns shared files. Chapter agents own disjoint files. Commands that change
+shared products wait on a file lock. Timing records measure story, shoot, desk, waiting and
+finished; they impose no work limit.
+
+Use `studio commit VIDEO "message"` for source checkpoints and `studio clean VIDEO --dry-run`
+to inspect expendable caches. Keep the kit unchanged while making a video. Put reproducible
+helpers in `sims/` or the chapter's data folder and run them through `studio run`.
+
+After the video, append lasting lessons from the user's notes to the last section of
+`references/taste.md`. Preserve the note and its reason. Read `references/taste/comic.md` only
+when the user asks for comedy. For other kinds of video, use `references/by-hand.md`.
+
+The five working references are `taste.md`, `story.md`, `shoot.md`, `desk.md` and `kit.md`.
+`DESIGN.md` records the reasons behind the tools.

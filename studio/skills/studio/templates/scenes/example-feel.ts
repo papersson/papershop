@@ -1,7 +1,6 @@
 import {wobble} from '@studio';
 
-// Weight in time and in the camera, for a heavy contact in a physical subject (references/taste/
-// delight.md, "Spend feel on meaning"): copy to scenes/feel.ts and import it from the chapters that
+// Weight in time and in the camera, for a heavy contact in a physical subject (references/taste.md, "Spend feel on meaning"): copy to scenes/feel.ts and import it from the chapters that
 // use it, so a change re-renders only them. Use it only where the subject has mass and impact: a held
 // frame or a shake on something weightless claims a weight the subject does not have.
 //

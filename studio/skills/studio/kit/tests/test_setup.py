@@ -21,7 +21,7 @@ def launcher(tmp_path):
     shutil.copyfile(doctor.ROOT / "bin/studio", root / "bin/studio")
     (root / "bin/studio").chmod(0o755)
     env = {**os.environ, "STUDIO_NO_NIX": "1", "PATH": "/usr/bin:/bin", "STUDIO_HOME": str(tmp_path / "home")}
-    for k in ("STUDIO_ENV", "STUDIO_PINNED", "PYTHONPATH"):
+    for k in ("STUDIO_ENV", "PYTHONPATH"):
         env.pop(k, None)
     return root, env
 
@@ -36,7 +36,7 @@ def test_clean_machine_preflight_reports_missing_tools_without_bootstrap(tmp_pat
     before = set(tmp_path.rglob("*"))
     result = proc.run([str(root / "bin/studio"), "preflight", str(video)], env=env, capture_output=True, text=True)
     assert result.returncode == 1 and "kit Python environment" in result.stdout
-    assert "references/setup.md" in result.stdout and not marker.exists()
+    assert "references/kit.md" in result.stdout and not marker.exists()
     assert set(tmp_path.rglob("*")) == before
 
 

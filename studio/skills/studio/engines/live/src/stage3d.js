@@ -10,7 +10,7 @@
 // as in 2D. A scene that calls G.lit() opts into the lit look instead, for a physical object the
 // viewer should feel: physically based materials (roughness, metalness), a key light with soft
 // shadows, a fill and a sky light, the same outlines. It costs more a frame and moves colours off the
-// legend's exact values, so it is for the chapter that needs it (references/taste/look.md). The camera is shared/camera3d.js's: its matrices are loaded as they are, so SVG projected
+// legend's exact values, so it is for the chapter that needs it (references/taste.md). The camera is shared/camera3d.js's: its matrices are loaded as they are, so SVG projected
 // through camera3d.project lands on the pixels WebGL draws.
 
 import * as THREE from 'three'

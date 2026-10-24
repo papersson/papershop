@@ -17,7 +17,7 @@ if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/d
   if [ ! -s "$env_file" ]; then
     if [ "$preflight" = 1 ]; then
       echo "setup required: Nix is installed, but this kit's pinned environment has not been prepared."
-      echo "Read references/setup.md; confirm the environment, package, browser and model downloads before running doctor --fetch."
+      echo "Read references/kit.md; confirm the environment, package, browser and model downloads before running doctor --fetch."
       exit 1
     fi
     mkdir -p "$here/.cache"
@@ -42,7 +42,7 @@ if [ "$preflight" = 1 ]; then
   done
   if [ ! -x "$here/kit/.venv/bin/python" ]; then echo "missing: kit Python environment"; missing=1; fi
   if [ "$missing" = 1 ]; then
-    echo "setup required: read references/setup.md and confirm the missing installs before doctor --fetch."
+    echo "setup required: read references/kit.md and confirm the missing installs before doctor --fetch."
     echo "Use Nix on a supported platform, or STUDIO_NO_NIX=1 with Python 3.12, uv, Node 22+, ffmpeg 6+ and sox."
     exit 1
   fi
@@ -51,7 +51,7 @@ if [ "$preflight" = 1 ]; then
 fi
 
 if ! command -v uv >/dev/null; then
-  echo "studio: uv is missing. Run '$here/bin/studio preflight' and follow references/setup.md." >&2
+  echo "studio: uv is missing. Run '$here/bin/studio preflight' and follow references/kit.md." >&2
   exit 1
 fi
 

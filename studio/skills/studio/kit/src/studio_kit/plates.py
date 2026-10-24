@@ -5,7 +5,7 @@ desk, cut records, review bundles, a publish), and its labels, drawn in Blender,
 check's reach. So Blender draws only the plate, the picture behind a chapter, and the chapter stays
 a live scene: it draws the plate as its background (`c.plate()`), puts its labels on the points the
 plate reports (`c.plate.at('head')`), and keeps the caption band, the checks, the desk, the reviews
-and publish. Use it for physical, realistic hero shots (references/taste/look.md); diagrams, code
+and publish. Use it for physical, realistic hero shots (references/taste.md); diagrams, code
 and most chapters stay flat or on the 3D stage.
 
 video.json names the chapters that have one:

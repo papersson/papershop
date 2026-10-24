@@ -1,67 +1,29 @@
 # {{Title}}
 
-Status: draft, before review round 1
-
-## Argument
-
-- **Audience.** {{background and prerequisites}}
-- **Model delta.** {{Before: current model or limitation. After: what they can explain, predict or do}}
-- **Opening question and payoff.** {{puzzle/capability and the compact model that resolves it}}
-- **Protagonist's want.** {{what the thing the video follows wants, what blocks it, and the frame where the payoff gives it}}
-- **Key ideas.** {{usually three or four; importance markers and recap positions}}
-- **Recurring example.** {{small visible case used throughout; real or explicitly synthetic}}
-- **Wrong model or missing link.** {{plausible intuition to test or dependency to supply}}
-- **Transfer questions.** {{three new cases; expected reasoning belongs in research/transfer-answers.md}}
-
-## Chain
-
-| Chapter | Question/limitation | New idea | New prediction | Local closure |
-|---|---|---|---|---|
-| 1 | {{...}} | {{...}} | {{...}} | {{...}} |
+The agreed story is in research/brief.md.
 
 ## Beats
 
-{{Session videos only (`references/session.md`); delete otherwise. One row per beat, before any narration:}}
-
-| Beat | Question or concept | Becomes visible | What changes | Settles (hold) | The voice adds | Exit state |
-|---|---|---|---|---|---|---|
-| 1 | {{...}} | {{...}} | {{...}} | {{1 s}} | {{... (`over:` an earlier beat it replays, if any)}} | {{...}} |
-
-## Format
-
-| Chapter | Format | Why |
-|---|---|---|
-| 1 | narrated animation | {{...}} |
-
-## Ledgers
-
-- **Setups and payoffs.** {{setup → payoff}}
-- **Vocabulary.** {{canonical term, first use, definition}}
-- **Numbers to remember.** {{two or three meaningful quantities; record values and identifiers are separate}}
-- **Runtime.** {{target and estimate: main story, optional reference, thinking pauses}}
+| Chapter | Beat | Question | Picture introduced | Action and sound | Settled hold | Voice adds | Exit state |
+|---|---|---|---|---|---|---|---|
+| s1 | s1-open | {{question}} | {{large subject}} | {{performed hero event and sound}} | {{time to look}} | {{why it happens}} | {{what the viewer can predict}} |
 
 ## Script
 
 ### 1. {{Chapter title}}
 
-> {{Narration paragraph: short sentences written for the ear. Each quoted line is a paragraph; sentence IDs are positional.}}
-> {{Next paragraph.}}
+> {{Write a full explanatory paragraph for the ear.}}
 
-*Screen:* {{s1_01: what the picture shows from this sentence. s1_03–s1_05: the next change; label text and important values}}
+*Screen:* {{Show the subject, its action and the settled result. Name the hero event and its sound.}}
 
 ### 2. {{Chapter title}}
 
-> {{Narration paragraph.}}
+> {{Carry the same small example through the next idea.}}
 
-*Screen:* {{...}}
+*Screen:* {{Frame the subject closely enough to read.}}
 
 ## Evidence
 
 | Claim | Source |
 |---|---|
-| {{value or behavior}} | {{sims/script → data/output, or source file/commit/section}} |
-
-## Review log
-
-{{Self-check with sentence IDs/quotes; independent verdicts and dispositions. Each revision records
-what to merge/trim/replace, affected chapters and expected runtime change.}}
+| {{specific claim}} | {{source file and revision, primary reference, or recorded run}} |

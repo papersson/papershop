@@ -1,7 +1,6 @@
 """The sound kit: recorded CC0 effects, listed in a committed manifest and fetched once into the cache.
 
-soundkit.json sits beside this module, so `studio init` pins it with the kit and a pinned video's
-library never moves. It lists:
+soundkit.json sits beside this module. Its committed digests keep the recorded library reproducible. It lists:
 
   packs   {id: {title, version, url, sha256, bytes, license, creator, homepage, unpack, kind?}}: a
           zip, pinned by digest and size, CC0 only, and `unpack` the glob patterns of the members a

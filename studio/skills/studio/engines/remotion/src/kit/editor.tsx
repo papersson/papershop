@@ -4,7 +4,7 @@ import {Panel} from './blocks';
 import {useClip} from './time';
 import {AMBER, FAINT, ICE, INK, MUTED, mix} from './theme';
 
-// Typed code (references/code.md): an editor, its terminal and the program's window, replaying
+// Typed code (references/kit.md): an editor, its terminal and the program's window, replaying
 // data/typing.json, which `studio typing` writes from a plan. One keystroke stream drives this picture
 // and the key sounds in the soundtrack, so every key lands on its own frame. A scene imports the file
 // and passes it in: `import typing from '../data/typing.json'`, then <Editor typing={typing} ids={['draw']} … />.

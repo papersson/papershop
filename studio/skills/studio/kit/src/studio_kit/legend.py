@@ -22,7 +22,7 @@ Only accent colours count (and those the legend names): a neutral, a blend mid-t
 (alpha under 0.5) are never a meaning, and an element dimmed under half opacity is a guide, not a
 use. Only named elements are seen (a Remotion shape given no name is not). The kit's components tag
 their own accent states (a lit box, a selected cell, a failed line, the close-up's minimap) "kit"
-unless the scene passes `means`: those follow the roles in taste/look.md, not the video's legend, and are left
+unless the scene passes `means`: those follow the roles in taste.md, not the video's legend, and are left
 alone. Warnings, since names and tags are partly heuristic. A video
 with no legend is not checked; when its elements carry `means` tags, one line says the legend is
 missing. A legend colour that is no theme colour fails.

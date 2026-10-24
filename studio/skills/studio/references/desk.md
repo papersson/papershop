@@ -1,85 +1,60 @@
-# The desk: interactive mode
+# Review on the desk
 
-Interactive mode is for when the user wants to follow along and steer: they watch the video take
-shape on the desk, a local page beside the terminal, and leave notes on single sentences; the
-builder takes each note as it arrives and answers under it. It is opt-in (`"mode": "interactive"` in
-video.json, or the user asks to follow along). In background mode nothing here waits on the user.
+Run `studio desk VIDEO` and keep the process alive. It prints a local address on the first free
+port from 8765; `--port` chooses one. Give the user that address when the reel or a new version is
+ready. The desk is a computer tool. The user watches and gives feedback; you operate the kit.
 
-## Where the desk cannot run, or the cut was made elsewhere
+The default view plays a story reel until scene cuts exist, then shows live scenes and the whole
+mix as files change. Selecting a saved cut keeps its picture and sentence timings stable. The
+version list lets the user compare earlier cuts. `studio open VIDEO [CUT]` opens and protects a
+saved playable movie when the user wants the MP4.
 
-`studio import-cut VIDEO MOVIE --timeline FILE` takes an MP4 and the timeline it was made to from
-any renderer, checks that their length, frame rate and chapters agree, and records the cut with an
-identity (the media's hash and the timeline's). The desk plays it like any cut. Where no local
-server may run, `studio review-export VIDEO` writes a folder with the movie and a static page: the
-user watches, writes notes against the narration, and downloads `notes.json`; `studio notes-import
-VIDEO notes.json` adds them to the cut with the same media and refuses any other. Notes never move
-to a cut with different timing. Source-level regeneration is optional for an imported cut, and an
-approval or listening of an imported cut is void as soon as its media is replaced.
+A note records the cut, time, chapter and current sentence, with the preceding sentence for
+context. Narration, picture and both are useful note kinds. Empty notes still mean “here.” Keep
+controls below the picture so paused captions stay visible. The notes are stored in
+`review/notes.jsonl`, and `review/status.json` supplies the status line.
 
-## Setting up
+Run `studio wait VIDEO` in the background while working. It returns newly queued notes, including
+review suggestions the user has just accepted. `studio notes VIDEO` lists the current notes.
+Keep `studio status VIDEO "Working on the input example" --busy` current; clear it when idle.
 
-1. Run `studio desk VIDEO` in the background and give the user its address. On the live engine in
-   interactive mode the desk draws the current scenes with the whole mix (narration, effects, music)
-   and redraws the moment a scene, the timeline or the boards change; otherwise it plays the latest
-   cut, boards and animatic included, and swaps in each new cut at the same moment.
-2. Run `studio wait VIDEO` in the background. It returns when a note arrives, printing the note, its
-   sentence, its kind (narration, picture or both), its id and any glossary words it uses; then
-   handle it and start `studio wait` again. Reading a sent round (`studio wait` or `studio notes`)
-   marks it received on the desk, which answers "did you get my notes?".
-3. Keep `studio status VIDEO "what you are doing" --busy` current; it is the line in the desk's
-   header, and the user's answer to "is it stuck?". Clear it (`studio status VIDEO`) when idle.
+For each accepted note:
 
-## Building
+1. Read it against the cut and sentence the user saw. Mark it with `studio notes VIDEO --start ID`.
+2. Make the smallest coherent change. A structural complaint needs a change to the story, even
+   when it arrived beside one sentence. Take whole-video feedback in chat as well; the user
+   should never need to annotate every instance of the same underlying problem.
+3. If speech changed, narrate again and check the affected voice. Sentence ids are positional;
+   update anchors and pronunciation overrides after edits. If only the picture changed, keep
+   the existing narration.
+4. Run the relevant deterministic checks and inspect the affected frame or transition. Make
+   `studio cut VIDEO` and show the new version. `--changelog FILE` accepts a JSON list of
+   `{ "note": "...", "change": "..." }` for the desk's before-and-after account.
+5. Resolve with `studio notes VIDEO --resolve ID --reply "The pixel now fills the stage."`
+   The reply appears under the note. Aim to return each local revision in minutes.
 
-Settle the narrative and pass the script review first (`explainer.md`); the desk is for the build.
-Build in the foreground, one chapter at a time. Unbuilt chapters show their boards, so the desk
-always plays the whole video. After each chapter: `studio check VIDEO` (incremental: only changed
-chapters; an unchanged chapter's open warnings print again), then tell the user **chapter N is ready on the desk**, and keep building while notes
-arrive. Make a cut (`studio cut VIDEO`) when a chapter or a round of notes is done; on the live
-engine a cut is for the record and the publish gate, not for the user to see the change.
+Reviewers' findings enter through `studio suggest VIDEO FILE`. FILE is JSON:
 
-## Each note
+```json
+{"cut": 2, "chapter": "s1", "findings": [
+  {"t": 3.2, "kind": "picture", "note": "Enlarge the editor so its active line is readable."}
+]}
+```
 
-1. `studio notes VIDEO --start ID`: the desk shows it as working.
-2. Classify it with the per-note procedure in `publishing.md`: local (one sentence or picture) or
-   structural (a new chapter, a reordered argument, a changed claim). For a structural note, first
-   propose the change and its runtime cost (in the session and on the status line), and apply it
-   once the user agrees.
-3. Make the smallest coherent change:
-   - narration: edit SCRIPT.md, re-run `studio narrate VIDEO` (only the changed paragraphs and their
-     neighbours re-voice), then fix cues the edit moved;
-   - picture: edit `scenes/<clip>.js` (live) or the clip's scene; cue labels on what the voice says
-     with `c.phrase(id, text)` so they land on the words;
-   - a glossary word in the note ("stagger", "blur them together") names the move: use its helper
-     (`studio glossary --term …`). The terms for weight and life map to the shared motion helpers:
-     "keyframe" (`keyed`, a path with stops and an ease per leg), "heavy", "float" and "snap" (eases),
-     "overshoot" (`ease.back`), "follow-through" (`follow`), "settle" (`settle`) and "wobble"
-     (`wobble`). The camera's terms are "push-in", "pull back", "pan" and "frame on": each is a
-     camera key list (`c.camAt` in live, `<Camera keys>` in Remotion), "frame on" a key from
-     `c.frameOn(region)` / `frameOn(stage, region)`. In a 3D chapter (live only) they are shot keys
-     (`c.shot`), joined by "orbit", "tilt", "open into depth", "flatten", "explode" and "projected
-     callout". A move the glossary lacks: make it, and add the term to
-     `engines/live/src/glossary.json` with a demo in `glossary.js`;
-   - a note on timing at a contact ("the thud is early"): move the event in `cues.json`, which moves
-     its picture, its effect and its still together (`studio timeline VIDEO --events` lists them).
-4. Check before answering: `studio check VIDEO` (determinism, bounds, band, legible, overlap, pacing
-   and flash once a cut has rendered the chapter and, on the live engine, any scene error, for the changed
-   chapter) and look at a still of the changed
-   moment (`studio still VIDEO CLIP T --out …`). Never resolve a note whose change fails a check.
-5. `studio notes VIDEO --resolve ID --reply "one line saying what changed"`. The reply shows under
-   the note, on the cut or live view that answers it.
+A finding can use `sentence_id` in place of `t`; a time is in seconds from the start of the full
+video. The importer uses that cut's saved timeline, validates the whole file before writing and
+preserves existing decisions on repeated imports. Notes have author `review` and status
+`suggested`. The user presses Accept or Dismiss on the desk. You may also use
+`studio notes VIDEO --accept ID` or `--dismiss ID` when relaying the user's explicit decision.
+Work begins only on accepted suggestions. Plain review records stay under `research/reviews/`.
 
-Several notes that arrive together come back together from `studio wait`; handle them in sentence
-order and resolve each. A note that asks a question ("is this the same log?") is answered in the
-video when the video should have answered it, and in the reply when it shouldn't.
+When the user says “ship it,” record the decision and publish with
+`studio publish VIDEO --by "NAME"`. `SHIP.md` contains one line with who and when. A retry reads
+that line. The command checks every chapter, finishes the mix, renders a final cut and writes
+`out/master.mp4`, `out/web.mp4`, `out/page/` and `out/colophon.md`. It may remind you to listen;
+there is no listening receipt. Report actual resolution, frame rate, duration and file paths.
+External uploading follows the user's requested destination.
 
-Under a cut's changes, the desk lists its known issues: the findings a motion review left on purpose
-when it stopped (`reviews.md`). A note on one of them is the user's call to fix it after all. When
-the user prefers to judge motion here, their notes can stand in for a motion review (`reviews.md`).
-
-## Background runs and the desk
-
-A background builder never waits on the user, but it does show them what it has: start the desk,
-give the user its address, and say when boards, the animatic or a cut are up (`gates.md`). If the
-user leaves notes, `studio stage` lists them as open notes at each stage boundary; take them then,
-with the same per-note procedure, and resolve each.
+Mark `studio stage VIDEO waiting` while waiting for feedback and `finished` when done. Use
+`studio stage VIDEO --report` for elapsed time. Append lasting preferences from the user's notes
+to the final section of `taste.md`; keep individual corrections with the video.

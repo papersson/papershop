@@ -227,13 +227,13 @@ def install_spacy_model():
     if r.returncode:
         raise SystemExit("spaCy model wheel unavailable from the selected source. Supply a compatible "
                          "en-core-web-sm wheel on UV_INDEX_URL/PIP_INDEX_URL, or explicitly set "
-                         "STUDIO_SPACY_MODEL to a compatible wheel URL/path (references/setup.md), then rerun " +
+                         "STUDIO_SPACY_MODEL to a compatible wheel URL/path (references/kit.md), then rerun " +
                          repair("kokoro") + ". No GitHub fallback was attempted.")
     probe = proc.run([str(ROOT / "kit/.venv/bin/python"), "-c",
                       "import spacy; spacy.load('en_core_web_sm')"], capture_output=True, text=True)
     if probe.returncode:
         raise SystemExit("the installed spaCy model could not load; supply a compatible en-core-web-sm wheel "
-                         f"for spaCy {family} (references/setup.md)")
+                         f"for spaCy {family} (references/kit.md)")
 
 
 def check_sounds(offline=None):
@@ -394,7 +394,7 @@ assert score(text, heard) >= 0.7, "speech could not be recognised: " + heard
 print(heard)
 '''
     print("speech: synthesising and recognising a short sample (first use may download model weights)", flush=True)
-    fix = "check the model download/native-library error, then rerun studio doctor --speech (references/setup.md)"
+    fix = "check the model download/native-library error, then rerun studio doctor --speech (references/kit.md)"
     try:
         result = proc.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=timeout)
     except proc.TimeoutExpired:

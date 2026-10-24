@@ -184,16 +184,3 @@ def vocabulary(video):
 def load(video):
     """Compatibility view: [(chapter id, title, [(sentence id, caption text, paragraph index)])]."""
     return [(c.id, c.title, [(s.id, s.text, s.paragraph) for s in c.sentences]) for c in read(video)]
-
-
-def append_review(video, entry):
-    p = Path(video) / "SCRIPT.md"
-    text = p.read_text()
-    match = re.search(r"^## Review log\s*$", text, re.M)
-    if not match:
-        text += "\n## Review log\n\n- " + entry + "\n"
-    else:
-        end = re.search(r"^## ", text[match.end():], re.M)
-        at = match.end() + end.start() if end else len(text)
-        text = text[:at].rstrip() + "\n\n- " + entry + "\n\n" + text[at:]
-    p.write_text(text)

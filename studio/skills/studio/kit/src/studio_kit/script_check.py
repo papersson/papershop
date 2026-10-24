@@ -25,11 +25,6 @@ def run(video):
             rows.append({"check": "script", "clip": where, "ok": severity != "error", "severity": severity,
                          "rule": rule, "detail": detail})
 
-    arg = sections.get("Argument", "")
-    for field in ("Audience", "Model delta", "Key ideas", "Recurring example", "Transfer questions"):
-        match = re.search(rf"^\s*- \*\*{field}[.:]?\*\*\s*(.+)$", arg, re.M | re.I)
-        if not match or "{{" in match[1]:
-            add("Argument", f"fill in {field}", "warning", "brief")
     predictions = [s for c in chapters for s in c.sentences if s.prediction and (s.pause or 0) >= 2]
     if len(predictions) < 2:
         add("Script", f"{len(predictions)} prediction pauses of at least 2s; review whether the viewer gets real attempts", rule="prediction")

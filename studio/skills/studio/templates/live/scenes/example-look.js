@@ -1,17 +1,11 @@
-// The look sheet's own page: rename to scenes/look.js and `studio look-sheet VIDEO` draws it after
-// the kit's pages (colour and type, elements and states, close-up), into out/look/. Draw this
-// video's own elements here, each in every state a scene will show it in, with the same helpers the
-// scenes use, before the scenes are built: studio review-motion hands these pages to its reviewer,
-// who checks the scenes' drawings stay on sheet (and is told when the sheet is missing or stale).
-// One function per element, imported by the scenes too, keeps the sheet and the scenes the same.
-//
-// `pages` names the pages (c.page is the index of the one being drawn). The context is a scene's at
-// t = 0: S, W, H, unit, header, view, kit, C, frameOn and camAt; there are no sentence times.
+// Draw the same element functions here and in the scenes so style changes stay visible together.
+// Copy this file to scenes/look.js; studio look-sheet draws its pages at time zero.
+// The context has no sentence times because a look sheet belongs to the whole video.
 
 export const pages = ['{{the protagonist}}']
 
 // What each element is made of, so everything it does agrees: how it springs and settles when it
-// lands, and what it sounds like (taste/look.md, "The look sheet"). Scenes pass these to the kit's
+// lands, and what it sounds like (references/taste.md). Scenes pass these to the kit's
 // motion helpers, kit.spring(t, ...m.spring) and kit.settle(t, t0, ...m.settle), and effects take
 // the pool, instead of each scene choosing its own numbers.
 export const materials = {

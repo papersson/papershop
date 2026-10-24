@@ -1,8 +1,7 @@
 """`studio typing VIDEO PLAN.json`: code typed into an editor, one keystroke stream for picture and sound.
 
-Code the story writes is typed, not revealed (references/code.md). A plan lists bursts of edits,
-each turning one recorded version of a file into the next (a `studio steps` output, or any file in
-the video). The generator replays each burst's edits on the version before, stops with a diff unless
+Code the story writes is performed with keys (references/kit.md). A plan lists bursts of edits,
+each turning one recorded file version in the video into the next. The generator replays each burst's edits on the version before, stops with a diff unless
 the result is the recorded version byte for byte, and schedules every keystroke with a human rhythm
 (bursts within a word, pauses at punctuation and before a hard line, a typo put right where the plan
 asks for one) so each edit is finished by the words that discuss it. It writes:
@@ -20,7 +19,7 @@ asks for one) so each edit is finished by the words that discuss it. It writes:
 The editor in a Remotion scene (engines/remotion/src/kit/editor.tsx: Editor, Term, ProgramWindow)
 reads data/typing.json, so a key and its sound share a frame. The plan:
 
-  {"sources": {"v1": "data/steps/run/v1/main.c", "v2": {"path": "…", "first": 1}},
+  {"sources": {"v1": "data/versions/v1/main.c", "v2": {"path": "…", "first": 1}},
    "file": "main.c",                                   the name the editor shows
    "run": {"command": "$ cc main.c -o game && ./game", "log": "data/run.txt", "lines_before_window": 9},
    "bursts": [{"id": "s1-window", "clip": "s1", "file": "v2", "before": "v1", "ops": [OP, …]}],

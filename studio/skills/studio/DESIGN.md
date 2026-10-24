@@ -1,191 +1,109 @@
-# Why the studio is shaped this way
+# Why Studio keeps these parts
 
-The studio replaces the tutor plugin, which built fourteen narrated lessons with one learner and
-two work projects (an engineer explainer and a stakeholder cut of it). Every rule here traces to
-something that went wrong or to a choice a user made. This file records them, so a future change
-knows what it is trading away. What each release changed, and why, is in `../../HISTORY.md`.
+## The brief decides the explanation
 
-## The narrative is settled first
+The same tools can produce a useful undergraduate explanation or an overwhelming catalogue.
+Viewer level, a few ideas and a small recurring example change the result more than additional
+review machinery. The story session therefore gets deliberate time with the user. A one-page
+brief keeps those choices visible, and a reel of boards held to the actual voice makes density
+and breathing room perceptible before scene code is expensive to change.
 
-Across the tutor's lessons, the learner's reactions were almost entirely about the argument: the
-wrong story, too much history, a chapter that did not earn its place. Iterating a narrative costs
-minutes; iterating a finished video costs hours. So the narrative is settled with the user before
-any script exists.
+There are two decisions: the user locks the story, then says when to ship. Routine construction
+and corrections proceed within those decisions. The skill is a router for story, shoot and desk;
+five references supply taste, collaboration and the tools needed for each job.
 
-## Two drives, because expertise changes who can judge
+## Taste is durable context
 
-When the user knows the subject (author drive), they are the best reviewer and iteration is cheap,
-so their notes guide revisions. A student pass still checks whether the intended audience can follow;
-subject-review rounds remain optional when the author can judge correctness. When they don't (learner drive),
-correctness has to be established by fresh-context reviewers before they see it, and they get risk
-flags rather than a false sense of a finished product. In the work projects, the user was the
-expert and repeated three-role reviewer rounds were friction: one lock took 18 rounds, and reviewers asking for
-more explanation doubled a six-minute plan. Hence the charter, the caps and the oscillation stop.
+A model can write an animation and describe good teaching. It cannot infer the user's specific
+preferences from first principles. `references/taste.md` retains those preferences with their
+reasons: canonical level, a toy example, full explanatory sentences, a clean overview, close-ups,
+performed events and time to look. Its final section keeps new lessons tied to actual viewer notes.
+The brief supplies any departure needed for a particular video.
 
-## Fresh contexts where content is judged
+## One timeline keeps picture and sound together
 
-A context that holds a draft anchors every later judgment to it. Research, competing narratives,
-script reviews and the frame review run in fresh contexts, each seeing only what it needs; reviewers
-run with selected inputs in empty folders because, in one build, reviewers with file access read earlier reviews and
-repeated them. When isolation failed once, the fallback subagents loaded the project's context and
-the "newcomer" knew far too much, so a failed reviewer stops the round loudly. An empty folder reduces context leakage, but is not a
-filesystem sandbox; the main session owns reviewer dispatch and records capability limits. The in-agent
-craft critique is allowed because it judges legibility and motion, not content.
+Narration, words, captions, clips and cues share a frame grid. Every frame is a function of time,
+so a still, a rendered chapter and the live desk show the same state. A named event times the
+picture and its sound on one frame. Recorded sounds use their transient peak rather than their
+file's start. The beat sheet makes contact, consequence and settling part of the authored story.
 
-## One timeline, frames as functions of time
+Chapter cues are separate source files merged by one timeline build. Each chapter agent has its
+own scene and data directory. Private check workspaces let agents inspect their work concurrently
+without replacing the shared timeline or each other's cache. The main session applies shared
+changes and makes the combined cut once the chapters are ready.
 
-Most of the work projects' improvised scripts (captions, a band check, word timings, contact sheets)
-existed because nothing owned the frame's layout or the time grid. The timeline is that owner:
-narration, words, captions and scene clips, derived from the script. Engines render clips from it,
-and every frame is a pure function of time, so any frame renders alone. That is what makes a still
-after an edit take about 1.6 s, a changed chapter re-render alone, and checks seek exactly the
-frames they need (a Motion Canvas port measured 4× faster iteration than Manim for this reason).
-Remotion was the first engine: its frames are already functions of the current frame, its CLI and
-renderer give stills and renders directly, and its components double as the look-gate mockups. New
-explainers now default to the live engine (plain JS scenes the desk hot-reloads, rendered by the
-same code; HISTORY.md, 0.8.0); Remotion stays for code explainers, motion, launch and footage.
+## Fast versions keep the user involved
 
-## The loop is the product
+The user wants to see the work, give a note and see its effect in minutes. The live engine draws
+plain JavaScript scenes directly on the desk and hot-reloads them. The same renderer captures
+stills and movies. Incremental keys include scene dependencies, data, assets, layout and each
+chapter's relative timeline, so a changed chapter can render alone. Cached narration preserves
+unchanged paragraphs. Draft cuts keep feedback fast; the shipping decision requests the final.
 
-The user never operates the tools. They see a cut, leave notes against the exact sentence on
-screen, and see the next cut. So cuts render stills first, re-render only changed clips (keys hash
-what each clip's frames depend on, with relative paths so a moved video keeps its cache), show
-before/after stills, and keep final quality for publishing. The review page puts its controls below
-the video because an overlay hid the burned-in captions exactly when the video was paused for a note.
+The desk records notes on the sentence and saved cut the user saw, replies beneath them and keeps
+earlier versions available. HTTP range requests preserve video seeking. Whole-story feedback in
+chat complements sentence notes. Suggestions from reviewers remain visibly separate until the
+user accepts them. A reviewer cannot substitute for the viewer's judgment of level or pace.
 
-## Captions are a layout primitive
+## Reviews provide evidence
 
-The learner asked for burned-in captions that never cover anything. They live in a reserved band
-the scenes can't enter, chunked from word timings (two lines of about 42 characters, phrase
-boundaries, at least 1.2 s). The page drops its captions toggle so they don't show twice.
+The story panel reads once through three parallel perspectives: expert, viewer and editor.
+Each gets the supplied brief and script in an empty working folder to reduce context leakage.
+That directory is isolation of context, not a security sandbox. Missing perspectives are reported.
+Findings remain plain files and the user sees unresolved questions.
 
-## Voice
+After the first scene cut, one reviewer per chapter considers motion and frames together, in
+parallel. Each bundle samples the saved cut and includes sound evidence around its events.
+The findings become suggested desk notes. A changed script or an applied correction never
+invalidates permission to continue. The checks remain independent of a reviewer's verdict.
 
-Kokoro `af_heart` sounded robotic synthesised sentence by sentence: every sentence started at the
-same pitch after the same gap. One call per paragraph doubled the sentence-to-sentence pitch
-variation at no cost. Kokoro stays the voice through to publishing: a late switch re-times every
-word, which changes every chapter's render key and reopens every sync decision. ElevenLabs is the
-hosted option when a user asks for it, its responses cached and committed so a
-rebuild never pays twice (the port reproduces the tutor kit's ElevenLabs timings exactly). Nobody
-can listen, so the voice check transcribes every sentence; it caught a synthesis that silently
-dropped two sentences. A one-pass loudness "finish" once raised the room tone in every pause, so the
-finish is one fixed gain over the whole mix with a limiter on the peaks (`references/audio.md`).
+## Voice and sound are assets
 
-## Visual style
+Kokoro paragraph synthesis carries intonation across sentences. A fixed voice and speed keep a
+video coherent and avoid retiming every word late in production. The lexicon preserves deliberate
+pronunciations. Voice checking caught missing synthesized sentences, and alignment gives effects
+and labels useful word anchors. ElevenLabs remains an explicitly selected option with cached
+responses, so a rebuild can reproduce paid speech.
 
-"The macro view needs to be super clean": a single diagram that accumulated every chapter's detail
-became unreadable, so the default is a clean map plus full-screen close-ups. A visual protagonist
-and real imagery were the biggest single improvement. The banned-defaults list comes from studying
-why "one prompt" motion design looks alike. Two rounds of static mockups each saved a full build,
-hence the look gate.
+Recorded CC0 material sounds, key recordings and typed-code streams make actions tactile.
+Typing replays actual file versions and uses the same keystroke events for picture and sound.
+The mix bus supplies shared room, presence and ducking. A fixed whole-track loudness gain and
+true-peak limiter preserve quiet pauses; dynamic normalization once lifted room noise between
+sentences. Audio checks measure sync, audible effects, masking, pause space and loudness.
+Listening still supplies judgments those measurements cannot make.
 
-The look gate gained a model sheet (`studio look-sheet`): drawn by the video's own engine before
-scenes, every element in each state, so a drawing that drifts from it is a finding rather than a taste
-call. Camera moves became one declaration of keys with proportional zoom, so any frame of a push-in
-renders alone, and framing reserves a header strip as it reserves the caption band. Outer contours are
-heavier than inner detail.
+## The picture has room to explain
 
-## The environment
+Captions occupy a reserved band because covering the subject makes the explanation harder to
+read. They are chunked from the narration with phrase breaks and a minimum reading time. Stage
+labels identify things. A clean map and large close-ups keep detail from accumulating indefinitely.
+One colour retains one meaning, and outer contours carry more weight than internal dividers.
 
-`bin/studio` enters the plugin's own flake (Python, uv, Node 22, ffmpeg, sox), caching the
-environment per lock file, because entering a Nix shell on every call would add seconds to every
-still. Python packages are pinned by `uv.lock`, the engine's by `package-lock.json`, and the heavy
-parts (Kokoro and torch, faster-whisper) are optional extras. The browser is the engine's headless
-shell: a full Chrome in headless mode rendered at about 18 frames a second, the shell at about 73.
-An installed Chrome is the fallback behind a proxy that blocks the download. `studio doctor` checks
-every layer and prints the fix.
+Live 3D helps when a flat diagram hides a spatial relation. It shares the timeline, legend and
+checks with SVG. The lit look and Blender plates remain available for physical hero shots whose
+material matters. Projected labels stay live and readable. A plate probe measures its cost before
+a long render. Remotion remains for its established code and terminal components until they can
+be ported and verified in live.
 
-## Measured
+## Checks catch specific bugs
 
-On an 8-core Apple silicon machine, with "Charged Twice" (4:35, seven chapters) rebuilt in Remotion:
-a frame after editing a scene, including the rebundle, 1.6 s; one chapter at draft quality after an
-edit, 13.5 s; the next cut after editing one chapter, 24.8 s; a full draft cut from nothing, 2:05;
-21 of 21 sampled frames identical across two renders. The narration port reproduced the tutor's
-ElevenLabs build of "From LLM to Agent" to the millisecond (125 sentences), and its voice check gave
-the same result.
+Length checks caught disagreement between Python and JavaScript at half-frame boundaries.
+Determinism checks catch state that depends on earlier frames. Bounds, band, contrast and
+legibility checks catch clipped or unreadable elements. In-frame and occlusion warnings expose
+narrated objects that the picture hides. Colour-legend checks catch meanings that change colour.
+Motion and flash checks inspect rendered frames. Asset provenance and code-view checks preserve
+source relationships. Some checks are heuristic warnings; the story explains whether a hold or
+an overlap is intentional.
 
-## Checks, and what each one caught
+Setup is inspectable through preflight and doctor. The launcher enters a pinned environment and
+caches it to avoid repeated startup cost. Exports keep separate layouts and cache keys while
+sharing the timeline. Publish produces the final master, web copy, poster and colophon from that
+same source. The user's shipping decision is one line with a name and time.
 
-`studio check` runs through the engine interface, and each check earned its place on something real:
-- **length** found Python's `round()` and the engine's `Math.round` disagreeing on half frames
-  (436.5 → 436 against 437), which put a chapter boundary a frame off between kit and engine.
-- **band** (named boxes against the band, and the scene alone against the bare background over the
-  band's pixels) and **bounds** catch an element entering the caption band or leaving the frame;
-  proven by putting one in each on a scratch scene. Under a camera that has moved, both leave the
-  crop alone: a push-in failed band though the opaque band hid what it pushed under it.
-- **contrast** reads the brightest pixel under the band against the caption colour (16:1 on the
-  opaque band).
-- **legible** fails text under 18 px tall; **provenance** fails a scene that uses an asset with no
-  source row; **dead** fails a run of identical frames over four seconds; **loop** compares the last
-  frame with the first (a template whose return began at the loop point failed it).
-- **grid** and **palette** (pixel art), and **filler, cuts, levels, sync, segments** (footage).
-- A check that samples sentence times checked nothing for a video with no narration, so clips
-  without narration are sampled evenly.
-- **inframe** warns when an element the sentence names (by its box's label) is cut by the frame, the
-  header or the band at the sentence's end; proven on scratch scenes that push in past a named box in
-  live and Remotion. It is a warning because names are a heuristic.
+## Measure the whole loop
 
-## Genres
-
-One engine and one timeline serve five genres; each genre file (`references/genres/`) holds the
-procedure and the checks that fit it. Motion is reference-driven, with a state list and a loop that
-must settle before its seam; launch films use captured screens and record where every asset came
-from; pixel art is a fixed grid, a palette and whole-number scaling; footage is edited by its words,
-with captions from the footage's own transcript. Formats (16:9, 9:16, 1:1) each have their own stage
-and caption band, bundle cache and clip keys, so one timeline exports all of them.
-
-## Engines
-
-Remotion is the default; Motion Canvas is the second, for work (Remotion's licence) and for scenes
-that are naturally tweens. It was written from the packages against the same four operations: a
-Vite dev server serves the video's scenes, a headless browser loads a page that runs Motion Canvas's
-own Player and Stage, and the driver seeks to exactly the frames it needs. The kit's checks pass
-unchanged on a Motion Canvas video (length, determinism, bounds, band through the `layers` project
-variable, contrast, legibility, dead beats and the loop seam), and it exports every format. Its scene
-kit has the same components as Remotion's (map and close-up, pixel art, captured assets, footage
-edits), driven from a per-frame `c.every`; pixel, launch, footage and motion videos pass their genre
-checks on it.
-
-## Evals
-
-`evals/` covers genre/drive routing, a negative case, exhaustive code coverage, and revisions
-including mid-flight requests. Run with `claude plugin eval` against a clean checkout (the installed
-`node_modules` push a plugin folder past the tool's 20,000-entry limit). The first run cost $4.25
-and scored 0.91: the two low runs were the sandbox (with only read tools the agent led with having
-no shell, and the judge found no plan), so the prompts now say so up front. The routing cases then
-scored 1.0 on all 18 runs ($3.37), and the negative case (a chat question must not start a video)
-passed.
-
-## Still open
-
-| What | Done when |
-|---|---|
-| **Migrating a pinned video**: `studio init --update` replaces a video's kit copy | a real video's stills compared before and after an update |
-| **Boards in Motion Canvas**: a Remotion chapter without a scene renders its board; Motion Canvas still requires every scene | the Motion Canvas project falls back to a board scene |
-| **The 0.13 feel rules on a real video**: weights, consequence, proximity, stakes, materials, hitstop | one video's stake beat and a weight-3 event rebuilt as is, with the stake only, and with stake and consequence, compared blind on the desk, and the motion review's new items finding the old cut's gaps |
-
-## The instructions are organized by job, not by release
-
-Agents re-read SKILL.md six times a session and guessed paths, and the motion review's stop rule
-lived in six files. So SKILL.md is a router with a reading list per job; each rule has one home
-(`references/gates.md` for the user's decisions, `reviews.md` for every review, `ownership.md` for
-locks, budgets and handoffs, `audio.md` for sound, `taste/` for what good looks and sounds like,
-`commands.md` and `kit-map.md` for where things are); and the release history lives outside the
-skill, in HISTORY.md. A rule cites the incident behind it in a sentence, so it can be bent knowingly.
-
-## Feel is spent on meaning
-
-Studio already performed each event, timed picture and sound from one cue and kept effects off
-decoration. A 20-second film made outside studio showed what that still left plain: the same
-physics and captions read far better once a stake, consequences, a camera that came close and a
-material rule were added. Game feel names the missing layers (context, harmony, proximity, time),
-but in an explainer every effect is also a claim about the subject, so each layer must encode a
-cause, a magnitude or what a thing is, and the layers are a budget spent by an event's weight
-rather than given to every event. Hitstop and shake are scenes templates, not engine code, because
-every file in engines/shared is in every clip's key, and they stay off subjects without mass.
-
-## A feature ships when it makes a real video better
-
-Role-based voice speeds shipped in 0.10.0 and were reverted two days later: in a real video the
-user heard the speed change and disliked it. A feature that changes what the viewer sees or hears is
-tried on one real video before it becomes a default.
+File locks prevent competing shared writes by waiting. Stage timing measures elapsed production
+and user waiting without limiting the work. The standing ablation prepares matching starts for
+a bare agent and Studio, with the same topic, model and length. The useful comparison is the
+videos and the user's verdict, alongside the time to reach them. A tool earns its place through
+what it contributes to that result. The next proof is a complete shoot watched with the user.

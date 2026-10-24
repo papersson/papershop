@@ -231,13 +231,13 @@ def test_an_old_timeline_is_lifted_into_its_sources_once(tmp_path, capsys):
 
 
 def test_an_old_silent_piece_keeps_its_length(tmp_path):
-    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "genre": "motion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel"}))
     old = {"version": 1, "fps": 30, "duration": 6.0, "cues": {},
            "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": "Reel", "start": 0.0, "end": 6.0}],
                       "narration": [], "captions": [], "audio": []}}
     (tmp_path / "timeline.json").write_text(json.dumps(old))
     assert tl.build(tmp_path)["duration"] == 6.0
-    assert read(tmp_path / "video.json") == {"title": "Reel", "genre": "motion", "duration": 6.0}
+    assert read(tmp_path / "video.json") == {"title": "Reel", "duration": 6.0}
 
 
 def test_words_aligned_in_place_are_lifted_with_the_current_narration(tmp_path):
@@ -306,7 +306,7 @@ def test_an_old_estimate_after_a_narration_is_the_newer_timing(tmp_path):
 
 
 def test_an_old_silent_piece_split_into_chapters_keeps_them(tmp_path):
-    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "genre": "motion", "engine": "remotion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "engine": "remotion"}))
     old_timeline(tmp_path, {"version": 1, "fps": 30, "duration": 6.0, "cues": {}, "tracks": {
         "scene": [{"id": f"s{i + 1}", "engine": "remotion", "title": f"S{i + 1}", "start": 2.0 * i, "end": 2.0 * (i + 1)}
                   for i in range(3)], "narration": [], "captions": [], "audio": []}})
@@ -409,7 +409,7 @@ def test_an_estimated_video_is_not_finished_published_or_exported_without_its_vo
 
 
 def test_a_piece_without_narration_still_finishes_its_music(tmp_path):
-    (tmp_path / "video.json").write_text(json.dumps({"title": "M", "genre": "motion", "duration": 3}))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "M", "duration": 3}))
     click_track(tmp_path / "bed.wav")
     (tmp_path / "audio").mkdir()
     (tmp_path / "audio" / "tracks.json").write_text(json.dumps([{"file": str(tmp_path / "bed.wav"), "start": 0}]))

@@ -78,10 +78,3 @@ def test_runtime_and_meta_diagnostics_and_scoped_acceptance(tmp_path):
     assert not any(r["rule"] == "meta" for r in rows)
     assert any(r["rule"] == "length" for r in rows)
     assert any("1 (JSON)" in r["detail"] for r in rows)
-
-
-def test_review_log_insertion_stays_in_its_section(tmp_path):
-    (tmp_path / "SCRIPT.md").write_text("## Review log\n\nOld.\n\n## House style\n\nDry.\n")
-    script.append_review(tmp_path, "merge two repeated ideas")
-    parts = script.sections((tmp_path / "SCRIPT.md").read_text())
-    assert "merge two" in parts["Review log"] and "merge two" not in parts["House style"]

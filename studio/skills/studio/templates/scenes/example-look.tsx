@@ -1,16 +1,12 @@
 import React from 'react';
 import {Rect, Txt, useStage, CORAL, ICE, MUTED, AMBER, PANEL, type XY} from '@studio';
 
-// The look sheet's own pages: rename to scenes/look.tsx and `studio look-sheet VIDEO` draws them after
-// the kit's pages (colour and type, elements and states, map, close-up, code), into out/look/. Draw
-// this video's own elements here, each in every state a scene will show it in, before the scenes are
-// built: studio review-motion hands these pages to its reviewer, who checks the scenes' drawings
-// stay on sheet (and is told when the sheet is missing or stale). Export each element as a
-// component the scenes import too, so the sheet and the scenes stay the same. A page is drawn alone,
-// on the stage above the band, at frame 0; it has no clip, so no useClip() times.
+// Draw shared element components here and in the scenes so style changes stay visible together.
+// Copy this file to scenes/look.tsx; studio look-sheet draws its pages at frame zero.
+// There is no clip, so a look sheet has no useClip() times.
 
 // What each element is made of, so everything it does agrees: how it springs and settles when it
-// lands, and what it sounds like (taste/look.md, "The look sheet"). Scenes pass these to the kit's
+// lands, and what it sounds like (references/taste.md). Scenes pass these to the kit's
 // motion helpers, spring(t, ...m.spring) and settle(t, t0, ...m.settle), and effects take the pool,
 // instead of each scene choosing its own numbers.
 export const materials = {

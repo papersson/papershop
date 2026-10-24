@@ -25,7 +25,7 @@ conflicts (each reported by event id, one row apiece, with the seconds):
   loop-runs-on          a loop has no stop, or runs past the next intro
   unknown-reference     introduced_by names no event
 
-The rules are references/session.md's; the numbers are starting values to be tuned by watching.
+The rules are references/taste.md's; the numbers are starting values to be tuned by watching.
 """
 import json
 from pathlib import Path

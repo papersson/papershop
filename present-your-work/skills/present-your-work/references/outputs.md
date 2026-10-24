@@ -34,20 +34,19 @@ An HTML article page, published as an artifact where the platform offers one:
 - New terms marked with `<dfn>` where they are defined.
 
 Beside the article goes `STORY.md`, which `studio` reads when a video is made of the work. It holds
-the card, the background chain and the vocabulary in studio's narrative format
-(`research/narrative.md` in a studio video). Studio takes it as the draft of its narrative, fills in
-what only a video needs (what is on screen, the hero moments, the timing), and still puts the
-narrative to the user for approval. The story file never adds facts the article lacks, so the video
+the card, background chain and vocabulary. Studio uses it to draft `research/brief.md`, adds
+what the video needs (the picture, hero moments, sound and timing), and shows a narrated story
+reel before the user locks the story. The story file never adds facts the article lacks, so the video
 and the article tell one story.
 
-| present-your-work | studio's narrative |
+| present-your-work | Studio brief and beats |
 |---|---|
-| The reader model | Audience |
-| Question and Answer | Learning brief: Opening question and payoff |
-| Goal, Distance and Next (the takeaway) | Learning brief: Model delta, as its "After" |
-| The three results | Learning brief: Key ideas |
-| The chain's first concrete example | Learning brief: Recurring example |
-| The background chain, then the five questions | Chain, one chapter per link or section |
+| The reader model | Viewer and prior knowledge |
+| Question and Answer | One question and payoff |
+| Goal, Distance and Next (the takeaway) | What the viewer leaves able to explain |
+| The three results | Three or four ideas |
+| The chain's first concrete example | Small recurring example |
+| The background chain, then the five questions | Beats motivated by the next question |
 | The article's numbers with their sources | The Chain's Evidence column |
 | What went to the appendix | Cut on purpose |
 | The terms kept, and the glossary's labels | Vocabulary, the labels listed as substitutes to avoid |

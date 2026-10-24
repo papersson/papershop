@@ -7,7 +7,7 @@ import {ramp, spring} from './time';
  * The building blocks explainer scenes kept rewriting: a labelled box, a connector, a code or text
  * card, a panel, a terminal line, a stack of layers. Writing them per video was a large share of a
  * build's scene time, and copies drifted; they live here so a chapter is mostly layout and timing.
- * All take stage units and an opacity, and follow the colour rules in taste/look.md: ice for the thing
+ * All take stage units and an opacity, and follow the colour rules in taste.md: ice for the thing
  * explained, amber for a number to watch, coral for failure only, neutral otherwise.
  */
 

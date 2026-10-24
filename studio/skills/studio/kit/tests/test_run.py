@@ -10,7 +10,7 @@ from studio_kit.env import ROOT
 PROBE = """import json, os, sys
 import studio_kit
 print(json.dumps({"cwd": os.getcwd(), "video": os.environ["STUDIO_VIDEO"], "work": os.environ["STUDIO_WORK"],
-                  "stdin": sys.stdin.read(), "args": sys.argv[1:], "pinned": os.environ.get("STUDIO_PINNED"),
+                  "stdin": sys.stdin.read(), "args": sys.argv[1:],
                   "path": os.environ["PATH"].split(os.pathsep)[0]}))
 sys.exit(int(os.environ.get("EXIT", "0")))
 """
@@ -30,7 +30,7 @@ def test_a_script_runs_in_the_video_with_the_kit(video, capfd, monkeypatch):
     seen = json.loads(capfd.readouterr().out)          # streamed to our stdout, not captured
     v = str(video.resolve())
     assert seen == {"cwd": v, "video": v, "work": f"{v}/.studio/work", "stdin": "", "args": ["--", "--flag", "x"],
-                    "pinned": None, "path": str(ROOT / "bin")}
+                    "path": str(ROOT / "bin")}
     assert cli.main(["run", "--allow-outside", str(video), "sims/probe.py", "a", "--", "b"]) == 0
     assert json.loads(capfd.readouterr().out)["args"] == ["a", "--", "b"]
 

@@ -14,7 +14,7 @@ or "grains:REF": key-sized grains cut from a take of real typing (the kit's key-
 of them, sorted by brightness ("grains:REF#low" the darkest quarter, for a space bar; "#high" the
 brightest, for a backspace). Either may be {"sound", "gain"} for its own level against the others.
 
-How it sounds is the point (references/taste/delight.md): every event plays a different variant than
+How it sounds is the point (references/taste.md): every event plays a different variant than
 the one before it of its kind, a little higher or lower and louder or softer, a few milliseconds off
 the grid (not when the stream is "exact": true, as typed keys are, which sit on their frames); crowded events thin out (above DENSE events a second each is quieter, so fast typing is a
 texture, not a louder one); and an event under a spoken word steps back by `under_speech` dB, so the

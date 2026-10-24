@@ -116,7 +116,7 @@ def provenance(video):
 
 PACING_FPS = 10         # samples a second: a 0.5 s hold is five
 PACING_SIZE = (192, 108)   # pixels the frame is scaled to: whole moves show, texture and antialiasing don't
-HOLD_MIN = 0.5          # seconds a significant move holds before the next one starts (taste/delight.md)
+HOLD_MIN = 0.5          # seconds a significant move holds before the next one starts (taste.md)
 # Calibrated on the kit's templates (live and Remotion), in mean grey levels over the stage at PACING_SIZE.
 # A sample moving at least MOVE_LEVEL (0.15% of the stage changing fully in 0.1 s) is movement; less is
 # ambient (a jittering dot, a ticking counter, a slow fade). A run of movement is a significant move when

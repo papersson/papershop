@@ -21,7 +21,7 @@ export function legibleSize(s: Stage, size: number, chars = 0, width = Infinity)
 	return Math.max(MIN_TEXT_PX / px, Math.min(size, fit));
 }
 const columns = (line: string) => line.replace(/\t/g, '        ').length;
-/** An unmodified file from studio steps results.json. Line ranges are 1-based, inclusive. */
+/** An unmodified recorded source file. Line ranges are 1-based, inclusive. */
 export type SourceFile = {text: string; sha256: string};
 
 export const CodePanel: React.FC<Area & {

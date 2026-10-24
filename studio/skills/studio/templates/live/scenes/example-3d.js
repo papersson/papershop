@@ -1,6 +1,6 @@
 // A live chapter with a 3D moment: a flat diagram opens into depth on one cue and flattens back on
 // another (copy to scenes/<clip>.js and name the cues in cues.json). Use 3D only when the viewer needs
-// to see something the flat diagram hides (references/taste/look.md); everything else stays 2D.
+// to see something the flat diagram hides (references/taste.md); everything else stays 2D.
 //
 // The bridge is c.flatShot(): the top-down shot under which a world point (x, 0, z) lands on stage
 // pixel (x, z). So the SVG diagram and the 3D model are built in the same numbers, the model seen from

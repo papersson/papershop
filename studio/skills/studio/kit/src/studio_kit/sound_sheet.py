@@ -15,7 +15,7 @@ One PNG, drawn by ffmpeg alone (showwavespic, showspectrumpic, drawbox, drawtext
 
 Every effect's marker is a vertical line through all four lanes. `studio audio-check` draws the whole
 video (out/audio-sheet.png) and a close-up around each hero effect (out/audio-sheet/fxN.png);
-`studio review-motion` draws one per window that has effects, from the cut's own sound. The labels
+`studio review-pack` draws one per window that has effects, from the cut's own sound. The labels
 use the same named font file as the motion review's frame numbers (motion_review.label_font), so
 fontconfig is never asked; with no font at all the sheet is drawn without text.
 """

@@ -38,13 +38,13 @@ named fxN, their place in audio/sfx.json (sfx.effect_id), in every row, sheet an
             duck has let go, in pauses of at least 1 s), warning under DUCK_MIN dB
   reveal    before each reveal: cue (a prediction's answer), the effects and music in the REVEAL_SPAN s
             before it against the REVEAL_BEFORE s before that, warning when they dip less than
-            REVEAL_DIP dB, so the answer lands into near-silence (taste/delight.md); silence there passes
+            REVEAL_DIP dB, so the answer lands into near-silence (taste.md); silence there passes
   crossing  each effect within CROSSING s of a chapter cut, before or after it: a sound that arrives
             before the next chapter's picture carries the viewer over the cut. Listed, never a warning
   masking   per spoken word, the effects and music in 1-4 kHz against the narration in that band,
             warning when they come within MASK_MARGIN dB of it; the closest word is kept either way
   pauses    an effect rising over PAUSE_PEAK dBFS (in the effects stem, at the master's gain, before
-            its limiter) during a spoken word fails, naming the part of the word it covers: effects belong in pauses (references/audio.md), and the finish limits peaks, it
+            its limiter) during a spoken word fails, naming the part of the word it covers: effects belong in pauses (references/kit.md), and the finish limits peaks, it
             does not unmask a word. A quiet effect under speech, below it, is allowed
   loudness  the master's integrated loudness and true peak against its target and ceiling, and the web
             copy's true peak when out/web.mp4 exists
@@ -61,8 +61,7 @@ Then what a person needs, in that order: the sound sheet to look at, and the tim
             the tagged effect furthest from its picture, the closest masking margin (under
             LISTEN_MASK dB), the loudest effect, the music's first entry, then the heroes; moments
             within LISTEN_MERGE s are one. They go into the report with the soundtrack's stamp, so the
-            listen checkpoint (publish's warning, the handoff, `review-status VIDEO listen passed`)
-            uses them only for the mix they were chosen for (`moments`, `listen_hint`).
+            desk can identify the mix they were chosen for (`moments`, `listen_hint`).
 
 `studio check` runs the pauses guard as its `pauses` check whenever the soundtrack has an effect
 (audio/sfx.json, or an audio/tracks.json entry with role sfx) and a narration, so publish, whose gate
@@ -907,7 +906,7 @@ def moments(video):
 
 
 def listen_hint(video, shown=None):
-    """The timecodes as a clause for publish's warning and the handoff: "at 0:02.8 (hero effect
+    """The timecodes as a clause for the listening reminder: "at 0:02.8 (hero effect
     ...), ..." or how to get them. `shown`: the video as the message writes it."""
     found = moments(video)
     if found is None:

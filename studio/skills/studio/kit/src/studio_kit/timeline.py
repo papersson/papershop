@@ -30,7 +30,7 @@ and the rest layer on:
                                          that does. An anchor whose words are gone, or whose phrase several
                                          sentences say, stops the build naming the cue (event_time).
                                          An anchor may also carry "weight": 1 | 2 | 3, how much the
-                                         argument hangs on the event (taste/delight.md), and "hitstop":
+                                         argument hangs on the event (taste.md), and "hitstop":
                                          frames (2 to 6) the contact holds; neither moves its time
   captions.json        the builder       caption chunks whose words are kept: [{text} or {lines,
                                          wrapped?}] (other formats wrapped from them), each either

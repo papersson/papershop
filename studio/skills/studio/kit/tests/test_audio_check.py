@@ -17,7 +17,7 @@ def narrated(tmp_path, effects=(), bed_gain=None, sound=None):
     from test_audio import speech
     v = tmp_path / "v"
     (v / "audio").mkdir(parents=True)
-    (v / "video.json").write_text(json.dumps({"title": "x", "genre": "motion", **({"sound": sound} if sound else {})}))
+    (v / "video.json").write_text(json.dumps({"title": "x", **({"sound": sound} if sound else {})}))
     speech(v / "audio" / "narration.wav", seconds=10.5)
     narration = [{"id": f"s{i}", "clip": "a", "text": "one two three", "caption": "one two three", "start": 3.0 * i,
                   "end": 3.0 * i + 1.5, "words": [{"w": w, "start": 3.0 * i + 0.5 * k, "end": 3.0 * i + 0.5 * k + 0.45}
@@ -413,7 +413,7 @@ def test_audio_check_draws_the_sheet_and_offers_timecodes_for_this_mix(tmp_path,
     out = capsys.readouterr().out
     assert "sound sheet: out/audio-sheet.png" in out and "listen at:\n  0:0" in out
     assert audio_check.listen_hint(v).startswith("at 0:0")
-    (v / "video.json").write_text(json.dumps({"title": "x", "genre": "motion", "sound": {"room": 0}}))     # another mix
+    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 0}}))     # another mix
     assert audio_check.moments(v) is None and audio_check.listen_hint(v, '"$VIDEO"') == \
         'run `studio audio-check "$VIDEO"` first for the timecodes to listen at'
 
