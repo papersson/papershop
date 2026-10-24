@@ -362,3 +362,13 @@ def test_a_mix_that_cannot_be_built_says_so_in_a_catchable_way(tmp_path):
     with pytest.raises(audio.MixUnavailable, match="no time for 'reveal:gone'"):
         audio.revision(v)
     assert issubclass(audio.MixUnavailable, SystemExit)
+
+
+def test_an_unreachable_target_records_the_gain_actually_rendered(monkeypatch, tmp_path):
+    """After its last attempt the limiter proposed another gain and recorded that unused value."""
+    calls = []
+    monkeypatch.setattr(audio, 'MAX_PASSES', 1)
+    monkeypatch.setattr(audio.proc, 'ffmpeg', lambda *args, **kwargs: calls.append(args))
+    monkeypatch.setattr(audio, 'measure', lambda path: (-24.0, -1.5))
+    r = audio.master(tmp_path / 'in.wav', tmp_path / 'out.wav', measured=(-30, -10))
+    assert r['gain_db'] == 14 and 'volume=14.000dB' in calls[0][3]

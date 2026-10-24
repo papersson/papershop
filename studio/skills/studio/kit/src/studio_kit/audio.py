@@ -319,6 +319,7 @@ def master(src, out, lufs=-16.0, peak=-1.5, measured=None):
     gain = lufs - before
     ceiling = peak
     for _ in range(MAX_PASSES):
+        applied_gain = gain
         limit = 10 ** (ceiling / 20)
         proc.ffmpeg("-i", src, "-af",
                     f"aresample={RATE}:resampler=soxr:precision=28,volume={gain:.3f}dB,"
@@ -334,7 +335,7 @@ def master(src, out, lufs=-16.0, peak=-1.5, measured=None):
         if tp > peak + 0.05:
             ceiling -= (tp - peak) + 0.05
     return {"target_lufs": lufs, "lufs": got, "true_peak_dbtp": tp, "ceiling_dbtp": peak,
-            "gain_db": round(gain, 2), "input_lufs": before, "input_true_peak_dbtp": before_tp}
+            "gain_db": round(applied_gain, 2), "input_lufs": before, "input_true_peak_dbtp": before_tp}
 
 
 def _record(video):
