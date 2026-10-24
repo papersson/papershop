@@ -99,6 +99,24 @@ def test_changing_data_rerenders_the_clips_that_read_it(tmp_path):
     assert keys(tmp_path, t)["s2"] != computed["s2"]
 
 
+def test_literal_browser_data_fetch_does_not_depend_on_agent_activity(tmp_path):
+    t = make_video(tmp_path)
+    (tmp_path / "data").mkdir()
+    data = tmp_path / "data" / "runs.json"
+    data.write_text('{"n": 1}')
+    scene = tmp_path / "scenes" / "s1.tsx"
+    scene.write_text("const runs = await fetch(new URL('../data/runs.json', import.meta.url)).then(r => r.json());")
+    before = keys(tmp_path, t)
+    (tmp_path / "data" / "activity.jsonl").write_text('{"message": "inspected frames"}\n')
+    assert keys(tmp_path, t) == before
+    data.write_text('{"n": 2}')
+    assert keys(tmp_path, t)["s1"] != before["s1"]
+    scene.write_text("const runs = await fetch('data/' + name);")
+    before = keys(tmp_path, t)
+    data.write_text('{"n": 3}')
+    assert keys(tmp_path, t)["s1"] != before["s1"]
+
+
 def test_clips_without_narration_get_stills_at_even_intervals(tmp_path):
     t = make_video(tmp_path)
     t["tracks"]["narration"] = [s for s in t["tracks"]["narration"] if s["clip"] == "s1"]

@@ -173,6 +173,8 @@ def scene_cues(video, clip_id, clip_ids):
 # string handed to a helper ("data/steps/run/results.json"). A path built at run time can't be followed.
 _DATA = re.compile(r"""['"`](?:\.\./|\./)*(data/[^'"`\s]*)['"`]""")
 _DYNAMIC = re.compile(r"""\bimport\s*\(|\bfetch\s*\(|['"`](?:\.\./)*data/[^'"`]*\$\{""")
+# A literal URL remains a known dependency when browser modules fetch JSON instead of importing it.
+_STATIC_FETCH = re.compile(r"""\bfetch\s*\(\s*(?:['"](?:\.\.?/)*data/[^'"?]+['"]\s*|new\s+URL\s*\(\s*['"](?:\.\.?/)*data/[^'"?]+['"]\s*,\s*import\.meta\.url\s*\)\s*)(?=[,)])""")
 
 
 def scene_data(video, clip_id, clip_ids):
@@ -182,7 +184,7 @@ def scene_data(video, clip_id, clip_ids):
     found = set()
     for f in scene_files(video, clip_id, clip_ids):
         text = f.read_text(errors="replace")
-        if _DYNAMIC.search(text):
+        if _DYNAMIC.search(_STATIC_FETCH.sub("", text)):
             return None
         found |= set(_DATA.findall(text))
     return found
