@@ -2,14 +2,9 @@
 
 The folder goes to --dir, else $STUDIO_HOME/NAME (default ~/studio/NAME), so a video about a repo
 does not put renders and caches into that repo; --source records which repo and commit it explains.
-STUDIO_HOME also holds learner.md, the learner model every video's student reviewer plays.
 """
 import json
-import os
-import re
 import shutil
-import time
-from datetime import datetime
 from pathlib import Path
 
 from . import proc
@@ -21,7 +16,6 @@ from .timeline import DEFAULT_LAYOUT
 TEMPLATES = ROOT / "templates"
 from .checkpoint import GITIGNORE
 from . import checkpoint, preferences
-from .stage import LEVEL_BUDGET as LEVEL_BUDGETS
 
 
 def source_record(path):
@@ -54,15 +48,12 @@ def target(name, directory=None):
     return video
 
 
-def create(name, directory=None, title=None, drive="author", source=None, duration=None, engine="remotion",
-           level="intro", checkpoints="few", mode="background", tone="plain", delivery="polished"):
+def create(name, directory=None, title=None, source=None, duration=None, engine="live"):
     video = target(name, directory)
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     (video / "research").mkdir(exist_ok=True)
-    cfg = {"title": title or default_title(name), "version": "v1", "genre": "explainer",
-           "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
-           "level": level, "tone": tone, "delivery": delivery, "mode": mode, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
-           "teaching_contract": True}     # minutes; `studio stage` reports against it
+    cfg = {"title": title or default_title(name), "version": "v1", "destination": "private-page",
+           "engine": engine, "poster": None, "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"]}
     if source:
         cfg["source"] = source_record(source)
     if duration:
@@ -74,9 +65,8 @@ def create(name, directory=None, title=None, drive="author", source=None, durati
         scenes = TEMPLATES / "scenes"
     else:
         nr = json.loads((TEMPLATES / "narration.json").read_text())
-        if level == "intro":
-            nr["kokoro"]["speed"] = 0.95
-            nr["timing"] = {"beat": 0.5, "chapter_hold": 2.0, "chapter_gap": 1.2, **nr.get("timing", {})}
+        nr["kokoro"]["speed"] = 0.95
+        nr["timing"] = {"beat": 0.5, "chapter_hold": 2.0, "chapter_gap": 1.2, **nr.get("timing", {})}
         (video / "narration.json").write_text(json.dumps(nr, indent=1) + "\n")
         script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
         (video / "SCRIPT.md").write_text(script)
@@ -87,25 +77,15 @@ def create(name, directory=None, title=None, drive="author", source=None, durati
     for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)
-    learner = studio_home() / "learner.md"
-    if not learner.exists():
-        learner.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(TEMPLATES / "learner.md", learner)
     preferences.snapshot(video)
     checkpoint.init(video)
-    return video, learner
+    return video, ROOT / "references" / "taste.md"
 
 
 def main(args):
     source_cfg = settings.raw(args.from_video) if args.from_video else {}
     args.engine = args.engine or source_cfg.get("engine") or "live"
-    args.level = args.level or source_cfg.get("level", "intro")
-    args.tone = getattr(args, "tone", None) or source_cfg.get("tone", "plain")
-    args.delivery = getattr(args, "delivery", None) or source_cfg.get("delivery", "polished")
-    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.duration, args.engine,
-                            getattr(args, "level", "intro"), getattr(args, "checkpoints", None) or "few",
-                            getattr(args, "mode", None) or ("interactive" if getattr(args, "checkpoints", None) == "many" else "background"),
-                            args.tone, args.delivery)
+    video, _ = create(args.name, args.dir, args.title, args.source, args.duration, args.engine)
     if args.from_video:
         copied = preferences.inherit(video, args.from_video, args.include)
         cfg = json.loads((video / "video.json").read_text())
@@ -114,7 +94,7 @@ def main(args):
             cfg["source"] = source_cfg["source"]
         (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
         print("series files copied: " + (", ".join(copied) or "look and pronunciation only"))
-    print(f"new video at {video}\nlearner model: {learner}")
+    print(f"new video at {video}")
     return 0
 
 

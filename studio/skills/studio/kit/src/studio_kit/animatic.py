@@ -120,11 +120,10 @@ def make(video, boards=False):
         f.unlink()
     report = pacing(video, timeline, d, stills, segs, boards)
     from .cuts import media_info
-    from .review_state import fingerprint
     from .workspace import atomic_json
     atomic_json(d / "timeline.json", timeline)
     record = {
-        "source_revision": fingerprint(video, frames=True), "media": media_info(d / "video.mp4"),
+        "media": media_info(d / "video.mp4"),
         "final": False, "cut": n, "kind": "animatic", "pictures": "boards" if boards else "scenes, boards where none",
         "created": time.strftime("%Y-%m-%d %H:%M:%S"), "quality": "draft", "video": "video.mp4",
         "duration": timeline["duration"],

@@ -170,8 +170,6 @@ def test_narration_is_found_by_its_role():
     assert tl.narration_audio({"tracks": {"audio": [{"file": "audio/sfx.wav", "start": 0}]}}) is None
 
 
-
-
 def test_nothing_to_build_from_says_what_would_be(tmp_path):
     with pytest.raises(SystemExit, match="narrate the script"):
         tl.build(tmp_path)
@@ -223,7 +221,7 @@ def test_an_old_timeline_is_lifted_into_its_sources_once(tmp_path, capsys):
     assert t["cues"] == {"mine": 1.0, "reveal:s1_01": 1.9}
     assert [(a["file"], a["role"]) for a in t["tracks"]["audio"]] == [
         ("audio/narration.mp3", "narration"), ("assets/bed.wav", "music"), ("audio/sfx.wav", "sfx")]
-    assert {c["engine"] for c in t["tracks"]["scene"]} == {"remotion"}      # the video's engine draws every clip
+    assert {c["engine"] for c in t["tracks"]["scene"]} == {"live"}      # the video's engine draws every clip
 
     (tmp_path / "cues.json").unlink()                 # a built timeline is never migrated again
     assert "chart_up" not in tl.build(tmp_path)["cues"] and not (tmp_path / "cues.json").exists()
@@ -292,8 +290,6 @@ def test_a_new_narration_does_not_inherit_the_old_timelines_words(tmp_path, caps
     assert all(not s["words"] for s in t["tracks"]["narration"]) and "aligned" not in capsys.readouterr().out
 
 
-
-
 def test_an_old_estimate_after_a_narration_is_the_newer_timing(tmp_path):
     v = explainer(tmp_path)
     old_narrated(v)
@@ -324,7 +320,7 @@ def test_clips_and_a_duration_must_agree(tmp_path):
     clips = [{"id": "s1", "seconds": 1.5}, {"id": "s2", "title": "Two", "seconds": 2.25}]
     (tmp_path / "video.json").write_text(json.dumps({"duration": 3.75, "clips": clips}))
     t = tl.build(tmp_path)
-    assert t["duration"] == 3.75 and t["tracks"]["scene"][1] == {"id": "s2", "engine": "remotion", "title": "Two",
+    assert t["duration"] == 3.75 and t["tracks"]["scene"][1] == {"id": "s2", "engine": "live", "title": "Two",
                                                                "start": 1.5, "end": 3.75}
     (tmp_path / "video.json").write_text(json.dumps({"duration": 4, "clips": clips}))
     with pytest.raises(SystemExit, match="disagree"):
@@ -356,9 +352,6 @@ def test_a_cut_builds_the_timeline_first(tmp_path):
     rec = render.make_cut(tmp_path, stills_only=True, engine=StillEngine())
     assert tl.load(tmp_path)["cues"] == {"logo": 2.0}
     assert read(tmp_path / "cuts" / f"cut{rec['cut']}" / "timeline.json")["cues"] == {"logo": 2.0}
-    from studio_kit import review_state      # what a stale frame review reports as changed is read from these
-    assert rec["review_keys"] == review_state.review_keys(tmp_path, tl.load(tmp_path))
-    assert rec["source_revision"] == review_state.fingerprint(tmp_path, frames=True)
 
 
 def test_the_build_wraps_captions_at_each_formats_width_in_layout_json(tmp_path):

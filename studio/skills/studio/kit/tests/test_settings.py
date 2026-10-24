@@ -11,28 +11,21 @@ def write(tmp_path, cfg):
 
 def test_defaults_without_a_file(tmp_path):
     cfg = settings.load(tmp_path)
-    assert cfg["engine"] == "remotion" and cfg["checkpoints"] == "few" and cfg["keep_cuts"] == 10
+    assert cfg["engine"] == "live" and cfg["keep_cuts"] == 10
     assert settings.raw(tmp_path) == {}
 
 
 def test_file_values_override_defaults(tmp_path):
-    write(tmp_path, {"engine": "live", "checkpoints": "many", "drive": "learner"})
-    cfg = settings.load(tmp_path)
-    assert (cfg["engine"], cfg["checkpoints"], cfg["drive"], cfg["genre"]) == ("live", "many", "learner", "explainer")
-    assert settings.raw(tmp_path) == {"engine": "live", "checkpoints": "many", "drive": "learner"}
+    write(tmp_path, {"engine": "remotion", "gl": "gpu"})
+    assert settings.load(tmp_path)["engine"] == "remotion"
+    assert settings.load(tmp_path)["gl"] == "gpu"
 
 
-@pytest.mark.parametrize("key,value", [("checkpoints", "some"), ("level", "advanced"), ("tone", "fun"), ("gl", "metal"), ("delivery", "quick")])
+@pytest.mark.parametrize("key,value", [("engine", "missing"), ("gl", "metal"), ("motion", "fast")])
 def test_enumerated_values_are_checked(tmp_path, key, value):
     write(tmp_path, {key: value})
     with pytest.raises(SystemExit, match=key):
         settings.load(tmp_path)
-
-
-def test_tone_is_plain_unless_the_video_says_comic(tmp_path):
-    assert settings.load(tmp_path)["tone"] == "plain"
-    write(tmp_path, {"tone": "comic"})
-    assert settings.load(tmp_path)["tone"] == "comic"
 
 
 def test_webgl_renders_on_the_cpu_unless_the_video_asks_for_the_gpu(tmp_path):
@@ -41,7 +34,3 @@ def test_webgl_renders_on_the_cpu_unless_the_video_asks_for_the_gpu(tmp_path):
     assert settings.load(tmp_path)["gl"] == "gpu"
 
 
-def test_delivery_is_polished_unless_the_video_says_session(tmp_path):
-    assert settings.load(tmp_path)["delivery"] == "polished"
-    write(tmp_path, {"delivery": "session"})
-    assert settings.load(tmp_path)["delivery"] == "session"

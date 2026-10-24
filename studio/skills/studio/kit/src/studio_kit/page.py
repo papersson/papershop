@@ -84,16 +84,12 @@ def fold(log, cut=None, since=None):
 
 
 def live_view(video, cut, latest):
-    """Whether the desk draws the current scenes instead of playing a cut: a live-engine video's latest
-    view, in interactive mode (the builder works chapter by chapter in front of the user) or before
-    any cut plays. A background build shows the user what it made: its latest animatic or cut."""
-    try:
-        cfg = settings.load(video)
-    except SystemExit:
+    """Keep a selected version stable while the default view follows saved live scenes."""
+    cfg = settings.load(video)
+    if cfg["engine"] != "live" or cut is not None:
         return False
-    if cfg.get("engine") != "live" or (cut is not None and cut != latest):
-        return False
-    return cfg.get("mode") == "interactive" or not cuts.latest(video, ("animatic",) + cuts.RENDERED, playable_only=True)
+    record = cuts.read(video, latest) if latest else None
+    return not record or cuts.kind(record) != "animatic"
 
 
 def live_audio(video, t):

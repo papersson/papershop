@@ -40,10 +40,7 @@ def run(video, script, args=(), allow_outside=False):
         argv = [proc.tool("node"), str(p)]
     else:
         raise SystemExit(f"studio run takes a Python (.py) or node (.mjs, .js) script, not {p.name}")
-    workspace.check_owner(video)
-    # `studio` inside the script is this kit's entry point: the video's pinned copy when it has one,
-    # and without STUDIO_PINNED, so the copy still routes a call that names another video.
-    env = {k: v for k, v in os.environ.items() if k != "STUDIO_PINNED"}
+    env = dict(os.environ)
     env |= {"STUDIO_VIDEO": str(video), "STUDIO_WORK": str(workspace.scratch(video)),
             "PATH": os.pathsep.join([str(ROOT / "bin"), env.get("PATH", "")])}
     child = proc.popen([*argv, *args], cwd=video, env=env)

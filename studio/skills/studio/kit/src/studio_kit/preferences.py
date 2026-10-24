@@ -11,22 +11,10 @@ from .workspace import atomic_json, locked
 
 
 def snapshot(video):
-    video, home = Path(video), studio_home()
-    origin = {}
-    for name in ("house.md", "lexicon.json"):
-        src = home / name
-        if not src.exists():
-            continue
-        dst = video / "research" / name if name == "house.md" else video / name
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, dst)
-        origin[name] = {"path": str(src), "sha256": hashlib.sha256(src.read_bytes()).hexdigest()}
-    if origin:
-        atomic_json(video / "research" / "preferences.json", origin)
-    script = video / "SCRIPT.md"
-    if script.exists():
-        with script.open("a") as f:
-            f.write(f"\n## House style\n\nSource: {home / 'house.md'}. Read research/house.md when present (creation-time snapshot).\n")
+    """Keep pronunciations local so a later lexicon edit cannot retime an existing video."""
+    source = studio_home() / "lexicon.json"
+    if source.exists():
+        shutil.copyfile(source, Path(video) / "lexicon.json")
 
 
 def lexicon(video):
@@ -98,7 +86,5 @@ def inherit(video, source, includes=()):
         evidence = sections((source / "SCRIPT.md").read_text()).get("Evidence", "")
         (video / "research" / "series-evidence.md").write_text(
             f"# Evidence from {source.name}\n\nReference only: select the rows supporting this episode.\n\n" + evidence)
-    if (source / "research/house.md").exists():
-        shutil.copyfile(source / "research/house.md", video / "research/house.md")
     atomic_json(video / "research" / "series.json", {"source": str(source), "original_source": source_cfg.get("source"), "files": copied})
     return copied

@@ -25,18 +25,17 @@ def run(video):
             rows.append({"check": "script", "clip": where, "ok": severity != "error", "severity": severity,
                          "rule": rule, "detail": detail})
 
-    if cfg.get("genre", "explainer") == "explainer":
-        arg = sections.get("Argument", "")
-        for field in ("Audience", "Model delta", "Key ideas", "Recurring example", "Transfer questions"):
-            match = re.search(rf"^\s*- \*\*{field}[.:]?\*\*\s*(.+)$", arg, re.M | re.I)
-            if not match or "{{" in match[1]:
-                add("Argument", f"fill in {field}", "error" if cfg.get("teaching_contract") else "warning", "brief")
-        predictions = [s for c in chapters for s in c.sentences if s.prediction and (s.pause or 0) >= 2]
-        if len(predictions) < 2:
-            add("Script", f"{len(predictions)} prediction pauses of at least 2s; review whether the viewer gets real attempts", rule="prediction")
-        chain = sections.get("Chain", "")
-        if re.search(r"lines?\s+\d+\s*[-–:]|line.by.line|^\d+\.\s+(?:imports|initialization|cleanup)\b", chain, re.I | re.M):
-            add("Chain", "possible source tour: organize around needs and key ideas, with reference coverage separately", rule="tour")
+    arg = sections.get("Argument", "")
+    for field in ("Audience", "Model delta", "Key ideas", "Recurring example", "Transfer questions"):
+        match = re.search(rf"^\s*- \*\*{field}[.:]?\*\*\s*(.+)$", arg, re.M | re.I)
+        if not match or "{{" in match[1]:
+            add("Argument", f"fill in {field}", "warning", "brief")
+    predictions = [s for c in chapters for s in c.sentences if s.prediction and (s.pause or 0) >= 2]
+    if len(predictions) < 2:
+        add("Script", f"{len(predictions)} prediction pauses of at least 2s; review whether the viewer gets real attempts", rule="prediction")
+    chain = sections.get("Chain", "")
+    if re.search(r"lines?\s+\d+\s*[-–:]|line.by.line|^\d+\.\s+(?:imports|initialization|cleanup)\b", chain, re.I | re.M):
+        add("Chain", "possible source tour: organize around needs and key ideas, with reference coverage separately", rule="tour")
     names = policy.get("products", {})
     if isinstance(names, list):
         names = {n: [] for n in names}

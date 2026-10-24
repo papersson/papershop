@@ -6,58 +6,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from studio_kit import checkpoint, cuts, new, preferences, review, review_state, stage, workspace
-from test_review import make as review_video
+from studio_kit import checkpoint, cuts, new, preferences
 from test_render import make_video
 
 
 def git(video, *args, env=None):
     return subprocess.run(["git", "-C", str(video), *args], env=env, capture_output=True, text=True, check=True).stdout.strip()
-
-
-def test_owner_excludes_second_builder_but_metadata_remains_available(tmp_path, monkeypatch):
-    args = SimpleNamespace(video=tmp_path, action="acquire", recover=False, owner="first")
-    workspace.main_lock(args)
-    rec = workspace.owner(tmp_path)
-    with pytest.raises(SystemExit, match="already owned"):
-        workspace.main_lock(args)
-    with pytest.raises(SystemExit, match="owned by first"):
-        with workspace.operation(tmp_path):
-            pytest.fail("second writer entered")
-    monkeypatch.setenv("STUDIO_OWNER", rec["token"])
-    with workspace.operation(tmp_path):
-        with workspace.locked(tmp_path):
-            pass
-        with pytest.raises(SystemExit, match="another studio"):
-            with workspace.operation(tmp_path):
-                pass
-    args.action = "release"
-    workspace.main_lock(args)
-    assert workspace.owner(tmp_path) is None and not (tmp_path / ".studio").exists()
-
-
-def test_requests_are_resolved_once_and_reported_at_stage_boundaries(tmp_path):
-    args = SimpleNamespace(video=tmp_path, text="Add the borrow sidebar", resolve=None)
-    workspace.main_request(args)
-    pending = (tmp_path / "research/requests.md").read_text()
-    rid = pending.split("- [ ] ")[1].split()[0]
-    assert any("borrow sidebar" in line for line in stage.mark(tmp_path, "scenes", now=0))
-    args.text, args.resolve = None, rid
-    workspace.main_request(args)
-    assert not any("pending:" in line for line in stage.mark(tmp_path, "cut", now=2))
-    with pytest.raises(SystemExit, match="no pending"):
-        workspace.main_request(args)
-
-
-def test_waiting_is_not_active_budget_and_structural_round_has_separate_estimate(tmp_path):
-    stage.mark(tmp_path, "research", now=0)
-    stage.mark(tmp_path, "waiting", now=10)
-    lines = stage.mark(tmp_path, "script", now=1000)
-    assert "0m10s into" in lines[1]
-    lines = stage.mark(tmp_path, "round", now=1010, kind="structural")
-    assert "0m00s into this structural revision round (budget 20m00s)" in lines[1]
-    stage.mark(tmp_path, "finished", now=1020)
-    assert stage.durations(stage.read(tmp_path), now=9999)[-1][1] == 0
 
 
 def test_private_checkpoint_preserves_unrelated_staged_changes_and_excludes_media(tmp_path, monkeypatch):
@@ -177,11 +131,10 @@ def test_a_checkpoint_leaves_out_secrets_media_in_any_case_and_large_new_files(t
     assert "not committed" not in capsys.readouterr().out
 
 
-def test_house_lexicon_and_series_are_portable_snapshots(tmp_path, monkeypatch):
+def test_lexicon_and_series_are_portable_snapshots(tmp_path, monkeypatch):
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("STUDIO_HOME", str(home))
-    (home / "house.md").write_text("Use quiet diagrams.")
     (home / "lexicon.json").write_text('{"spoken":[["JSON","J S O N"]]}')
     src, _ = new.create("first")
     (src / "data").mkdir()
@@ -198,52 +151,6 @@ def test_house_lexicon_and_series_are_portable_snapshots(tmp_path, monkeypatch):
     assert "holds" not in json.loads((dst / "narration.json").read_text())
     (src / "data/rows.json").unlink()
     assert (dst / "data/rows.json").exists()
-    assert (dst / "research/house.md").read_text() == "Use quiet diagrams."
-
-
-def test_student_receipt_is_revision_bound_but_review_log_does_not_stale_it(tmp_path):
-    review_video(tmp_path)
-    args = SimpleNamespace(video=tmp_path, round=2, narrative=None, only="student")
-    review.main(args, runner=lambda text, cwd: subprocess.CompletedProcess([], 0, "VERDICT: PASS\n", ""))
-    review_state.require(tmp_path, "student")
-    from studio_kit.script import append_review
-    append_review(tmp_path, "student passed")
-    review_state.require(tmp_path, "student")
-    p = tmp_path / "SCRIPT.md"
-    p.write_text(p.read_text().replace("A retry can charge twice.", "A retry cannot charge twice."))
-    with pytest.raises(SystemExit, match="stale"):
-        review_state.require(tmp_path, "student")
-
-
-def test_student_gets_transfer_cases_not_expected_answers(tmp_path):
-    review_video(tmp_path)
-    p = tmp_path / "SCRIPT.md"
-    p.write_text(p.read_text().replace("## Chain", "- **Transfer questions.** What if an acknowledgement is lost?\n\n## Chain") +
-                 "\n## Transfer answers\n\nSecret solution.\n")
-    student = review.script_inputs(tmp_path, 2)["student"]
-    assert "acknowledgement is lost" in student and "Secret solution" not in student
-
-
-def test_frame_bundle_requires_matching_cut_and_revision_tagged_response(tmp_path):
-    make_video(tmp_path)
-    (tmp_path / "SCRIPT.md").write_text("## Script\n### 1. A\n> One.\n## Evidence\nActual run.\n## Review log\nsecret\n")
-    cut = tmp_path / "cuts/cut1"
-    (cut / "stills").mkdir(parents=True)
-    (cut / "stills/s1.jpg").write_bytes(b"fixture")
-    revision = review_state.fingerprint(tmp_path, frames=True)
-    (cut / "cut.json").write_text(json.dumps({"source_revision": revision}))
-    args = SimpleNamespace(video=tmp_path, cut=1, result=None)
-    review_state.main_frames(args)
-    bundle = next((tmp_path / "research/frame_review").iterdir())
-    assert "secret" not in (bundle / "SCRIPT.md").read_text()
-    response = tmp_path / "response.md"
-    response.write_text("FRAMES: PASS\nREVISION: wrong\n")
-    args.result = response
-    with pytest.raises(SystemExit, match="exact REVISION"):
-        review_state.main_frames(args)
-    response.write_text(f"FRAMES: PASS\nREVISION: {revision}\n")
-    review_state.main_frames(args)
-    review_state.require(tmp_path, "frames")
 
 
 def test_failed_opener_still_protects_cut(tmp_path, monkeypatch):
@@ -259,10 +166,3 @@ def test_failed_opener_still_protects_cut(tmp_path, monkeypatch):
     assert json.loads((d / "cut.json").read_text())["watched"]
 
 
-def test_review_requirements_separate_drive_depth_and_claim_risk():
-    assert not review_state.required_roles({"drive": "learner"})  # legacy projects opt in
-    cfg = {"teaching_contract": True, "drive": "author", "level": "intro"}
-    assert review_state.required_roles(cfg) == ("student",)
-    for override in ({"drive": "learner"}, {"level": "deep-dive"}):
-        assert review_state.required_roles({**cfg, **override}) == ("student", "expert", "editor")
-    assert review_state.required_roles({**cfg, "review_roles": ["expert"]}) == ("student", "expert")

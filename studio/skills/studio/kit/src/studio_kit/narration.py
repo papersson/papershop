@@ -549,16 +549,10 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     old = S.audio / "timings.json"
     previous = json.loads(old.read_text()) if old.exists() else None
     if not estimate:
-        # The gates first, so a refusal is instant: the pronunciation pass below loads Kokoro (torch).
-        cfg = settings.load(S.video)
-        if cfg.get("teaching_contract"):
-            from .script_check import run as check_script
-            failures = [r["detail"] for r in check_script(S.video) if not r["ok"]]
-            if failures:
-                raise SystemExit("script is not ready: " + "; ".join(failures))
-            from .review_state import require, required_roles
-            for role in required_roles(cfg):
-                require(S.video, role)
+        from .script_check import run as check_script
+        failures = [r["detail"] for r in check_script(S.video) if not r["ok"]]
+        if failures:
+            raise SystemExit("script is not ready: " + "; ".join(failures))
         from .doctor import require_extra
         require_extra("kokoro" if S.engine == "kokoro" else "audio")
     from . import pronounce

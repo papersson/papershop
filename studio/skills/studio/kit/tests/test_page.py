@@ -98,15 +98,12 @@ def test_wait_returns_the_notes_added_after_it_started(tmp_path):
     assert "s1_02 narration] explain the log  (id new, cut 1)" in text
 
 
-def test_marks_and_status_reach_the_page_and_the_stage_report(tmp_path):
+def test_marks_and_status_reach_the_page(tmp_path):
     make_video(tmp_path)
     page.append(tmp_path, {"type": "note", "id": "n1", "cut": 1, "t": 1.0, "clip": "s1", "sentence_id": "s1_01",
                            "sentence": "One.", "kind": "picture", "note": "bigger"})
-    from studio_kit import stage
-    assert any("open note n1 on s1_01: bigger" in line for line in stage.mark(tmp_path, "scenes"))
     page.mark(tmp_path, "n1", "start")
     page.mark(tmp_path, "n1", "resolve", "the card is 20% larger")
-    assert not any("open note" in line for line in stage.mark(tmp_path, "scenes"))
     page.write_status(tmp_path, "rendering chapter 2", busy=True)
     st = page.state(tmp_path, 1)
     assert st["status"]["text"] == "rendering chapter 2" and st["status"]["busy"]
@@ -186,29 +183,29 @@ def test_the_live_page_can_read_video_json_for_the_legend(tmp_path):
         server.shutdown()
 
 
-def live_video(tmp_path, mode):
+def live_video(tmp_path, kind="cut"):
     tmp_path.mkdir(parents=True, exist_ok=True)
     make_video(tmp_path)
-    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "mode": mode}))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live"}))
     cut = tmp_path / "cuts" / "cut1"
     cut.mkdir(parents=True)
-    (cut / "cut.json").write_text(json.dumps({"cut": 1, "kind": "animatic", "stills": [], "changelog": [], "video": "video.mp4"}))
+    (cut / "cut.json").write_text(json.dumps({"cut": 1, "kind": kind, "stills": [], "changelog": [], "video": "video.mp4"}))
     (cut / "video.mp4").write_bytes(b"mp4")
     return tmp_path
 
 
-def test_a_background_build_shows_its_latest_cut_and_interactive_mode_draws_the_scenes(tmp_path):
-    # The user asked "how long until I have video" while an animatic sat unseen: a live-engine desk
-    # always drew the current scenes. In background mode the desk plays the latest cut it was given.
-    s = page.state(live_video(tmp_path / "bg", "background"))
-    assert s["live"] is None and s["cut"]["kind"] == "animatic" and s["cut"]["video"] == "video.mp4"
-    assert page.state(live_video(tmp_path / "fg", "interactive"))["live"] is not None
+def test_the_story_reel_plays_and_live_scenes_follow_it(tmp_path):
+    reel = page.state(live_video(tmp_path / "reel", "animatic"))
+    assert reel["live"] is None and reel["cut"]["kind"] == "animatic"
+    video = live_video(tmp_path / "shoot")
+    assert page.state(video)["live"] is not None
+    assert page.state(video, 1)["live"] is None
 
 
 def test_the_live_desk_plays_the_whole_mix(tmp_path, monkeypatch):
     # The desk played the narration alone, so a builder's effects were heard only in a rendered cut.
     from studio_kit import audio
-    video = live_video(tmp_path, "interactive")
+    video = live_video(tmp_path)
     mix = video / ".cache" / "sound" / "abc.m4a"
     mix.parent.mkdir(parents=True)
     mix.write_bytes(b"m4a")

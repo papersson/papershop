@@ -8,7 +8,6 @@ videos/<name>/cuts/cutN/
   timeline.json, layout.json, sfx.json, SCRIPT.md   the sources' snapshots (sfx.json with each effect's time)
   cut.json       what was rendered, how long each step took, and the changelog against cut N-1
 """
-import hashlib
 import json
 import shutil
 import time
@@ -145,11 +144,6 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "height": round(tl.layout(video)["height"] * STILL_SCALE), "fps": timeline["fps"]}
     notes = bd.notes(video)
     script_path = video / "SCRIPT.md"
-    script_text = script_path.read_text() if script_path.exists() else ""
-    from .script import sections
-    review_hash = hashlib.sha256(sections(script_text).get("Review log", "").encode()).hexdigest()
-    if prev and changed and prev.get("review_log_hash") == review_hash and prev.get("quality") == quality:
-        log("warn: changed chapters have no new Review log entry; record merges, cuts and expected runtime change")
     atomic_json(d / "timeline.json", timeline)
     atomic_json(d / "layout.json", tl.layout(video))       # what a motion review of this cut reads, as it was
     if (video / "audio" / "sfx.json").exists():
@@ -158,12 +152,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
                                      for p in place(json.loads((video / "audio" / "sfx.json").read_text()), timeline, strict=False)])
     if script_path.exists():
         shutil.copyfile(script_path, d / "SCRIPT.md")
-    from .review_state import fingerprint, review_keys
-    judged = review_keys(video, timeline)
     record = {
-        "source_revision": fingerprint(video, frames=True, keys=judged), "review_keys": judged,
         "media": media, "final": quality == "final" and not stills_only,
-        "review_log_hash": review_hash,
         "cut": n, "kind": "boards" if boards else "stills" if stills_only else "final" if quality == "final" else "cut",
         "created": time.strftime("%Y-%m-%d %H:%M:%S"), "t": round(time.time(), 3), "quality": quality,
         "video": None if stills_only else "video.mp4", "duration": timeline["duration"],
@@ -174,8 +164,6 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "changelog": changelog or [],
         "seconds": timings,
     }
-    if prev and prev.get("known_issues"):
-        record["known_issues"] = prev["known_issues"]     # what a motion review left on purpose, until the next one ends
     if prev:
         _keep_befores(video, prev_n, d, record)
     cuts.write(video, n, record)

@@ -811,15 +811,13 @@ def sheets(video, timeline, found, rows):
 
 
 def _stale(video, rec, n):
-    """What changed since cut n when its frames are older than the sources (review_state's words), or
-    None: current, or a cut that kept no revision to tell by."""
-    if not rec.get("source_revision"):
-        return None
-    from . import review_state
+    """Name changed clips so sound measurements describe the picture they actually sampled."""
+    from .keys import clip_key
     try:
-        if rec["source_revision"] == review_state.fingerprint(video, frames=True):
-            return None
-        return review_state.changed_since(video, n) or "the scenes"
+        current = tl.load(video)
+        changed = [c["id"] for c in rec.get("clips", [])
+                   if c["key"] != clip_key(video, current, c["id"], rec.get("quality", "draft"))]
+        return ", ".join(changed) or None
     except (OSError, ValueError, KeyError, SystemExit):
         return None
 

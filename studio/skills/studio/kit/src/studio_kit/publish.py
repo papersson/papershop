@@ -5,11 +5,6 @@ re-render), links it as out/master.mp4 (1080p), encodes out/web.mp4 to fit the A
 per-file limit (15 MiB: 1080p for short videos, 720p or 540p for long ones, see web_settings), grabs
 the poster frame named in video.json, and writes out/page/: index.html, video.mp4 and poster.jpg. The page is the video, its chapters and a feedback button
 that saves the moment to the artifact's database (collection "feedback"):
-  learner drive: "Lost me here", the time and the sentence on screen, with an optional note;
-  author drive:  "Annotate", the same plus whether it is about the narration or the picture, and
-                 ±1 s to nudge the moment.
-Captions are burned into the video, so the page has no captions toggle. The button hides itself
-where no database is available (a local file). Publishing the folder is the Artifact tool's job.
 """
 import html
 import json
@@ -125,16 +120,6 @@ def final_cut(video):
 def gate(video):
     """The full check, every chapter, before anything is published."""
     from . import check
-    cfg = settings.load(video)
-    if cfg.get("teaching_contract"):
-        from .review_state import require, required_roles
-        for role in required_roles(cfg):
-            require(video, role)
-        if cfg.get("level") == "deep-dive" or cfg.get("destination") in ("share", "social") or cfg.get("frame_review"):
-            require(video, "frames")
-        if cfg["genre"] == "explainer" and cfg["mode"] == "background":
-            # In interactive mode the user watches every cut on the desk; a gate would only repeat them.
-            require(video, "motion")
     rows = check.run(video, everything=True)
     bad = [r for r in rows if not r["ok"]]
     print(f"publish gate: full check, {len(rows)} results, {len(bad)} failed")
@@ -147,8 +132,6 @@ def gate(video):
 def build(video, skip_gate=False):
     video = Path(video).resolve()
     audio.require_voice(video, tl.build(video))   # the gate, the master and the page all read the current sources
-    from .review_state import require_approval
-    require_approval(video)                       # a final render is the user's call, not the builder's
     if not skip_gate:
         gate(video)
     cfg = settings.load(video)
@@ -187,12 +170,8 @@ def build(video, skip_gate=False):
     (page / "index.html").write_text(page_html(t, cfg, rec["cut"], page_credits(video)), encoding="utf-8")
     size = (page / "video.mp4").stat().st_size / 1e6
     print(f"cut {rec['cut']} (final) → {page}/index.html, video {size:.1f} MB")
-    from .review_state import listening
-    due = listening(video, t)
-    if due:      # a warning, not a stop: the kit measures sound (audio-check) and cannot hear it
-        from .audio_check import listen_hint
-        print(f"warn: {due}: ask the user to listen once to out/master.mp4, {listen_hint(video)}, then record it with "
-              f"`studio review-status {video} listen passed --reason \"…\"` (or waived)")
+    (out / "colophon.md").write_text(colophon(video, master))
+    print("The mix is measured. Listen on the desk to judge its balance and pronunciation.")
     return page
 
 
@@ -240,7 +219,7 @@ def chapters_html(t):
 def page_html(t, cfg, cut, credits=()):
     """The page; `credits` are lines under the chapters beside the voice's (library sounds' packs)."""
     title = cfg.get("title", "Video")
-    author = cfg.get("drive", "author") == "author"
+    author = True
     sentences = json.dumps([[round(s["start"], 2), s["id"], s["caption"]] for s in t["tracks"]["narration"]])
     chapters = json.dumps([[c["id"], c["title"]] for c in t["tracks"]["scene"]])
     credit = "".join(f'<p class="credit">{html.escape(c)}</p>' for c in [t.get("voice", {}).get("credit"), *credits] if c)

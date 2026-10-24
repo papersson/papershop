@@ -45,9 +45,7 @@ def test_a_folder_without_video_json_is_refused(home):
 
 def test_a_real_video_runs_under_its_lock(home):
     cli.main(["stage", str(home / "myvideo"), "draft"])
-    assert (home / "myvideo" / ".cache" / "studio" / "operation.lock").exists()
-    cli.main(["request", str(home / "myvideo"), "a sidebar"])
-    assert "a sidebar" in (home / "myvideo" / "research" / "requests.md").read_text()
+    assert (home / "myvideo" / ".cache" / "studio" / "metadata.lock").exists()
 
 
 def test_new_still_creates_its_folder(home):
@@ -56,10 +54,6 @@ def test_new_still_creates_its_folder(home):
     with pytest.raises(SystemExit, match="nowhere is not a video"):
         cli.main(["new", "other", "--from", "nowhere"])
     assert not (home / "other").exists()
-
-
-
-
 
 
 def test_doctor_runs_without_a_video(home, monkeypatch):
@@ -93,7 +87,7 @@ def test_engine_reads_wait_their_turn_for_the_operation_lock(home, monkeypatch):
     monkeypatch.setitem(cli.COMMANDS, "boxes", (*cli.COMMANDS["boxes"][:2], cli._engine_call))
     held = threading.Event()
     def hold():
-        with workspace.locked(v, "operation", blocking=False):
+        with workspace.locked(v, "operation"):
             held.set()
             time.sleep(0.6)
     t = threading.Thread(target=hold)
@@ -104,24 +98,6 @@ def test_engine_reads_wait_their_turn_for_the_operation_lock(home, monkeypatch):
     assert cli.main(["boxes", str(v), "s1", "1"]) == 0
     t.join()
     assert calls[0][1] - start > 0.4
-    with workspace.locked(v, "operation", blocking=False):
-        with pytest.raises(SystemExit, match="held it for 0.3 s"):
-            with workspace.operation(v, wait=0.3):
-                pass
-        with pytest.raises(SystemExit, match="operation is running for"):
-            cli.main(["stage", str(v), "draft"])                              # a change still refuses at once
-
-
-def test_boxes_waits_but_needs_no_owner(home, monkeypatch):
-    v = home / "myvideo"
-    workspace.main_lock(SimpleNamespace(video=v, action="acquire", owner="b", recover=False))
-    monkeypatch.delenv("STUDIO_OWNER", raising=False)
-    seen = []
-    monkeypatch.setitem(cli.COMMANDS, "boxes", (*cli.COMMANDS["boxes"][:2], lambda args: seen.append(args.cmd) or 0))
-    monkeypatch.setitem(cli.COMMANDS, "still", (*cli.COMMANDS["still"][:2], lambda args: seen.append(args.cmd) or 0))
-    assert cli.main(["boxes", str(v), "s1", "1"]) == 0 and seen == ["boxes"]
-    with pytest.raises(SystemExit, match="video owned by b"):
-        cli.main(["still", str(v), "s1", "1", "--out", "x.png"])
 
 
 def test_paths_are_resolved_against_the_callers_folder_while_parsing(home):

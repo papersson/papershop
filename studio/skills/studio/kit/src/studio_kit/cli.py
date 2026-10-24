@@ -11,7 +11,6 @@ import json
 import sys
 from pathlib import Path
 
-from . import reviews     # imports nothing: the review-status roles come from its registry
 
 LAYERS = ["all", "no-captions", "no-band", "background"]
 
@@ -35,9 +34,6 @@ def _engine_call(args):
 
 def _cut(args):
     from .render import make_cut
-    if args.quality == "final" and not args.stills_only:
-        from .review_state import require_approval
-        require_approval(args.video)
     log = json.loads(Path(args.changelog).read_text()) if args.changelog else None
     rec = make_cut(args.video, args.quality, args.stills_only, log)
     done = [c["id"] for c in rec["clips"] if c["rendered"]]
@@ -122,21 +118,11 @@ COMMANDS = {
         A("name"),
         P("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)"),
         A("--title"),
-        A("--drive", default="author", choices=["author", "learner"]),
         V("--from", dest="from_video", help="inherit look and pronunciation from a series episode"),
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
         P("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds for a silent scene test"),
         A("--engine", choices=["remotion", "live"], help="which engine renders the scenes (default: live)"),
-        A("--mode", choices=["background", "interactive"],
-          help="background (default): built unattended; interactive: the user follows on the desk, chapter by chapter, note by note"),
-        A("--checkpoints", choices=["few", "many"], help="superseded by --mode (many means interactive)"),
-        A("--level", choices=["intro", "deep-dive"],
-          help="intro: scaffold 3-4 key ideas (default); deep-dive: more detail and evidence"),
-        A("--tone", choices=["plain", "comic"],
-          help="plain (default): neutral polish; comic: only when the user asks for a comic or cartoon video"),
-        A("--delivery", choices=["polished", "session"],
-          help="polished (default): the full stages; session: a modest cut of the user's own learning or work session (references/session.md)"),
     ], "new:main"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         W("video"),
@@ -186,17 +172,9 @@ COMMANDS = {
     "audio-check": ("measure the soundtrack: effect sync (a recording by its peak) and each tagged effect's picture, each effect heard and none too loud, ducking, masking, the pauses guard and loudness, into out/audio-check.json; draw the sound sheet (out/audio-sheet.png) and choose the timecodes to listen at", [
         W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
     ], "audio_check:main"),
-    "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [
-        W("video"), A("name", nargs="?"), A("--report", action="store_true"),
-        A("--check", action="store_true", help="the current stage against its budgets, unmarked; exit 3 at a background hard stop"),
-        A("--kind", choices=["local", "structural"], default="local"),
-        A("--summary", help="revision refactoring entry: merge/trim plan and expected runtime change"),
+    "stage": ("record elapsed stage time (--report: the table)", [
+        V("video"), A("name", nargs="?"), A("--report", action="store_true"),
     ], "stage:main"),
-    "review": ("one round of fresh-context reviewers on SCRIPT.md or a narrative", [
-        V("video"), A("round", type=int),
-        P("--narrative", help="review this narrative file instead of the script"),
-        A("--only", default="expert,student,editor"),
-    ], "review:main"),
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),
     "plate": ("render a chapter's plate (video.json plates) in Blender, or probe how long it will take", [
@@ -209,42 +187,11 @@ COMMANDS = {
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [
         A("action", choices=["add"]), A("word"), A("--spoken"), A("--phonemes"),
     ], "preferences:main_lexicon"),
-    "lock": ("claim a video folder across stages", [
-        V("video"), A("action", choices=["acquire", "release", "status"]), A("--owner", default="builder"),
-        A("--recover", action="store_true", help="explicitly recover an abandoned owner's lease"),
-    ], "workspace:main_lock"),
-    "handoff": ("write research/handoff.md, a brief a fresh builder can resume from", [
-        W("video"), A("--notes", help="what only the builder knows, for the brief's builder notes"),
-        P("--notes-file", metavar="FILE", help="the builder notes from a file"),
-    ], "handoff:main"),
     "run": ("run a builder's Python or node script with the kit, in the video's folder", [
         V("video"), A("script", help="a .py, .mjs or .js file inside the video (sims/, .studio/work, scenes)"),
         A("args", nargs=argparse.REMAINDER, help="passed to the script"),
         A("--allow-outside", action="store_true", help="run a script outside the video's folder"),
     ], "run:main"),
-    "request": ("queue or resolve a mid-flight request", [
-        V("video"), A("text", nargs="?"), A("--resolve", metavar="ID"),
-    ], "workspace:main_request"),
-    "review-frames": ("prepare a fresh frame-review bundle or import its result", [
-        V("video"), A("--cut", type=int), P("--result", help="review response including its REVISION and FRAMES verdict"),
-    ], "review_state:main_frames"),
-    "review-motion": ("prepare a motion-review bundle of a cut's frame sequences, or import its result", [
-        V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
-        P("--result", help="review response including its REVISION and MOTION verdict"),
-    ], "motion_review:main"),
-    "review-status": ("record an unavailable or explicitly waived review, the user's listening check, or the user's "
-                      "approval of a cut for its final render", [
-        V("video"), A("role", type=reviews.role, choices=reviews.ROLES,
-                      help="a script reviewer, frames (alias frame), motion, listen (the user listened to the finished "
-                           "mix) or approval (the user approved a cut for its final render)"),
-        A("status", choices=reviews.RECORDS, help="unavailable or waived for a reviewer; passed or waived for listen; "
-                                                  "passed for approval"),
-        A("--reason", help="the user's authorization for a waiver; what they heard, for a listening; their words, for an approval"),
-        A("--at", help="listen: the timecodes listened at, comma-separated (m:ss.s or seconds); default: the ones "
-                       "studio audio-check chose for this mix"),
-        A("--cut", type=int, help="approval: the cut the user approved (default: the latest rendered cut)"),
-        A("--by", help="listen or approval: who watched and listened (required for a session video)"),
-    ], "review_state:main_status"),
     "still": ("render the frame at clip time t", [
         W("video"), A("clip"), A("t", type=float), P("--out", required=True),
         A("--layers", default="all", choices=LAYERS), A("--scale", type=float, default=1.0),
@@ -310,16 +257,12 @@ COMMANDS = {
 }
 
 
-# Engine reads that wait their turn for the operation lock (seconds) instead of failing at once, so
-# chapter fixers' stills queue behind each other. They can't go without it: Remotion bundles into
-# .cache/bundle and deletes other bundles there, so concurrent renders need the operation lock.
-WAITS = {"still": 120, "boxes": 120, "duration": 120}
+# Engine calls share renderer caches, so their operation lock waits for the current writer.
+ENGINE_READS = {"boxes", "duration"}
 
 
 def reads_only(args):
-    """A changing command asked only to read, which takes no lock: a check between chapters must not
-    fail because a cut is running."""
-    return (args.cmd == "clean" and args.dry_run) or (args.cmd == "stage" and (args.check or args.report or not args.name))
+    return args.cmd == "clean" and args.dry_run
 
 
 def build_parser():
@@ -351,9 +294,9 @@ def main(argv=None):
         module, func = handler.split(":")
         handler = getattr(importlib.import_module(f".{module}", __package__), func)
     changes = any(kw.get("type") is changed_video for _, kw in arguments)
-    if (changes and not reads_only(args)) or args.cmd in WAITS:
+    if (changes and not reads_only(args)) or args.cmd in ENGINE_READS:
         from .workspace import operation
-        with operation(args.video, wait=WAITS.get(args.cmd), owned=changes):
+        with operation(args.video):
             return handler(args) or 0
     return handler(args) or 0
 

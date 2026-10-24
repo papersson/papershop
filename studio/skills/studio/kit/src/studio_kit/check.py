@@ -499,7 +499,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
-    if "script" in only or (default and config(video).get("teaching_contract")):
+    if "script" in only or (default and (Path(video) / "SCRIPT.md").exists()):
         from . import script_check
         preflight += script_check.run(video)
     if "pauses" in only or default:      # video-wide, from the sound alone; nothing without effects

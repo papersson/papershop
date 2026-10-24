@@ -18,7 +18,6 @@ sys.exit(int(os.environ.get("EXIT", "0")))
 
 @pytest.fixture
 def video(tmp_path, monkeypatch):
-    monkeypatch.delenv("STUDIO_OWNER", raising=False)
     v = tmp_path / "v"
     (v / "sims").mkdir(parents=True)
     (v / "video.json").write_text("{}\n")
@@ -27,7 +26,6 @@ def video(tmp_path, monkeypatch):
 
 
 def test_a_script_runs_in_the_video_with_the_kit(video, capfd, monkeypatch):
-    monkeypatch.setenv("STUDIO_PINNED", "1")           # set by bin/studio when it routed to a pinned copy
     assert cli.main(["run", str(video), str(video / "sims" / "probe.py"), "--", "--flag", "x"]) == 0
     seen = json.loads(capfd.readouterr().out)          # streamed to our stdout, not captured
     v = str(video.resolve())
@@ -76,13 +74,10 @@ def test_a_script_outside_the_video_needs_allow_outside(video, tmp_path, capfd):
     capfd.readouterr()
 
 
-def test_only_python_and_node_scripts_and_only_for_the_owner(video):
+def test_only_python_and_node_scripts(video):
     (video / "sims" / "x.sh").write_text("echo hi\n")
     with pytest.raises(SystemExit, match="takes a Python"):
         cli.main(["run", str(video), "sims/x.sh"])
-    workspace.main_lock(SimpleNamespace(video=video, action="acquire", owner="b", recover=False))
-    with pytest.raises(SystemExit, match="video owned by b"):
-        cli.main(["run", str(video), "sims/probe.py"])
 
 
 @pytest.mark.skipif(not shutil.which("node"), reason="node is not installed")

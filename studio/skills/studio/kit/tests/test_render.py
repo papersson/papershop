@@ -262,18 +262,16 @@ def test_a_computed_name_reads_other_clips_reveal_cues(tmp_path):
 def test_an_asset_replaced_at_the_same_size_and_time_changes_every_key(tmp_path):
     """cp -p, rsync -a and unzip keep a file's size and time; its content is what a frame shows."""
     import os
-    from studio_kit import review_state
     t = make_video(tmp_path)
     (tmp_path / "assets").mkdir()
     a = tmp_path / "assets" / "logo.png"
     a.write_bytes(b"A" * 100)
     os.utime(a, (1000, 1000))
-    before, revision = keys(tmp_path, t), review_state.fingerprint(tmp_path, frames=True)
+    before = keys(tmp_path, t)
     a.write_bytes(b"B" * 100)
     os.utime(a, (1000, 1000))
     after = keys(tmp_path, t)
     assert all(after[c] != before[c] for c in before)
-    assert review_state.fingerprint(tmp_path, frames=True) != revision
 
 
 def test_a_new_beat_grid_re_renders_only_the_chapters_that_read_it(tmp_path):

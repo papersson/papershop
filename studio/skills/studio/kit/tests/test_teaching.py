@@ -66,9 +66,7 @@ def test_script_check_runs_without_timeline_engine_or_audio(tmp_path, monkeypatc
     monkeypatch.setattr(check, "Engine", lambda *a, **kw: pytest.fail("no browser for text checks"))
     rows = check.run(tmp_path, only=["script"])
     assert rows and not (tmp_path / "timeline.json").exists()
-    assert all(r["ok"] for r in rows)  # Legacy incomplete briefs warn instead of breaking old projects.
-    (tmp_path / "video.json").write_text('{"teaching_contract":true}')
-    assert any(not r["ok"] for r in check.run(tmp_path, only=["script"]))
+    assert all(r["ok"] for r in rows)  # Brief diagnostics leave the story decision with the user.
 
 
 def test_runtime_and_meta_diagnostics_and_scoped_acceptance(tmp_path):

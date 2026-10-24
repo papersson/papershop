@@ -21,7 +21,7 @@ CHROME_PATHS = {
 
 
 def studio_home():
-    """Where `studio new` puts videos, and the learner model and house defaults live."""
+    """Where `studio new` puts videos and the shared sound cache and lexicon live."""
     return Path(os.environ.get("STUDIO_HOME", "~/studio")).expanduser()
 
 
