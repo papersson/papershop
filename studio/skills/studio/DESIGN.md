@@ -8,6 +8,19 @@ review machinery. The story session therefore gets deliberate time with the user
 brief keeps those choices visible, and a reel of boards held to the actual voice makes density
 and breathing room perceptible before scene code is expensive to change.
 
+Story starts with Elicit's model-derived panel and rich brief, saved in `research/elicit.md`.
+The user's request wins over both that material and taste; the user's recorded taste wins over
+Elicit's general knowledge. Conversion keeps three or four ideas, one example, performed hero
+moments and explicit omissions: cut scope, never craft. Chapter jobs receive only the relevant
+hero description and panel principles from `research/story/<clip>.md`. Without the installed
+skill, a short local method supplies those same questions without an installation stop.
+
+The 3:02 hash-table proof reached a playable cut 7m11s after delegated story lock. Its converted
+Elicit brief and fallback brief kept essentially the same mechanism and remembered moments;
+the sequential same-agent comparison does not establish Elicit's superiority. The raw material
+was useful but did not prevent two crowded transitions. One elicitation and Studio's existing
+review pass suffice; a longer raw brief is not permission to add a second production process.
+
 There are two decisions: the user locks the story, then says when to ship. Routine construction
 and corrections proceed within those decisions. The skill is a router for story, shoot and desk;
 five references supply taste, collaboration and the tools needed for each job.
@@ -18,7 +31,7 @@ A model can write an animation and describe good teaching. It cannot infer the u
 preferences from first principles. `references/taste.md` retains those preferences with their
 reasons: canonical level, a toy example, full explanatory sentences, a clean overview, close-ups,
 performed events and time to look. Its final section keeps new lessons tied to actual viewer notes.
-The brief supplies any departure needed for a particular video.
+The user's request supplies any departure needed for a particular video.
 
 ## One timeline keeps picture and sound together
 
@@ -134,6 +147,25 @@ control, shown as requested until the agent acknowledges it. It does not imply t
 was killed. Replay preserves event order and time; historical picture reproduction requires archived
 source snapshots. The first recorded shoot has current chapter pictures at historical save events,
 so it proves event behaviour but cannot reproduce every intermediate pixel.
+
+Claude's plugin hooks now report work without repeated event calls. Shoot writes one small active
+record per STUDIO_HOME with unique lane jobs, launch tags, session/agent bindings and a six-hour
+expiry. A tagged background Agent/Task result binds the returned agent id; newer tool payloads can
+also bind on the child's first Read of its unique job. SubagentStart alone lacks the description,
+so parallel starts are never paired by order. See the [Claude hook reference](https://code.claude.com/docs/en/hooks).
+The real 2.1.310 probe exposed older Task payloads without tool-event agent ids. Those events need
+an exact chapter-owned path or Studio VIDEO+CLIP command in the registered session; the log records
+path association without inventing a caller. Shared and generic activity is dropped there. Newer
+agent-id payloads can attribute generic tools too. No transcript is opened in either path.
+
+The absent-record path checks one file and starts no interpreter, Nix or kit CLI: measured under
+suite load at 4.54ms median / 5.23ms p95 including the command shell. Expired and unrelated-session
+records stay below 30ms p95. Activity bursts coalesce at two seconds and flush their final pending
+action on stop. Completion archives bindings and removes the active record. Quiet/stalled rules
+remain 30/120 seconds; “finished” describes agent completion without claiming its checks passed.
+Codex and unhooked sessions retain explicit events. A real one-subagent Haiku probe delivered four
+automatic events on the desk; naming/payload compatibility required resumes, and its lingering
+parent CLI processes were stopped after completion, so their final usage totals are unavailable.
 
 ## Code and sound need evidence at the same instant
 

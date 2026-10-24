@@ -57,7 +57,23 @@ used Remotion. The unused engines, genre workflows and generated music had no pr
   the final minute-long code proof measured all 26 key attacks within 0.15 frames. Removed Remotion,
   its templates, setup dependency and active references after the proof. Browser setup uses the
   pinned Playwright package and an independent cache; existing videos were left untouched.
-- The complete Studio suite passes 646 tests. Saved-frame comparisons, browser interactions and
+- Story now starts with Elicit's panel and brief, with an under-15-line local fallback when the
+  skill is absent. User words override taste, which overrides Elicit. The one-page conversion
+  cuts scope, never craft; chapter jobs receive only their hero moments and relevant principles.
+  Proved a 3:02 hash-table film through lock, parallel shoot, review and publication; first playable
+  took 7m11s after lock. The fallback brief retained essentially the same story, so this sequential
+  comparison does not establish Elicit's superiority.
+- Installed metadata-only Claude hooks for background launches, tool completion/failure and subagent
+  stop. A small expiring active-shoot record and explicit tags/job reads prevent cross-session lane
+  guesses. Legacy Task payloads use returned agent ids for lifecycle and exact chapter paths/commands
+  for tool activity when caller ids are absent. Bursts coalesce; Codex retains explicit events.
+  The absent-record path measured 4.54ms median / 5.23ms p95 under suite load. A real Haiku subagent's
+  events appeared on the desk; its parent CLI required compatibility resumes and later termination.
+- Fixed the intermittent suggestion-button browser test: visible notes did not imply that the
+  live iframe had finished starting. A deliberately delayed player now establishes that precondition
+  before the test checks whether note refreshes preserve it. Five focused repeats passed.
+- The complete Studio suite passes 659 tests, including recorded hook payloads and cold-player
+  suggestion-button coverage. Saved-frame comparisons, browser interactions and
   real liveness/steering evidence accompany the production proofs; human listening and user taste
   judgments remain explicitly unverified.
 

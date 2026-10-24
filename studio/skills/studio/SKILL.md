@@ -22,8 +22,9 @@ Read `references/taste.md` and `references/story.md`. Ask only what changes the 
 be inferred. Default to an undergraduate explanation with three or four ideas, one small example
 and few numbers. Put the level and tone into ordinary sentences in the brief.
 
-Show a draft quickly. If the user asked for a draft first, show it in chat before production.
-First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`), then convert its panel and brief into `research/brief.md`: the viewer, one question, ideas, protagonist and stake, hero moments
+First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
+Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
+Convert the panel and brief into `research/brief.md`: the viewer, one question, ideas, protagonist and stake, hero moments
 with picture and sound, omissions, length and level. Write `SCRIPT.md` with a beat table,
 narration and screen notes. Draw rough boards that make the picture and its scale visible.
 
