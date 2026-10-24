@@ -93,10 +93,16 @@ try {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.route('**/live/engine/render.html*', route => route.fulfill({
-    contentType: 'text/html', body: '<script>window.studio={drawAt:()=>({}),reload:async()=>{}};window.studioReady=true</script>'
-  }));
+  await page.route('**/live/engine/render.html*', async route => {
+    // The notes are interactive before the independently loaded live player is ready.
+    // Make a cold player deterministic, as it can be under full-suite contention.
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    await route.fulfill({contentType: 'text/html', body: '<script>window.studio={drawAt:()=>({}),reload:async()=>{}};window.studioReady=true</script>'});
+  });
   await page.goto(process.argv[3]);
+  // Establish the live-view precondition before testing whether a note refresh preserves it.
+  // Button visibility alone does not mean media() has finished starting the iframe.
+  await page.waitForSelector('#live', {state: 'visible'});
   await page.locator('[data-action="accept"]').first().click();
   await page.waitForFunction(() => document.querySelectorAll('[data-action="accept"]').length === 1);
   await page.locator('[data-action="dismiss"]').first().click();
