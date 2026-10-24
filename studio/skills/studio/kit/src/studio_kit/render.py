@@ -144,6 +144,7 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
         "height": round(tl.layout(video)["height"] * STILL_SCALE), "fps": timeline["fps"]}
     notes = bd.notes(video)
     script_path = video / "SCRIPT.md"
+    atomic_json(d / "cues.json", tl.cue_sources(video)[0])
     atomic_json(d / "timeline.json", timeline)
     atomic_json(d / "layout.json", tl.layout(video))       # what a motion review of this cut reads, as it was
     if (video / "audio" / "sfx.json").exists():

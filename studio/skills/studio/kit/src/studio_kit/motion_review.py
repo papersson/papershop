@@ -2,14 +2,12 @@
 import json
 import math
 import re
-import shutil
 from pathlib import Path
 
-from . import cuts, motion, proc, settings
+from . import cuts, motion, proc
 from . import timeline as tl
-from .env import ROOT, engine_dir
+from .env import engine_dir
 from .keys import clip_file
-from .workspace import atomic_json
 
 WINDOW_FRAMES = 12          # frames in an event's window
 WINDOW_FPS = 15             # about this many a second: the timeline's fps over a whole step of frames
@@ -23,10 +21,6 @@ SHEET_COLS = 12
 # that exists: the Remotion engine's own mono font, then a system one.
 LABEL_FONTS = (engine_dir("remotion") / "node_modules" / "@fontsource" / "ibm-plex-mono" / "files" / "ibm-plex-mono-latin-500-normal.woff",
                Path("/System/Library/Fonts/Menlo.ttc"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"))
-
-
-def bundle_root(video):
-    return Path(video) / "research" / "motion_review"
 
 
 # --- frames from the cut ---------------------------------------------------------------------------
@@ -136,7 +130,7 @@ def _window(t, name, kind, contact, count, lead, bounds, sfx):
                     for e in sfx if times[0] - 1e-6 <= e["time"] <= times[-1] + 1e-6]}
 
 
-def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
+def windows(video, n, rec, t, sfx=(), lay=None, spans=True, chapter=None, event_video=None):
     """(windows in time order, events with no window and why). Every named event of the cut's beat
     sheet (not the reveal: holds) gets one, the contact fourth; then every significant move in its
     frames that no event window overlaps, its start fourth. `spans`: the frames come from the cut's
@@ -157,7 +151,9 @@ def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
             return 0, end
         first, count = tl.frames(t, _clip_at(t, frame)["id"])
         return first, first + count
-    for ev in tl.events(video, t):
+    for ev in tl.events(event_video or video, t):
+        if chapter and ev["clip"] != chapter:
+            continue
         if ev["name"].startswith("reveal:"):
             continue
         if ev["time"] < 0 or ev["frame"] < 0:
@@ -170,6 +166,8 @@ def windows(video, n, rec, t, sfx=(), lay=None, spans=True):
     lay = lay or tl.layout(video)
     events = list(out)
     for c in t["tracks"]["scene"]:
+        if chapter and c["id"] != chapter:
+            continue
         src = source(video, n, rec, t, c["id"])
         if src is None:
             raise SystemExit(f"cut {n}'s video and its clip renders are gone (studio clean --videos removes them); "
@@ -213,143 +211,5 @@ def sound_sheets(video, n, found, t, bundle, movie, rec=None):
         w["sound_sheet"] = name
         done.append(w["name"])
     return done
-
-
-# --- the reviewer's response ------------------------------------------------------------------------
-
-_DASHES = dict.fromkeys(map(ord, "‐‑‒–—―−­﹣－"), "-")
-_SEV = r"(?:must|should)[\s-]*fix(?:es)?|nits?"
-_HEAD = re.compile(rf"^({_SEV})(?=\s*(?:[:|\-,.)\]]|$))", re.I)
-_TAIL = re.compile(rf"severity\s*:?\s*({_SEV})\s*\.?$", re.I)
-_MARKER = re.compile(r"^(?:[-+>•]|\d+[.)]|\[[ xX]?\])\s*")
-_REGRESSION_SECTION = re.compile(r"\b(?:regressions?|previous round|last round)\b", re.I)
-_REGRESSION_LINE = re.compile(r"(?:^|[|\-:(]\s*)(?:fixed|resolved|no longer there)\b[^|]*$", re.I)    # "pop - fixed."
-
-
-def severity(word):
-    w = word.lower()
-    return "nit" if w.startswith("nit") else "must-fix" if w.startswith("must") else "should-fix"
-
-
-def _clean(line):
-    return re.sub(r"[*`]", "", line.translate(_DASHES)).rstrip()
-
-
-def _strip_markers(line):
-    line = line.strip()
-    while (m := _MARKER.match(line)):
-        line = line[m.end():].strip()
-    return line
-
-
-def _fields(rest, known):
-    """(window, t, frame, text) from what follows a finding's severity. Fields split by "|" are
-    classified whole (a bare number is a frame, "1.0 s" a time); otherwise they are found in the line."""
-    rest = rest.strip(" |:-,.")
-    if "|" in rest:
-        window = t = frame = None
-        text = []
-        for cell in (c.strip(" -:,") for c in rest.split("|")):
-            if not cell:
-                continue
-            if window is None and cell in known:
-                window = cell
-            elif t is None and (m := re.fullmatch(r"(\d+(?:\.\d+)?)\s*s(?:ec(?:onds?)?)?", cell, re.I)):
-                t = float(m.group(1))
-            elif frame is None and (m := re.fullmatch(r"(?:frames?\s*#?\s*|f)?(\d+)", cell, re.I)):
-                frame = int(m.group(1))
-            else:
-                text.append(cell)
-        return window, t, frame, " · ".join(text)
-    window = next((w for w in known if re.search(rf"(?<![\w.-]){re.escape(w)}(?![\w-])", rest)), None)
-    t = re.search(r"(?<![\w.])(\d+(?:\.\d+)?)\s*s\b", rest)
-    frame = re.search(r"\bframes?\s*#?\s*(\d+)|\bf(\d+)\b", rest, re.I)
-    text = rest
-    for d in (window, t.group(0) if t else None, frame.group(0) if frame else None):
-        text = text.replace(d, "", 1) if d else text
-    parts = [p.strip(" .,:;-") for p in re.split(r"\s*(?:\||\s-\s)\s*", text)]
-    return (window, float(t.group(1)) if t else None, int(next(g for g in frame.groups() if g)) if frame else None,
-            " · ".join(p for p in parts if p).strip(" ·:,"))
-
-
-def _blocks(text):
-    """{label: lines} of the response's fenced blocks (```findings, ```regressions)."""
-    return {m.group(1).lower(): m.group(2).splitlines()
-            for m in re.finditer(r"^```[ \t]*(\w+)[^\n]*\n(.*?)^```", text, re.M | re.S)}
-
-
-def parse(text, names=()):
-    """(findings [{severity, window, t, frame, text}], regressions [{status, window, text}], gags
-    [{window, score, text}]) in a response. The prompt asks for findings in a ```findings block
-    and the last round's check in a ```regressions block; when there is a findings block, only it
-    is read. Without one, the whole response is read, tolerating drift: a severity at a line's
-    start (after a bullet, a number, a checkbox, a table's "|" or markdown) followed by a
-    separator, or "Severity: …" at its end, or a window then the severity; list items and table rows
-    under a heading or label naming one severity; any letter case and unicode hyphens; a finding's
-    text continued on an indented line. Skipped: counts lines and table headers (several or no
-    severities), and the regression check (a section about it, or a line saying fixed or resolved)."""
-    known = sorted(names, key=len, reverse=True)
-    blocks = _blocks(text)
-    fenced = "findings" in blocks
-    findings, gags, regressions = [], [], []
-    for raw in blocks.get("regressions", []):
-        line = _strip_markers(_clean(raw)).strip("| ")
-        m = re.match(r"(fixed|still|worse)\b\s*[|:,-]?\s*(.*)", line, re.I)
-        if m:
-            window, _, _, rest = _fields(m.group(2), known)
-            regressions.append({"status": m.group(1).lower(), "window": window, "text": rest})
-    group, scope, last = None, None, None
-    for raw in blocks["findings"] if fenced else text.splitlines():
-        line = _clean(raw)
-        if not line.strip():
-            last = None
-            if scope == "label":
-                group = scope = None
-            continue
-        if last is not None and raw[:1] in " \t" and not _MARKER.match(line.strip()) \
-                and not _HEAD.match(line.strip()):
-            last["text"] = (last["text"] + " " + line.strip()).strip()        # a finding's text, continued
-            continue
-        last = None
-        heading = re.match(r"^\s*#{1,6}\s*(.+)$", line) or (re.match(r"^\s*([^|:]{2,40}):\s*$", line) if not fenced else None)
-        if heading:
-            words = re.findall(_SEV, heading.group(1), re.I)
-            group = severity(words[0]) if len(words) == 1 else "skip" if _REGRESSION_SECTION.search(heading.group(1)) else None
-            scope = "heading" if line.lstrip().startswith("#") else "label"
-            continue
-        listed = bool(_MARKER.match(line.strip())) or line.strip().startswith("|")
-        if scope == "label" and not listed:
-            group = scope = None
-        body = _strip_markers(line).strip()
-        if body.startswith("|"):
-            body = body.strip("|").strip()
-        if re.fullmatch(r"[|:\-\s]+", body or "-"):
-            continue                                                # a table's separator row
-        if re.match(r"^gag\b", body, re.I):
-            score = re.search(r"\b([1-5])\s*/\s*5\b", body)
-            if score:
-                window, _, _, rest = _fields(body[4:].replace(score.group(0), "", 1), known)
-                gags.append({"window": window, "score": int(score.group(1)), "text": rest})
-            continue
-        if len(re.findall(_SEV, body, re.I)) > 1:
-            continue                                                # a counts line
-        if not fenced and (group == "skip" or _REGRESSION_LINE.search(body)):
-            continue
-        sev = rest = None
-        if (m := _HEAD.match(body)):
-            sev, rest = severity(m.group(1)), body[m.end():]
-        elif (m := _TAIL.search(body)):
-            sev, rest = severity(m.group(1)), body[:m.start()]
-        elif (m := next((re.match(rf"({re.escape(w)})\s*[:|,-]\s*({_SEV})(?=\s*(?:[:|\-,.]|$))(.*)", body, re.I)
-                          for w in known if body.startswith(w)), None)):
-            sev, rest = severity(m.group(2)), m.group(1) + " - " + m.group(3)
-        elif group in ("must-fix", "should-fix", "nit") and listed and not re.search(r"\bwindow\b", body, re.I):
-            sev, rest = group, body
-        if sev is None or re.fullmatch(r"\s*[:|\-]?\s*\(?\d+\)?\s*", rest):
-            continue                                                # not a finding, or a count ("Must fix: 0")
-        window, t, frame, words = _fields(rest, known)
-        last = {"severity": sev, "window": window, "t": t, "frame": frame, "text": words}
-        findings.append(last)
-    return findings, regressions, gags
 
 

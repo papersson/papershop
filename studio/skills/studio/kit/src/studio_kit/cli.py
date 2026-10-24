@@ -209,6 +209,9 @@ COMMANDS = {
     ], _cut),
     "reel": ("narrate and hold the story boards to the real voice, with a pacing report", [W("video")], "reel:main"),
     "panel": ("one parallel reading of the brief by an expert, viewer and editor", [V("video")], "panel:main"),
+    "review-pack": ("combine motion windows, frame stills and sound for one chapter reviewer", [
+        V("video"), A("--chapter", required=True), A("--cut", type=int),
+    ], "review_pack:main"),
     "shoot": ("narrate and write a separate brief for each parallel chapter agent", [W("video")], "shoot:main"),
     "boards": ("a stills cut of every chapter's board (boards/boards.json, notes from the screen notes)", [
         W("video"),
