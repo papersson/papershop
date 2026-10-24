@@ -598,3 +598,14 @@ def test_effects_near_a_chapter_cut_are_listed(tmp_path):
                                                             {"id": "s2", "start": 3.0, "end": 6.0}]}}
     (row,) = audio_check.crossings(tmp_path, timeline)
     assert row["detail"] == "fx1 0.30 s before the cut to s2" and row["ok"] and "severity" not in row
+
+
+def test_key_correlation_resolves_bright_attacks_at_single_sample_delays():
+    """Four-sample decimation aliased a 239-sample limiter delay into unrelated key peaks."""
+    import numpy as np
+    from studio_kit import audio_check, audio
+    rng = np.random.default_rng(27)
+    reference = rng.normal(size=audio.RATE // 2).astype('float32')
+    measured = np.concatenate([np.zeros(239), reference])
+    lag, confidence = audio_check._key_lag(reference, measured, 8000, 8000, 30)
+    assert lag == pytest.approx(239 / audio.RATE * 30) and confidence > .999

@@ -421,16 +421,19 @@ def _key_lag(reference, measured, contact, expected, fps):
     b = expected - before - search
     if a < 0 or b < 0 or contact + after > len(reference) or expected + after + search > len(measured):
         return None, 0.0
-    x = reference[a:contact + after:4].astype(float)
-    y = measured[b:expected + after + search:4].astype(float)
+    # Keep sample resolution: a 239-sample limiter delay cannot be found on a four-sample
+    # grid. Decimating without a low-pass filter aliased bright key attacks into false lags.
+    x = reference[a:contact + after].astype(float)
+    y = measured[b:expected + after + search].astype(float)
     energy = float(np.dot(x, x))
     if energy < 1e-12 or len(y) < len(x):
         return None, 0.0
     corr = np.correlate(y, x, mode="valid")
-    power = np.convolve(y * y, np.ones(len(x)), mode="valid")
+    cumulative = np.concatenate([[0.0], np.cumsum(y * y)])
+    power = cumulative[len(x):] - cumulative[:-len(x)]
     scores = corr / np.sqrt(np.maximum(power * energy, 1e-24))
     index = int(np.argmax(scores))
-    return (index * 4 - search) / rate * fps, float(scores[index])
+    return (index - search) / rate * fps, float(scores[index])
 
 
 def typing_sync(stems, video, timeline, movie=None):
