@@ -17,7 +17,7 @@ keys without a default are simply absent when unset (callers use .get).
                      default to 1), a 540p desk cut, visual-first staging (references/session.md)
                      default "polished"
   destination        private-page | share | social | files                    default "private-page"
-  engine             remotion | motion-canvas | live                           default "remotion" (studio new picks live for explainers)
+  engine             live | remotion                           default "remotion" (studio new picks live for explainers)
   mode               background | interactive: an agent builds the video unattended, or the user
                      follows on the desk and the builder works chapter by chapter, note by note
                      default "background" ("interactive" when an older video says checkpoints: many)

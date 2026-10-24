@@ -1,5 +1,5 @@
 // Pixel-art core shared by both engines: the `Pixels` drawing helper and a 3×5 bitmap font. Plain
-// TypeScript with no engine imports, so a scene draws the same way on Remotion and Motion Canvas.
+// TypeScript with no engine imports, so a scene draws the same way across scenes.
 // Coordinates are rounded to whole pixels, and text uses the bitmap font, so nothing anti-aliases
 // off the palette.
 export type Palette = Record<string, string>;

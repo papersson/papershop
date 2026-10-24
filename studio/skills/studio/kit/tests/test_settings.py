@@ -16,10 +16,10 @@ def test_defaults_without_a_file(tmp_path):
 
 
 def test_file_values_override_defaults(tmp_path):
-    write(tmp_path, {"engine": "motion-canvas", "checkpoints": "many", "drive": "learner"})
+    write(tmp_path, {"engine": "live", "checkpoints": "many", "drive": "learner"})
     cfg = settings.load(tmp_path)
-    assert (cfg["engine"], cfg["checkpoints"], cfg["drive"], cfg["genre"]) == ("motion-canvas", "many", "learner", "explainer")
-    assert settings.raw(tmp_path) == {"engine": "motion-canvas", "checkpoints": "many", "drive": "learner"}
+    assert (cfg["engine"], cfg["checkpoints"], cfg["drive"], cfg["genre"]) == ("live", "many", "learner", "explainer")
+    assert settings.raw(tmp_path) == {"engine": "live", "checkpoints": "many", "drive": "learner"}
 
 
 @pytest.mark.parametrize("key,value", [("checkpoints", "some"), ("level", "advanced"), ("tone", "fun"), ("gl", "metal"), ("delivery", "quick")])

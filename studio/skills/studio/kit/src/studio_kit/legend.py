@@ -37,10 +37,9 @@ from functools import lru_cache
 from . import settings
 from .env import engine_dir
 
-THEMES = {"live": ("live", "src/theme.css"), "remotion": ("remotion", "src/kit/theme.ts"),
-          "motion-canvas": ("motion-canvas", "src/base.ts")}
+THEMES = {"live": ("live", "src/theme.css"), "remotion": ("remotion", "src/kit/theme.ts")}
 ACCENTS = {"live": ("hot", "warm", "cold", "bad", "good", "log", "key"),
-           "remotion": ("amber", "ice", "coral"), "motion-canvas": ("amber", "ice", "coral")}
+           "remotion": ("amber", "ice", "coral")}
 TINT = 0.5          # alpha below which a colour is a tint, not the colour
 DIMMED = 0.5        # opacity below which an element is dimmed: a guide, not a use of its colour
 KIT = "kit"         # the tag of the kit's own accent states (Remotion stage.tsx kitMeans, live closeUp)

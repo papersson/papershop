@@ -112,7 +112,7 @@ def P(*names, **kw):
 COMMANDS = {
     "preflight": ("check prerequisites without installs, downloads or browser/model launches", [
         V("video", nargs="?", help="check this video's selected engine and narration requirements"),
-        A("--engine", choices=["remotion", "live", "motion-canvas", "cairo"], help="engine to check (default: live, or the video's engine)"),
+        A("--engine", choices=["remotion", "live"], help="engine to check (default: live, or the video's engine)"),
         A("--extra", action="append", choices=["audio", "align", "kokoro"], help="check only these extras (default: kokoro and align, or the video's requirements)"),
         A("--silent", action="store_true", help="no narration extras for a video without speech"),
     ], "doctor:main_preflight"),
@@ -121,7 +121,7 @@ COMMANDS = {
         A("--fetch", action="store_true", help="install the engines' node packages and headless browser first"),
         A("--net", action="store_true", help="also check the hosts downloads come from"),
         A("--extra", action="append", default=[], choices=["audio", "align", "kokoro"], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
-        A("--engine", action="append", default=[], choices=["remotion", "motion-canvas", "live"], help="require this engine; with --fetch, also install it (Remotion always is)"),
+        A("--engine", action="append", default=[], choices=["remotion", "live"], help="require this engine; with --fetch, also install it (Remotion always is)"),
         A("--speech", action="store_true", help="smoke-test local narration and recognition; may download model weights"),
         A("--sounds", action="store_true", help="with --fetch: fetch the sound kit (recorded CC0 effects), verified, into the cache; the engines too only with --engine or --extra, or when Remotion is not installed"),
     ], "doctor:main"),
@@ -135,7 +135,7 @@ COMMANDS = {
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
         P("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
-        A("--engine", choices=["remotion", "motion-canvas", "live", "cairo"], help="which engine renders the scenes (default: live for an explainer, else remotion; cairo: native Python scenes, no browser or listener)"),
+        A("--engine", choices=["remotion", "live"], help="which engine renders the scenes (default: live for an explainer, else remotion)"),
         A("--mode", choices=["background", "interactive"],
           help="background (default): built unattended; interactive: the user follows on the desk, chapter by chapter, note by note"),
         A("--checkpoints", choices=["few", "many"], help="superseded by --mode (many means interactive)"),
@@ -236,7 +236,7 @@ COMMANDS = {
     ], "plates:main"),
     "restructure": ("reshape a video in place: archive old sources, switch the engine, mark a structural revision", [
         W("video"), A("--summary", required=True, help="what changes and why (the stage log's revision entry)"),
-        A("--engine", choices=["live", "remotion", "motion-canvas", "cairo"]),
+        A("--engine", choices=["live", "remotion"]),
         A("--archive", nargs="*", help="files or folders to move into research/archive/<stamp>/ (default: scenes/, when the engine changes)"),
     ], "new:main_restructure"),
     "typing": ("type code into an editor from a plan: the editor's steps (data/typing.json), cues and key sounds",
@@ -362,7 +362,7 @@ COMMANDS = {
 
 # Engine reads that wait their turn for the operation lock (seconds) instead of failing at once, so
 # chapter fixers' stills queue behind each other. They can't go without it: Remotion bundles into
-# .cache/bundle and deletes other bundles there, and Motion Canvas transcodes into .cache/mc-footage.
+# .cache/bundle and deletes other bundles there, so concurrent renders need the operation lock.
 WAITS = {"still": 120, "boxes": 120, "duration": 120}
 
 

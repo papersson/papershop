@@ -49,8 +49,8 @@ def test_the_sheet_is_recorded_for_the_review_bundles_and_goes_stale_with_its_so
 def test_no_sheet_and_engines_without_one(tmp_path):
     make_video(tmp_path)
     assert look.latest(tmp_path) is None
-    with pytest.raises(SystemExit, match="motion-canvas engine has no look sheet"):
-        look.make(tmp_path, engine=FakeEngine(tmp_path, "motion-canvas"))
+    with pytest.raises(SystemExit, match="unknown engine has no look sheet"):
+        look.make(tmp_path, engine=FakeEngine(tmp_path, "unknown"))
 
 
 def test_look_sheet_is_a_command():

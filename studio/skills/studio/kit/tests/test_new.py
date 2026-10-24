@@ -81,22 +81,15 @@ def test_a_variant_keeps_evidence_and_look_and_drops_the_words(tmp_path, monkeyp
 def test_engine_comes_from_video_json_and_scaffolds_its_own_scenes(tmp_path, monkeypatch):
     from studio_kit.engine import Engine, EngineError
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "h"))
-    mc, _ = new.create("mc", directory=str(tmp_path / "mc"), engine="motion-canvas")
+    mc, _ = new.create("mc", directory=str(tmp_path / "mc"), engine="live")
     rm, _ = new.create("rm", directory=str(tmp_path / "rm"))
-    assert Engine(mc).name == "motion-canvas" and Engine(rm).name == "remotion"
-    assert (mc / "scenes" / "project.ts").exists() and not (rm / "scenes" / "project.ts").exists()
+    assert Engine(mc).name == "live" and Engine(rm).name == "remotion"
+    assert (mc / "scenes" / "example-chapter.js").exists() and not (rm / "scenes" / "project.ts").exists()
     assert Engine(mc, "remotion").name == "remotion"
     with pytest.raises(EngineError, match="no engine named"):
         Engine(mc, "aftereffects")._command("still")
 
 
-def test_motion_canvas_genres_get_their_own_starters(tmp_path, monkeypatch):
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "h"))
-    for genre, needle in (("motion", "loopT"), ("pixel", "pixelCanvas"), ("launch", "shot("), ("footage", "footage(")):
-        v, _ = new.create(genre, directory=str(tmp_path / genre), genre=genre, engine="motion-canvas", duration=6 if genre != "footage" else None)
-        assert needle in (v / "scenes" / "s1.ts").read_text() and (v / "scenes" / "project.ts").exists()
-    plain, _ = new.create("plain", directory=str(tmp_path / "plain"), engine="motion-canvas")
-    assert "studioScene" in (plain / "scenes" / "s1.ts").read_text()
 
 
 def test_new_video_records_how_often_to_stop_for_the_user(tmp_path, monkeypatch):

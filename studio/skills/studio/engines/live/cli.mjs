@@ -1,5 +1,5 @@
 // The live engine's side of the studio's engine interface (the same operations and JSON as the
-// Remotion and Motion Canvas engines). It serves the engine and the video folder over a local
+// Remotion engine). It serves the engine and the video folder over a local
 // static server (no bundler: scenes are plain ES modules), opens render.html in a headless browser,
 // and draws exactly the frames it needs.
 //

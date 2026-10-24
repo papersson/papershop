@@ -172,11 +172,11 @@ def test_narration_is_found_by_its_role():
 
 def test_a_piece_without_narration_takes_its_length_from_video_json(tmp_path, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    v, _ = new.create("reel", directory=str(tmp_path / "reel"), genre="motion", duration=4, engine="motion-canvas")
+    v, _ = new.create("reel", directory=str(tmp_path / "reel"), genre="motion", duration=4, engine="live")
     assert read(v / "video.json")["duration"] == 4.0
     t = tl.load(v)
     assert t["duration"] == 4.0 and t["sources"] == ["video.json duration"]
-    assert t["tracks"]["scene"] == [{"id": "s1", "engine": "motion-canvas", "title": "Reel", "start": 0.0, "end": 4.0}]
+    assert t["tracks"]["scene"] == [{"id": "s1", "engine": "live", "title": "Reel", "start": 0.0, "end": 4.0}]
     (v / "audio").mkdir()
     (v / "audio" / "tracks.json").write_text(json.dumps([{"file": "assets/song.wav", "start": 0.5}]))
     assert tl.build(v)["tracks"]["audio"] == [{"file": "assets/song.wav", "start": 0.5, "role": "music"}]
@@ -199,7 +199,7 @@ def test_cues_must_be_seconds(tmp_path):
 OLD = {"version": 1, "fps": 30, "duration": 4.0, "timing": "narrated",
        "voice": {"engine": "kokoro", "voice": "af_heart"},
        "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": "A", "start": 0.0, "end": 2.0},
-                            {"id": "s2", "engine": "motion-canvas", "title": "B", "start": 2.0, "end": 4.0}],
+                            {"id": "s2", "engine": "live", "title": "B", "start": 2.0, "end": 4.0}],
                   "narration": [{"id": "s1_01", "clip": "s1", "text": "One two.", "caption": "One two.", "paragraph": 0,
                                  "start": 0.5, "end": 1.5, "words": [{"w": "One", "start": 0.5, "end": 0.9},
                                                                       {"w": "two.", "start": 1.0, "end": 1.5}],

@@ -5,8 +5,6 @@ to the file named by --reply (engines/shared/reply.js); this module is the only 
 it, so a second engine only needs a second `_command`.
 """
 import json
-import os
-import sys
 import tempfile
 from pathlib import Path
 
@@ -15,7 +13,7 @@ from . import settings
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
-ENGINES = ("remotion", "motion-canvas", "live", "cairo")
+ENGINES = ("live", "remotion")
 LAYERS = ("all", "no-captions", "no-band", "background")
 LOOK_ENGINES = ("live", "remotion")      # the engines that draw a look sheet
 # What each engine needs and gives (declared, so a missing capability is reported, never faked):
@@ -23,9 +21,7 @@ LOOK_ENGINES = ("live", "remotion")      # the engines that draw a look sheet
 # layers: the layers a still can omit; live_preview: the desk can redraw its scenes live; look: the look sheet.
 CAPABILITIES = {
     "remotion": dict(needs_browser=True, needs_listener=True, boxes=True, layers=LAYERS, live_preview=False, look=True),
-    "motion-canvas": dict(needs_browser=True, needs_listener=True, boxes=True, layers=LAYERS, live_preview=False, look=False),
     "live": dict(needs_browser=True, needs_listener=True, boxes=True, layers=LAYERS, live_preview=True, look=True),
-    "cairo": dict(needs_browser=False, needs_listener=False, boxes=True, layers=LAYERS, live_preview=False, look=False),
 }
 
 
@@ -49,7 +45,7 @@ class Engine:
         self.video = Path(video).resolve()
         self.name = name or self._video_engine()
         self.fmt = fmt
-        self.browser = None if self.name == "cairo" else resolve_browser()[0]
+        self.browser = resolve_browser()[0]
         self.gl = settings.load(self.video)["gl"] if (self.video / "video.json").exists() else "cpu"
 
     def _video_engine(self):
@@ -66,11 +62,6 @@ class Engine:
     def _command(self, op, *args):
         if self.name not in ENGINES:
             raise EngineError(f"no engine named {self.name}; known: {', '.join(ENGINES)}")
-        if self.name == "cairo":      # native: Python and pycairo, no browser and no listener
-            cmd = [os.environ.get("STUDIO_CAIRO_PYTHON") or sys.executable, str(engine_dir("cairo") / "cli.py"), op, "--video", str(self.video), *args]
-            if self.fmt and self.fmt != "16:9":
-                cmd += ["--layout", str(tl.layout_file(self.video, self.fmt))]
-            return cmd
         cmd = [proc.tool("node"), str(engine_dir(self.name) / "cli.mjs"), op, "--video", str(self.video), *args]
         if self.browser:
             cmd += ["--browser", self.browser]
