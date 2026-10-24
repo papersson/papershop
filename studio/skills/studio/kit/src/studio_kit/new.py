@@ -51,7 +51,8 @@ def target(name, directory=None):
 def create(name, directory=None, title=None, source=None, duration=None, engine="live"):
     video = target(name, directory)
     (video / "scenes").mkdir(parents=True, exist_ok=True)
-    (video / "research").mkdir(exist_ok=True)
+    for name in ("research", "cues", "data"):
+        (video / name).mkdir(exist_ok=True)
     cfg = {"title": title or default_title(name), "version": "v1", "destination": "private-page",
            "engine": engine, "poster": None, "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"]}
     if source:

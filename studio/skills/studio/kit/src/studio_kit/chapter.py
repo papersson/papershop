@@ -1,0 +1,58 @@
+"""Private render inputs let chapter agents check their work without shared writes."""
+import re
+import shutil
+import tempfile
+from contextlib import contextmanager
+from pathlib import Path
+
+from . import timeline as tl
+from .workspace import atomic_json
+
+
+def validate(video, clip):
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", clip):
+        raise SystemExit(f"invalid chapter id {clip!r}")
+    if clip not in {c["id"] for c in tl.load(video)["tracks"]["scene"]}:
+        raise SystemExit(f"no chapter {clip}")
+    return clip
+
+
+@contextmanager
+def working_copy(video, clip):
+    """Copy source inputs so renderers and timeline migration only write in this chapter's cache."""
+    video = Path(video).resolve()
+    validate(video, clip)
+    cache = video / ".cache" / "chapters" / clip
+    cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=cache, prefix="work-") as folder:
+        work = Path(folder)
+        for name in ("video.json", "layout.json", "narration.json", "timeline.json", "captions.json", "cues.json",
+                     "SCRIPT.md", "lexicon.json", "audio", "scenes", "data", "assets", "boards", "sims"):
+            src, dst = video / name, work / name
+            if src.is_dir():
+                shutil.copytree(src, dst, ignore=shutil.ignore_patterns("node_modules", ".cache", ".git"))
+            elif src.is_file():
+                shutil.copy2(src, dst)
+        own = video / "cues" / f"{clip}.json"
+        if own.exists():
+            (work / "cues").mkdir()
+            shutil.copy2(own, work / "cues" / own.name)
+        timeline = tl.build(work, quiet=True)
+        yield work, timeline
+
+
+def check(video, clip, samples=3, only=None, fmt=None):
+    from . import check as checks
+    from .engine import Engine
+    with working_copy(video, clip) as (work, timeline):
+        # Keep other chapter ids in the timeline: cache keys need to distinguish their code from helpers.
+        kinds = only or list(checks.CHECKS) + ["legible", "overlap", "pacing", "flash", "inframe", "occluded"]
+        rows = checks.run(work, samples, kinds, fmt=fmt, chapter=clip)
+        output = Path(video) / ".cache" / "chapters" / clip
+        stills = [{"clip": clip, "t": r["t"], "out": str(output / f"frame-{i}.png"), "scale": 0.5}
+                  for i, r in enumerate(checks.sample_times(timeline, samples, {clip}))]
+        if set(kinds) - {"script", "pauses", "staging", "code-view"}:
+            Engine(work, fmt=fmt).stills(stills)
+        atomic_json(output / "check.json", rows)
+    print(f"Chapter checks and stills: {output}")
+    return rows

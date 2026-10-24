@@ -359,11 +359,41 @@ def describe_anchor(spec, resolved=None):
     return out
 
 
+def cue_sources(video, timeline=None):
+    """Merge chapter beat sheets without allowing one writer to replace another's cue."""
+    video = Path(video)
+    paths = ([video / "cues.json"] if (video / "cues.json").exists() else [])
+    paths += sorted((video / "cues").glob("*.json"))
+    cues, owners = {}, {}
+    clips = {c["id"]: c for c in timeline["tracks"]["scene"]} if timeline else {}
+    for path in paths:
+        rows = _read(path)
+        if not isinstance(rows, dict):
+            raise SystemExit(f"{path}: expected an object of named cues")
+        chapter = path.stem if path.parent.name == "cues" else None
+        if timeline and chapter and chapter not in clips:
+            raise SystemExit(f"{path}: no chapter {chapter}")
+        for name, spec in rows.items():
+            if name in cues:
+                raise SystemExit(f"duplicate cue {name!r} in {owners[name]} and {path}")
+            if timeline and chapter:
+                try:
+                    at, sid = resolve_event(timeline, spec)
+                except (ValueError, KeyError) as e:
+                    raise SystemExit(f"{path}: {name}: {e}")
+                c = clips[chapter]
+                sentence = next((s for s in timeline["tracks"]["narration"] if s["id"] == sid), None)
+                if (sentence and sentence["clip"] != chapter) or not c["start"] <= at <= c["end"]:
+                    raise SystemExit(f"{path}: cue {name!r} belongs outside chapter {chapter}")
+            cues[name], owners[name] = spec, path
+    return cues, [str(p.relative_to(video)) for p in paths]
+
+
 def events(video, t=None):
     """Every cue with its resolved time: [{name, time, frame, clip, t, anchor, weight?, hitstop?}], in
     time order. cues.json's carry their anchor; reveal: cues are the timings' holds."""
     t = t or load(video)
-    raw = _read(Path(video) / "cues.json") or {}
+    raw, _ = cue_sources(video)
     rows = []
     for name, at in t.get("cues", {}).items():
         spec = raw.get(name) if not name.startswith("reveal:") else None
@@ -742,10 +772,10 @@ def build(video, quiet=False):
             else:
                 say("timeline: audio/words.json was aligned against an earlier narration; ignored "
                       "(`studio align` again for word timings)")
-        cues = _read(video / "cues.json")
-        if cues is not None:
+        cues, cue_files = cue_sources(video, t)
+        if cue_files:
             t["cues"] = {**_resolve_cues(cues, t), **t["cues"]}
-            used.append("cues.json")
+            used.extend(cue_files)
         t["cues"] = {k: frame_time(v, t["fps"]) for k, v in t.get("cues", {}).items()}
         sfx = (a / "sfx.json").exists()
         extra = _read(a / "tracks.json")

@@ -139,7 +139,7 @@ COMMANDS = {
         A("--all", action="store_true", help="transcribe every sentence again, ignoring the cache"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [W("video"), A("--model", default="small.en")], "align:main"),
-    "timeline": ("build timeline.json from its sources (after editing cues.json or audio/tracks.json)", [
+    "timeline": ("build timeline.json from its sources (after editing cues/<clip>.json or audio/tracks.json)", [
         W("video"), A("--events", action="store_true", help="also list the beat sheet: every cue's time, frame, clip and anchor"),
     ], "timeline:main"),
     "capture": ("a screenshot of a page into assets/, recorded with its source", [
@@ -223,7 +223,7 @@ COMMANDS = {
         A("--videos", action="store_true", help="also remove eligible unprotected old draft videos"),
     ], "clean:main"),
     "check": ("length, determinism, bounds, band and contrast checks", [
-        W("video"), A("--samples", type=int, default=3, help="moments per clip"),
+        W("video"), A("--chapter", help="check one chapter in its private work folder"), A("--samples", type=int, default=3, help="moments per clip"),
         A("--only", help="comma-separated checks, including script (no browser required)"),
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
         A("--all", action="store_true", help="check every chapter, not only those changed since their last pass"),
@@ -262,7 +262,7 @@ ENGINE_READS = {"boxes", "duration"}
 
 
 def reads_only(args):
-    return args.cmd == "clean" and args.dry_run
+    return (args.cmd == "clean" and args.dry_run) or (args.cmd == "check" and args.chapter)
 
 
 def build_parser():

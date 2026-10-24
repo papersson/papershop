@@ -489,7 +489,7 @@ def open_warnings(video, rows, kinds, samples=3, fmt=None):
             for r in entry["rows"]]
 
 
-def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
+def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, chapter=None):
     """The checks. With everything=False, the per-chapter checks run only on chapters whose clip
     key changed since they last passed (see changed_clips); a pass is remembered either way."""
     default = only is None
@@ -521,6 +521,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     clips = None if everything else set().union(*(v for k, v in by_kind.items() if k not in RENDERED))
     pacing_clips = None if everything else by_kind.get("pacing", set())
     flash_clips = None if everything else by_kind.get("flash", set())
+    if chapter:
+        clips = {chapter} if clips is None else clips & {chapter}
+        pacing_clips = {chapter} if pacing_clips is None else pacing_clips & {chapter}
+        flash_clips = {chapter} if flash_clips is None else flash_clips & {chapter}
     if not everything:
         skipped = sorted(set(keys) - todo, key=lambda c: list(keys).index(c))
         print(f"check: {len(todo)} chapter(s) changed since their last pass"
@@ -584,10 +588,14 @@ def summary(rows):
 
 
 def main(args):
-    if (Path(args.video) / "timeline.json").exists():      # a script check runs before there is one
-        tl.build(args.video)                               # as a cut does, so the checks see the sources
-    rows = run(args.video, args.samples, args.only.split(",") if args.only else None, fmt=args.format,
-               everything=getattr(args, "all", False))
+    only = args.only.split(",") if args.only else None
+    if getattr(args, "chapter", None):
+        from . import chapter
+        rows = chapter.check(args.video, args.chapter, args.samples, only, args.format)
+    else:
+        if (Path(args.video) / "timeline.json").exists():
+            tl.build(args.video)
+        rows = run(args.video, args.samples, only, fmt=args.format, everything=getattr(args, "all", False))
     for r in rows:
         where = f"{r['clip']}" + (f" t={r['t']}" if "t" in r else "")
         mark = "WARN" if r.get("severity") == "warning" else "skip" if r.get("skipped") else "ok  " if r["ok"] else "FAIL"
