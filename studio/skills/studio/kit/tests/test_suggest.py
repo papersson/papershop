@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 import threading
 import time
 import urllib.request
@@ -6,6 +8,7 @@ import urllib.request
 import pytest
 
 from studio_kit import page, suggest
+from studio_kit.env import engine_dir, resolve_browser
 from test_page import make_video, serve
 
 
@@ -60,3 +63,47 @@ def test_invalid_finding_makes_no_partial_import(tmp_path):
     with pytest.raises(SystemExit, match='absolute video seconds'):
         suggest.import_file(tmp_path, f)
     assert page.read_log(tmp_path) == []
+
+
+def test_the_desk_buttons_accept_and_dismiss_suggestions(tmp_path):
+    """The API worked while the click delegation silently ignored both suggestion buttons."""
+    playwright = engine_dir('live') / 'node_modules/playwright-core/index.mjs'
+    browser = resolve_browser()[0]
+    if not playwright.exists() or not browser or not shutil.which('node'):
+        pytest.skip('the desk browser test needs Node, Playwright and Chrome')
+    saved_video(tmp_path)
+    (tmp_path / 'video.json').write_text('{"engine":"remotion"}')
+    (tmp_path / 'cuts/cut1/cut.json').write_text(json.dumps({
+        'cut': 1, 'kind': 'stills', 'quality': 'draft', 'created': '',
+        'stills': [], 'changelog': [], 'video': None, 'duration': 4,
+    }))
+    notes = suggest.import_file(tmp_path, findings(tmp_path, [
+        {'sentence_id': 's1_01', 'note': 'Enlarge the subject.'},
+        {'sentence_id': 's1_02', 'note': 'Add a label.'},
+    ]))
+    server, base = serve(tmp_path)
+    script = tmp_path / 'desk.mjs'
+    script.write_text('import {chromium} from ' + json.dumps(playwright.as_uri()) + ';\n' + """
+const browser = await chromium.launch({executablePath: process.argv[2], headless: true});
+try {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(process.argv[3]);
+  await page.locator('[data-accept]').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-accept]').length === 1);
+  await page.locator('[data-dismiss]').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-accept]').length === 0);
+  if (errors.length) throw new Error(errors.join('\\n'));
+} finally {
+  await browser.close();
+}
+""")
+    try:
+        subprocess.run(['node', str(script), browser, base], check=True, timeout=90)
+        current, _ = page.fold(page.read_log(tmp_path))
+        assert [(n['id'], n['status'], n['sentence_id']) for n in current] == [
+            (notes[0]['id'], 'queued', 's1_01'), (notes[1]['id'], 'dismissed', 's1_02')]
+    finally:
+        server.shutdown()
+        server.server_close()

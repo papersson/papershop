@@ -337,7 +337,7 @@ $('send').onclick = function () {
   api('/api/round', {cut: cutN}).then(function () { return load(cutN); });
 };
 document.addEventListener('click', function (e) {
-  var t = e.target.closest('[data-seek],[data-t],[data-del],[data-edit]');
+  var t = e.target.closest('[data-seek],[data-t],[data-del],[data-edit],[data-accept],[data-dismiss]');
   if (!t) return;
   if (t.dataset.accept || t.dataset.dismiss) {
     var action = t.dataset.accept ? 'accept' : 'dismiss';
