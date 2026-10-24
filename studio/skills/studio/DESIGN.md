@@ -82,8 +82,9 @@ One colour retains one meaning, and outer contours carry more weight than intern
 Live 3D helps when a flat diagram hides a spatial relation. It shares the timeline, legend and
 checks with SVG. The lit look and Blender plates remain available for physical hero shots whose
 material matters. Projected labels stay live and readable. A plate probe measures its cost before
-a long render. Remotion remains for its established code and terminal components until they can
-be ported and verified in live.
+a long render. Live also supplies recorded code panels, terminals, the typed editor and its program
+window. Code-view folds, highlights, collapse and helper cards share the same pure replay model.
+One renderer now supplies both the desk and the movie; there is no separate scene registry or bundle.
 
 ## Checks catch specific bugs
 
@@ -106,4 +107,44 @@ File locks prevent competing shared writes by waiting. Stage timing measures ela
 and user waiting without limiting the work. The standing ablation prepares matching starts for
 a bare agent and Studio, with the same topic, model and length. The useful comparison is the
 videos and the user's verdict, alongside the time to reach them. A tool earns its place through
-what it contributes to that result. The next proof is a complete shoot watched with the user.
+what it contributes to that result. The shaders proof reached the first playable in 10m43s after delegated story lock. The user’s
+assessment remains distinct from the agent’s frame comparison; measured time does not establish taste.
+
+
+## The desk shows the film taking shape
+
+The desktop review bay gives the viewer most of the screen, with story, picture, voice, sound,
+notes and chapter-agent lanes beneath it and a note inspector beside it. Picture thumbnails replace
+the stills wall. Keyboard transport, captions, speed and same-time A/B let the user stay in the film.
+Notes attach to a moment, range, beat, whole video or lane and enter the durable inbox immediately.
+Reading a note does not acknowledge it; starting and resolving it are explicit. This prevents a
+watcher restart or a dropped connection from silently losing work. Suggestions remain accept/dismiss
+choices. New cuts arrive through server events, and the desk is a detached process with its own log.
+
+The event log records real file saves, stage marks, checks, renders and explicit agent activity.
+`studio event` is the common entry point for agents and hooks. File observations at startup do not
+pretend to be activity. A lane becomes quiet at 30 seconds without an event and stalled at two minutes,
+retaining its last action. Checks sit at their actual second; fixes turn the mark green. A completed
+version changes the title and gently pulses play once. ETA comes from measured history and says when
+it is a guess. A chapter’s first saved scene replaces its board and can play before the full cut lands.
+
+Transcript adapters are opt-in, scoped to one known lane and limited to tool/start/completion
+metadata. Prompts, reasoning and command contents stay out of the desk. Stop is a durable cooperative
+control, shown as requested until the agent acknowledges it. It does not imply that an unknown process
+was killed. Replay preserves event order and time; historical picture reproduction requires archived
+source snapshots. The first recorded shoot has current chapter pictures at historical save events,
+so it proves event behaviour but cannot reproduce every intermediate pixel.
+
+## Code and sound need evidence at the same instant
+
+The code port was compared at twelve matching frames against the original components, including the
+wrong character, correction, save, run, folds and payoff. All 1,800 editor/run/window states matched;
+the saved 60-second film’s 26 key attacks measured within 0.15 frames of their pictured keys. Code-view
+cue dependencies enter the cache key so a timing edit cannot reuse a stale editor view. The browser
+now lives in an independent cache, installed only by explicit setup; npm package refreshes do not erase it.
+
+Audio checks compare each typed key with its scheduled sound and correlate its recorded attack with
+the saved movie at sample resolution. Four-sample decimation once aliased a 239-sample limiter delay
+into false offsets. A masked attack stays unverified. Sparse key-only pieces may need a quieter target
+than spoken narration to preserve their dynamics; report the chosen target and measured result. The
+finish record stores the gain actually applied, including when the requested target is unreachable.

@@ -15,8 +15,8 @@ used Remotion. The unused engines, genre workflows and generated music had no pr
 
 - The workflow is now three verbs and two user decisions. Develop the brief and narrated story
   reel together, lock the story, shoot chapters in parallel, then iterate on the desk until the
-  user says ship it. The first playable cut targets 10–15 minutes after story lock; proving that
-  target on the shaders video with the user is the next step.
+  user says ship it. The first playable cut targets 10–15 minutes after story lock. The delegated
+  shaders shoot met that target: 10m43s from story lock to a playable desk version.
 - Consolidated the user's taste into one reference, with reasons and a place for lasting notes.
   The router and five working references replace the large process reading stack. Level and tone
   are sentences in the brief. Comedy remains an optional reference read only on request.
@@ -38,7 +38,28 @@ used Remotion. The unused engines, genre workflows and generated music had no pr
 - Publishing records the user's shipping decision as one line with a name and time. It keeps
   full deterministic checks and the measured mix. Listening supplies judgment without a receipt.
   The live engine, 3D, lit look, plates, sound kit, exact typed-key streams, narration, captions,
-  timeline, incremental cuts, desk, exports, provenance and Remotion code components remain.
+  timeline, incremental cuts, desk, exports and provenance remain.
+
+- Proved a 4:56 shaders explainer with three parallel chapter agents, private checks, one parallel
+  review pass and a published final. Prompt to story lock took 7m43s; first playable took 10m43s
+  after lock. Matched-time contact sheets compare it with both phase 1 videos. The proof exposed
+  and fixed board text sizing, punctuation typos, literal JSON dependency handling and per-key sync checks.
+- Rebuilt the desktop desk around a viewer, story/picture/voice/sound/note lanes and an inspector.
+  Notes autosave immediately at moments, ranges, beats, whole videos or chapter lanes. Added keyboard
+  transport, speed, captions, same-time A/B, change lists and automatic new-cut arrival. Fixed the
+  pre-play duration, A during playback, dropped watcher notes, theme paint and process lifetime.
+- Added `event`, append-only production events, real chapter activity, live chapter arrivals,
+  exact-time check marks, decision pins, cooperative lane/whole-build Stop and measured ETA.
+  Quiet/stalled transitions were measured at 30.13s/120.13s; a real save appeared in 0.578s.
+  Browser evidence includes dark/light at 1440×900 and 1920×1080 and a real build replayed at 10x.
+- Ported CodePanel, Terminal, Editor, RunTerminal, ProgramWindow and HelperCard to live, including
+  collapse, folds, highlights and payoff. Compared twelve paired frames and all 1,800 replay states;
+  the final minute-long code proof measured all 26 key attacks within 0.15 frames. Removed Remotion,
+  its templates, setup dependency and active references after the proof. Browser setup uses the
+  pinned Playwright package and an independent cache; existing videos were left untouched.
+- The complete Studio suite passes 646 tests. Saved-frame comparisons, browser interactions and
+  real liveness/steering evidence accompany the production proofs; human listening and user taste
+  judgments remain explicitly unverified.
 
 Earlier entries below describe the versions they shipped, including interfaces retired here.
 
