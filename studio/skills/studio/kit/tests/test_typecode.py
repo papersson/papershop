@@ -54,6 +54,10 @@ def test_typed_code_ends_as_the_recorded_file_and_its_keys_are_one_stream(tmp_pa
     assert draw["after"] == V2.rstrip("\n").split("\n") and draw["cue"] == "type-draw"
     kinds = [s[1] for s in draw["steps"]]
     assert kinds.count("back") == 2 and "enter" in kinds                  # the typo, put right; the save's Enter
+    first_back = kinds.index("back")
+    before_correction = [fx for _, _, effects in draw["steps"][:first_back] for fx in effects
+                         if fx[0] == "set" and fx[1] == 1][-1][2]
+    assert before_correction != "    int x = 100;"                       # digits and punctuation must really be wrong
     frames = [s[0] for s in draw["steps"]]
     assert frames[0] == 0 and all(b > a for a, b in zip(frames, frames[1:]))
     assert draw["run"]["pop"] > draw["run"]["enter"] > draw["run"]["up"] and len(draw["run"]["log"]) == 3

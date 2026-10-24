@@ -258,10 +258,11 @@ class Burst:
 
 
 def _typo(right, rng):
-    """`right` mistyped: each letter swapped for a neighbour on the keyboard, or doubled."""
-    rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
+    """A correction must first show a wrong character, including at code's punctuation-heavy ends."""
+    rows = ["1234567890-=", "qwertyuiop[]\\", "asdfghjkl;'", "zxcvbnm,./", "~!@#$%^&*()_+", "{}|:\"<>?"]
     near = {c: (r[max(0, i - 1)] + r[min(len(r) - 1, i + 1)]).replace(c, "") for r in rows for i, c in enumerate(r)}
-    return "".join(rng.choice(near.get(c.lower()) or c) for c in right)
+    return "".join(rng.choice(near.get(c.lower()) or "x").upper() if c.isupper()
+                   else rng.choice(near.get(c) or "x") for c in right)
 
 
 def frames_of(burst, fps):
