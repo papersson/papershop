@@ -34,7 +34,9 @@
     },
     {
       "name": "studio",
-      "source": "./studio"
+      "source": "./studio",
+      "version": "0.15.0",
+      "description": "Narrated explainers through three verbs: develop the story with the user, shoot chapters in parallel, and review versions on a local desk. Keeps the user’s taste, Kokoro and ElevenLabs narration, recorded sound, typed-code streams, one timeline, live scenes and deterministic checks. The user locks the story and says when to ship."
     },
     {
       "name": "screenshot-pane",

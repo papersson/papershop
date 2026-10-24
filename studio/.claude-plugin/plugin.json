@@ -1,7 +1,7 @@
 {
   "name": "studio",
-  "version": "0.14.0",
-  "description": "Narrated, animated videos built around a learning goal, recorded evidence and fresh reviews. Polished by default: a beat sheet times picture and sound to the frame, polish is a planned stage judged on frame sequences, recorded CC0 effects land on their transient and are checked against the picture, and the subject's events are performed with their sound: code is typed with real key sounds, and a physical object can be lit or rendered behind its chapter in Blender. Feel is spent on meaning: each event carries a weight, and its consequence, framing and weight in time must say something true about the subject; the protagonist wants something the payoff gives it. A live chapter can open a flat diagram into 3D and back, on the same timeline, checks and look. Build in the background, with handoffs and hard stops, or follow along on the desk. Replaces tutor.",
+  "version": "0.15.0",
+  "description": "Narrated explainers through three verbs: develop the story with the user, shoot chapters in parallel, and review versions on a local desk. Keeps the user’s taste, Kokoro and ElevenLabs narration, recorded sound, typed-code streams, one timeline, live scenes and deterministic checks. The user locks the story and says when to ship.",
   "author": {
     "name": "Patrik Persson"
   }

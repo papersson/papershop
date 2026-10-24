@@ -3,6 +3,45 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Story, shoot and desk (0.15.0)
+
+Phase 1 compared the same five-minute shaders request. A bare agent produced its video in
+21 minutes; Studio 0.14 took 2 hours 10 minutes. The Studio timing included 18 minutes writing
+scenes, 57 minutes polishing, 23 minutes waiting for serial reviews and 8 minutes publishing.
+Applying review notes invalidated the review record, so one builder ran another review and left
+its notes unapplied to preserve approval. The user liked the bare video's result and preferred
+Studio's recorded keyboard clicks. Across 27 videos, all were explainers: 17 used live and 10
+used Remotion. The unused engines, genre workflows and generated music had no production use.
+
+- The workflow is now three verbs and two user decisions. Develop the brief and narrated story
+  reel together, lock the story, shoot chapters in parallel, then iterate on the desk until the
+  user says ship it. The first playable cut targets 10–15 minutes after story lock; proving that
+  target on the shaders video with the user is the next step.
+- Consolidated the user's taste into one reference, with reasons and a place for lasting notes.
+  The router and five working references replace the large process reading stack. Level and tone
+  are sentences in the brief. Comedy remains an optional reference read only on request.
+- Removed the motion, launch, pixel and recording-edit genres from the core, their templates and
+  checks, the unused Motion Canvas and cairo engines, and the 14 routing evals. A short by-hand
+  reference explains how to approach those videos using the remaining kit.
+- Removed review receipts, revision counters, caps, waivers and stale-review refusals; work
+  budgets, hard stops, owner tokens, the request queue and chapter-fixer roles; learner and house
+  snapshots; and the drive, level, tone, delivery, mode and checkpoints switches. Plain findings,
+  waiting file locks and elapsed stage timing remain.
+- Removed imported-cut and portable-note workflows, the generated music-bed command, variant,
+  fork, restructure, kit-copy updates, tutor import, recorded-step orchestration and archive.
+  Publish now writes the colophon beside the master. Existing videos retain their pinned 0.14 kit.
+- Added `reel`, `panel`, `shoot`, `review-pack`, `suggest` and `ablation`. The panel reads the brief
+  once through three parallel perspectives. Chapter cues, scenes and data are isolated, chapter
+  checks use private workspaces, and shoot prints one job per chapter for the main Agent session.
+  A combined motion/frame pass per chapter becomes suggested desk notes the user accepts or
+  dismisses. Ablation prepares separate bare-agent and Studio starts for a later comparison.
+- Publishing records the user's shipping decision as one line with a name and time. It keeps
+  full deterministic checks and the measured mix. Listening supplies judgment without a receipt.
+  The live engine, 3D, lit look, plates, sound kit, exact typed-key streams, narration, captions,
+  timeline, incremental cuts, desk, exports, provenance and Remotion code components remain.
+
+Earlier entries below describe the versions they shipped, including interfaces retired here.
+
 ## Session videos (0.14.0)
 
 Three videos of the user's own game-programming sessions, the last rebuilt as a visual-first
