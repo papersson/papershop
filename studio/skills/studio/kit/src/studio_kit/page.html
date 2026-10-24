@@ -156,7 +156,7 @@ ul.changes { margin: 0; padding-left: 20px; }
 </main>
 <script>
 // Kept ASCII-only: non-ASCII characters are written as escapes.
-var S = null, cutN = null, kind = 'picture', editing = null, form = {t: 0};
+var S = null, cutN = null, selectedCut = null, kind = 'picture', editing = null, form = {t: 0};
 var $ = function (id) { return document.getElementById(id); };
 // The media whose clock the page follows: the cut's <video>, or for a live-engine video the
 // narration <audio> (or a silent clock while the timing is estimated) driving the live stage.
@@ -189,15 +189,17 @@ function chapterAt(t) {
 }
 
 function load(n) {
-  return api('/api/state' + (n ? '?cut=' + n : '')).then(function (st) {
+  if (n !== undefined) selectedCut = n || null;
+  return api('/api/state' + (selectedCut ? '?cut=' + selectedCut : '')).then(function (st) {
+    var at = video.currentTime || 0, wasPlaying = !video.paused;
     S = st;
     if (!S.cut) { $('title').textContent = S.title + ' \u2014 no cut yet'; return; }
-    var first = cutN !== S.cut.cut;
+    var first = cutN !== S.cut.cut || (!!liveFrame !== !!S.live);
     cutN = S.cut.cut;
     document.title = S.title + ' \u00b7 cut ' + cutN;
     $('title').textContent = S.title;
-    $('cutpick').innerHTML = S.cuts.map(function (c) {
-      return '<option value="' + c + '"' + (c === cutN ? ' selected' : '') + '>cut ' + c + (c === S.latest ? ' (latest)' : '') + '</option>';
+    $('cutpick').innerHTML = '<option value="0"' + (selectedCut === null ? ' selected' : '') + '>Latest</option>' + S.cuts.map(function (c) {
+      return '<option value="' + c + '"' + (c === selectedCut ? ' selected' : '') + '>cut ' + c + (c === S.latest ? ' (latest)' : '') + '</option>';
     }).join('');
     const KIND = {stills: 'stills', boards: 'boards', animatic: 'animatic', cut: 'draft cut', final: 'final cut', live: 'live scenes'};
     var P = S.cut.pacing;
@@ -205,10 +207,10 @@ function load(n) {
       Math.floor(P.seconds / 60) + ':' + String(Math.round(P.seconds % 60)).padStart(2, '0') + ' \u00b7 longest unchanged picture ' +
       P.longest_unchanged.seconds.toFixed(0) + ' s at ' + Math.floor(P.longest_unchanged.at / 60) + ':' +
       String(Math.round(P.longest_unchanged.at % 60)).padStart(2, '0') : '');
-    if (S.live && !liveFrame) startLive();
+    if (liveFrame && (!S.live || liveFrame.dataset.audio !== (S.live.audio || '') || +liveFrame.dataset.duration !== S.live.duration)) stopLive();
+    if (S.live && !liveFrame) startLive(at, wasPlaying);
     if (first && !S.live) {
       if (S.cut.video) {
-        var at = video.currentTime || 0, wasPlaying = !video.paused;
         video.src = '/cut' + cutN + '/' + S.cut.video; video.hidden = false;
         if (at) video.addEventListener('loadedmetadata', function once() {
           video.removeEventListener('loadedmetadata', once);
@@ -323,7 +325,7 @@ function save(e) {
   else done = api('/api/notes', {cut: cutN, t: Math.round(form.t * 100) / 100, clip: chapterAt(form.t).id,
     sentence_id: s.cur.id, sentence: s.cur.caption, previous_id: s.prev ? s.prev.id : null,
     previous: s.prev ? s.prev.caption : null, kind: kind, note: note});
-  done.then(function () { closeForm(); return load(cutN); });
+  done.then(function () { closeForm(); return load(); });
 }
 
 $('annotate').onclick = function () { openForm(); };
@@ -334,19 +336,19 @@ $('form').onsubmit = save;
 $('kinds').onclick = function (e) { if (e.target.dataset.kind) { kind = e.target.dataset.kind; paintForm(); } };
 $('cutpick').onchange = function () { cutN = null; load(Number(this.value)); };
 $('send').onclick = function () {
-  api('/api/round', {cut: cutN}).then(function () { return load(cutN); });
+  api('/api/round', {cut: cutN}).then(function () { return load(); });
 };
 document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-seek],[data-t],[data-del],[data-edit],[data-accept],[data-dismiss]');
   if (!t) return;
   if (t.dataset.accept || t.dataset.dismiss) {
     var action = t.dataset.accept ? 'accept' : 'dismiss';
-    api('/api/notes/' + (t.dataset.accept || t.dataset.dismiss) + '/' + action, {}).then(function () { load(cutN); }); return;
+    api('/api/notes/' + (t.dataset.accept || t.dataset.dismiss) + '/' + action, {}).then(function () { load(); }); return;
   }
-  if (t.dataset.del) { api('/api/notes/' + t.dataset.del + '/delete', {}).then(function () { load(cutN); }); return; }
+  if (t.dataset.del) { api('/api/notes/' + t.dataset.del + '/delete', {}).then(function () { load(); }); return; }
   if (t.dataset.edit) { openForm(S.notes.filter(function (n) { return n.id === t.dataset.edit; })[0]); return; }
   var at = Number(t.dataset.seek !== undefined ? t.dataset.seek : t.dataset.t);
-  if (!video.hidden) { video.currentTime = at; video.scrollIntoView({block: 'nearest', behavior: 'smooth'}); }
+  if (!video.hidden) { video.currentTime = at; (liveFrame || video).scrollIntoView({block: 'nearest', behavior: 'smooth'}); }
 });
 document.addEventListener('keydown', function (e) {
   var typing = /TEXTAREA|INPUT|SELECT/.test(document.activeElement.tagName);
@@ -363,9 +365,13 @@ $('seek').oninput = function () { video.currentTime = Number(this.value); };
 function bindMedia(m) {
 m.addEventListener('play', function () { $('play').textContent = 'Pause'; });
 m.addEventListener('pause', function () { $('play').textContent = 'Play'; });
-m.addEventListener('loadedmetadata', function () { $('seek').max = video.duration; });
+m.addEventListener('loadedmetadata', function () {
+  if (m !== video) return;
+  $('seek').max = video.duration;
+  $('clock').textContent = clock(video.currentTime) + ' / ' + clock(video.duration || 0);
+});
 m.addEventListener('timeupdate', function () {
-  if (!S) return;
+  if (!S || m !== video) return;
   $('seek').value = video.currentTime;
   $('clock').textContent = clock(video.currentTime) + ' / ' + clock(video.duration || 0);
   var c = chapterAt(video.currentTime), s = sentenceAt(video.currentTime).cur;
@@ -396,10 +402,20 @@ function SilentClock(duration) {
 }
 
 // Live mode: the engine's own page draws the current scenes; every frame shows the media's time.
-function startLive() {
+function stopLive() {
+  video.pause();
+  liveFrame.parentNode.remove();
+  liveFrame = null;
+  video = $('video');
+  $('full').onclick = function () { video.requestFullscreen(); };
+}
+function startLive(at, wasPlaying) {
   var wrap = document.createElement('div');
   wrap.className = 'livewrap';
   liveFrame = document.createElement('iframe');
+  var frame = liveFrame;
+  frame.dataset.audio = S.live.audio || '';
+  frame.dataset.duration = S.live.duration;
   liveFrame.src = '/live/engine/render.html?video=/live/video/&layout=/live/layout.json&play=1';
   var hit = document.createElement('div');
   hit.className = 'hit';
@@ -410,17 +426,27 @@ function startLive() {
   var audio = S.live.audio ? new Audio('/live/video/' + S.live.audio) : null;
   if (audio) {
     audio.preload = 'auto';
-    audio.addEventListener('error', function () { useClock(SilentClock(S.live.duration)); });
+    audio.addEventListener('error', function () {
+      if (liveFrame === frame && S.live) useClock(SilentClock(S.live.duration));
+    });
     useClock(audio);
+    audio.addEventListener('loadedmetadata', function () {
+      if (liveFrame !== frame) return;
+      audio.currentTime = Math.min(at, audio.duration);
+      if (wasPlaying) audio.play();
+    }, {once: true});
   } else {
     useClock(SilentClock(S.live.duration));
+    video.currentTime = at;
+    if (wasPlaying) video.play();
   }
   $('full').onclick = function () { wrap.requestFullscreen(); };
   // A fresh page (after a reload) draws the current moment as soon as its scenes are loaded.
   window.addEventListener('message', function (e) {
-    if (e.source === liveFrame.contentWindow && e.data && e.data.studioLive === 'ready') liveT = -1;
+    if (liveFrame === frame && e.source === frame.contentWindow && e.data && e.data.studioLive === 'ready') liveT = -1;
   });
   (function draw() {
+    if (liveFrame !== frame) return;
     var api = liveFrame.contentWindow && liveFrame.contentWindow.studio;
     if (api && video.currentTime !== liveT) {
       var r = api.drawAt(video.currentTime);
@@ -438,17 +464,17 @@ function useClock(m) {
 // Live updates: notes and the builder's status redraw in place; a new cut replaces the one on
 // screen (at the same moment) when the latest was showing. Falls back to polling without events.
 function onCut() {
-  api('/api/state').then(function (st) { if (S && st.latest !== S.latest && cutN === S.latest) { cutN = null; load(); } });
+  api('/api/state').then(function (st) { if (S && st.latest !== S.latest && selectedCut === null) load(); });
 }
 if (window.EventSource) {
   var events = new EventSource('/api/events');
-  events.addEventListener('notes', function () { if (S) load(cutN); });
-  events.addEventListener('status', function () { if (S) load(cutN); });
+  events.addEventListener('notes', function () { if (S) load(); });
+  events.addEventListener('status', function () { if (S) load(); });
   events.addEventListener('cut', onCut);
   // Live scenes, the timeline or the boards changed: reload them in the stage, keep the moment.
   events.addEventListener('scenes', function () {
     var api = liveFrame && liveFrame.contentWindow && liveFrame.contentWindow.studio;
-    if (api) api.reload().then(function () { liveT = -1; if (S) load(cutN); });
+    if (api) api.reload().then(function () { liveT = -1; if (S) load(); });
   });
   // A module the scenes import, or the engine itself, changed: only a fresh page loads it. The draw
   // loop finds the new page's api and draws the same moment.
