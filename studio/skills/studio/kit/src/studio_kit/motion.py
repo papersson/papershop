@@ -1,10 +1,10 @@
-"""Checks for motion pieces (genre motion), and the legibility and provenance checks every genre uses.
+"""Measure picture motion, legibility and asset provenance from rendered evidence.
 
   dead      something new must happen every few seconds: frames sampled every second, and a run of
             identical frames longer than --limit seconds is a dead beat
   loop      with video.json "loop": true, the last frame must equal the first (within a whisker), or
             the loop stutters at the seam
-  legible   every text box is at least 18 px tall at 1080p (a phone shows the frame at 360 px wide)
+  legible   every text box is at least 18 px tall at 1080p
   provenance  every asset a scene refers to is in assets/ with a provenance row
   pacing    after a significant move, the picture holds at least HOLD_MIN before the next one starts
   flash     no more than FLASH_MAX general flashes in any second (WCAG 2.2 SC 2.3.1, approximately)

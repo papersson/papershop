@@ -1,6 +1,6 @@
 import {wobble} from '@studio';
 
-// Weight in time and in the camera, for a heavy contact in a physical subject (references/taste.md, "Spend feel on meaning"): copy to scenes/feel.ts and import it from the chapters that
+// Weight in time and in the camera, for a heavy contact in a physical subject (references/taste.md, "Perform the hero moments"): copy to scenes/feel.ts and import it from the chapters that
 // use it, so a change re-renders only them. Use it only where the subject has mass and impact: a held
 // frame or a shake on something weightless claims a weight the subject does not have.
 //
@@ -22,7 +22,7 @@ export function hitstop(t: number, t0: number, frames: number, fps: number, {cat
 	return t;
 }
 
-const SHAKE = {px: 12, deg: 1, dur: 0.5, hz: 8}; // the limits at 1080p (delight.md)
+const SHAKE = {px: 12, deg: 1, dur: 0.5, hz: 8}; // Small camera kicks keep the subject readable at 1080p.
 
 /**
  * A camera kick for a contact at t0 (Eiserloh's trauma shake): offset and rotation from smooth noise,

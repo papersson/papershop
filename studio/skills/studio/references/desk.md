@@ -51,8 +51,8 @@ Work begins only on accepted suggestions. Plain review records stay under `resea
 When the user says “ship it,” record the decision and publish with
 `studio publish VIDEO --by "NAME"`. `SHIP.md` contains one line with who and when. A retry reads
 that line. The command checks every chapter, finishes the mix, renders a final cut and writes
-`out/master.mp4`, `out/web.mp4`, `out/page/` and `out/colophon.md`. It may remind you to listen;
-there is no listening receipt. Report actual resolution, frame rate, duration and file paths.
+`out/master.mp4`, `out/web.mp4`, `out/page/` and `out/colophon.md`. Listen to judge balance and pronunciation.
+Report actual resolution, frame rate, duration and file paths.
 External uploading follows the user's requested destination.
 
 Mark `studio stage VIDEO waiting` while waiting for feedback and `finished` when done. Use

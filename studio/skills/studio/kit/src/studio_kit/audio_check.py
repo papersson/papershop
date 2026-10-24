@@ -476,7 +476,7 @@ def crossings(video, timeline):
                 near.append(f"{sfx.effect_id(i)} {abs(p.time - at):.2f} s {side} the cut to {cid}")
     return [{"check": "crossing", "clip": "audio", "ok": True,
              "detail": "; ".join(near) if near else f"no effect within {CROSSING:g} s of a chapter cut: a sound "
-                       "arriving before the next chapter's picture carries the viewer over the cut (audio.md)"}]
+                       "arriving before the next chapter's picture carries the viewer over the cut (references/kit.md)"}]
 
 
 def masking(stems, timeline):

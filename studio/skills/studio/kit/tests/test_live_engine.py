@@ -51,8 +51,8 @@ def test_live_is_an_engine_and_a_chapter_without_a_scene_file_shows_its_board(tm
 def test_new_explainers_default_to_the_live_engine(tmp_path):
     from argparse import Namespace
     from studio_kit import new
-    args = Namespace(name="v", dir=str(tmp_path / "v"), title="T", drive="author", source=None, genre="explainer",
-                     duration=None, engine=None, level=None, checkpoints=None, from_video=None, include=[], mode=None)
+    args = Namespace(name="v", dir=str(tmp_path / "v"), title="T", source=None,
+                     duration=None, engine=None, from_video=None, include=[])
     new.main(args)
     cfg = json.loads((tmp_path / "v" / "video.json").read_text())
     assert cfg["engine"] == "live"
