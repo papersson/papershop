@@ -114,6 +114,7 @@ COMMANDS = {
         A("--speech", action="store_true", help="smoke-test local narration and recognition; may download model weights"),
         A("--sounds", action="store_true", help="with --fetch: fetch the sound kit (recorded CC0 effects), verified, into the cache; the engines too only with --engine or --extra, or when Remotion is not installed"),
     ], "doctor:main"),
+    "ablation": ("prepare paired bare-agent and Studio video folders and prompts", [A("--topic", default="shaders")], "ablation:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),
         P("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)"),
