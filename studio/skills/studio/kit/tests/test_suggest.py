@@ -65,7 +65,7 @@ def test_invalid_finding_makes_no_partial_import(tmp_path):
     assert page.read_log(tmp_path) == []
 
 
-@pytest.mark.parametrize('engine', ['remotion', 'live'])
+@pytest.mark.parametrize('engine', ['live'])
 def test_the_desk_buttons_accept_and_dismiss_suggestions(tmp_path, engine):
     """The API worked while the click delegation silently ignored both suggestion buttons."""
     playwright = engine_dir('live') / 'node_modules/playwright-core/index.mjs'

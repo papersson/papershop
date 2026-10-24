@@ -16,7 +16,7 @@ so a moved narration moves the view with it. Line numbers are the program's own,
    "lead": 0.6}                          seconds a highlight precedes the words that refer to it
 
 Source order is kept by construction: the view only hides ranges, it never reorders lines.
-`project` is the model read by the Remotion Editor (engines/remotion/src/kit/editor.tsx). `check` is the code-view check of `studio check`.
+`project` is the model read by the live Editor (engines/live/src/code.js). `check` is the code-view check of `studio check`.
 """
 import json
 import re

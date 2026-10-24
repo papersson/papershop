@@ -16,7 +16,7 @@ DEFAULTS = {
     "motion": "full",
 }
 
-CHOICES = {"engine": ("live", "remotion"), "gl": ("cpu", "gpu"), "motion": ("full", "reduced")}
+CHOICES = {"engine": ("live",), "gl": ("cpu", "gpu"), "motion": ("full", "reduced")}
 
 
 def raw(video):

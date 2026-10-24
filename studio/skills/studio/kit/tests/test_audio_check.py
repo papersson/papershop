@@ -23,7 +23,7 @@ def narrated(tmp_path, effects=(), bed_gain=None, sound=None):
                   "end": 3.0 * i + 1.5, "words": [{"w": w, "start": 3.0 * i + 0.5 * k, "end": 3.0 * i + 0.5 * k + 0.45}
                                                    for k, w in enumerate(("one", "two", "three"))]} for i in range(4)]
     t = {"version": 1, "fps": 30, "duration": 10.5, "timing": "narrated",
-         "tracks": {"scene": [{"id": "a", "engine": "remotion", "title": "A", "start": 0.0, "end": 10.5}],
+         "tracks": {"scene": [{"id": "a", "engine": "live", "title": "A", "start": 0.0, "end": 10.5}],
                     "narration": narration, "captions": [],
                     "audio": [{"file": "audio/narration.wav", "start": 0.0, "role": "narration"}]},
          "cues": {"hit": 2.0, "inword": 3.5}}

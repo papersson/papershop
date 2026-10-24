@@ -16,7 +16,7 @@ import urllib.request
 
 from . import proc
 from . import settings
-from .env import ROOT, engine_dir, resolve_browser
+from .env import ROOT, browser_cache, engine_dir, resolve_browser
 
 OK, WARN, FAIL, SKIP = "ok", "warn", "FAIL", "skip"
 
@@ -45,24 +45,24 @@ def check_tool(name, cmd, minimum=None, level=FAIL, why=""):
     return OK, name, shutil.which(cmd[0]), ""
 
 
-ENGINE_MARKER = {"remotion": "remotion", "live": "playwright-core"}
+ENGINE_MARKER = {"live": "playwright-core"}
 
 
 def check_engine(name):
     d = engine_dir(name)
-    fix = f"studio doctor --fetch{'' if name == 'remotion' else ' --engine ' + name}"
+    fix = "studio doctor --fetch --engine live"
     if not (d / "node_modules" / ENGINE_MARKER[name]).is_dir():
-        return FAIL if name == "remotion" else WARN, f"engine {name}", "node packages not installed", fix
+        return FAIL, f"engine {name}", "node packages not installed", fix
     if not (d / "node_modules" / "@fontsource" / "ibm-plex-mono").is_dir():
-        return FAIL if name == "remotion" else WARN, f"engine {name}", "bundled fonts missing", fix
+        return FAIL, f"engine {name}", "bundled fonts missing", fix
     return OK, f"engine {name}", str(d), ""
 
 
 def check_browser():
     path, source = resolve_browser()
     if path is None:
-        return WARN, "browser", "none installed; the engine downloads its headless shell on first use", \
-            "install Chrome or set STUDIO_BROWSER (a proxy may block the download)"
+        return WARN, "browser", "none installed; fetch the headless shell during setup", \
+            "studio doctor --fetch, install Chrome or set STUDIO_BROWSER"
     try:
         run = proc.run([path, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"],
                        capture_output=True, text=True, timeout=30)
@@ -150,16 +150,14 @@ def check_host(url):
         return WARN, f"host {url}", f"unreachable ({e})", "allowlist it, or prefetch on a machine that can reach it"
 
 
-def fetch(engines=("remotion",), extras=()):
+def fetch(engines=("live",), extras=()):
     """Install what is downloaded rather than pinned in the flake: each engine's node packages, and
     any optional Python extras (e.g. `align`). Inexact, so extras installed earlier stay."""
     for name in engines:
         proc.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=engine_dir(name), check=True)
-        if name != "remotion":
-            continue           # every engine uses the browser Remotion's renderer downloads
-        # The headless shell; a blocked download is not fatal, the installed Chrome still works.
-        get = proc.run(["node", "-e", "import('@remotion/renderer').then(r => r.ensureBrowser())"],
-                       cwd=engine_dir(name))
+        # Explicit setup only; preflight and rendering never download a browser.
+        get = proc.run(["node", "node_modules/playwright-core/cli.js", "install", "chromium-headless-shell"],
+                       cwd=engine_dir(name), env={**os.environ, "PLAYWRIGHT_BROWSERS_PATH": str(browser_cache())})
         if get.returncode != 0:
             print("warn: the headless shell did not download; falling back to an installed Chrome")
     if extras:
@@ -308,7 +306,6 @@ def system_checks():
 
 def checks(net=False):
     rows = system_checks() + [
-        check_engine("remotion"),
         check_engine("live"),
         check_browser(),
         check_launch(),
@@ -360,8 +357,8 @@ def main_preflight(args):
         extras = args.extra
     else:
         extras = required(args.video) if args.video else ("kokoro", "align")
-    rows = system_checks() + [check_engine(e) for e in dict.fromkeys(("remotion", engine))]
-    rows = require_engines(rows, ("remotion", engine)) + extra_checks(extras) + model_checks(extras)
+    rows = system_checks() + [check_engine(e) for e in (engine,)]
+    rows = require_engines(rows, (engine,)) + extra_checks(extras) + model_checks(extras)
     path, source = resolve_browser()
     present = path and Path(path).is_file() and os.access(path, os.X_OK)
     rows.append((OK if present else FAIL, "browser", f"{path} ({source}); not launched" if present else
@@ -422,20 +419,20 @@ def fetch_sounds():
 
 def installs_engines(args):
     """Whether --fetch installs the engines (and extras): always, unless it was asked for the sound
-    kit alone, with --sounds and no --engine or --extra, while Remotion is installed already (npm ci
-    would wipe and download its packages and browser again for nothing)."""
-    return not args.sounds or bool(args.engine or args.extra) or check_engine("remotion")[0] != OK
+    kit alone, with --sounds and no --engine or --extra, while live is installed already (npm ci
+    would reinstall its packages for nothing)."""
+    return not args.sounds or bool(args.engine or args.extra) or check_engine("live")[0] != OK
 
 
 def main(args):
     offline = fetch_sounds() if args.fetch and args.sounds else None
     if args.fetch and installs_engines(args):
-        fetch(engines=tuple(dict.fromkeys(("remotion", *args.engine))), extras=args.extra)
+        fetch(engines=tuple(dict.fromkeys(("live", *args.engine))), extras=args.extra)
     # Explicit extras are the task's requirements, not a request to require every optional voice.
     defaults = required(args.video) if args.video else (() if args.extra else EXTRAS)
     extras = tuple(dict.fromkeys([*args.extra, *defaults]))
     rows = checks(net=args.net) + extra_checks(extras) + [check_sounds(offline)]
-    engines = [*args.engine, *([settings.load(args.video)["engine"]] if args.video else [])]
+    engines = ["live", *args.engine, *([settings.load(args.video)["engine"]] if args.video else [])]
     rows = require_engines(rows, engines)
     if getattr(args, "speech", False):
         rows.append(check_speech())

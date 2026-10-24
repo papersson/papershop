@@ -75,10 +75,7 @@ def test_a_push_in_takes_its_subject_straight_to_the_centre(tmp_path):
     assert max(p[1] for p in out) <= 1920 and min(p[0] for p in out) >= 0
 
 
-def test_both_engines_take_one_default_ease(tmp_path):
-    """The same keys without an ease give the same camera in live and Remotion: both pass none on, so the
-    shared camera's inOut applies (Remotion's keyed would default to smooth)."""
+def test_the_camera_uses_the_shared_default_ease(tmp_path):
+    """Camera keys without an ease use the shared inOut default."""
     out = run(tmp_path, "[cam.CAMERA_EASE, kit.camAt(0.3, [[0, {x: 0, y: 0, z: 1}], [1, {x: 10, y: 0, z: 1}]]).x]")
     assert out == ["inOut", pytest.approx(10 * 4 * 0.3 ** 3)]
-    map_tsx = (engine_dir("remotion") / "src" / "kit" / "map.tsx").read_text()
-    assert "ease?: motion.Ease | keyof typeof motion.ease): Framing" in map_tsx and "motion.smooth): Framing" not in map_tsx

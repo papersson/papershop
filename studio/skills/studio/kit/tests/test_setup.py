@@ -77,14 +77,13 @@ def test_preflight_requires_selected_engine_but_not_unused_extras(monkeypatch, t
     executable(browser, "exit 99")
     monkeypatch.setattr(doctor, "resolve_browser", lambda: (str(browser), "test"))
     monkeypatch.setattr(doctor, "extra_checks", lambda extras: [] if not extras else pytest.fail("silent requested"))
-    for name in ("remotion", "live"):
+    for name in ("live",):
         (tmp_path / name / "node_modules" / doctor.ENGINE_MARKER[name]).mkdir(parents=True)
         (tmp_path / name / "node_modules/@fontsource/ibm-plex-mono").mkdir(parents=True)
     assert cli.main(["preflight", "--silent"]) == 0
     shutil.rmtree(tmp_path / "live")
     assert cli.main(["preflight", "--silent"]) == 1
     assert "--engine live" in capsys.readouterr().out
-    assert cli.main(["preflight", "--engine", "remotion", "--silent"]) == 0
 
 
 def test_preflight_requires_default_narration_packages(monkeypatch, tmp_path):
@@ -100,14 +99,13 @@ def test_preflight_requires_default_narration_packages(monkeypatch, tmp_path):
 
 def test_doctor_only_requires_explicit_extras_and_selected_engines(monkeypatch):
     seen = []
-    monkeypatch.setattr(doctor, "checks", lambda net=False: [
-        (doctor.OK, "engine remotion", "installed", ""),
-        (doctor.WARN, "engine live", "missing", "install live")])
+    monkeypatch.setattr(doctor, "checks", lambda net=False: [(doctor.OK, "engine live", "installed", "")])
     monkeypatch.setattr(doctor, "extra_checks", lambda extras: seen.extend(extras) or [])
     monkeypatch.setattr(doctor, "check_sounds", lambda offline=None: (doctor.WARN, "sound kit", "optional", ""))
-    assert cli.main(["doctor", "--engine", "remotion", "--extra", "audio"]) == 0
+    assert cli.main(["doctor", "--extra", "audio"]) == 0
     assert seen == ["audio"]
-    assert cli.main(["doctor", "--engine", "live", "--extra", "audio"]) == 1
+    monkeypatch.setattr(doctor, "checks", lambda net=False: [(doctor.WARN, "engine live", "missing", "install live")])
+    assert cli.main(["doctor", "--extra", "audio"]) == 1
 
 
 def test_explicit_model_source_is_used_and_load_failure_is_reported(monkeypatch):

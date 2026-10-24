@@ -6,7 +6,7 @@ place their sound with the kit, and check a deliberate loop's seam with `studio 
 
 For a product film, capture the actual product with `studio capture` or add supplied assets with
 `studio asset add`. Frame the action, show its consequence and keep each asset's source. The live
-engine or Remotion can draw the scenes; the kit still supplies sound, cuts and the desk.
+engine can draw the scenes; the kit still supplies sound, cuts and the desk.
 
 For pixel art, draw on a small canvas with an explicit palette. Scale by whole numbers with nearest
 neighbour sampling. Inspect the exported frames for stray colours and fractional movement.

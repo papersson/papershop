@@ -168,8 +168,8 @@ def test_moved_chapters_keep_identical_relative_times_and_clip_keys(tmp_path):
     from studio_kit.keys import clip_key
     v = video(tmp_path)
     (v / "scenes").mkdir()
-    (v / "scenes" / "s1.tsx").write_text("//")
-    (v / "scenes" / "s2.tsx").write_text("//")
+    (v / "scenes" / "s1.js").write_text("//")
+    (v / "scenes" / "s2.js").write_text("//")
     S = nr.Settings(v)
     chapters = sc.load(v)
     durs = {"s1_01": 2.217, "s1_02": 1.873, "s1_03": 3.331, "s2_01": 2.0}

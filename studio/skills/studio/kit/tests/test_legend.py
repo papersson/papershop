@@ -54,7 +54,7 @@ def test_colours_are_read_as_the_browser_reports_them():
 
 def test_the_legend_names_the_engines_theme_colours(tmp_path):
     assert legend.declared(video(tmp_path / "a", {"request": "warm", "x": "#e4715f"}))[0] == {"request": WARM, "x": BAD}
-    assert legend.declared(video(tmp_path / "b", {"focus": "ice", "box": "TRAY_FILL"}, "remotion"))[0] == {"focus": COLD, "box": "#17202A"}
+    assert legend.declared(video(tmp_path / "b", {"focus": "cold", "box": "tray"}))[0] == {"focus": COLD, "box": "#17202A"}
     v = video(tmp_path / "c", {"request": "wram"})
     rows = legend.check(v, boxes=frames(("s1", [])))
     assert not rows[0]["ok"] and "'wram' is not a live theme colour" in rows[0]["detail"]
@@ -141,12 +141,10 @@ def test_a_legend_edit_changes_a_live_clips_key_and_the_legend_check_samples_it_
     assert all(after[c] != before[c] for c in after)
     e = FakeEngine({"s1": [box("card", COLD, means="step")]})          # the clip as the new legend draws it
     assert warnings(legend.check(v, engine=e, keys=after)) == [] and set(e.asked) == {"s1", "s2"}
-    # Remotion scenes don't read the legend, and a video without one keeps its keys
-    assert clip_key(v, t, "s1", "check", engine="remotion") == clip_key(video(tmp_path / "b"), t, "s1", "check", engine="remotion")
 
 
 def test_the_kits_own_accent_states_unnamed_shapes_and_dimmed_elements_are_left_alone(tmp_path):
-    """A lit layer, a selected cell, a minimap tagged "kit" by the kit; a Remotion Rect with no name;
+    """A lit layer, a selected cell, a minimap tagged "kit" by the kit; an unnamed shape;
     and an accent element dimmed under half opacity (a guide) were all flagged."""
     v = video(tmp_path, {"selection": "cold"})
     rows = legend.check(v, boxes=frames(("s1", [

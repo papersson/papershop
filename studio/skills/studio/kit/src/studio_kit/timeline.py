@@ -653,7 +653,7 @@ def _interpolate(script, times):
 
 # --- building a timeline --------------------------------------------------------------------------
 
-def from_timings(t, engine="remotion", audio_file="audio/narration.mp3", fps=None):
+def from_timings(t, engine="live", audio_file="audio/narration.mp3", fps=None):
     """A timeline from laid-out narration timings (what `studio narrate` and the tutor kit write):
     each chapter becomes a scene clip, each sentence a narration entry with its words."""
     scenes, narration = [], []
@@ -827,7 +827,7 @@ def migrate(video, old):
     once: a built timeline names its sources, and an existing source is never overwritten (except a
     timings.json the old kit left stale, below). Clip engines are not lifted: the renderer always drew
     every clip with the video's engine. So on this first build a footage, duration or tutor piece on
-    another engine re-renders once (the cache keys on the clip's engine label, which was "remotion"),
+    another engine re-renders once (the cache keys on the clip's engine label),
     and every video re-mixes once (each audio entry's new role enters the soundtrack's key)."""
     if "sources" in old:
         return

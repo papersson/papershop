@@ -13,12 +13,12 @@ Before dispatch, settle shared visual choices from the reel: the protagonist, le
 common helpers and any sound or typing data the chapter needs to read. A prepared typed-code plan
 can already be applied by the main session. Otherwise the chapter proposes its plan in its own
 data folder and reports it back. Shared work should be small enough to keep the chapter jobs
-independent. Remotion is available for CodePanel, Editor, RunTerminal, ProgramWindow and Terminal;
-its code components remain in that engine.
+independent. The live kit supplies CodePanel, Editor, RunTerminal, ProgramWindow, Terminal and
+HelperCard; all read the same typing and code-view data.
 
 ## Dispatch the chapter agents
 
-Use the main Claude session's Agent tool. Send all chapter calls together in one message so they
+Use the main session's agent capability. Send all chapter calls together in one message so they
 start in parallel. Use one agent per chapter, each with a fresh, short context. If the tool has a
 concurrency limit, fill the available slots and start the next job as a slot frees. The command
 prints the jobs; it does not spawn them itself.
@@ -42,9 +42,7 @@ Return the paths you changed, the check result, which frames you inspected, and 
 changes needed. Do not make a cut, narrate, publish, or edit another chapter.
 ```
 
-STUDIO is the absolute path to `bin/studio`. For a Remotion video, substitute
-`scenes/CLIP.tsx` for the scene path; return the registration needed in `scenes/index.ts` to the
-main session. Register placeholder components before dispatch if chapter checks need them.
+STUDIO is the absolute path to `bin/studio`.
 
 `cues/<clip>.json` uses the same schema as `cues.json`: names mapped to absolute seconds or
 narration anchors. Prefix names with the clip id, such as `s2-enter`. The timeline build merges

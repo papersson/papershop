@@ -117,7 +117,7 @@ def provenance(video):
 PACING_FPS = 10         # samples a second: a 0.5 s hold is five
 PACING_SIZE = (192, 108)   # pixels the frame is scaled to: whole moves show, texture and antialiasing don't
 HOLD_MIN = 0.5          # seconds a significant move holds before the next one starts (taste.md)
-# Calibrated on the kit's templates (live and Remotion), in mean grey levels over the stage at PACING_SIZE.
+# Calibrated on the kit's templates (SVG and 3D), in mean grey levels over the stage at PACING_SIZE.
 # A sample moving at least MOVE_LEVEL (0.15% of the stage changing fully in 0.1 s) is movement; less is
 # ambient (a jittering dot, a ticking counter, a slow fade). A run of movement is a significant move when
 # it adds up to SIGNIFICANT, about 1% of the stage changing by 80 levels (a title fading in); a chapter
@@ -137,7 +137,7 @@ LINK_MIN = 0.05
 DIP = 0.35
 # A cut is a one-frame spike of full-frame change: at least CUT_SHARE of the stage's pixels change by
 # CHANGED into the frame, and less than that into the frames either side. A cut to another background
-# changes nearly all of it; on 109 rendered clips (Remotion and live) the kit's own fades and wipes change
+# changes nearly all of it; on 109 rendered clips (the earlier renderers and live) the kit's own fades and wipes change
 # at most 0.48 of the stage a frame, but a flat full-stage fade, a flash or a fast pan over texture
 # changes all of it frame after frame, so it is the spike, not the share alone, that makes a cut: a run
 # of full-frame changes is motion. A cut between two scenes on one background changes only where their

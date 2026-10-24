@@ -7,8 +7,7 @@ lists commands and `studio COMMAND --help` lists arguments. VIDEO is a path cont
 ## Setup and files
 
 `studio preflight [VIDEO]` checks prerequisites without downloads or browser/model launches.
-For a new explainer it checks live, Kokoro and alignment. `--engine remotion` checks that engine;
-`--silent` omits speech prerequisites. `studio doctor [VIDEO]` diagnoses the environment and
+For a new explainer it checks live, Kokoro and alignment; `--silent` omits speech prerequisites. `studio doctor [VIDEO]` diagnoses the environment and
 prints fixes. Its `--net` checks download hosts and `--speech` tests synthesis and recognition.
 
 The launcher enters the plugin's Nix environment with Python, uv, Node, ffmpeg and sox, and caches
@@ -26,7 +25,7 @@ stable default; `video.json.gl: "gpu"` uses the machine's GPU. The backend enter
 Blender is needed only for videos configured with plates. Use available tools and report anything
 that could not run; a missing renderer is not evidence that its frames passed.
 
-`studio new NAME [--dir PATH] [--title TITLE] [--source REPO] [--engine live|remotion]` creates the
+`studio new NAME [--dir PATH] [--title TITLE] [--source REPO]` creates the
 folder. `--duration SECONDS` creates a silent scene test. `--from VIDEO` inherits the look and
 lexicon for a series; repeat `--include RELATIVE_PATH` for explicit dependencies. The default
 engine is live. Existing videos keep the kit they were made with.
@@ -54,8 +53,8 @@ kit and its packages. The working directory is VIDEO and arguments pass through 
 Keep temporary work inside the video. Chapter helpers may write only their assigned files.
 
 The implementation is in `kit/src/studio_kit/`, commands in `cli.py`, and tests in `kit/tests/`.
-The scene engines are `engines/live/` and `engines/remotion/`; timing and motion helpers shared
-by them live in `engines/shared/`. Templates show real API calls and are useful to copy selectively.
+The renderer is `engines/live/`; pure timing and motion helpers also used by the kit’s checks
+live in `engines/shared/`. Templates show real API calls and are useful to copy selectively.
 
 ## Narration, captions and the beat sheet
 
@@ -131,7 +130,7 @@ sentences. The schema and renderer live in `boards.py` and the engines' board mo
 Write `scenes/s1.js` with `export default function draw(c)`. Every frame depends only on time;
 use seeded randomness and direct time evaluation. The SVG stage uses pixels, with origin at
 the top left, x right and y down. `c.W` and `c.H` exclude the caption band; `c.unit` is `H / 8`.
-This differs from board and Remotion stage coordinates.
+Boards and code components use eight-unit, centre-origin coordinates with y up.
 
 ```js
 export default function draw(c) {
@@ -210,19 +209,26 @@ fading transparent geometry. `studio plate VIDEO s1 --probe` measures a few fram
 render; `--quality final` renders full-resolution frames. Plate caches key on the script, inputs,
 profile and cues and can resume missing frames.
 
-## Remotion and code
+## Code performed live
 
-Remotion remains available through `studio new NAME --engine remotion`. It uses
-`scenes/<clip>.tsx`, registered by the main session in `scenes/index.ts`, with imports from
-`@studio`. Components use stage units centered on the picture, y up. `useClip().t`, `at`, `end`,
-`word`, `phrase`, `cue`, `ramp`, `pulse` and the shared motion helpers time the picture.
-See `templates/scenes/` and `engines/remotion/src/kit/` for exact component props.
+Call `c.kit.Editor(c, props)`, `RunTerminal(c, props)` and `ProgramWindow(c, props)` from a live
+chapter. They replay `data/typing.json`, the same stream that times the keys. Code components use
+`at: [x, y]`, `w` and `h` in eight-unit coordinates centered on the picture, y up. Their `size`
+uses the established code type scale and has an 18 px floor. Ordinary `c.S` drawing stays in pixels.
 
-`CodePanel` shows recorded source `{text, sha256}`, an optional line range, current line,
-plumbing and markers. `Terminal` shows captured `{argv, stdout, stderr, exit}` runs with reveal
-progress. `RowTable`, `JsonTree`, `ColumnStrips`, `GeoMap`, `VarCard` and `Thread` show explicit data.
-The typed-code components are `Editor`, `RunTerminal` and `ProgramWindow`; they read the same
-`data/typing.json` that times key sounds. Show the editor and its program's result in one shot.
+`Editor` takes `typing`, `ids` (burst names), `at`, `w`, `rows`, `title`, optional `from`/`focus`
+and `view` from `data/codeview.json`. It preserves wrong text, corrections, caret, mode and save
+states. The view adds open intervals, folds, line highlights and a full-program payoff.
+`HelperCard(c, {view, id, at, w})` shows a timed explanation of a folded or external piece.
+`RunTerminal` takes the same typing/ids and displays the captured command and output.
+`ProgramWindow` takes typing/ids, at/w/h and `draw(id, pop, context)`. Draw the actual result in
+`context.window` (`x, y, w, h` in pixels); the kit clips, closes and opens it on the run’s frames.
+Show the editor and its program’s result together. Use stable, distinct `name` values for multiple
+instances. See `templates/live/scenes/example-code.js` and `engines/live/src/code.js`.
+
+`CodePanel` shows recorded `source: {text, sha256}`, an optional 1-based `range`, `current` line,
+`plumbing` line numbers, `markers` and token highlights. `Terminal` shows captured
+`runs: [{argv, stdout, stderr, exit}]` with `progress` and `maxLines`. Both take at/w/size/name.
 
 `studio typing VIDEO PLAN.json` replays edits between recorded file versions, verifies the final
 buffer byte for byte and schedules keystrokes with human rhythm. The main session runs it because

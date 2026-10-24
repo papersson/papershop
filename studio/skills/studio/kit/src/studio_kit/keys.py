@@ -3,7 +3,7 @@ engine. The cut cache, stills, checks, crops and the review fingerprints are all
 
 A clip's cache key hashes everything its frames depend on: the engine (engine_inputs: its source and
 packages, and for the live engine its page, its WebGL backend and the browser), the video's shared scene
-files, the clip's own scene file (scenes/<clip>.tsx), its slice of the timeline (as times relative
+files, the clip's own scene file (scenes/<clip>.js), its slice of the timeline (as times relative
 to the clip's first frame) and the layout. So an edit to one chapter's scene re-renders that
 chapter only, a narration edit re-renders the chapter it is in (later chapters move by whole frames,
 see narration.CHAPTER_GRID, and keep their keys), and an edit to a shared file re-renders them all.
@@ -64,18 +64,8 @@ def _engine_of(video):
 
 
 def has_scene(video, clip_id, engine=None):
-    """Whether a chapter renders its own scene rather than its board: as the Remotion root decides,
-    a scenes/<clip>.tsx registered in scenes/index.ts; for the live engine, a scenes/<clip>.js.
-    Chapters without scenes render their boards."""
-    video = Path(video)
-    engine = engine or _engine_of(video)
-    if engine == "live":
-        return (video / "scenes" / f"{clip_id}.js").exists()
-    if engine != "remotion":
-        return True
-    index = next((p for p in (video / "scenes" / "index.ts", video / "scenes" / "index.tsx") if p.exists()), None)
-    registered = bool(index and re.search(rf"(?<![\w-]){re.escape(clip_id)}\s*:", index.read_text()))
-    return registered and any((video / "scenes" / f"{clip_id}{ext}").exists() for ext in (".tsx", ".ts", ".jsx", ".js"))
+    """A chapter with scenes/<clip>.js draws live; otherwise it shows its board."""
+    return (Path(video) / "scenes" / f"{clip_id}.js").is_file()
 
 
 ASSET_BYTES_UNDER = 20_000_000   # bytes: assets up to this size are hashed by content, larger ones listed
@@ -103,8 +93,7 @@ def _hash_assets(h, p):
 
 
 SCENE_CODE = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"}
-# Remotion's scenes/index.ts lists every clip; those imports do not make chapters depend on each other.
-# import each clip's file without drawing it into the others.
+# A scene registry lists clips without making them depend on one another.
 REGISTRIES = {"index", "project"}
 # Comments are read as code: a cue named in one costs an extra render at worst, where telling
 # comments from JSX text, regexes and URLs would need a parser to get right.
@@ -152,7 +141,7 @@ def scene_files(video, clip_id, clip_ids):
 def scene_cues(video, clip_id, clip_ids):
     """The cue names a clip's scene code reads (scene_files), or None for all cues when any of it
     computes a cue name. The engine kits read cues only through their cue() helper, except the typed
-    code editor (editor.tsx), which reads the cues data/typing.json names: a scene that imports that
+    code editor (code.js), which reads the cues data/typing.json names: a scene that imports that
     file reads them all."""
     names = set()
     typing = view = False
@@ -202,7 +191,7 @@ def scene_data(video, clip_id, clip_ids):
     return found
 
 
-# useClip's beat, downbeat, hits and bpm (Remotion), or the timeline's beats read directly (any engine).
+# Beat helpers or the timeline's beats read directly.
 _BEATS = re.compile(r"\b(?:beats?|downbeats?|hits|bpm)\b")
 
 

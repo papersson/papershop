@@ -2,7 +2,7 @@
 
 Every engine is a CLI under engines/<name>/ that answers each call with one JSON object, written
 to the file named by --reply (engines/shared/reply.js); this module is the only place the kit calls
-it, so a second engine only needs a second `_command`.
+it. Live is the single renderer for the desk, stills and movies.
 """
 import json
 import tempfile
@@ -13,14 +13,13 @@ from . import settings
 from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
-ENGINES = ("live", "remotion")
+ENGINES = ("live",)
 LAYERS = ("all", "no-captions", "no-band", "background")
-LOOK_ENGINES = ("live", "remotion")      # the engines that draw a look sheet
+LOOK_ENGINES = ("live",)      # the engines that draw a look sheet
 # What each engine needs and gives (declared, so a missing capability is reported, never faked):
 # needs_browser/needs_listener: launches Chromium / binds a local port; boxes: pixel boxes of named elements;
 # layers: the layers a still can omit; live_preview: the desk can redraw its scenes live; look: the look sheet.
 CAPABILITIES = {
-    "remotion": dict(needs_browser=True, needs_listener=True, boxes=True, layers=LAYERS, live_preview=False, look=True),
     "live": dict(needs_browser=True, needs_listener=True, boxes=True, layers=LAYERS, live_preview=True, look=True),
 }
 
@@ -140,7 +139,7 @@ class Engine:
 
     def look(self, outdir, caption=()):
         """The look sheet: one still per page (look-<n>.png in outdir), the band showing `caption`
-        (lines); {pages: [{page, title, out}]}. Live and Remotion only."""
+        (lines); {pages: [{page, title, out}]}. Live only."""
         if self.name not in LOOK_ENGINES:
             raise EngineError(f"the look sheet is drawn by the {' and '.join(LOOK_ENGINES)} engines, not {self.name}")
         return self._call("look", "--out", outdir, "--caption", json.dumps(list(caption)))
@@ -157,12 +156,10 @@ class Engine:
 
     def durations(self, clips):
         """{clip: frames} for many clips; one browser session where the engine supports it."""
-        if self.name == "remotion":
-            return {r["clip"]: r["frames"] for r in self._call("durations", "--clips", ",".join(clips))["clips"]}
         return {c: self.duration(c)["frames"] for c in clips}
 
     @property
     def boxes_keep_frames(self):
         """Whether boxes_at can also save each frame (requests with "out"), so a caller needing
         both renders every frame once."""
-        return self.name == "remotion"
+        return False

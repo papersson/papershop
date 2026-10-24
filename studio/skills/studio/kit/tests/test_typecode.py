@@ -17,7 +17,7 @@ V3 = "int main(void) {\n    int x = 300;\n    draw(x);\n    return 0;\n}\n"
 
 def video(tmp_path):
     (tmp_path / "SCRIPT.md").write_text(SCRIPT)
-    (tmp_path / "video.json").write_text(json.dumps({"title": "T", "engine": "remotion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "T", "engine": "live"}))
     narration.narrate(tmp_path, estimate=True)
     src = tmp_path / "data" / "versions"
     src.mkdir(parents=True)

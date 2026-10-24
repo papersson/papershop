@@ -1,7 +1,6 @@
 // Motion maths for every engine: pure functions of time, so any frame renders alone. Plain ES
-// modules with JSDoc types: the live engine serves this file as it is, and the Remotion and Motion
-// Canvas kits import it through their bundlers. A default the engines disagree on (pulse's length,
-// prog's and ramp's ease) is the engine kit's, so the functions here take those arguments.
+// modules with JSDoc types: the live engine serves them directly and the checks import them in Node.
+// Scene defaults belong to the live kit; these functions take their timing arguments explicitly.
 
 /** @type {(x: number, a?: number, b?: number) => number} */
 export const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))

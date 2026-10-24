@@ -31,7 +31,7 @@ def test_at_global_maps_timeline_seconds_to_clip_time(tmp_path):
 
 def test_provenance_finds_assets_scenes_use_without_a_row(tmp_path):
     make_video(tmp_path)
-    (tmp_path / "scenes" / "s1.tsx").write_text('<Shot file="ui.png" at={[0,0]} /> staticFile(\'logo.svg\')')
+    (tmp_path / "scenes" / "s1.js").write_text('<Shot file="ui.png" at={[0,0]} /> staticFile(\'logo.svg\')')
     (tmp_path / "assets").mkdir()
     (tmp_path / "assets" / "ui.png").write_bytes(b"x")
     assets.record(tmp_path, "ui.png", "capture", "https://example.com")
@@ -99,8 +99,8 @@ def test_ambient_motion_does_not_join_the_moves():
 
 def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     t = make_video(tmp_path)
-    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
-    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
     for cid, (a, b) in {"s1": (0.5, 0.8), "s2": (0.5, 1.2)}.items():
@@ -113,7 +113,7 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     assert warn["severity"] == "warning" and warn["ok"] and warn["t"] == 0.5
     assert warn["detail"].startswith("0.2 s hold between the move at 0.4-0.5 s and the one at 0.7 s")
     assert ok["detail"] == "2 significant moves, each held at least 0.5 s"
-    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited: its rendered clip is stale\n")
+    (tmp_path / "scenes" / "s2.js").write_text("// s2, edited: its rendered clip is stale\n")
     assert [r.get("skipped") for r in motion.pacing(tmp_path, eng, stills=False)] == [None, True]
 
 
@@ -173,14 +173,14 @@ def test_the_pacing_check_and_the_motion_review_measure_what_they_did(tmp_path):
     """Both read the sampled signal (pacing_signal from a clip render, file_signal from a cut's video
     or clip, at any frame), which now shares its decoder and change measure with frame_signal."""
     t = make_video(tmp_path)
-    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
     f = cache / f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(0.5, 0.8, 4), "-pix_fmt", "yuv420p", str(f)], check=True)
     for first, count in ((0, 60), (7, 60), (31, 80)):
         assert [s[:3] for s in motion.file_signal(f, t, LAY, first, count)] == old_signal(f, 30, first, count)
-    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
     got = motion.pacing_signal(tmp_path, StageEngine({}), clips={"s1"}, stills=False)["s1"]
     assert [s[:3] for s in got] == old_signal(f, 30, 0, 60, seek=False) and len(got) == 19
 

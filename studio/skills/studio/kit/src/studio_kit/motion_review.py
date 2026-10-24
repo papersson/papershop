@@ -18,8 +18,8 @@ SHEET_WIDTH = 320           # pixels a frame is wide on a sheet
 SHEET_COLS = 12
 # The frame labels' font, named outright: drawtext with no fontfile asks fontconfig, which printed
 # "Fontconfig error: Cannot load default config file" once a sheet where it has no config. The first
-# that exists: the Remotion engine's own mono font, then a system one.
-LABEL_FONTS = (engine_dir("remotion") / "node_modules" / "@fontsource" / "ibm-plex-mono" / "files" / "ibm-plex-mono-latin-500-normal.woff",
+# that exists: the live engine's own mono font, then a system one.
+LABEL_FONTS = (engine_dir("live") / "node_modules" / "@fontsource" / "ibm-plex-mono" / "files" / "ibm-plex-mono-latin-500-normal.woff",
                Path("/System/Library/Fonts/Menlo.ttc"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"))
 
 

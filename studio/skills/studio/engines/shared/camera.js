@@ -1,8 +1,7 @@
-// Camera maths for the live and Remotion kits: a camera is the point it centres and a zoom, in the
-// kit's own units (live: pixels, Remotion: stage units). Pure functions of time, like motion.js, so a
-// camera move is one declaration and any frame of it renders alone. Each kit adds the header inset
-// and its own names ({x, y, z} for S.cam, {cx, cy, zoom} for <Camera>); both resolve keys here, with
-// the same default ease, so the same keys give the same camera in either engine.
+// Camera maths for the live kit: a camera is the point it centres and a zoom, in the
+// kit's own units (pixels or stage units). Pure functions of time, like motion.js, so a
+// camera move is one declaration and any frame renders alone. The live adapter adds the header
+// inset and maps {x, y, z} into the pure model's {cx, cy, zoom}.
 
 import { clamp, ease } from './motion.js'
 

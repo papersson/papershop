@@ -29,11 +29,19 @@ def engine_dir(name):
     return ROOT / "engines" / name
 
 
-def headless_shell(engine="remotion"):
-    """The engine's downloaded Chrome headless shell, if `studio doctor --fetch` has fetched it."""
-    found = sorted((engine_dir(engine) / "node_modules" / ".remotion").glob(
-        "chrome-headless-shell/*/*/chrome-headless-shell"))
-    return str(found[0]) if found else None
+def browser_cache():
+    return ROOT / ".cache" / "browser"
+
+
+def headless_shell():
+    """The shell fetched by doctor, outside node_modules so npm ci cannot erase it."""
+    cache = browser_cache()
+    found = list(cache.glob("chromium_headless_shell-*/*/chrome-headless-shell"))
+    found += list(cache.glob("chromium_headless_shell-*/*/headless_shell"))
+    if found:
+        return str(max(found, key=lambda p: p.stat().st_mtime_ns))
+    imported = sorted((cache / "imported").glob("*/chrome-headless-shell"))
+    return str(imported[0]) if imported else None
 
 
 def resolve_browser(environ=None, system=None, exists=None, which=None, shell=None):

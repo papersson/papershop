@@ -139,7 +139,7 @@ def bounds(video, samples=3, engine=None, boxes=None):
     element under a camera that has moved (a push-in, a pan: the engine marks its box "camera") may be
     cropped or left out of the shot: that is the camera's doing, and in_frame checks the narrated one.
     So may a 3D element its view crops (the engine marks its box "clipped").
-    A box with no name of its own (a Remotion Rect given no name: "named" false) is never bounds' to
+    A box with no name of its own ("named" false) is never bounds' to
     fail, as the live engine reports no unnamed shape at all; a box a clip cuts is reported cut."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)

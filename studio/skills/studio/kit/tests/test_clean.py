@@ -4,7 +4,7 @@ from studio_kit import clean, keys, render
 from test_narration import SCRIPT
 from test_render import make_video
 
-PROTECTED = ["SCRIPT.md", "scenes/s1.tsx", "data/x.json", "sims/x.py", "research/r.md", "narration.json",
+PROTECTED = ["SCRIPT.md", "scenes/s1.js", "data/x.json", "sims/x.py", "research/r.md", "narration.json",
              "timeline.json", "audio/narration.mp3", "audio/narration.wav", "out/master.mp4", "out/page/video.mp4",
              "review/notes.jsonl", "audio/elevenlabs_cache/abc.json"]
 

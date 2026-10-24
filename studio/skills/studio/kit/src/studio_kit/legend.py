@@ -1,12 +1,11 @@
 """The colour legend check (`studio check --only legend`): one colour, one meaning, for the whole video.
 
 A video declares its legend in video.json, meaning -> colour, the colour a theme name of the video's
-engine (live: "hot", "cold", "bad", ...; Remotion: "amber", "ice", "coral", ...) or "#rrggbb":
+theme ("hot", "cold", "bad", ...) or "#rrggbb":
 
   "legend": {"request": "warm", "error": "bad", "focus": "hot"}
 
-An element carries a meaning by its `means` tag (live: any drawing call's {means: 'request'};
-Remotion: Txt, Rect and Box take means="request"), or by its name, when the meaning's words appear
+An element carries a meaning by its `means` tag (any drawing call's {means: 'request'}), or by its name, when the meaning's words appear
 in it ("box request" means request). The engines' boxes report each named element's fill and stroke
 as the browser resolves them, so at the check's sample times (moments.check_samples, the boxes the
 other checks gather) the check knows every named element's colours and meaning, and warns when
@@ -20,7 +19,7 @@ other checks gather) the check knows every named element's colours and meaning, 
 
 Only accent colours count (and those the legend names): a neutral, a blend mid-transition and a tint
 (alpha under 0.5) are never a meaning, and an element dimmed under half opacity is a guide, not a
-use. Only named elements are seen (a Remotion shape given no name is not). The kit's components tag
+use. Only named elements are seen. The kit's components tag
 their own accent states (a lit box, a selected cell, a failed line, the close-up's minimap) "kit"
 unless the scene passes `means`: those follow the roles in taste.md, not the video's legend, and are left
 alone. Warnings, since names and tags are partly heuristic. A video
@@ -37,12 +36,11 @@ from functools import lru_cache
 from . import settings
 from .env import engine_dir
 
-THEMES = {"live": ("live", "src/theme.css"), "remotion": ("remotion", "src/kit/theme.ts")}
-ACCENTS = {"live": ("hot", "warm", "cold", "bad", "good", "log", "key"),
-           "remotion": ("amber", "ice", "coral")}
+THEMES = {"live": ("live", "src/theme.css")}
+ACCENTS = {"live": ("hot", "warm", "cold", "bad", "good", "log", "key")}
 TINT = 0.5          # alpha below which a colour is a tint, not the colour
 DIMMED = 0.5        # opacity below which an element is dimmed: a guide, not a use of its colour
-KIT = "kit"         # the tag of the kit's own accent states (Remotion stage.tsx kitMeans, live closeUp)
+KIT = "kit"         # the tag of the kit's own accent states (code components and closeUp)
 EXAMPLES = 3        # elements named per warning
 
 

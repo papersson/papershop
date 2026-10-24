@@ -3,17 +3,17 @@
 Every visual element the scenes will use, in each of its states, rendered by the video's own engine
 in its theme and layout: boxes (idle, lit, failed), arrows (idle, active, muted), the token's glyph
 states, cards, highlights, labels at each type size, the caption band with a sample caption, and the
-theme's colours with their roles (and, on Remotion, the map, the close-up and the code components),
+theme's colours with their roles,
 and the video's colour legend (video.json legend, which `studio check` holds the scenes to) when it
 declares one.
-The builder adds the video's own elements in scenes/look.js (live) or scenes/look.tsx (Remotion);
-templates/live/scenes/example-look.js and templates/scenes/example-look.tsx show how.
+The builder adds the video's own elements in scenes/look.js;
+templates/live/scenes/example-look.js shows how.
 
 Output: out/look/look-<n>.png, one per page, and out/look/look.json, the record a review bundle
 includes (`latest`). Another format's sheet goes to out/look/<format>/. The record's key covers what
 the engine's pixels depend on (keys.engine_inputs: its source, packages, page and WebGL backend),
 the layout, the legend, the video's assets and its look file, so a stale sheet is told apart from a
-current one. Live and Remotion only.
+current one. Live only.
 """
 import hashlib
 import json
@@ -24,7 +24,7 @@ from . import timeline as tl
 from .engine import LOOK_ENGINES, Engine
 
 SAMPLE = "Captions go in the band, at most two lines."     # two lines or fewer at every format's width
-OWN = ("look.js", "look.tsx", "look.ts", "look.jsx")
+OWN = ("look.js",)
 
 
 def sheet_dir(video, fmt=None):
@@ -34,7 +34,7 @@ def sheet_dir(video, fmt=None):
 
 
 def own_file(video):
-    """The video's own look file (scenes/look.js or look.tsx), or None."""
+    """The video's own look file (scenes/look.js), or None."""
     return next((Path(video) / "scenes" / f for f in OWN if (Path(video) / "scenes" / f).is_file()), None)
 
 

@@ -242,16 +242,16 @@ def doctor_args(**kw):
     return Namespace(**{"fetch": True, "sounds": True, "engine": [], "extra": [], "video": None, "net": False, **kw})
 
 
-@pytest.mark.parametrize("kw, remotion, installs", [
+@pytest.mark.parametrize("kw, live_status, installs", [
     ({}, doctor.OK, False),                               # the sound kit alone
     ({"engine": ["live"]}, doctor.OK, True), ({"extra": ["align"]}, doctor.OK, True),
-    ({}, doctor.FAIL, True),                              # Remotion not installed yet
+    ({}, doctor.FAIL, True),                              # Live not installed yet
     ({"sounds": False}, doctor.OK, True),                 # --fetch alone, as before
 ])
-def test_fetch_with_sounds_leaves_installed_engines_alone(kit, monkeypatch, kw, remotion, installs):
+def test_fetch_with_sounds_leaves_installed_engines_alone(kit, monkeypatch, kw, live_status, installs):
     """`doctor --fetch --sounds` ran npm ci, which wiped and downloaded the browser again."""
     calls = []
-    monkeypatch.setattr(doctor, "check_engine", lambda name: (remotion, f"engine {name}", "", ""))
+    monkeypatch.setattr(doctor, "check_engine", lambda name: (live_status, f"engine {name}", "", ""))
     monkeypatch.setattr(doctor, "fetch", lambda **k: calls.append(k))
     monkeypatch.setattr(doctor, "checks", lambda net=False: [])
     monkeypatch.setattr(doctor, "extra_checks", lambda extras=(): [])

@@ -16,8 +16,8 @@ def test_defaults_without_a_file(tmp_path):
 
 
 def test_file_values_override_defaults(tmp_path):
-    write(tmp_path, {"engine": "remotion", "gl": "gpu"})
-    assert settings.load(tmp_path)["engine"] == "remotion"
+    write(tmp_path, {"engine": "live", "gl": "gpu"})
+    assert settings.load(tmp_path)["engine"] == "live"
     assert settings.load(tmp_path)["gl"] == "gpu"
 
 

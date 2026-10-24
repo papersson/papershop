@@ -59,7 +59,7 @@ def test_look_sheet_is_a_command():
     assert handler == "look:main" and "out/look" in help_
 
 
-def test_the_sheet_goes_stale_when_the_engine_changes_or_a_file_its_look_imports_does(tmp_path):
+def test_the_sheet_goes_stale_when_a_file_its_look_imports_or_the_layout_changes(tmp_path):
     live(tmp_path)
     (tmp_path / "scenes" / "look.js").write_text("import { drawToken } from './parts/token.js'\nexport default function look(c) {}\n")
     (tmp_path / "scenes" / "parts").mkdir()
@@ -69,9 +69,9 @@ def test_the_sheet_goes_stale_when_the_engine_changes_or_a_file_its_look_imports
     (tmp_path / "scenes" / "parts" / "token.js").write_text("export function drawToken() { /* rounder */ }\n")
     assert look.latest(tmp_path)["stale"] is True
     look.make(tmp_path, engine=FakeEngine(tmp_path))
-    (tmp_path / "scenes" / "s1.tsx").write_text("// a chapter edit the sheet doesn't draw\n")
+    (tmp_path / "scenes" / "s1.js").write_text("// a chapter edit the sheet doesn't draw\n")
     assert look.latest(tmp_path)["stale"] is False
-    (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "remotion"}))
+    (tmp_path / "layout.json").write_text(json.dumps({"width": 1280, "height": 720, "fps": 30, "band": {"height": 100}}))
     assert look.latest(tmp_path)["stale"] is True
 
 

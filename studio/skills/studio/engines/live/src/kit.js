@@ -25,8 +25,8 @@ export const pulse = (t, t0, d = 0.6) => motion.pulse(t, t0, d)
 
 /**
  * The camera at time t from keys [time, {x, y, z}, ease?] in time order (pixels and a zoom, as S.cam
- * takes them): a key's ease shapes the move into it, `inOut` by default as in Remotion (the shared
- * camera's). The zoom moves in proportion and the centre in step with 1/zoom, so the subject travels
+ * takes them): a key's ease shapes the move into it, `inOut` by default from the shared
+ * camera module. The zoom moves in proportion and the centre in step with 1/zoom, so the subject travels
  * a straight line on screen. Returns {x, y, z}; c.camAt(keys) also points the stage's camera there.
  */
 export function camAt(t, keys, e) {

@@ -41,10 +41,11 @@ def test_engine_comes_from_video_json_and_scaffolds_its_own_scenes(tmp_path, mon
     from studio_kit.engine import Engine, EngineError
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "h"))
     mc, _ = new.create("mc", directory=str(tmp_path / "mc"), engine="live")
-    rm, _ = new.create("rm", directory=str(tmp_path / "rm"), engine="remotion")
-    assert Engine(mc).name == "live" and Engine(rm).name == "remotion"
-    assert (mc / "scenes" / "example-chapter.js").exists() and not (rm / "scenes" / "project.ts").exists()
-    assert Engine(mc, "remotion").name == "remotion"
+    assert Engine(mc).name == "live"
+    assert (mc / "scenes" / "example-code.js").exists()
+    with pytest.raises(SystemExit, match="renders live scenes"):
+        new.create("old", directory=str(tmp_path / "old"), engine="old-engine")
+    assert not (tmp_path / "old").exists()
     with pytest.raises(EngineError, match="no engine named"):
         Engine(mc, "aftereffects")._command("still")
 

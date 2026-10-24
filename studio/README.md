@@ -23,7 +23,7 @@ paragraphs, and cuts render only changed chapters. Say “ship it” for the fin
 The tools keep picture and sound on one timeline. Kokoro supplies the voice; ElevenLabs remains
 available on request. Recorded CC0 sounds land on their transient peaks. Typed-code streams use
 real key recordings and can correct a typo before the program answers. Live 3D, the lit look and
-Blender plates support physical subjects. Remotion remains for its code and terminal components.
+Blender plates support physical subjects. The live code kit performs typed edits, terminals and program results from one key stream.
 
 Run `skills/studio/bin/studio preflight` to inspect prerequisites. The launcher uses the plugin's
 pinned Nix environment, or an existing toolchain with `STUDIO_NO_NIX=1`. After the needed downloads

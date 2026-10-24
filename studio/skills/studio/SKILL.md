@@ -44,8 +44,8 @@ one short chapter job in `research/shoot/<clip>.md`.
 Use the main session's Agent tool to spawn one agent per chapter in parallel, each with that
 job and the taste file. Each agent writes only `scenes/<clip>.js`, `cues/<clip>.json` and
 `data/<clip>/`, runs `studio check VIDEO --chapter CLIP`, and inspects its rendered frames.
-A needed shared change comes back to you to apply. Remotion remains available when its code
-components are needed; you register those chapter components in its shared index.
+A needed shared change comes back to you to apply. Live supplies the code editor, terminal and
+program-window components as well as diagrams and 3D.
 
 Build the performed hero moments during the shoot. Picture and sound use the same named cue.
 Keep one voice and speed, readable subjects that fill the frame, and time for each idea to settle.

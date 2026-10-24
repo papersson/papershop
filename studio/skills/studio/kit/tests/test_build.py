@@ -186,7 +186,7 @@ def test_cues_must_be_seconds(tmp_path):
 # and an engine override, all edited into the file itself.
 OLD = {"version": 1, "fps": 30, "duration": 4.0, "timing": "narrated",
        "voice": {"engine": "kokoro", "voice": "af_heart"},
-       "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": "A", "start": 0.0, "end": 2.0},
+       "tracks": {"scene": [{"id": "s1", "engine": "live", "title": "A", "start": 0.0, "end": 2.0},
                             {"id": "s2", "engine": "live", "title": "B", "start": 2.0, "end": 4.0}],
                   "narration": [{"id": "s1_01", "clip": "s1", "text": "One two.", "caption": "One two.", "paragraph": 0,
                                  "start": 0.5, "end": 1.5, "words": [{"w": "One", "start": 0.5, "end": 0.9},
@@ -233,7 +233,7 @@ def test_an_old_timeline_is_lifted_into_its_sources_once(tmp_path, capsys):
 def test_an_old_silent_piece_keeps_its_length(tmp_path):
     (tmp_path / "video.json").write_text(json.dumps({"title": "Reel"}))
     old = {"version": 1, "fps": 30, "duration": 6.0, "cues": {},
-           "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": "Reel", "start": 0.0, "end": 6.0}],
+           "tracks": {"scene": [{"id": "s1", "engine": "live", "title": "Reel", "start": 0.0, "end": 6.0}],
                       "narration": [], "captions": [], "audio": []}}
     (tmp_path / "timeline.json").write_text(json.dumps(old))
     assert tl.build(tmp_path)["duration"] == 6.0
@@ -306,9 +306,9 @@ def test_an_old_estimate_after_a_narration_is_the_newer_timing(tmp_path):
 
 
 def test_an_old_silent_piece_split_into_chapters_keeps_them(tmp_path):
-    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "engine": "remotion"}))
+    (tmp_path / "video.json").write_text(json.dumps({"title": "Reel", "engine": "live"}))
     old_timeline(tmp_path, {"version": 1, "fps": 30, "duration": 6.0, "cues": {}, "tracks": {
-        "scene": [{"id": f"s{i + 1}", "engine": "remotion", "title": f"S{i + 1}", "start": 2.0 * i, "end": 2.0 * (i + 1)}
+        "scene": [{"id": f"s{i + 1}", "engine": "live", "title": f"S{i + 1}", "start": 2.0 * i, "end": 2.0 * (i + 1)}
                   for i in range(3)], "narration": [], "captions": [], "audio": []}})
     t = tl.build(tmp_path)
     assert [(c["id"], c["start"], c["end"]) for c in t["tracks"]["scene"]] == [("s1", 0.0, 2.0), ("s2", 2.0, 4.0), ("s3", 4.0, 6.0)]

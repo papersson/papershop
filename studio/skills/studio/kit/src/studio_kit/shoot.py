@@ -26,7 +26,7 @@ def prepare(video):
         cues = video / 'cues' / f'{cid}.json'
         if not cues.exists():
             cues.write_text('{}\n')
-        scene = f"scenes/{cid}." + ("tsx" if settings.load(video)["engine"] == "remotion" else "js")
+        scene = f"scenes/{cid}.js"
         commands = [f'studio check {shlex.quote(str(video))} --chapter {cid}',
                     f'studio run {shlex.quote(str(video))} data/{cid}/build.py']
         lines = [f'# Shoot {cid}: {c["title"]}', '',

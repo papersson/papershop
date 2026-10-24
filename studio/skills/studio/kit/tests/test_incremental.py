@@ -124,7 +124,7 @@ def test_check_reruns_only_changed_chapters_and_forgets_failures(tmp_path, capsy
     eng.asked.clear()
     assert check.run(tmp_path, samples=1, engine=eng, everything=False) == [] or not eng.asked
     assert "skipping s1, s2" in capsys.readouterr().out
-    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited\n")
+    (tmp_path / "scenes" / "s2.js").write_text("// s2, edited\n")
     eng = CheckEngine(tmp_path, fail={"s2"})                      # the edit makes s2's text illegible
     rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
     assert set(eng.asked) == {"s2"} and any(not r["ok"] and r["check"] == "legible" for r in rows)
@@ -175,7 +175,7 @@ def test_a_warning_stays_open_until_its_chapter_changes_and_is_never_counted_ok(
     eng = WarnEngine(tmp_path)
     rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
     assert not eng.asked and warned(rows) == [("inframe", "s1", True)] and check.summary(rows) == "inframe: 0 ok, 1 warning"
-    (tmp_path / "scenes" / "s1.tsx").write_text("// s1, the element moved into frame\n")
+    (tmp_path / "scenes" / "s1.js").write_text("// s1, the element moved into frame\n")
     eng = CheckEngine(tmp_path)
     rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
     assert set(eng.asked) == {"s1"} and warned(rows) == []

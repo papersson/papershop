@@ -49,6 +49,8 @@ def target(name, directory=None):
 
 
 def create(name, directory=None, title=None, source=None, duration=None, engine="live"):
+    if engine != "live":
+        raise SystemExit("Studio renders live scenes; use the older pinned kit for other engines")
     video = target(name, directory)
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     for folder in ("research", "cues", "data"):
@@ -63,7 +65,6 @@ def create(name, directory=None, title=None, source=None, duration=None, engine=
     (video / "layout.json").write_text(json.dumps(DEFAULT_LAYOUT, indent=1) + "\n")
     if duration:
         tl.build(video)
-        scenes = TEMPLATES / "scenes"
     else:
         nr = json.loads((TEMPLATES / "narration.json").read_text())
         nr["kokoro"]["speed"] = 0.95
@@ -71,10 +72,7 @@ def create(name, directory=None, title=None, source=None, duration=None, engine=
         (video / "narration.json").write_text(json.dumps(nr, indent=1) + "\n")
         script = (TEMPLATES / "SCRIPT.md").read_text().replace("{{Title}}", cfg["title"])
         (video / "SCRIPT.md").write_text(script)
-        scenes = TEMPLATES / "scenes"
-    if engine == "live":
-        # Plain JS scenes, one per chapter, drawn from t; chapters without one show their boards.
-        scenes = TEMPLATES / "live" / "scenes"
+    scenes = TEMPLATES / "live" / "scenes"
     for f in scenes.iterdir():
         shutil.copyfile(f, video / "scenes" / f.name)
     (video / ".gitignore").write_text(GITIGNORE)

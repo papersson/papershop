@@ -114,3 +114,23 @@ def test_a_hung_launch_is_killed_with_what_it_started(monkeypatch, tmp_path):
         for _ in range(50):
             os.kill(int(pidfile.read_text()), 0)
             time.sleep(0.1)
+
+
+def test_downloaded_browser_is_independent_of_engine_node_modules(tmp_path, monkeypatch):
+    from studio_kit import env
+    monkeypatch.setattr(env, 'ROOT', tmp_path)
+    shell = tmp_path / '.cache/browser/chromium_headless_shell-1243/chrome-mac/headless_shell'
+    shell.parent.mkdir(parents=True)
+    shell.write_bytes(b'browser')
+    assert env.headless_shell() == str(shell)
+
+
+def test_explicit_fetch_uses_playwright_and_the_independent_browser_cache(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(doctor, 'engine_dir', lambda name: tmp_path / name)
+    monkeypatch.setattr(doctor, 'browser_cache', lambda: tmp_path / 'browser')
+    monkeypatch.setattr(doctor.proc, 'run', lambda cmd, **kw: calls.append((cmd, kw)) or SimpleNamespace(returncode=0))
+    doctor.fetch()
+    assert calls[0][0] == ['npm', 'ci', '--no-audit', '--no-fund']
+    assert calls[1][0][-2:] == ['install', 'chromium-headless-shell']
+    assert calls[1][1]['env']['PLAYWRIGHT_BROWSERS_PATH'] == str(tmp_path / 'browser')

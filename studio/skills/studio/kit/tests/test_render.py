@@ -10,15 +10,15 @@ from studio_kit import timeline as tl
 
 def make_video(tmp_path):
     (tmp_path / "scenes").mkdir()
-    for name in ("s1.tsx", "s2.tsx", "kit.tsx", "index.ts"):
+    for name in ("s1.js", "s2.js", "kit.js", "index.js"):
         (tmp_path / "scenes" / name).write_text(f"// {name}\n")
     narration = [{"id": "s1_01", "clip": "s1", "text": "One.", "caption": "One.", "paragraph": 0,
                   "start": 0.5, "end": 1.5, "words": []},
                  {"id": "s2_01", "clip": "s2", "text": "Two.", "caption": "Two.", "paragraph": 0,
                   "start": 2.5, "end": 3.5, "words": []}]
     t = {"version": 1, "fps": 30, "duration": 4.0, "cues": {},
-         "tracks": {"scene": [{"id": "s1", "engine": "remotion", "title": "A", "start": 0.0, "end": 2.0},
-                              {"id": "s2", "engine": "remotion", "title": "B", "start": 2.0, "end": 4.0}],
+         "tracks": {"scene": [{"id": "s1", "engine": "live", "title": "A", "start": 0.0, "end": 2.0},
+                              {"id": "s2", "engine": "live", "title": "B", "start": 2.0, "end": 4.0}],
                     "narration": narration, "captions": tl.chunk_captions(narration),
                     "audio": [{"file": "audio/narration.mp3", "start": 0.0}]}}
     (tmp_path / "timeline.json").write_text(json.dumps(t))          # a built timeline, as the engines read it
@@ -32,7 +32,7 @@ def keys(video, t, quality="draft"):
 def test_editing_a_chapter_scene_changes_only_that_chapter(tmp_path):
     t = make_video(tmp_path)
     before = keys(tmp_path, t)
-    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited\n")
+    (tmp_path / "scenes" / "s2.js").write_text("// s2, edited\n")
     after = keys(tmp_path, t)
     assert after["s1"] == before["s1"] and after["s2"] != before["s2"]
 
@@ -40,7 +40,7 @@ def test_editing_a_chapter_scene_changes_only_that_chapter(tmp_path):
 def test_editing_a_shared_scene_file_changes_every_chapter(tmp_path):
     t = make_video(tmp_path)
     before = keys(tmp_path, t)
-    (tmp_path / "scenes" / "kit.tsx").write_text("// kit, edited\n")
+    (tmp_path / "scenes" / "kit.js").write_text("// kit, edited\n")
     after = keys(tmp_path, t)
     assert all(after[c] != before[c] for c in before)
 
@@ -86,14 +86,14 @@ def test_changing_data_rerenders_the_clips_that_read_it(tmp_path):
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "runs.json").write_text('{"n": 1}')
     (tmp_path / "data" / "other.json").write_text('{"n": 1}')
-    (tmp_path / "scenes" / "s1.tsx").write_text("import runs from '../data/runs.json';\nexport default runs;\n")
+    (tmp_path / "scenes" / "s1.js").write_text("import runs from '../data/runs.json';\nexport default runs;\n")
     before = keys(tmp_path, t)
     (tmp_path / "data" / "runs.json").write_text('{"n": 2}')
     after = keys(tmp_path, t)
     assert after["s1"] != before["s1"] and after["s2"] == before["s2"]
     (tmp_path / "data" / "other.json").write_text('{"n": 2}')
     assert keys(tmp_path, t) == after                                # nobody reads it
-    (tmp_path / "scenes" / "s2.tsx").write_text("const f = (n) => import(`../data/${n}.json`);\nexport default f;\n")
+    (tmp_path / "scenes" / "s2.js").write_text("const f = (n) => import(`../data/${n}.json`);\nexport default f;\n")
     computed = keys(tmp_path, t)
     (tmp_path / "data" / "other.json").write_text('{"n": 3}')
     assert keys(tmp_path, t)["s2"] != computed["s2"]
@@ -104,7 +104,7 @@ def test_literal_browser_data_fetch_does_not_depend_on_agent_activity(tmp_path):
     (tmp_path / "data").mkdir()
     data = tmp_path / "data" / "runs.json"
     data.write_text('{"n": 1}')
-    scene = tmp_path / "scenes" / "s1.tsx"
+    scene = tmp_path / "scenes" / "s1.js"
     scene.write_text("const runs = await fetch(new URL('../data/runs.json', import.meta.url)).then(r => r.json());")
     before = keys(tmp_path, t)
     (tmp_path / "data" / "activity.jsonl").write_text('{"message": "inspected frames"}\n')
@@ -164,7 +164,7 @@ def test_stills_are_reused_unless_their_frame_changed(tmp_path):
     (tmp_path / "b").mkdir()
     assert render.cached_stills(tmp_path, t, eng, reqs(tmp_path / "b")) == (0, 2)
     assert (tmp_path / "b" / "s1_01.jpg").read_bytes() == (tmp_path / "a" / "s1_01.jpg").read_bytes()
-    (tmp_path / "scenes" / "s2.tsx").write_text("// s2, edited\n")
+    (tmp_path / "scenes" / "s2.js").write_text("// s2, edited\n")
     (tmp_path / "c").mkdir()
     assert render.cached_stills(tmp_path, t, eng, reqs(tmp_path / "c")) == (1, 1)
 
@@ -175,7 +175,7 @@ def cue_keys(tmp_path, t, cues):
 
 def test_moving_a_cue_no_scene_names_keeps_the_other_clips(tmp_path):
     t = make_video(tmp_path)
-    (tmp_path / "scenes" / "s1.tsx").write_text("const { at, cue } = useClip();\n// waits on cue('late') below\n"
+    (tmp_path / "scenes" / "s1.js").write_text("const { at, cue } = useClip();\n// waits on cue('late') below\n"
                                                "const x = spring(t - cue('chart_up', 0.2));\n")
     before = cue_keys(tmp_path, t, {"chart_up": 1.0, "other": 3.0})
     after = cue_keys(tmp_path, t, {"chart_up": 1.0, "other": 3.2})
@@ -196,7 +196,7 @@ def test_a_named_cue_outside_the_clip_changes_its_key(tmp_path):
 def test_a_computed_cue_name_reads_every_cue(tmp_path):
     t = make_video(tmp_path)
     for code in ("names.map(n => cue(n))", "cue(`step_${i}`)", "timeline.cues[name]", "const { cue: when } = useClip()"):
-        (tmp_path / "scenes" / "kit.tsx").write_text(code + "\n")       # a shared module: every clip
+        (tmp_path / "scenes" / "kit.js").write_text(code + "\n")       # a shared module: every clip
         before = cue_keys(tmp_path, t, {"far": 3.5})
         assert cue_keys(tmp_path, t, {"far": 3.6})["s1"] != before["s1"], code
 
@@ -214,7 +214,7 @@ def test_the_engine_kits_read_cues_only_through_cue():
         for i, line in enumerate(lines):
             if re.search(r"\.cues\b|\[['\"]cues['\"]\]|\bcue\s*\(", line):
                 # the typed code editor reads the cues data/typing.json names; scene_cues counts them
-                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]) or f.name == "editor.tsx", f"{f}:{i + 1}: {line.strip()}"
+                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]) or f.name == "code.js", f"{f}:{i + 1}: {line.strip()}"
 
 
 def test_a_formats_key_holds_that_formats_caption_lines(tmp_path):
@@ -232,7 +232,7 @@ def keys_in(video, t, fmt):
 
 def test_editing_the_engines_shared_modules_changes_every_chapter(tmp_path, monkeypatch):
     engines = tmp_path / "engines"
-    for f in ("remotion/src/kit/time.ts", "shared/motion.js"):
+    for f in ("live/src/kit.js", "shared/motion.js"):
         (engines / f).parent.mkdir(parents=True, exist_ok=True)
         (engines / f).write_text(f"// {f}\n")
     monkeypatch.setattr(clip_keys, "engine_dir", lambda name: engines / name)
@@ -250,21 +250,21 @@ def test_jsx_text_that_looks_like_a_comment_hides_no_cue(tmp_path):
     for code in ("const p = ramp(t, cue('boom'));\nconst el = <Code>rm -rf build/*</Code>;\n/** a */\n",
                  "const el = <><Code>glob: src/*</Code><Dot o={ramp(t, cue('boom'))}/></>;\n/** helper */\n",
                  "const el = <p>see https://x.dev <b style={{opacity: ramp(t, cue('boom'))}}/></p>;\n"):
-        (tmp_path / "scenes" / "s1.tsx").write_text("const { t, cue } = useClip();\n" + code)
+        (tmp_path / "scenes" / "s1.js").write_text("const { t, cue } = useClip();\n" + code)
         assert cue_keys(tmp_path, t, {"boom": 3.5})["s1"] != cue_keys(tmp_path, t, {"boom": 3.6})["s1"], code
-    (tmp_path / "scenes" / "s1.tsx").write_text("const {t, cue} = useClip();\nconst el = <p>see https://x.dev {names.map(n => cue(n))}</p>;\n")
+    (tmp_path / "scenes" / "s1.js").write_text("const {t, cue} = useClip();\nconst el = <p>see https://x.dev {names.map(n => cue(n))}</p>;\n")
     assert clip_keys.scene_cues(tmp_path, "s1", {"s1", "s2"}) is None
 
 
 def test_a_helper_imported_from_another_clips_file_is_read(tmp_path):
     t = make_video(tmp_path)
-    (tmp_path / "scenes" / "index.ts").write_text("import {S1} from './s1';\nimport {S2} from './s2';\nexport default {s1: S1, s2: S2};\n")
-    (tmp_path / "scenes" / "s2.tsx").write_text("export const S2 = () => { const {t, cue} = useClip(); return ramp(t, cue('own')); };\n")
+    (tmp_path / "scenes" / "index.js").write_text("import {S1} from './s1';\nimport {S2} from './s2';\nexport default {s1: S1, s2: S2};\n")
+    (tmp_path / "scenes" / "s2.js").write_text("export const S2 = () => { const {t, cue} = useClip(); return ramp(t, cue('own')); };\n")
     assert clip_keys.scene_cues(tmp_path, "s1", {"s1", "s2"}) == set()            # the clip list imports both
-    for helper in ("s2.tsx", "s2/parts.tsx"):
+    for helper in ("s2.js", "s2/parts.tsx"):
         (tmp_path / "scenes" / helper).parent.mkdir(exist_ok=True)
         (tmp_path / "scenes" / helper).write_text("export const Boom = () => { const {t, cue} = useClip(); return ramp(t, cue('boom')); };\n")
-        (tmp_path / "scenes" / "s1.tsx").write_text(f"import {{Boom}} from './{Path(helper).with_suffix('')}';\n")
+        (tmp_path / "scenes" / "s1.js").write_text(f"import {{Boom}} from './{Path(helper).with_suffix('')}';\n")
         before = cue_keys(tmp_path, t, {"boom": 3.5})["s1"]
         assert cue_keys(tmp_path, t, {"boom": 3.6})["s1"] != before, helper     # outside s1's frames
         (tmp_path / "scenes" / helper).write_text((tmp_path / "scenes" / helper).read_text().replace("ramp", "spring"))
@@ -273,7 +273,7 @@ def test_a_helper_imported_from_another_clips_file_is_read(tmp_path):
 
 def test_a_computed_name_reads_other_clips_reveal_cues(tmp_path):
     t = make_video(tmp_path)
-    (tmp_path / "scenes" / "s1.tsx").write_text("const {cue} = useClip(); cue(`reveal:s2_${n}`);\n")
+    (tmp_path / "scenes" / "s1.js").write_text("const {cue} = useClip(); cue(`reveal:s2_${n}`);\n")
     assert cue_keys(tmp_path, t, {"reveal:s2_01": 3.5})["s1"] != cue_keys(tmp_path, t, {"reveal:s2_01": 3.6})["s1"]
 
 
@@ -294,7 +294,7 @@ def test_an_asset_replaced_at_the_same_size_and_time_changes_every_key(tmp_path)
 
 def test_a_new_beat_grid_re_renders_only_the_chapters_that_read_it(tmp_path):
     t = make_video(tmp_path)
-    (tmp_path / "scenes" / "s2.tsx").write_text("const {beat} = useClip(); const x = ramp(t, beat(4));\n")
+    (tmp_path / "scenes" / "s2.js").write_text("const {beat} = useClip(); const x = ramp(t, beat(4));\n")
     before = keys(tmp_path, t)
     t2 = copy.deepcopy(t)
     t2["beats"] = {"bpm": 120, "beats": [0.5, 1.0, 1.5, 2.0], "downbeats": [0.5], "hits": []}
@@ -305,7 +305,7 @@ def test_a_new_beat_grid_re_renders_only_the_chapters_that_read_it(tmp_path):
 def test_a_live_clip_is_keyed_on_its_webgl_backend_and_the_engines_page(tmp_path, monkeypatch):
     """A clip rendered on the GPU differs from one rendered on the CPU (2D frames too), so a backend
     switch must not reuse the other's clips; nor may an edit to the live page or its CLI (launch flags,
-    the import map). A Remotion video's keys don't depend on either."""
+    the import map)."""
     t = make_video(tmp_path)
     (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
     cpu = clip_keys.clip_key(tmp_path, t, "s1", "draft")
@@ -316,9 +316,6 @@ def test_a_live_clip_is_keyed_on_its_webgl_backend_and_the_engines_page(tmp_path
     monkeypatch.setattr(clip_keys, "_hash_tree", lambda h, p, root=None: (hashed.append(Path(p).name), real(h, p, root)))
     clip_keys.clip_key(tmp_path, t, "s1", "draft")
     assert {"cli.mjs", "render.html", "package-lock.json"} <= set(hashed)
-    hashed.clear()
-    clip_keys.clip_key(tmp_path, t, "s1", "draft", engine="remotion")
-    assert not {"cli.mjs", "render.html"} & set(hashed)
 
 
 def test_a_render_is_estimated_from_the_cuts_before_it(tmp_path):

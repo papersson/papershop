@@ -16,7 +16,7 @@ asks for one) so each edit is finished by the words that discuss it. It writes:
                       accent on the save and the window opening; effects other generators or the
                       builder made are kept (each generated one carries "source": "typing")
 
-The editor in a Remotion scene (engines/remotion/src/kit/editor.tsx: Editor, Term, ProgramWindow)
+The live code kit (engines/live/src/code.js: Editor, RunTerminal, ProgramWindow)
 reads data/typing.json, so a key and its sound share a frame. The plan:
 
   {"sources": {"v1": "data/versions/v1/main.c", "v2": {"path": "…", "first": 1}},

@@ -1,6 +1,6 @@
 """The motion glossary: the words a note can use for motion, each one move the scenes can make.
 
-The terms live in engines/live/src/glossary.json ({term, what, ask, live, remotion}); the live
+The terms live in engines/live/src/glossary.json ({term, what, ask, live}); the live
 engine's glossary.html shows each one looping, and the desk links to it from the note box. When a
 note names a move the glossary lacks, add the term (with its helper) and a demo in glossary.js, so
 the next note can use the word.
@@ -61,5 +61,5 @@ def main(args):
         if not rows:
             raise SystemExit(f"no glossary term {args.term!r}")
     for g in rows:
-        print(f"{g['term']}: {g['what']}\n  ask: \"{g['ask']}\"\n  live: {g['live']}\n  remotion: {g['remotion']}")
+        print(f"{g['term']}: {g['what']}\n  ask: \"{g['ask']}\"\n  live: {g['live']}")
     return 0

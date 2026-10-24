@@ -193,7 +193,7 @@ def test_the_live_page_reloads_scenes_in_place_and_everything_else_by_reloading(
     (tmp_path / "video.json").write_text("{}")
     in_place, fresh = page.live_inputs(tmp_path)
     assert tmp_path / "scenes" / "s1.js" in in_place and tmp_path / "video.json" in in_place
-    assert tmp_path / "scenes" / "lib" / "model.js" in fresh and tmp_path / "scenes" / "kit.tsx" in fresh
+    assert tmp_path / "scenes" / "lib" / "model.js" in fresh and tmp_path / "scenes" / "kit.js" in fresh
     assert engine_dir("live") / "render.html" in fresh and engine_dir("live") / "src" / "stage3d.js" in fresh
     before = page.inventory(fresh)
     (tmp_path / "scenes" / "lib" / "model.js").unlink()
@@ -214,6 +214,9 @@ def test_the_live_page_can_read_video_json_for_the_legend(tmp_path):
 def live_video(tmp_path, kind="cut"):
     tmp_path.mkdir(parents=True, exist_ok=True)
     make_video(tmp_path)
+    if kind == "animatic":
+        for cid in ("s1", "s2"):
+            (tmp_path / "scenes" / f"{cid}.js").unlink()
     (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live"}))
     cut = tmp_path / "cuts" / "cut1"
     cut.mkdir(parents=True)

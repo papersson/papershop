@@ -101,7 +101,7 @@ def P(*names, **kw):
 COMMANDS = {
     "preflight": ("check prerequisites without installs, downloads or browser/model launches", [
         V("video", nargs="?", help="check this video's selected engine and narration requirements"),
-        A("--engine", choices=["remotion", "live"], help="engine to check (default: live, or the video's engine)"),
+        A("--engine", choices=["live"], help="engine to check (default: live, or the video's engine)"),
         A("--extra", action="append", choices=["audio", "align", "kokoro"], help="check only these extras (default: kokoro and align, or the video's requirements)"),
         A("--silent", action="store_true", help="no narration extras for a video without speech"),
     ], "doctor:main_preflight"),
@@ -110,9 +110,9 @@ COMMANDS = {
         A("--fetch", action="store_true", help="install the engines' node packages and headless browser first"),
         A("--net", action="store_true", help="also check the hosts downloads come from"),
         A("--extra", action="append", default=[], choices=["audio", "align", "kokoro"], help="with --fetch: a Python extra to install (audio, align, kokoro)"),
-        A("--engine", action="append", default=[], choices=["remotion", "live"], help="require this engine; with --fetch, also install it (Remotion always is)"),
+        A("--engine", action="append", default=[], choices=["live"], help="with --fetch, install the live engine"),
         A("--speech", action="store_true", help="smoke-test local narration and recognition; may download model weights"),
-        A("--sounds", action="store_true", help="with --fetch: fetch the sound kit (recorded CC0 effects), verified, into the cache; the engines too only with --engine or --extra, or when Remotion is not installed"),
+        A("--sounds", action="store_true", help="with --fetch: fetch the sound kit (recorded CC0 effects), verified, into the cache; the engines too only with --engine or --extra, or when live is not installed"),
     ], "doctor:main"),
     "ablation": ("prepare paired bare-agent and Studio video folders and prompts", [A("--topic", default="shaders")], "ablation:main"),
     "new": ("a video folder, ready for a script", [
@@ -123,7 +123,7 @@ COMMANDS = {
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
         P("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds for a silent scene test"),
-        A("--engine", choices=["remotion", "live"], help="which engine renders the scenes (default: live)"),
+        A("--engine", choices=["live"], help="which engine renders the scenes (default: live)"),
     ], "new:main"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         W("video"),

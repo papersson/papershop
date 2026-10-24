@@ -96,17 +96,13 @@ def test_the_helpers_are_pure_functions_of_time_and_give_their_defined_values(tm
 
 
 def test_every_engine_kit_offers_the_helpers(tmp_path):
-    """The live kit as scenes import it; Remotion's kit re-export the same."""
+    """The live kit exposes the tested pure motion helpers to scenes."""
     script = tmp_path / "kit.mjs"
     script.write_text(f"import * as k from {json.dumps((engine_dir('live') / 'src' / 'kit.js').as_uri())}\n"
                       "console.log(JSON.stringify([k.keyed(1.5, [[1, 0], [2, 1, 'float']]), typeof k.follow, typeof k.settle, typeof k.wobble, "
                       "typeof k.ease.snap, k.rng(7)() === k.rng(7)()]))")
     out = json.loads(subprocess.run(["node", str(script)], capture_output=True, text=True, check=True).stdout)
     assert out[0] == pytest.approx(0.5) and out[1:5] == ["function"] * 4 and out[5] is True      # rng: comic.md scatters with it
-    for f in (engine_dir("remotion") / "src" / "kit" / "time.ts",):
-        text = f.read_text()
-        assert all(f" {name}," in text or f" {name}}}" in text or f"function {name}" in text
-                   for name in ("ease", "keyed", "follow", "settle", "wobble")), f
 
 
 @pytest.mark.parametrize("k,d", [(120, 0), (0, 14), (120, -3), ("NaN", 14)])

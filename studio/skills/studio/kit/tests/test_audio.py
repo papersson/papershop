@@ -153,7 +153,7 @@ def sparse(tmp_path):
     v = tmp_path / "v"
     (v / "audio").mkdir(parents=True)
     (v / "assets").mkdir()
-    (v / "video.json").write_text(json.dumps({"title": "x", "engine": "remotion", "duration": 6.0}))
+    (v / "video.json").write_text(json.dumps({"title": "x", "engine": "live", "duration": 6.0}))
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=6:sample_rate=48000",
                     "-af", "volume=-18dB", str(v / "assets" / "bed.wav")], check=True)
     (v / "audio" / "tracks.json").write_text(json.dumps([{"file": "assets/bed.wav", "start": 0, "gain": -9}]))
