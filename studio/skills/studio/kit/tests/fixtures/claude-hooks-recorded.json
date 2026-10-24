@@ -1,0 +1,164 @@
+{
+  "source": "Claude Code 2.1.310, 2026-10-24, one resumed Haiku subagent. Metadata allowlist captured live; ids/paths replaced; no prompts, contents, command bodies (except the probe sleep), or results retained.",
+  "payloads": [
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Task",
+      "tool_use_id": "tool-1",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "description": "TAG"
+      }
+    },
+    {
+      "hook_event_name": "SubagentStart",
+      "session_id": "parent-probe",
+      "agent_id": "agent-probe",
+      "agent_type": "general-purpose",
+      "cwd": "VIDEO"
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Task",
+      "tool_use_id": "tool-1",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "description": "TAG"
+      },
+      "tool_response": {
+        "agentId": "agent-probe",
+        "status": "async_launched"
+      }
+    },
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Read",
+      "tool_use_id": "tool-2",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/JOB"
+      }
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Read",
+      "tool_use_id": "tool-2",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/JOB"
+      },
+      "tool_response": {}
+    },
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "TaskOutput",
+      "tool_use_id": "tool-3",
+      "cwd": "VIDEO"
+    },
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Read",
+      "tool_use_id": "tool-4",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/data/s1/probe.txt"
+      }
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Read",
+      "tool_use_id": "tool-4",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/data/s1/probe.txt"
+      },
+      "tool_response": {}
+    },
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Write",
+      "tool_use_id": "tool-5",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/data/s1/probe.txt"
+      }
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Write",
+      "tool_use_id": "tool-5",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/data/s1/probe.txt"
+      },
+      "tool_response": {}
+    },
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Bash",
+      "tool_use_id": "tool-6",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "command": "sleep 2.2"
+      }
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Bash",
+      "tool_use_id": "tool-6",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "command": "sleep 2.2"
+      },
+      "tool_response": {}
+    },
+    {
+      "hook_event_name": "PreToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Read",
+      "tool_use_id": "tool-7",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/data/s1/probe.txt"
+      }
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "Read",
+      "tool_use_id": "tool-7",
+      "cwd": "VIDEO",
+      "tool_input": {
+        "file_path": "VIDEO/data/s1/probe.txt"
+      },
+      "tool_response": {}
+    },
+    {
+      "hook_event_name": "SubagentStop",
+      "session_id": "parent-probe",
+      "agent_id": "agent-probe",
+      "agent_type": "general-purpose",
+      "cwd": "VIDEO",
+      "stop_hook_active": false
+    },
+    {
+      "hook_event_name": "PostToolUse",
+      "session_id": "parent-probe",
+      "tool_name": "TaskOutput",
+      "tool_use_id": "tool-3",
+      "cwd": "VIDEO",
+      "tool_response": {}
+    }
+  ]
+}

@@ -29,9 +29,19 @@ The build lives in `review/events.jsonl`. Emit real actions, never fake heartbea
 `chapter.done` after checks and inspection, and `decision "Reason for this hold" --lane s2 --t 150`
 for a decision pin. The file watcher records saved scenes, cues, previews and checks. The lane becomes
 quiet after 30 seconds without evidence and stalled after two minutes, retaining its last action.
-The raw event and its source are one click away. `--hook` accepts Claude hook JSON on stdin and
-retains session, agent and tool metadata only. Scope hooks to the chapter's job; do not guess a lane
-from an unrelated transcript. Codex agents use the same event command at meaningful boundaries.
+The raw event and its source are one click away. The plugin's Claude hooks report tools and subagent
+completion automatically through the tagged background launch and first job Read in `shoot.md`.
+The hook first checks one small active-shoot file; absent or expired shoots do no production work.
+The bound session and subagent identify a lane. Older Task payloads omit the caller id on tools:
+then only an owned chapter path or a Studio VIDEO+CLIP command in that registered session can
+identify the lane, labelled `chapter-path` with no caller id invented. Unmatched events drop. Tool
+bursts coalesce to one activity update per two seconds, with the last pending action flushed at
+stop. Lines name actions and project-relative paths, never command text, prompts, contents or
+reasoning; no transcript is opened. A stop records “Chapter agent finished”, not a claim that checks
+passed. Interrupted tools followed by stop mark the lane stopped. The 30s/120s liveness rules stay
+unchanged. `studio event --hook` remains a manual metadata adapter. Codex and sessions without
+plugin hooks still use explicit events at meaningful boundaries; legacy Claude can use them for
+the generic/shared actions that its payloads cannot attribute.
 For an explicitly identified Codex chapter session, `studio event VIDEO activity --lane s2
 --rollout /path/to/rollout.jsonl --follow` imports starts, tool metadata and completion as they
 arrive. Repeated imports are safe; prompts, reasoning, tool arguments and results are excluded.

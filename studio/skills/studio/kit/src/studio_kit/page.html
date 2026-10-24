@@ -215,7 +215,7 @@ function renderMarks() { if (!S)
 function renderBuild(b) { build = b; livePictures(b); document.documentElement.style.setProperty('--timeline-height', (214 + 28 * b.lanes.length) + 'px'); const before = new Set([...document.querySelectorAll('#lanes .lane-bar[data-landed="true"]')].map(e => e.dataset.lane)); const sig = JSON.stringify(b.lanes.map(l => [l.id, l.state, l.last?.id, l.landed])); if (sig !== laneSignature) {
     laneSignature = sig;
     $('#lanes').innerHTML = '';
-    b.lanes.forEach(l => { const row = el('div', 'track lane'); const label = el('div', 'track-label'); const strong = el('strong', '', l.id); label.append(strong, el('span', 'lane-state', l.state)); const raw = el('button', '', '...'); raw.title = 'Raw activity for ' + l.id; raw.onclick = () => showRaw(l.id); const stop = el('button', '', 'Stop'); stop.title = 'Stop ' + l.id; stop.onclick = () => stopBuild(l.id); label.append(raw, stop); const rail = el('div', 'rail'); const bar = el('div', 'lane-bar ' + l.state + (l.landed && !before.has(l.id) ? ' landed' : '')); bar.dataset.lane = l.id; bar.dataset.landed = l.landed; bar.style.left = pct(l.start) + '%'; bar.style.width = (pct(l.end) - pct(l.start)) + '%'; bar.dataset.event = l.last?.id || ''; bar.title = ((l.state === 'built' ? 'Checked and ready' : l.last?.message) || l.title) + (l.last ? '\nEvent ' + l.last.id : ''); bar.append(el('span', 'last-action', (l.state === 'built' ? 'Checked and ready' : l.last?.message) || l.title)); bar.onclick = () => openNote('lane', { lane: l.id, clip: l.id, t: at, sentence: l.title }); rail.append(bar); row.append(label, rail); $('#lanes').append(row); if (l.landed && !before.has(l.id) && tickOn)
+    b.lanes.forEach(l => { const row = el('div', 'track lane'); const label = el('div', 'track-label'); const strong = el('strong', '', l.id); label.append(strong, el('span', 'lane-state', l.state)); const raw = el('button', '', '...'); raw.title = 'Raw activity for ' + l.id; raw.onclick = () => showRaw(l.id); const stop = el('button', '', 'Stop'); stop.title = 'Stop ' + l.id; stop.onclick = () => stopBuild(l.id); label.append(raw, stop); const rail = el('div', 'rail'); const bar = el('div', 'lane-bar ' + l.state + (l.landed && !before.has(l.id) ? ' landed' : '')); bar.dataset.lane = l.id; bar.dataset.landed = l.landed; bar.style.left = pct(l.start) + '%'; bar.style.width = (pct(l.end) - pct(l.start)) + '%'; bar.dataset.event = l.last?.id || ''; bar.title = ((l.state === 'built' ? 'Chapter finished' : l.last?.message) || l.title) + (l.last ? '\nEvent ' + l.last.id : ''); bar.append(el('span', 'last-action', (l.state === 'built' ? 'Chapter finished' : l.last?.message) || l.title)); bar.onclick = () => openNote('lane', { lane: l.id, clip: l.id, t: at, sentence: l.title }); rail.append(bar); row.append(label, rail); $('#lanes').append(row); if (l.landed && !before.has(l.id) && tickOn)
         arrivalTick(); });
 } document.querySelectorAll('.thumb').forEach(e => { const l = b.lanes.find(l => l.id === e.dataset.clip); e.classList.toggle('board', !pictureMode && Boolean(replay || !b.ready) && !l?.landed); let label = e.querySelector('.board-label'); if (e.classList.contains('board') && !label) {
     label = el('span', 'board-label', 'Story board');
@@ -237,11 +237,11 @@ else if (!e.classList.contains('board'))
     }
 }
 else if (stalled.length) {
-    text = stalled.map(l => l.id + ' ' + l.state).join(' \u00b7 ') + ' \u00b7 ' + done + '/' + b.lanes.length + ' chapters checked';
+    text = stalled.map(l => l.id + ' ' + l.state).join(' \u00b7 ') + ' \u00b7 ' + done + '/' + b.lanes.length + ' chapters finished';
     $('#alive').style.background = 'var(--bad)';
 }
 else {
-    text = (S.status?.busy ? S.status.text : 'Building the film') + ' \u00b7 ' + done + '/' + b.lanes.length + ' chapters checked';
+    text = (S.status?.busy ? S.status.text : 'Building the film') + ' \u00b7 ' + done + '/' + b.lanes.length + ' chapters finished';
     $('#alive').style.background = 'var(--accent)';
 } if (!b.start && !b.events.length)
     text = S.status?.text || 'Ready to review'; $('#status').textContent = text; $('#eta').textContent = b.ready ? '' : b.eta != null ? (b.eta > 0 ? 'About ' + fmt(b.eta) + ' to a version' : 'Past the measured estimate') + (b.guess ? ' (guess from ' + b.samples + ' build)' : '') : 'Next version: no measured estimate yet'; $('#stopBuild').hidden = Boolean(b.ready); renderMarks(); updateTime(); }

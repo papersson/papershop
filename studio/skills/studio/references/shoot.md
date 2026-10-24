@@ -26,10 +26,25 @@ start in parallel. Use one agent per chapter, each with a fresh, short context. 
 concurrency limit, fill the available slots and start the next job as a slot frees. The command
 prints the jobs; it does not spawn them itself.
 
+For Claude, use Agent (called Task in some runtimes) with `run_in_background: true`. Copy each
+printed `Agent description` exactly, including its `[studio:RUN:CLIP]` tag, and require the chapter's
+first tool call to be **Read on its printed unique job path**. Do not paste the job in place of that
+read. The tagged background result joins session and subagent id to the lane; newer payloads can
+also bind on that first Read. Later tools and SubagentStop report automatically. Start events alone
+lack the description, so arrival order and working directory are never lane evidence. Use TaskOutput
+or the tool's completion notification to collect each result. On runtimes without tool-event agent
+ids, only exact chapter-owned paths and Studio commands naming VIDEO and CLIP are attributed;
+generic commands and shared-file reads are dropped. Explicit events can supply those missing actions.
+`shoot` writes `$STUDIO_HOME/.active-shoot.json` with the video, lane identities and a six-hour
+expiry. One shoot is active per home; rerunning shoot replaces its tags. Completion archives the
+bindings under `research/shoot/RUN/agents.json` and removes the active record. An abandoned shoot
+expires; rerun shoot to renew it. Use the same STUDIO_HOME in the main Claude session and commands.
+For Codex, keep explicit `studio event` calls at meaningful actions, decisions and completion.
+
 Use this prompt, replacing the paths and clip id:
 
 ```text
-Build chapter CLIP of VIDEO from VIDEO/research/shoot/CLIP.md.
+Build chapter CLIP of VIDEO. First use Read on the unique job path printed by studio shoot.
 Read that job, SKILL_ROOT/references/taste.md and SKILL_ROOT/references/kit.md.
 The story and voice are settled. Build the chapter in one pass, including its performed hero
 moment and the pauses that let it breathe. Make the subject large enough to inspect.

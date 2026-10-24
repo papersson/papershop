@@ -5,6 +5,7 @@ from test_narration import SCRIPT
 
 
 def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv('STUDIO_HOME', str(tmp_path / 'home'))
     (tmp_path / 'video.json').write_text('{"engine":"live"}')
     (tmp_path / 'research').mkdir()
     (tmp_path / 'research/brief.md').write_text('We follow a retry that needs to avoid charging twice.\nStory locked by the user.')
@@ -25,9 +26,16 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
     assert 'references/taste.md' in first and '--chapter s1' in first
     assert 'Murch: leave silence' in first and 'Hold the blocked payment' in first
     assert 'different hero moment' not in first and 'long raw brief' not in first
+    active = json.loads((tmp_path / 'home/.active-shoot.json').read_text())
+    assert active['video'] == str(tmp_path.resolve())
+    assert active['lanes']['s1']['job'] == jobs[0]['brief']
+    assert jobs[0]['description'].startswith(active['lanes']['s1']['tag'])
+    assert 'first tool call must be Read' in jobs[0]['prompt']
+    assert active['expires'] > 0 and len(active['lanes']) == 2
     cue = tmp_path / 'cues/s1.json'
     cue.write_text('{"s1-hit": 1}')
     (tmp_path / 'data/s1/value.json').write_text('[42]')
-    shoot.prepare(tmp_path)
+    again = shoot.prepare(tmp_path)
+    assert again[0]['brief'] != jobs[0]['brief']  # old launches cannot claim the new shoot
     assert json.loads(cue.read_text()) == {'s1-hit': 1}
     assert (tmp_path / 'data/s1/value.json').read_text() == '[42]'
