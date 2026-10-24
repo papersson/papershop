@@ -8,6 +8,9 @@ Run `studio shoot VIDEO`. Kokoro is the default voice; an explicitly chosen Elev
 remains the configured voice. The command reuses cached synthesis, rebuilds the timeline and writes
 `research/shoot/<clip>.md` for every chapter. Each job contains the locked brief, its narration with
 sentence ids and absolute times, beats and screen notes, the taste path and allowed commands.
+It also includes `research/story/<clip>.md`: that chapter's hero moment as described in the elicit
+material and the relevant panel principles with reasons, selected during story conversion. Keep
+the full panel and rich brief in `research/elicit.md`; do not send them wholesale to every agent.
 
 Before dispatch, settle shared visual choices from the reel: the protagonist, legend, layout,
 common helpers and any sound or typing data the chapter needs to read. A prepared typed-code plan

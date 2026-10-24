@@ -40,6 +40,9 @@ def prepare(video):
         own_beats = '\n'.join(line for line in beats.splitlines() if not line.startswith('|') or line.startswith('| Chapter') or line.startswith('|---') or line.split('|')[1].strip() == cid)
         lines += ['', '## Beats and hero moments', '', own_beats, '', '### Chapter screen notes', '']
         lines += [f'- {n.start}–{n.end}: {n.text}' for n in chapters[cid].screen]
+        craft = video / 'research' / 'story' / f'{cid}.md'
+        if craft.is_file():
+            lines += ['', '## Chapter craft', '', craft.read_text().strip()]
         lines += ['', '## Your workspace', '',
                   f'Read {ROOT / "references/taste.md"} and {ROOT / "references/kit.md"}.', '',
                   f'Write only {scene}, cues/{cid}.json and data/{cid}/. Use absolute timeline seconds or narration anchors in your cues. Prefix cue names with {cid}-.',

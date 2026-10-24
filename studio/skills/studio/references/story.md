@@ -2,8 +2,33 @@
 
 Read `taste.md`. Start with the user's question and the viewer's assumed knowledge. Ask about
 unknowns that would change the explanation, such as the intended audience, length or a reference
-they want to match. Infer routine choices. Show a rough draft quickly, with the picture and sound
-beside each idea, so the user can respond to something concrete.
+they want to match. Infer routine choices.
+
+Before drafting anything, run `/elicit:elicit` with the user's request and what you know of the
+context as its arguments. Follow that skill yourself: its panel and rich brief are raw material,
+not a second production plan. Save the panel and its brief in `research/elicit.md`, so the user
+can see whose judgement shaped the video. These are model-derived principles, not consultations
+with those people. Elicit does no research; verify its factual uncertainties during the story step.
+
+Precedence is simple: the user's own words in the request win over both. `taste.md` wins wherever
+it disagrees with the elicit brief, because the user's taste is the one thing the model cannot
+know; elicit draws on what the model knows in general.
+
+If elicit is absent from the available skills, use this short method; never ask for installation:
+- Name four to six masters whose judgement this video needs, covering the subject's field,
+  explanation, motion, sound, and someone who questions whether this is the right video.
+- Say what each would insist on and why; names alone contribute nothing.
+- Settle the real goal and audience, including what the viewer should be able to predict.
+- Describe two to four memorable moments beat by beat in picture and sound, with settled holds.
+- Draw the line between delightful and tacky, and decide what to cut.
+- Save this panel and raw material in `research/elicit.md`, labelled fallback, then write the brief.
+
+Convert the raw material into a one-page story brief: three or four ideas, one example, the hero
+moments and explicit omissions. Elicit reaches for more; this conversion cuts scope and never craft.
+Keep the action, framing, sound and breathing room that make each retained moment work. For each
+chapter, save just its described hero moment and relevant panel principles with their reasons in
+`research/story/<clip>.md`. `studio shoot` includes that excerpt in its chapter job, never the whole
+elicit brief. Show the short story draft quickly, with picture and sound beside each idea.
 
 Create a video with `studio new NAME`. Write the one-page brief in `research/brief.md` in language
 the user would use. Keep one central question and a small example. Set `video.json.target_minutes`
