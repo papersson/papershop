@@ -207,6 +207,7 @@ COMMANDS = {
         A("--stills-only", action="store_true", help="stills only (a look gate, or a quick answer)"),
         P("--changelog", help="JSON list of {note, change} answering the previous cut's notes"),
     ], _cut),
+    "reel": ("narrate and hold the story boards to the real voice, with a pacing report", [W("video")], "reel:main"),
     "boards": ("a stills cut of every chapter's board (boards/boards.json, notes from the screen notes)", [
         W("video"),
     ], "boards:main"),
