@@ -7,7 +7,7 @@ from argparse import Namespace
 
 import pytest
 
-from studio_kit import assets, checkpoint, doctor, fetch, new, pin, publish, soundkit
+from studio_kit import assets, checkpoint, doctor, fetch, new, publish, soundkit
 
 
 def sha(data):
@@ -190,20 +190,12 @@ def test_the_page_carries_the_sound_credits(tmp_path):
     assert '<p class="credit">Sound effects: Impact Sounds by Kenney (www.kenney.nl) (CC0 1.0)</p>' in page
 
 
-def test_a_pin_carries_the_manifest_and_commits_leave_library_sounds_out(tmp_path, monkeypatch):
+def test_commits_leave_library_sounds_out(tmp_path, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
     v = video(tmp_path)
-    p = pin.init(v)
-    assert (p / "kit/src/studio_kit/soundkit.json").read_text() == soundkit.MANIFEST.read_text()
     assert "*.[oO][gG][gG]" in checkpoint.GITIGNORE and "*.[wW][aA][vV]" in checkpoint.GITIGNORE
 
 
-def test_a_fork_takes_its_library_sounds_along(kit, tmp_path):
-    v = video(tmp_path)
-    soundkit.fetch_kit(progress=io.StringIO())
-    assets.add_library(v, "thud")
-    f = new.fork(v, "f", directory=tmp_path / "fork")
-    assert (f / "assets/sounds/thud.ogg").read_bytes() == b"OggS thud" and assets.read(f)[0]["kind"] == "library"
 
 
 @pytest.mark.parametrize("name", ["../../x", "/tmp/x", "a/b", "..", ".hidden", "a\\b"])

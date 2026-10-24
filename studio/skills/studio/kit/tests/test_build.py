@@ -170,16 +170,6 @@ def test_narration_is_found_by_its_role():
     assert tl.narration_audio({"tracks": {"audio": [{"file": "audio/sfx.wav", "start": 0}]}}) is None
 
 
-def test_a_piece_without_narration_takes_its_length_from_video_json(tmp_path, monkeypatch):
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    v, _ = new.create("reel", directory=str(tmp_path / "reel"), genre="motion", duration=4, engine="live")
-    assert read(v / "video.json")["duration"] == 4.0
-    t = tl.load(v)
-    assert t["duration"] == 4.0 and t["sources"] == ["video.json duration"]
-    assert t["tracks"]["scene"] == [{"id": "s1", "engine": "live", "title": "Reel", "start": 0.0, "end": 4.0}]
-    (v / "audio").mkdir()
-    (v / "audio" / "tracks.json").write_text(json.dumps([{"file": "assets/song.wav", "start": 0.5}]))
-    assert tl.build(v)["tracks"]["audio"] == [{"file": "assets/song.wav", "start": 0.5, "role": "music"}]
 
 
 def test_nothing_to_build_from_says_what_would_be(tmp_path):
@@ -302,18 +292,6 @@ def test_a_new_narration_does_not_inherit_the_old_timelines_words(tmp_path, caps
     assert all(not s["words"] for s in t["tracks"]["narration"]) and "aligned" not in capsys.readouterr().out
 
 
-def test_an_import_over_an_old_timeline_keeps_the_lessons_own_timing(tmp_path):
-    v = explainer(tmp_path)
-    old_narrated(v)
-    lesson = tmp_path / "lesson"
-    (lesson / "audio").mkdir(parents=True)
-    (lesson / "audio" / "narration.mp3").write_bytes(b"lesson")
-    line = {"id": "s1_01", "text": "Hello.", "caption": "Hello.", "paragraph": 0, "start": 0.8, "end": 1.6}
-    (lesson / "audio" / "timings.json").write_text(json.dumps(
-        {"total": 3.0, "segments": [{"id": "s1", "title": "Hi", "start": 0.0, "end": 3.0, "lines": [line]}]}))
-    t = tl.from_tutor(lesson, v)
-    assert [s["caption"] for s in t["tracks"]["narration"]] == ["Hello."] and not t["tracks"]["narration"][0]["words"]
-    assert not (v / "audio" / "words.json").exists()
 
 
 def test_an_old_estimate_after_a_narration_is_the_newer_timing(tmp_path):

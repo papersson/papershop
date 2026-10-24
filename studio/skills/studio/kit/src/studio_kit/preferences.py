@@ -54,7 +54,7 @@ def main_lexicon(args):
 
 def inherit(video, source, includes=()):
     """Copy selected portable source/evidence and relative module imports, never live links."""
-    from .steps import inside
+    from .workspace import inside
     from .script import sections
     video, source = Path(video), Path(source).resolve()
     source_cfg = settings.raw(source)

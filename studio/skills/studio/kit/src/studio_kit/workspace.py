@@ -145,3 +145,12 @@ def main_request(args):
         with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False) as f:
             f.write(text)
         Path(f.name).replace(p)
+
+
+def inside(root, relative):
+    """Resolve a source path without allowing it to escape its video."""
+    root = Path(root).resolve()
+    p = (root / relative).resolve()
+    if p == root or not p.is_relative_to(root):
+        raise SystemExit(f"path escapes its project: {relative}")
+    return p

@@ -32,22 +32,6 @@ def test_new_refuses_an_existing_video(tmp_path):
         raise AssertionError("expected a refusal")
 
 
-def test_new_goes_into_a_new_folder_of_its_own(tmp_path, monkeypatch):
-    """`new --dir $STUDIO_HOME` made the home, with five videos in it, one video repository."""
-    home = tmp_path / "home"
-    monkeypatch.setenv("STUDIO_HOME", str(home))
-    new.create("first")
-    with pytest.raises(SystemExit, match="STUDIO_HOME"):
-        new.create("x", directory=str(home))
-    busy = tmp_path / "busy"
-    busy.mkdir()
-    (busy / "notes.txt").write_text("mine")
-    for make in (lambda: new.create("x", directory=str(busy)), lambda: new.variant(home / "first", "x", directory=busy)):
-        with pytest.raises(SystemExit, match="not empty"):
-            make()
-    assert not (home / ".git").exists() and not (home / "video.json").exists() and sorted(p.name for p in busy.iterdir()) == ["notes.txt"]
-    (tmp_path / "empty").mkdir()
-    assert (new.create("x", directory=str(tmp_path / "empty"))[0] / "video.json").exists()
 
 
 def test_a_path_as_name_titles_the_video_by_its_folder(tmp_path, monkeypatch):
@@ -57,25 +41,6 @@ def test_a_path_as_name_titles_the_video_by_its_folder(tmp_path, monkeypatch):
     assert json.loads((video / "video.json").read_text())["title"] == "E2e comic"
 
 
-def test_a_variant_keeps_evidence_and_look_and_drops_the_words(tmp_path, monkeypatch):
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    src, _ = new.create("engineer", directory=str(tmp_path / "engineer"))
-    (src / "data").mkdir()
-    (src / "data" / "runs.json").write_text('{"n": 3}')
-    (src / "scenes" / "s1.tsx").write_text("export const S1 = () => null;\n")
-    (src / "SCRIPT.md").write_text("# T\n\nStatus: locked\n\n## Script\n\n### 1. A\n\n> Words for engineers.\n\n## Review log\n\n- round 1: PASS\n")
-    (src / "cuts" / "cut1").mkdir(parents=True)
-    (src / "audio").mkdir()
-    (src / "audio" / "narration.mp3").write_bytes(b"x")
-    glossary = tmp_path / "plain.md"
-    glossary.write_text("held: quarantined\n")
-    v = new.variant(src, "stakeholder", learner=tmp_path / "exec.md", vocabulary=glossary)
-    assert (v / "data" / "runs.json").read_text() == '{"n": 3}' and (v / "scenes" / "s1.tsx").exists()
-    assert not (v / "cuts").exists() and not (v / "audio").exists() and not (v / "timeline.json").exists()
-    text = (v / "SCRIPT.md").read_text()
-    assert "Status: draft variant" in text and "round 1: PASS" not in text and "Variant of engineer" in text
-    cfg = json.loads((v / "video.json").read_text())
-    assert cfg["variant_of"] == str(src) and cfg["vocabulary"] == str(glossary) and cfg["version"] == "v1"
 
 
 def test_engine_comes_from_video_json_and_scaffolds_its_own_scenes(tmp_path, monkeypatch):
@@ -109,96 +74,12 @@ def test_new_records_the_tone_and_a_series_episode_keeps_it(tmp_path, monkeypatc
         cli.main(["new", "loud", "--tone", "zany"])
 
 
-def test_a_fork_copies_the_sources_and_starts_a_history_of_its_own(tmp_path, monkeypatch):
-    import os
-    import subprocess
-    from studio_kit import cli, stage
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    for who in ("AUTHOR", "COMMITTER"):
-        monkeypatch.setenv(f"GIT_{who}_NAME", "Test")
-        monkeypatch.setenv(f"GIT_{who}_EMAIL", "test@example.com")
-    src, _ = new.create("first")
-    stage.mark(src, "script", now=0)
-    kept = ["audio/narration.mp3", "assets/talk.mov", "boards/boards.json", "captions.json", "research/reviews/student.json",
-            "research/narrative.md", ".studio/kit/src/studio_kit/cli.py", ".studio/bin/studio"]
-    left = ["cuts/cut1/cut.json", "cuts/cut1/video.mp4", "review/notes.jsonl", "research/requests.md",
-            "research/handoff.md", "research/frame_review/cut1-abc/stills/s1.jpg", "research/reviews/motion.json",
-            "research/reviews/frames.json", ".cache/studio/owner.json", "out/page/index.html",
-            ".studio/engines/live/node_modules/x/index.js", ".studio/kit/.venv/bin/python", ".studio/work/scratch.txt"]
-    for rel in kept + left:
-        (src / rel).parent.mkdir(parents=True, exist_ok=True)
-        (src / rel).write_text(rel)
-    os.mkfifo(src / ".cache" / "pipe")        # copying it would fail: the fork must never enter .cache
-    (src / "assets" / "shared").symlink_to(tmp_path)
-    subprocess.run(["git", "-C", str(src), "add", "-A"], check=True)
-    subprocess.run(["git", "-C", str(src), "-c", "commit.gpgsign=false", "commit", "-qm", "sources"], check=True)
-    head = subprocess.run(["git", "-C", str(src), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-
-    cli.main(["fork", str(src), "second", "--title", "First, again"])
-    v = tmp_path / "home" / "second"
-    assert all((v / rel).read_text() == rel for rel in kept) and not any((v / rel).exists() for rel in left)
-    assert not (v / "cuts").exists() and not (v / ".cache" / "pipe").exists()
-    assert (v / "assets" / "shared").is_symlink() and (v / "SCRIPT.md").read_text() == (src / "SCRIPT.md").read_text()
-    cfg = json.loads((v / "video.json").read_text())
-    assert (cfg["title"], cfg["version"], cfg["forked_from"]) == ("First, again", "v1", {"path": str(src), "commit": head})
-    (mark,) = stage.read(v)
-    assert (mark["stage"], mark["source"], mark["commit"]) == ("forked_from", str(src), head)
-    assert subprocess.run(["git", "-C", str(v), "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() == str(v)
-    assert [m["stage"] for m in stage.read(src)] == ["script"]
-    with pytest.raises(SystemExit, match="already holds"):
-        new.fork(src, "second")
 
 
-def test_a_fork_starts_its_review_rounds_afresh(tmp_path, monkeypatch):
-    """The fork copied rounds.jsonl and its log had no structural mark, so its first review was
-    refused as past max_rounds."""
-    import subprocess
-    from types import SimpleNamespace
-    from studio_kit import review, stage
-    from test_review import make as review_video, revise
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    src = review_video(tmp_path / "src", {"max_rounds": 1})
-    ran = lambda text, cwd: subprocess.CompletedProcess([], 0, "VERDICT: REVISE\n", "")
-    review.main(SimpleNamespace(video=str(src), round=2, narrative=None, only="student"), runner=ran)
-    v = new.fork(src, "second")
-    assert not (v / "research" / "reviews" / "rounds.jsonl").exists() and stage.read(v)[0]["kind"] == "fork"
-    revise(v, 3)
-    review.main(SimpleNamespace(video=str(v), round=3, narrative=None, only="student"), runner=ran)
 
 
-def test_a_fork_goes_into_a_new_folder_of_its_own(tmp_path, monkeypatch):
-    """A fork into STUDIO_HOME itself made it a video repository holding every later video."""
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    src, _ = new.create("first")
-    for target in (src, src / "scenes" / "copy", tmp_path / "home", tmp_path):
-        with pytest.raises(SystemExit, match="new folder of its own"):
-            new.fork(src, "x", directory=target)
-    busy = tmp_path / "busy"
-    busy.mkdir()
-    (busy / "SCRIPT.md").write_text("mine")
-    with pytest.raises(SystemExit, match="not empty"):
-        new.fork(src, "x", directory=busy)
-    assert (busy / "SCRIPT.md").read_text() == "mine" and not (tmp_path / "home" / ".git").exists()
-    (tmp_path / "empty").mkdir()
-    assert (new.fork(src, "x", directory=tmp_path / "empty") / "video.json").exists()
 
 
-def test_a_video_is_restructured_in_place_with_its_old_scenes_kept(tmp_path, monkeypatch):
-    """The game-dev video changed shape and engine with a one-off script; restructure archives the old
-    scenes, switches the engine with its starter scenes, and marks a structural revision."""
-    import json
-    from studio_kit import stage
-    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
-    video, _ = new.create("shape", directory=tmp_path / "v", engine="live")
-    (video / "scenes" / "s1.js").write_text("export default c => {}\n")
-    dest = new.restructure(video, "from a blank window to a game, as a construction story", engine="remotion")
-    assert (dest / "scenes" / "s1.js").exists() and not (video / "scenes" / "s1.js").exists()
-    assert json.loads((video / "video.json").read_text())["engine"] == "remotion" and (video / "scenes" / "index.ts").exists()
-    last = stage.read(video)[-1]
-    assert last["kind"] == "structural" and "structural revision: from a blank window" in (video / "SCRIPT.md").read_text()
-    import pytest
-    with pytest.raises(SystemExit, match="engine must be one of"):
-        __import__("studio_kit.settings", fromlist=["update"]).update(video, engine="blender")
 
 
 def test_new_records_the_delivery_and_a_series_episode_keeps_it(tmp_path, monkeypatch):

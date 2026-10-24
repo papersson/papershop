@@ -29,8 +29,6 @@
                failure for each named conflict (intro under voice, unsettled, question not held, loop runs on…)
   code-view    with data/codeview.json: fold and highlight ranges, a highlight's lead before its words, the complete
                program at the payoff, and every name closed (codeview.py)
-  grid, palette  pixel videos only (see pixel.py): the canvas is whole k×k blocks, in the palette
-  filler, cuts, levels, sync, segments  footage videos only (see footage.py)
 
 Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
@@ -423,8 +421,6 @@ def config(video):
     return settings.load(video)
 
 
-def genre(video):
-    return config(video).get("genre", "explainer")
 
 
 def _cache_file(video, fmt, samples):
@@ -497,20 +493,15 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     """The checks. With everything=False, the per-chapter checks run only on chapters whose clip
     key changed since they last passed (see changed_clips); a pass is remembered either way."""
     default = only is None
-    extra = {"pixel": ("grid", "palette"), "footage": ("filler", "cuts", "levels", "sync", "segments"),
-             "motion": ("dead",), "launch": ()}.get(genre(video), ())
     always = ("legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
-    only = set(only or CHECKS + extra + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "grid", "palette", "filler", "cuts", "levels", "sync", "segments", "script", "code-source", "pauses", "staging", "code-view"}
+    only = set(only or CHECKS + always)
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "script", "pauses", "staging", "code-view"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
     if "script" in only or (default and config(video).get("teaching_contract")):
         from . import script_check
         preflight += script_check.run(video)
-    if "code-source" in only or (default and (Path(video) / "data" / "steps" / "index.json").exists()):
-        from . import steps
-        preflight += steps.check(video)
     if "pauses" in only or default:      # video-wide, from the sound alone; nothing without effects
         from . import audio_check
         preflight += audio_check.guard(video)
@@ -520,7 +511,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if "code-view" in only or (default and (Path(video) / "data" / "codeview.json").exists()):
         from . import codeview
         preflight += codeview.check(video)
-    if only <= {"script", "code-source", "pauses", "staging", "code-view"}:
+    if only <= {"script", "pauses", "staging", "code-view"}:
         return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))
@@ -562,9 +553,6 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if only & {"band", "contrast"}:
         pix = band_pixels_check(video, samples, engine, clips, boxes)
         rows += [r for r in pix if r["check"] in only]
-    if genre(video) == "footage" and only & {"filler", "cuts", "levels", "sync", "segments"}:
-        from . import footage
-        rows += [r for r in footage.checks(video) if r["check"] in only]
     if "pacing" in only:
         from . import motion
         rows += motion.pacing(video, engine, pacing_clips, stills=not default)
@@ -580,9 +568,6 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True):
     if "provenance" in only:
         from . import motion
         rows += motion.provenance(video)
-    if only & {"grid", "palette"}:
-        from . import pixel
-        rows += [r for r in pixel.run(video, samples, engine) if r["check"] in only]
     remember(video, rows, keys, kinds, samples, fmt)
     return rows + open_warnings(video, rows, kinds, samples, fmt)
 

@@ -223,28 +223,8 @@ def colophon(video, master):
     return "\n".join(lines) + "\n"
 
 
-def archive(video, name=None):
-    """Keep the published master, its poster and a colophon in $STUDIO_HOME/references/<name>/: the
-    videos the user wants kept at full quality, apart from the working folder that a cleanup trims."""
-    from .env import studio_home
-    video = Path(video).resolve()
-    master = video / "out" / "master.mp4"
-    if not master.exists():
-        raise SystemExit("archive keeps a published master: run `studio publish VIDEO` first")
-    slug = name or "".join(c if c.isalnum() else "-" for c in settings.raw(video).get("title", video.name).lower()).strip("-")
-    dest = studio_home() / "references" / slug
-    dest.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(master, dest / f"{slug}.mp4")
-    if (video / "out" / "page" / "poster.jpg").exists():
-        shutil.copyfile(video / "out" / "page" / "poster.jpg", dest / "poster.jpg")
-    (dest / "colophon.md").write_text(colophon(video, master))
-    return dest
 
 
-def main_archive(args):
-    dest = archive(args.video, args.name)
-    print(f"archived → {dest} (the master as published, its poster and colophon.md)")
-    return 0
 
 
 def chapters_html(t):

@@ -48,12 +48,6 @@ def _cut(args):
     return 0
 
 
-def _import_tutor(args):
-    from . import timeline
-    t = timeline.from_tutor(args.lesson, args.video)
-    print(f"{len(t['tracks']['scene'])} clips, {len(t['tracks']['narration'])} sentences, "
-          f"{t['duration']:.1f} s → {args.video}/timeline.json")
-    return 0
 
 
 # --- video arguments -------------------------------------------------------------------------------
@@ -90,8 +84,7 @@ def path(arg):
 # --- the commands: name -> (help, [(argument names, options)], handler) ---------------------------
 # An argument is A (plain), V (a video folder that must exist), W (one the command also changes) or
 # P (a file or folder path, made absolute).
-# A video the command makes (new NAME, variant SOURCE NAME, fork SOURCE NAME, import-tutor LESSON VIDEO)
-# is plain.
+# The name of a new video is plain.
 
 def A(*names, **kw):
     return names, kw
@@ -130,12 +123,11 @@ COMMANDS = {
         P("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)"),
         A("--title"),
         A("--drive", default="author", choices=["author", "learner"]),
-        A("--genre", default="explainer", choices=["explainer", "motion", "launch", "pixel", "footage"]),
         V("--from", dest="from_video", help="inherit look and pronunciation from a series episode"),
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
         P("--source", help="the repo or folder the video explains; its path and commit are recorded"),
-        A("--duration", type=float, help="seconds: a piece with no narration script (motion, launch), timed by its scenes"),
-        A("--engine", choices=["remotion", "live"], help="which engine renders the scenes (default: live for an explainer, else remotion)"),
+        A("--duration", type=float, help="seconds for a silent scene test"),
+        A("--engine", choices=["remotion", "live"], help="which engine renders the scenes (default: live)"),
         A("--mode", choices=["background", "interactive"],
           help="background (default): built unattended; interactive: the user follows on the desk, chapter by chapter, note by note"),
         A("--checkpoints", choices=["few", "many"], help="superseded by --mode (many means interactive)"),
@@ -146,13 +138,6 @@ COMMANDS = {
         A("--delivery", choices=["polished", "session"],
           help="polished (default): the full stages; session: a modest cut of the user's own learning or work session (references/session.md)"),
     ], "new:main"),
-    "variant": ("a sibling video for another audience: same evidence, assets and look, a new script", [
-        V("source"), A("name"), P("--dir"), A("--title"),
-        P("--learner", help="the new audience's learner model"), P("--vocabulary", help="the new audience's glossary"),
-    ], "new:main_variant"),
-    "fork": ("a copy of a video's sources with a history of its own, to take the same video elsewhere", [
-        V("source"), A("name"), P("--dir"), A("--title"),
-    ], "new:main_fork"),
     "narrate": ("narration from SCRIPT.md into audio/ and the timeline", [
         W("video"),
         A("--plan", action="store_true", help="report cached chunks and what would be synthesised"),
@@ -183,18 +168,11 @@ COMMANDS = {
         A("--name", help="the file's name in assets/ (library: the sound's id, in assets/sounds/)"),
         A("--credits", action="store_true", help="list: the CREDITS block for the page or description"),
     ], "assets:main_asset"),
-    "init": ("pin the kit a video is made with, so a plugin update can't change how it renders", [
-        W("video"), A("--update", action="store_true", help="replace the pinned copy's sources with the plugin's current ones"),
-    ], "pin:main"),
     "audio": ("finish the whole mix: 48 kHz, one fixed gain to the target loudness, a true-peak limiter", [
         W("video"),
         A("--lufs", type=float, default=-16.0, help="target integrated loudness (default -16; -14 for social)"),
         A("--peak", type=float, default=-1.5, help="true-peak ceiling in dBTP"),
     ], "audio:main"),
-    "ingest": ("a recording: transcript with word times, shot changes, filler marks, a paper edit", [
-        P("file"), W("video"), A("--name"), A("--model", default="small.en"),
-    ], "footage:main_ingest"),
-    "edit": ("keep an edit list of footage segments and build the timeline from it", [W("video"), P("edl", help="JSON list of {src, in, out, gain}")], "footage:main_edit"),
     "beats": ("a beat grid (bpm, beats, downbeats, hits) from a music track, into audio/beats.json and the timeline", [W("video"), P("file")], "beats:main"),
     "sfx": ("effects from a cues file, on the timeline: synth voices, or sound kit recordings landing on their peak", [
         W("video"), P("cues", help='JSON list of {"t": seconds | cue or beat name | anchor, "type": "click", '
@@ -208,13 +186,6 @@ COMMANDS = {
     "audio-check": ("measure the soundtrack: effect sync (a recording by its peak) and each tagged effect's picture, each effect heard and none too loud, ducking, masking, the pauses guard and loudness, into out/audio-check.json; draw the sound sheet (out/audio-sheet.png) and choose the timecodes to listen at", [
         W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
     ], "audio_check:main"),
-    "music": ("an optional generated bed (quiet chords and a soft pulse) as a music track the mix ducks, with its beat grid", [
-        W("video"), A("--bed", action="store_true", help="make the bed (audio/bed.wav) and register it in audio/tracks.json"),
-        A("--remove", action="store_true", help="take the bed, its track entry and its beat grid out again"),
-        A("--seconds", type=float, help="its length (default: the video's)"),
-        A("--key", default="C", help="C, F#, Bb ...; Am for minor (default C)"),
-        A("--bpm", type=float, default=72.0, help="the pulse, one chord every four beats (default 72)"),
-    ], "music:main"),
     "stage": ("mark the start of a stage; print time spent against the video's budget (--report: the table)", [
         W("video"), A("name", nargs="?"), A("--report", action="store_true"),
         A("--check", action="store_true", help="the current stage against its budgets, unmarked; exit 3 at a background hard stop"),
@@ -228,17 +199,11 @@ COMMANDS = {
     ], "review:main"),
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),
-    "steps": ("run program versions in scratch projects and record evidence", [W("video"), P("manifest")], "steps:main"),
     "plate": ("render a chapter's plate (video.json plates) in Blender, or probe how long it will take", [
         W("video"), A("clips", nargs="*", help="the chapters (default: every plated chapter)"),
         A("--quality", default="draft", choices=["draft", "final"]),
         A("--probe", type=int, nargs="?", const=6, help="render N frames spread over the clip and estimate the rest"),
     ], "plates:main"),
-    "restructure": ("reshape a video in place: archive old sources, switch the engine, mark a structural revision", [
-        W("video"), A("--summary", required=True, help="what changes and why (the stage log's revision entry)"),
-        A("--engine", choices=["live", "remotion"]),
-        A("--archive", nargs="*", help="files or folders to move into research/archive/<stamp>/ (default: scenes/, when the engine changes)"),
-    ], "new:main_restructure"),
     "typing": ("type code into an editor from a plan: the editor's steps (data/typing.json), cues and key sounds",
                [W("video"), P("plan", help="the plan: sources, bursts of edits, the run (typecode.py)")], "typecode:main"),
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [
@@ -267,18 +232,6 @@ COMMANDS = {
         V("video"), A("--cut", type=int, help="the cut to review (default: the latest rendered one)"),
         P("--result", help="review response including its REVISION and MOTION verdict"),
     ], "motion_review:main"),
-    "import-cut": ("a cut rendered elsewhere: its MP4 and timeline, checked to agree and recorded with an identity", [
-        V("video"), P("movie"), P("--timeline", required=True), P("--provenance"), A("--producer"),
-    ], "imported:main_import"),
-    "review-export": ("a static page (no server) to watch a cut and write notes, with the cut's movie", [
-        V("video"), A("--cut", type=int), P("--out"),
-    ], "imported:main_review_export"),
-    "notes-export": ("a cut's notes with the cut's identity, as JSON", [
-        V("video"), A("--cut", type=int), P("--out"),
-    ], "imported:main_notes_export"),
-    "notes-import": ("notes from a notes-export, only onto a cut with the same media", [
-        V("video"), P("file"),
-    ], "imported:main_notes_import"),
     "review-status": ("record an unavailable or explicitly waived review, the user's listening check, or the user's "
                       "approval of a cut for its final render", [
         V("video"), A("role", type=reviews.role, choices=reviews.ROLES,
@@ -324,7 +277,7 @@ COMMANDS = {
     ], "clean:main"),
     "check": ("length, determinism, bounds, band and contrast checks", [
         W("video"), A("--samples", type=int, default=3, help="moments per clip"),
-        A("--only", help="comma-separated checks, including script and code-source (no browser required)"),
+        A("--only", help="comma-separated checks, including script (no browser required)"),
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
         A("--all", action="store_true", help="check every chapter, not only those changed since their last pass"),
     ], "check:main"),
@@ -353,10 +306,7 @@ COMMANDS = {
     "status": ("set the builder's status line on the desk (no text clears it)", [
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
     ], "page:main_status"),
-    "archive": ("keep the published master, its poster and a colophon in $STUDIO_HOME/references/NAME/", [
-        V("video"), A("--name", help="the folder and file name (default: the title, as a slug)")], "publish:main_archive"),
     "publish": ("final cut, web encode, poster and the page in out/page/", [W("video")], "publish:main"),
-    "import-tutor": ("make a video from a tutor lesson: its narration, timings and timeline", [P("lesson"), P("video")], _import_tutor),
 }
 
 

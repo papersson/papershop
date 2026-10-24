@@ -20,7 +20,7 @@ from .timeline import DEFAULT_LAYOUT
 
 TEMPLATES = ROOT / "templates"
 from .checkpoint import GITIGNORE
-from . import checkpoint, preferences, reviews
+from . import checkpoint, preferences
 from .stage import LEVEL_BUDGET as LEVEL_BUDGETS
 
 
@@ -54,37 +54,27 @@ def target(name, directory=None):
     return video
 
 
-def create(name, directory=None, title=None, drive="author", source=None, genre="explainer", duration=None, engine="remotion",
+def create(name, directory=None, title=None, drive="author", source=None, duration=None, engine="remotion",
            level="intro", checkpoints="few", mode="background", tone="plain", delivery="polished"):
     video = target(name, directory)
     (video / "scenes").mkdir(parents=True, exist_ok=True)
     (video / "research").mkdir(exist_ok=True)
-    cfg = {"title": title or default_title(name), "version": "v1", "genre": genre,
+    cfg = {"title": title or default_title(name), "version": "v1", "genre": "explainer",
            "drive": drive, "destination": "private-page", "engine": engine, "poster": None,
            "level": level, "tone": tone, "delivery": delivery, "mode": mode, "checkpoints": checkpoints, "budget": dict(LEVEL_BUDGETS[level]), "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
-           "teaching_contract": genre == "explainer"}     # minutes; `studio stage` reports against it
-    if genre == "motion":
-        cfg["loop"] = True            # the last frame equals the first; `studio check` verifies the seam
-    if genre == "pixel":
-        cfg["pixel"] = {"grid": [320, 180], "palette": ["#0f1318", "#e6ebf0", "#8fd3ff", "#f2a93b", "#e4715f", "#2b333c"]}
+           "teaching_contract": True}     # minutes; `studio stage` reports against it
     if source:
         cfg["source"] = source_record(source)
-    if duration and genre != "footage":
+    if duration:
         cfg["duration"] = float(duration)
     (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
     (video / "layout.json").write_text(json.dumps(DEFAULT_LAYOUT, indent=1) + "\n")
-    if genre == "footage":
-        # An edit, not a script: recordings go in with `studio ingest`, the edit list with `studio edit`.
-        (video / "footage").mkdir(exist_ok=True)
-        scenes = TEMPLATES / "footage" / "scenes"
-    elif duration:
-        # A piece with no narration (a motion reel, a product film): one clip of video.json's
-        # duration; scenes time themselves, and captions are none.
-        scenes = TEMPLATES / (genre if (TEMPLATES / genre).is_dir() else "scenes") / "scenes"
+    if duration:
         tl.build(video)
+        scenes = TEMPLATES / "scenes"
     else:
         nr = json.loads((TEMPLATES / "narration.json").read_text())
-        if genre == "explainer" and level == "intro":
+        if level == "intro":
             nr["kokoro"]["speed"] = 0.95
             nr["timing"] = {"beat": 0.5, "chapter_hold": 2.0, "chapter_gap": 1.2, **nr.get("timing", {})}
         (video / "narration.json").write_text(json.dumps(nr, indent=1) + "\n")
@@ -106,60 +96,13 @@ def create(name, directory=None, title=None, drive="author", source=None, genre=
     return video, learner
 
 
-def starter_scenes(engine, genre):
-    """The template scenes `studio new` copies for an engine and genre."""
-    if engine == "live":
-        return TEMPLATES / "live" / "scenes"
-    own = TEMPLATES / genre / "scenes"
-    return own if genre != "explainer" and own.is_dir() else TEMPLATES / "scenes"
-
-
-def restructure(video, summary, engine=None, archive=()):
-    """Reshape a video in place: move `archive` (the scenes, by default, when the engine changes) to
-    research/archive/<stamp>/, switch the engine (seeding its starter scenes), and mark a structural
-    revision, which starts new review counts and a structural budget. Returns the archive folder."""
-    import time
-    from . import stage
-    video = Path(video).resolve()
-    cfg = settings.load(video)
-    switching = engine and engine != cfg["engine"]
-    paths = list(archive) or (["scenes"] if switching else [])
-    dest = video / "research" / "archive" / time.strftime("%Y%m%d-%H%M%S")
-    for rel in paths:
-        src = (video / rel).resolve()
-        if not src.is_relative_to(video) or src == video or not src.exists():
-            raise SystemExit(f"restructure: {rel} is not a file or folder in the video")
-        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(src), str(dest / rel))
-    if paths:
-        (dest / "README.md").write_text(f"Archived by `studio restructure` before: {summary}\n")
-    if switching:
-        settings.update(video, engine=engine)
-        (video / "scenes").mkdir(exist_ok=True)
-        for f in starter_scenes(engine, cfg["genre"]).iterdir():
-            if not (video / "scenes" / f.name).exists():
-                shutil.copyfile(f, video / "scenes" / f.name)
-    for line in stage.mark(video, "revision", kind="structural", summary=summary):
-        print(line)
-    return dest if paths else None
-
-
-def main_restructure(args):
-    dest = restructure(args.video, args.summary, args.engine, args.archive or ())
-    print(f"restructured{f'; the old sources are in {dest.relative_to(Path(args.video).resolve())}' if dest else ''}"
-          + (f"; engine {args.engine}" if args.engine else ""))
-    return 0
-
-
 def main(args):
     source_cfg = settings.raw(args.from_video) if args.from_video else {}
-    # An explainer defaults to the live engine (instant reload on the desk); other genres, and code
-    # explainers that need the Remotion code components, name their engine.
-    args.engine = args.engine or source_cfg.get("engine") or ("live" if args.genre == "explainer" and not args.duration else "remotion")
+    args.engine = args.engine or source_cfg.get("engine") or "live"
     args.level = args.level or source_cfg.get("level", "intro")
     args.tone = getattr(args, "tone", None) or source_cfg.get("tone", "plain")
     args.delivery = getattr(args, "delivery", None) or source_cfg.get("delivery", "polished")
-    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.genre, args.duration, args.engine,
+    video, learner = create(args.name, args.dir, args.title, args.drive, args.source, args.duration, args.engine,
                             getattr(args, "level", "intro"), getattr(args, "checkpoints", None) or "few",
                             getattr(args, "mode", None) or ("interactive" if getattr(args, "checkpoints", None) == "many" else "background"),
                             args.tone, args.delivery)
@@ -175,107 +118,3 @@ def main(args):
     return 0
 
 
-# What a variant keeps from its source: the evidence, the assets and the look. Everything that
-# depends on the words (script, narration, timeline, cuts) is rewritten for the new audience.
-KEEP = ["data", "sims", "assets", "scenes", "captures", "layout.json", "narration.json", "lexicon.json"]
-
-
-def variant(source, name, directory=None, learner=None, vocabulary=None, title=None):
-    """A sibling video for another audience: same evidence, assets and look, new script."""
-    source = Path(source).resolve()
-    scfg = settings.raw(source)
-    video = target(name, directory)
-    video.mkdir(parents=True, exist_ok=True)
-    for rel in KEEP:
-        src = source / rel
-        if src.is_dir():
-            shutil.copytree(src, video / rel, ignore=shutil.ignore_patterns(".cache", "__pycache__"))
-        elif src.exists():
-            shutil.copyfile(src, video / rel)
-    (video / "research").mkdir(exist_ok=True)
-    # The narrative is the source's, to be revised for the new audience; reviews and cuts are not carried over.
-    if (source / "research" / "narrative.md").exists():
-        shutil.copyfile(source / "research" / "narrative.md", video / "research" / "narrative_source.md")
-    script = (source / "SCRIPT.md").read_text() if (source / "SCRIPT.md").exists() else ""
-    script = script.split("\n## Review log", 1)[0].rstrip() + "\n\n## Review log\n\n- Variant of " + source.name + \
-        ": rewrite the Argument, Chain, Script and vocabulary for the new audience; keep the Evidence rows.\n"
-    script = re.sub(r"^Status:.*$", "Status: draft variant, before review round 1", script, count=1, flags=re.M)
-    (video / "SCRIPT.md").write_text(script)
-    cfg = {**scfg, "title": title or default_title(name), "version": "v1", "variant_of": str(source)}
-    if learner:
-        cfg["learner"] = str(Path(learner).expanduser().resolve())
-    if vocabulary:
-        cfg["vocabulary"] = str(Path(vocabulary).expanduser().resolve())
-    (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
-    (video / ".gitignore").write_text(GITIGNORE)
-    n = video / "narration.json"
-    if n.exists():
-        nr = json.loads(n.read_text())
-        for key in ("holds", "spoken_by_id", "phonemes_by_id", "accepted"):
-            nr.pop(key, None)
-        n.write_text(json.dumps(nr, indent=1) + "\n")
-    checkpoint.init(video)
-    return video
-
-
-def main_variant(args):
-    v = variant(args.source, args.name, args.dir, args.learner, args.vocabulary, args.title)
-    print(f"variant at {v}: evidence, assets and scenes copied; rewrite SCRIPT.md for the new audience, then narrate")
-    return 0
-
-
-# What a fork leaves behind. Anywhere: repositories, caches and package folders. At these paths:
-# outputs, and what is the source's alone (its stage log, pending requests, handoff, the builder's
-# scratch, its review rounds) or names its cuts (the desk's notes, frame and motion review bundles and
-# receipts, which judged a cut of the source). Cuts stay behind whole: publish, sheets, frame review
-# and the next cut read the stills and video beside a record, so a record without them is a broken
-# cut. A script review's receipt comes along: it judged the script, which comes along too.
-FORK_SKIP_NAMES = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
-FORK_SKIP_PATHS = {"out", "cuts", "review", "research/frame_review", "research/motion_review", "research/timing.jsonl",
-                   "research/requests.md", "research/handoff.md", "research/reviews/rounds.jsonl", ".studio/work",
-                   *(f"research/reviews/{role}.json" for k in reviews.KINDS.values() if k.scope == "frames" for role in k.roles)}
-
-
-def fork(source, name, directory=None, title=None):
-    """A copy of a video's sources under a new title, with a history of its own: a fresh stage log
-    that starts at a forked_from mark, no cuts, notes, requests or owner. The tree is walked and
-    copied file by file, pruning what is left behind before entering it, so a large cache is never
-    read."""
-    source = Path(source).resolve()
-    video = (Path(directory).expanduser() if directory else studio_home() / name).resolve()
-    # a fork into a folder that holds the source made that folder (STUDIO_HOME, once) a video
-    # repository, so every later video landed inside it and a commit swept up its siblings
-    if video == source or source in video.parents or video in source.parents:
-        raise SystemExit(f"fork into a new folder of its own: {video} is {source.name}, inside it, or holds it")
-    if (video / "video.json").exists():
-        raise SystemExit(f"{video} already holds a video")
-    if video.is_dir() and any(video.iterdir()):
-        raise SystemExit(f"{video} is not empty; fork into a new folder")
-    skip = lambda rel: rel.name in FORK_SKIP_NAMES or rel.as_posix() in FORK_SKIP_PATHS
-    for root, dirs, files in os.walk(source):
-        rel = Path(root).relative_to(source)
-        (video / rel).mkdir(parents=True, exist_ok=True)
-        dirs[:] = [d for d in dirs if not skip(rel / d)]
-        links = [d for d in dirs if (Path(root) / d).is_symlink()]      # not walked: copied as links
-        for f in files + links:
-            if not skip(rel / f):
-                shutil.copy2(Path(root) / f, video / rel / f, follow_symlinks=False)
-    origin = source_record(source)
-    cfg = {**settings.raw(source), "title": title or default_title(name), "version": "v1",
-           "forked_from": origin}
-    (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
-    now = time.time()
-    mark = {"stage": "forked_from", "t": now, "at": datetime.fromtimestamp(now).isoformat(timespec="seconds"),
-            "kind": "fork", "source": origin["path"], **({"commit": origin["commit"]} if "commit" in origin else {})}
-    (video / "research").mkdir(exist_ok=True)
-    (video / "research" / "timing.jsonl").write_text(json.dumps(mark) + "\n")
-    checkpoint.init(video)
-    return video
-
-
-def main_fork(args):
-    v = fork(args.source, args.name, args.dir, args.title)
-    pinned = " The pinned kit came without its packages: `.studio/bin/studio doctor --fetch`." if (v / ".studio" / "PIN").exists() else ""
-    print(f"fork at {v}: sources copied, its stage log starts at the fork; cuts, notes and caches stay with "
-          f"{Path(args.source).resolve().name}, so the first cut renders every clip.{pinned}")
-    return 0

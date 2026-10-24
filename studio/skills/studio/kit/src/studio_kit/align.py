@@ -31,7 +31,7 @@ def main(args):
         raise SystemExit("the narration is an estimate, with no audio to align: run `studio narrate VIDEO` first")
     narration = tl.narration_audio(t)
     if not narration:
-        raise SystemExit("this video has no narration to align (a footage edit's words come from `studio ingest`)")
+        raise SystemExit("this video has no narration to align")
     heard = recognise(video / narration["file"], args.model)
     atomic_json(video / "audio" / "words.json", {"narration": tl.narration_stamp(video), "words": heard})
     t = tl.build(video)
