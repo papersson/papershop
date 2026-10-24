@@ -137,7 +137,7 @@ def test_lexicon_and_series_are_portable_snapshots(tmp_path, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(home))
     (home / "lexicon.json").write_text('{"spoken":[["JSON","J S O N"]]}')
     src, _ = new.create("first")
-    (src / "data").mkdir()
+    (src / "data").mkdir(exist_ok=True)
     (src / "data/rows.json").write_text('[{"id":1}]')
     (src / "scenes/shared.ts").write_text('import rows from "../data/rows.json"; export {rows};')
     nr = json.loads((src / "narration.json").read_text())

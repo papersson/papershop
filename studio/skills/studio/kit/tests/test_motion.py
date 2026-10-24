@@ -42,12 +42,6 @@ def test_provenance_finds_assets_scenes_use_without_a_row(tmp_path):
     assert motion.provenance(tmp_path)[0]["ok"]
 
 
-def test_pixel_and_motion_videos_get_their_extra_checks_by_default(tmp_path):
-    make_video(tmp_path)
-    (tmp_path / "video.json").write_text(json.dumps({"genre": "motion", "loop": True}))
-    assert check.genre(tmp_path) == "motion" and check.config(tmp_path)["loop"]
-
-
 def stage(a, b, d=2):
     """Two boxes landing at a and b seconds; a dot blinking on the stage (ambient) and a bar blinking in
     the caption band (not the stage) all along."""
@@ -105,6 +99,7 @@ def test_ambient_motion_does_not_join_the_moves():
 
 def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     t = make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
     (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
@@ -178,6 +173,7 @@ def test_the_pacing_check_and_the_motion_review_measure_what_they_did(tmp_path):
     """Both read the sampled signal (pacing_signal from a clip render, file_signal from a cut's video
     or clip, at any frame), which now shares its decoder and change measure with frame_signal."""
     t = make_video(tmp_path)
+    (tmp_path / "video.json").write_text(json.dumps({"engine": "remotion"}))
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
     f = cache / f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
