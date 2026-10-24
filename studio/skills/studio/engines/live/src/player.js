@@ -210,7 +210,9 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
         if (e.box) S.text(k + ':t', x, y, e.box, { size: 22, anchor: 'middle', box: `board box ${e.box}` })
       } else if ('text' in e) {
         const [x, y] = px(e.at)
-        S.text(k, x, y, e.text, { size: e.size ?? 24, anchor: 'middle', box: `board text ${e.text}` })
+        // Board geometry and type share stage units; retain explicit pixel sizes from older boards.
+        const size = e.size === undefined ? 32 : e.size <= 8 ? e.size * unit : e.size
+        S.text(k, x, y, e.text, { size, anchor: 'middle', box: `board text ${e.text}` })
       } else if ('arrow' in e || 'line' in e) {
         const [a, b] = e.arrow ?? e.line, [x1, y1] = px(a), [x2, y2] = px(b)
         S.line(k, x1, y1, x2, y2, { stroke: 'var(--dim)', sw: 2, dash: '6 6', arrow: 'arrow' in e })
@@ -222,8 +224,16 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     const noted = [...sentences].reverse().find(n => n.start <= t && notes[n.id])
     if (noted) {
       const alone = !frame
-      S.text('board:note', alone ? W / 2 : W * 0.08, alone ? H * 0.45 : H - unit * 0.8, alone ? notes[noted.id] : `${noted.id}  ${notes[noted.id]}`,
-        { size: alone ? 34 : 26, anchor: alone ? 'middle' : 'start', fill: alone ? 'var(--ink)' : 'var(--dim)', box: 'board note' })
+      const text = alone ? notes[noted.id] : `${noted.id}  ${notes[noted.id]}`
+      const size = alone ? 34 : 26, max = Math.floor(W * .84 / (size * .56))
+      const lines = ['']
+      for (const word of text.split(/\s+/)) {
+        if (lines.at(-1).length + word.length + 1 > max) lines.push('')
+        lines[lines.length - 1] += (lines.at(-1) ? ' ' : '') + word
+      }
+      lines.slice(0, 3).forEach((line, i) => S.text(`board:note:${i}`, alone ? W / 2 : W * .08,
+        (alone ? H * .42 : H - 105) + i * 32, line + (i === 2 && lines.length > 3 ? '…' : ''),
+        { size, anchor: alone ? 'middle' : 'start', fill: alone ? 'var(--ink)' : 'var(--dim)', box: `board note ${i}` }))
     }
   }
 
