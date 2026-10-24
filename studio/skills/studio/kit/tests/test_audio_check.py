@@ -95,6 +95,34 @@ def test_sync_warns_when_the_sound_is_off_its_frame():
     assert rows[0]["severity"] == "warning" and abs(rows[0]["offset_frames"] - 3) < 0.1
 
 
+def test_key_attack_measurement_finds_recorded_audio_delay_and_rejects_silence():
+    reference = np.zeros(48_000, dtype="float32")
+    reference[4300:5500] = np.random.default_rng(5).normal(0, .1, 1200)
+    measured = np.zeros(4 * 48_000, dtype="float32")
+    start = 2 * 48_000 - 4800 + 480
+    measured[start:start + len(reference)] = reference
+    lag, confidence = audio_check._key_lag(reference, measured, 4800, 2 * 48_000, 30)
+    assert abs(lag - .3) < .01 and confidence > .99
+    assert audio_check._key_lag(reference, measured * 0, 4800, 2 * 48_000, 30)[1] == 0
+
+
+def test_typing_sync_catches_a_sound_stream_shifted_from_its_displayed_keys(tmp_path, monkeypatch):
+    from studio_kit import sfx
+    (tmp_path / "data").mkdir()
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "data/typing.json").write_text(json.dumps({"edit": {
+        "clip": "s1", "cue": "type-edit", "steps": [[0, "key", []], [3, "back", []]]}}))
+    (tmp_path / "audio/sfx.json").write_text("[]")
+    placed = SimpleNamespace(time=1, cue={"stream": "typing:edit", "events": [[0, "key"], [5 / 30, "back"]]})
+    monkeypatch.setattr(sfx, "place", lambda *a: [placed])
+    class Stems:
+        roles = {"sfx"}
+        def __getitem__(self, role):
+            return np.zeros(4 * 48_000)
+    rows = audio_check.typing_sync(Stems(), tmp_path, {"fps": 30, "cues": {"type-edit": 1}})
+    assert not rows[0]["ok"] and rows[0]["missing"] == [(3, "back")]
+
+
 def test_the_guard_waits_for_a_voice_and_skips_a_video_without_effects(tmp_path):
     v = narrated(tmp_path)
     assert audio_check.guard(v) == [] and check.run(v, only=["pauses"]) == []

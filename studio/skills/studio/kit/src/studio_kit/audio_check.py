@@ -71,7 +71,7 @@ mix was last finished to, so a check after `export --lufs -14` does not re-finis
 import json
 from pathlib import Path
 
-from . import audio
+from . import audio, proc
 from . import timeline as tl
 
 SYNC_FRAMES = 1.0
@@ -410,6 +410,82 @@ def _judged(signal, frame, visual, fps, at_seams, window=PICTURE_WINDOW):
             "picture": f"; picture ({visual}): {mark[1]} at frame {mark[0]} ({off:+d}), "
                        + (f"within {tol}" if ok else f"more than {tol} frame{'s' if tol > 1 else ''} off: the picture "
                                                       f"does not {VERBS[visual]} on this sound")}
+
+
+def _key_lag(reference, measured, contact, expected, fps):
+    """Correlate a short recorded attack against the mix; a quiet or masked key stays unverified."""
+    import numpy as np
+    rate = audio.RATE
+    before, after, search = round(.008 * rate), round(.012 * rate), round(2 * rate / fps)
+    a = contact - before
+    b = expected - before - search
+    if a < 0 or b < 0 or contact + after > len(reference) or expected + after + search > len(measured):
+        return None, 0.0
+    x = reference[a:contact + after:4].astype(float)
+    y = measured[b:expected + after + search:4].astype(float)
+    energy = float(np.dot(x, x))
+    if energy < 1e-12 or len(y) < len(x):
+        return None, 0.0
+    corr = np.correlate(y, x, mode="valid")
+    power = np.convolve(y * y, np.ones(len(x)), mode="valid")
+    scores = corr / np.sqrt(np.maximum(power * energy, 1e-24))
+    index = int(np.argmax(scores))
+    return (index * 4 - search) / rate * fps, float(scores[index])
+
+
+def typing_sync(stems, video, timeline, movie=None):
+    """Check every displayed keystroke, since a stream's first contact alone cannot prove its keys."""
+    import numpy as np
+    from . import sfx
+    video = Path(video)
+    f = video / "data" / "typing.json"
+    effects = video / "audio" / "sfx.json"
+    if not f.exists() or not effects.exists() or "sfx" not in stems.roles:
+        return []
+    measured = stems["sfx"]
+    source = "effects stem"
+    if movie:
+        decoded = proc.ffmpeg("-i", movie, "-vn", "-ac", "1", "-ar", str(audio.RATE), "-f", "f32le", "-",
+                              capture_output=True)
+        measured = np.frombuffer(decoded.stdout, dtype="<f4")
+        source = "saved cut audio"
+    placed = {p.cue.get("stream"): p for p in sfx.place(json.loads(effects.read_text()), timeline)}
+    rows = []
+    fps = timeline["fps"]
+    for name, burst in json.loads(f.read_text()).items():
+        p = placed.get(f"typing:{name}")
+        start = timeline["cues"][burst["cue"]]
+        keys = [(int(frame), kind) for frame, kind, _ in burst["steps"]]
+        row = {"check": "typing-sync", "clip": burst["clip"], "t": start, "ok": True,
+               "burst": name, "keys": len(keys), "measurement": source}
+        scheduled = set() if p is None else {(tl.half_up((p.time - start + off) * fps), kind)
+                                             for off, kind in p.cue["events"]}
+        missing = [(frame, kind) for frame, kind in keys if (frame, kind) not in scheduled]
+        if missing or p is None:
+            row.update(ok=False, missing=missing, detail=f"{name}: {len(missing)} displayed keys lack their sound on the same frame")
+            rows.append(row)
+            continue
+        offsets = []
+        uncertain = 0
+        for frame, _ in keys:
+            expected = round((start + frame / fps) * audio.RATE)
+            # The saved mix may include a save accent on the same key. Compare its complete
+            # processed attack so that the accent cannot hide a correctly aligned Enter.
+            reference = stems["sfx"] if movie else p.sound.samples
+            contact = expected if movie else p.sound.contact + round(frame / fps * audio.RATE)
+            lag, confidence = _key_lag(reference, measured, contact, expected, fps)
+            if lag is None or confidence < .45:
+                uncertain += 1
+            else:
+                offsets.append(round(lag, 3))
+        worst = max(map(abs, offsets), default=0)
+        row.update(offset_frames=worst, key_offsets_frames=offsets, unverified=uncertain,
+                   detail=f"{name}: {len(keys)} key frames agree; {len(offsets)} attacks measured in {source}, "
+                          f"maximum lag {worst:.2f} frames; {uncertain} could not be isolated")
+        if uncertain or worst > SYNC_FRAMES:
+            row["severity"] = "warning"
+        rows.append(row)
+    return rows
 
 
 # --- ducking and masking --------------------------------------------------------------------------
@@ -845,6 +921,7 @@ def run(video, cut=None):
         shown = json.loads(snap.read_text()) if snap.exists() else None
         stale = _stale(video, rec, n)
     rows = (sync(stems, video, timeline, movie if movie and movie.exists() else None, shown, stale)
+            + typing_sync(stems, video, timeline, movie if not stale else None)
             + audibility(stems, video, timeline)
             + ducking(stems, timeline) + reveals(stems, timeline) + crossings(video, timeline)
             + ([] if estimate else masking(stems, timeline) + pauses(stems, timeline)) + loudness(video, record))

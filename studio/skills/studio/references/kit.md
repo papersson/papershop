@@ -265,7 +265,9 @@ true-peak limiter, preserving quiet pauses. `studio audio VIDEO` defaults to −
 `studio audio-check VIDEO [--cut N]` measures sync, transient-to-picture timing, audibility,
 loud effects, ducking, masking, pauses and loudness. It writes `out/audio-check.json`, a sound
 sheet and listening timecodes, prioritizing hero events. It compares the actual saved cut with
-its current source keys. Inspect warnings and listen where possible; measurements do not establish
+its current source keys. Typed streams also check every key's picture frame against its sound event,
+then correlate the recorded attacks with the saved cut audio. Masked keys remain explicitly unverified.
+Inspect warnings and listen where possible; measurements do not establish
 that pronunciation or balance sounds right. A missing listening pass never blocks a cut.
 
 ## Commands for the loop
