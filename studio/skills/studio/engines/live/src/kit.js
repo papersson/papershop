@@ -9,6 +9,9 @@
 import * as motion from '../../shared/motion.js'
 import * as camera from '../../shared/camera.js'
 
+export { CodePanel, Terminal, Editor, HelperCard, RunTerminal, ProgramWindow,
+  editorAt, codeViewAt, runAt, windowMotion, legibleSize } from './code.js'
+
 export { clamp, lerp, mix, ease, stagger, spring, track, rand, rng, countUp, keyed, follow, settle, wobble } from '../../shared/motion.js'
 export { phraseStart } from '../../shared/timing.js'
 // 3D shots: c.shot, c.flatShot and c.frameOn3 point the 3D stage with them; these are the pure versions.

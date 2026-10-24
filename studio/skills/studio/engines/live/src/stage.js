@@ -70,13 +70,14 @@ export class Stage {
    * the legend check reads with its colours; any drawing call takes it as `means`.
    */
   el(key, tag, attrs = {}, layer = 'main') {
+    const parent = this.scope ?? (layer === 'ui' ? this.ui : this.layers[layer] ?? this.layers.main)
     let rec = this.nodes.get(key)
     if (!rec || rec.tag !== tag) {
       if (rec) rec.node.remove()
-      const parent = layer === 'ui' ? this.ui : this.layers[layer] ?? this.layers.main
       rec = { node: this.make(tag, parent), parent, tag, attrs: new Set() }
       this.nodes.set(key, rec)
     }
+    rec.parent = parent
     if (!this.drawn.has(key)) this.order.push(key)
     this.drawn.add(key)
     const now = new Set()
@@ -93,6 +94,15 @@ export class Stage {
     for (const old of rec.attrs) if (!now.has(old)) rec.node.removeAttribute(old)
     rec.attrs = now
     return rec.node
+  }
+
+  /** A keyed SVG group for clipped/transformed components; children still participate in frame
+   * cleanup, ordering and measured boxes. Nested groups restore their parent's scope. */
+  group(key, attrs, draw, layer = 'main') {
+    const node = this.el(key, 'g', attrs, layer), previous = this.scope
+    this.scope = node
+    try { draw() } finally { this.scope = previous }
+    return node
   }
 
   rect(key, x, y, w, h, o = {}) {
@@ -209,12 +219,14 @@ export class Stage {
     for (const key of this.order) {
       const { node } = this.nodes.get(key)
       const name = node.getAttribute('data-box')
-      if (!name || Number(node.getAttribute('opacity') ?? 1) <= 0.001 || !node.textContent && node.tagName === 'text') continue
+      let opacity = 1
+      for (let p = node; p && p !== this.svg; p = p.parentElement) opacity *= Number(p.getAttribute('opacity') ?? 1)
+      if (!name || opacity <= 0.001 || !node.textContent && node.tagName === 'text') continue
       const r = node.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) continue
       // camera: drawn under a camera that has moved (not the ui layer), whose crop is the inframe check's, not bounds'
       out.push({ name, kind: node.getAttribute('data-kind') ?? '', x: (r.left - origin.left) * sx, y: (r.top - origin.top) * sy, w: r.width * sx, h: r.height * sy,
-        opacity: Number(node.getAttribute('opacity') ?? 1), camera: !!this.moved && this.camera.contains(node),
+        opacity, camera: !!this.moved && this.camera.contains(node),
         ...paint(node) })
     }
     return out
