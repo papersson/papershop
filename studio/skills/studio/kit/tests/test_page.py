@@ -260,3 +260,48 @@ def test_reading_notes_does_not_acknowledge_them_or_create_a_round(tmp_path):
     assert notes[0]['status'] == 'queued' and rounds == []
     page.notes_text(tmp_path, 1)
     assert len(page.read_log(tmp_path)) == 1
+
+
+def test_paused_film_pixels_survive_desk_theme_changes(tmp_path):
+    """DOM boxes passed while Chromium painted a paused iframe blank. Check actual pixels."""
+    import shutil
+    import subprocess
+    import pytest
+    from PIL import Image
+    from studio_kit.env import engine_dir, resolve_browser
+    browser = resolve_browser()[0]
+    playwright = engine_dir('live') / 'node_modules/playwright-core/index.mjs'
+    if not browser or not playwright.exists() or not shutil.which('node'):
+        pytest.skip('needs the installed desk browser')
+    live_video(tmp_path)
+    t = json.loads((tmp_path / 'timeline.json').read_text())
+    t['timing'] = 'estimate'
+    (tmp_path / 'timeline.json').write_text(json.dumps(t))
+    (tmp_path / 'scenes/s1.js').write_text("export default c=>c.S.rect('film',0,0,c.W,c.H,{fill:'#1568c9',r:0});")
+    server, base = serve(tmp_path)
+    script = tmp_path / 'theme.mjs'
+    script.write_text('import {chromium} from ' + json.dumps(playwright.as_uri()) + ';\n' + '''
+import fs from 'node:fs';
+const b=await chromium.launch({executablePath:process.argv[2],headless:true});
+try {
+ const p=await b.newPage({viewport:{width:1440,height:900}});
+ await p.goto(process.argv[3]);
+ await p.waitForFunction(()=>document.querySelector('#live').contentWindow.studioReady);
+ await p.waitForTimeout(300);
+ const r=await p.locator('#screen').boundingBox();
+ fs.writeFileSync(process.argv[4]+'/point.json',JSON.stringify([Math.round(r.x+r.width/2),Math.round(r.y+r.height/2)]));
+ for(let i=0;i<4;i++) {
+  await p.locator('#theme').click();
+  await p.waitForTimeout(250);
+  await p.screenshot({path:process.argv[4]+'/theme-'+i+'.png'});
+ }
+} finally {await b.close()}
+''')
+    try:
+        subprocess.run(['node', str(script), browser, base, str(tmp_path)], check=True, timeout=45)
+        point = tuple(json.loads((tmp_path / 'point.json').read_text()))
+        for i in range(4):
+            assert Image.open(tmp_path / f'theme-{i}.png').convert('RGB').getpixel(point) == (21, 104, 201)
+    finally:
+        server.shutdown()
+        server.server_close()
