@@ -28,7 +28,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import proc, settings
-from . import cuts
+from . import cuts, events
 from .workspace import locked
 from . import timeline as tl
 
@@ -43,8 +43,12 @@ def append(video, entry):
     f = notes_file(video)
     f.parent.mkdir(parents=True, exist_ok=True)
     entry = {**entry, "created": time.strftime("%Y-%m-%d %H:%M:%S")}
-    with _lock, locked(video), f.open("a", encoding="utf-8") as out:
+    with _lock, locked(video, 'notes'), f.open("a", encoding="utf-8") as out:
         out.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    notes = fold(read_log(video))[0]
+    note = next((n for n in notes if n['id'] == entry.get('id')), {})
+    events.emit(video, 'note.' + entry['type'], entry.get('reply') or entry.get('note') or entry['type'],
+                lane=note.get('lane') or note.get('clip'), t=note.get('t'), note=entry.get('id'), source='review/notes.jsonl')
     return entry
 
 
@@ -52,7 +56,13 @@ def read_log(video):
     f = notes_file(video)
     if not f.exists():
         return []
-    return [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = []
+    for line in f.read_text(encoding="utf-8").splitlines():
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            continue
+    return rows
 
 
 def fold(log, cut=None, since=None):
@@ -72,7 +82,12 @@ def fold(log, cut=None, since=None):
         elif e["type"] == "resolve" and e["id"] in notes:
             notes[e["id"]].update(status="done", reply=e.get("reply"), resolved=e.get("created", ""))
         elif e["type"] == "edit" and e["id"] in notes:
-            notes[e["id"]].update({k: e[k] for k in ("note", "kind") if k in e})
+            note = notes[e['id']]
+            changes = {k: e[k] for k in ("note", "kind", 't', 'end', 'scope', 'beat', 'lane', 'clip', 'sentence_id', 'sentence') if k in e}
+            changed = any(note.get(k) != v for k, v in changes.items())
+            note.update(changes)
+            if changed and note['status'] in ('working', 'done'):
+                note.update(status='queued', reply=None)
         elif e["type"] == "delete":
             notes.pop(e["id"], None)
         elif e["type"] == "round":
@@ -92,7 +107,8 @@ def live_view(video, cut, latest):
     if cfg["engine"] != "live" or cut is not None:
         return False
     record = cuts.read(video, latest) if latest else None
-    return not record or cuts.kind(record) != "animatic"
+    return not record or cuts.kind(record) != "animatic" or any(
+        (Path(video) / 'scenes' / f'{c["id"]}.js').exists() for c in tl.load(video)['tracks']['scene'])
 
 
 def live_audio(video, t):
@@ -111,6 +127,14 @@ def live_audio(video, t):
         return (tl.narration_audio(t) or {}).get("file")
 
 
+def live_timeline(video):
+    """Read chapter-owned cues without rewriting the shared timeline during a shoot."""
+    t = tl.load(video)
+    cues, _ = tl.cue_sources(video, t)
+    t['cues'] = {**t.get('cues', {}), **tl._resolve_cues(cues, t)}
+    return t
+
+
 def state(video, cut=None):
     video = Path(video)
     latest = cuts.last(video)
@@ -119,7 +143,7 @@ def state(video, cut=None):
     # The live view follows the current timeline; an older cut shows the cut as it was.
     live = live_view(video, cut, latest)
     snapshot = cuts.cut_dir(video, n) / "timeline.json"
-    t = tl.load(video) if live or not snapshot.exists() else json.loads(snapshot.read_text())
+    t = live_timeline(video) if live or not snapshot.exists() else json.loads(snapshot.read_text())
     if live and not record:
         record = {"cut": 0, "kind": "live", "created": "", "quality": "live", "stills": [], "changelog": [],
                   "video": None, "duration": t.get("duration", 0)}
@@ -137,11 +161,59 @@ def state(video, cut=None):
         "title": title, "latest": latest, "cut": record,
         "cuts": sorted(cuts.records(video)),
         "narration": [{k: s[k] for k in ("id", "clip", "start", "end", "caption")} for s in t["tracks"]["narration"]],
-        "chapters": [{"id": c["id"], "title": c["title"], "start": c["start"]} for c in t["tracks"]["scene"]],
+        "chapters": [{k: c[k] for k in ('id', 'title', 'start', 'end')} for c in t["tracks"]["scene"]],
         "notes": notes, "rounds": rounds, "status": read_status(video),
         # The desk's clock: the mix (or the narration), else a silent clock.
         "live": {"audio": live_audio(video, t), "duration": t.get("duration", 0)} if live else None,
+        "duration": t.get('duration', 0), "fps": t.get('fps', 30), "captions": t['tracks'].get('captions', []),
+        "beats": story_beats(video, t), "sound": sound_marks(video, t),
+        "waveform": waveform(video, t), "build": events.view(video, t['tracks']['scene']),
     }
+
+
+def story_beats(video, t):
+    f = Path(video) / 'data' / 'story-beats.json'
+    # Explicit anchors only; chapter starts are the honest fallback, never equally spaced guesses.
+    rows = json.loads(f.read_text()) if f.exists() else [
+        {'id': c['id'], 'title': c['title'], 'clip': c['id'], 't': c['start']} for c in t['tracks']['scene']]
+    return [{**e, 't': tl.event_time(t, e['t'])} for e in rows]
+
+
+def sound_marks(video, t):
+    f = Path(video) / 'audio' / 'sfx.json'
+    rows = json.loads(f.read_text()) if f.exists() else []
+    result = []
+    for i, e in enumerate(rows):
+        try:
+            at = t.get('cues', {}).get(e['t']) if isinstance(e['t'], str) else tl.event_time(t, e['t'])
+            if at is not None:
+                result.append({'id': f'fx{i+1}', 't': at, 'title': e.get('type', 'sound')})
+        except (ValueError, KeyError, SystemExit):
+            pass
+    return result
+
+
+def waveform(video, t):
+    from array import array
+    from .workspace import atomic_json
+    src = (tl.narration_audio(t) or {}).get('file')
+    if not src or not (Path(video) / src).exists():
+        return []
+    f = Path(video) / src
+    cache = Path(video) / '.cache' / 'desk-waveform.json'
+    stamp = [f.stat().st_mtime_ns, f.stat().st_size]
+    with locked(video, 'waveform'):
+        old = json.loads(cache.read_text()) if cache.exists() else {}
+        if old.get('stamp') == stamp:
+            return old['peaks']
+        try:
+            data = array('f', proc.ffmpeg('-i', f, '-ac', 1, '-ar', 8000, '-f', 'f32le', '-', capture_output=True).stdout)
+            hop = max(1, len(data) // 1400)
+            peaks = [round(max(map(abs, data[i:i+hop]), default=0), 4) for i in range(0, len(data), hop)]
+            atomic_json(cache, {'stamp': stamp, 'peaks': peaks})
+            return peaks
+        except (SystemExit, OSError, proc.SubprocessError):
+            return []
 
 
 def status_file(video):
@@ -173,16 +245,16 @@ def mark(video, note_id, how, reply=None):
     return append(video, {"type": how, "id": note_id, **({"reply": reply} if how == "resolve" else {})})
 
 
-def wait(video, timeout=None, poll=0.5, settle=1.5):
-    """Block until a note is added after the call, then return the new notes (a burst that arrives
-    together comes back together). None on timeout."""
-    known = {n["id"] for n in fold(read_log(video))[0] if n["status"] in ("queued", "working", "done")}
+def wait(video, timeout=None, poll=0.25, settle=0, chapter=None):
+    """At-least-once inbox. A reader cannot silently consume a note; notes --start ID acknowledges it.
+    Notes queued while the watcher was absent are returned on its next start."""
     end = time.time() + timeout if timeout else None
     while end is None or time.time() < end:
-        if any(n["status"] == "queued" and n["id"] not in known for n in fold(read_log(video))[0]):
+        pending = [n for n in fold(read_log(video))[0] if n['status'] == 'queued'
+                   and (not chapter or (n.get('lane') or n.get('clip')) in (None, chapter))]
+        if pending:
             time.sleep(settle)
-            notes, _ = fold(read_log(video))
-            return [n for n in notes if n["id"] not in known and n["status"] == "queued"]
+            return pending
         time.sleep(poll)
     return None
 
@@ -201,7 +273,7 @@ def notes_text(video, cut=None):
     acknowledge(video, n)
     notes, rounds = fold(read_log(video), n)
     count = f"{len(notes)} note" + ("" if len(notes) == 1 else "s")
-    lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else ", round not sent")]
+    lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else "; notes arrive immediately")]
     lines += describe(notes)
     return "\n".join(lines)
 
@@ -247,12 +319,21 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
         if path == "/":
-            return self._send(200, PAGE, "text/html; charset=utf-8")
+            return self._send(200, (Path(__file__).parent / 'page.html').read_text(), "text/html; charset=utf-8")
         if path == "/api/events":
             return self._events()
         if path == "/api/state":
             q = re.search(r"cut=(\d+)", self.path)
             return self._json(state(self.video, int(q.group(1)) if q else None))
+        if path == '/api/build':
+            q = re.search(r'at=([\d.]+)', self.path)
+            return self._json(events.view(self.video, tl.load(self.video)['tracks']['scene'], float(q.group(1)) if q else None))
+        if path == '/api/health':
+            return self._json({'video': str(self.video), 'ok': True})
+        if path.startswith('/evidence/') and '..' not in path.split('/'):
+            f = self.video / path[len('/evidence/'):]
+            if f.is_file() and f.suffix in ('.png', '.jpg', '.json', '.jsonl'):
+                return self._file(f)
         if path.startswith("/live/"):
             return self._live(path[len("/live/"):])
         m = re.fullmatch(r"/cut(\d+)/([\w./-]+)", path)
@@ -280,6 +361,8 @@ class Handler(BaseHTTPRequestHandler):
             f = self.video / "layout.json"
         elif rel.startswith("video/"):
             sub = rel[len("video/"):]
+            if sub == 'timeline.json' and self.command != 'HEAD':
+                return self._json(live_timeline(self.video))
             ok = (sub in ("timeline.json", "layout.json", "video.json") or sub.split("/", 1)[0] in self.LIVE_DIRS
                   or sub.startswith((".cache/sound/", ".cache/plates/")))
             f = self.video / sub if ok else None
@@ -326,7 +409,8 @@ class Handler(BaseHTTPRequestHandler):
         def now_state():
             in_place, page = live_inputs(self.video)
             return {"notes": stamp(notes_file(self.video)), "status": stamp(status_file(self.video)),
-                    "cut": cuts.last(self.video), "scenes": inventory(in_place), "page": inventory(page)}
+                    "cut": cuts.last(self.video), "scenes": inventory(in_place), "page": inventory(page),
+                    "build": stamp(events.path(self.video))}
         # The state is taken before the client hears it is subscribed: a note it adds the moment the
         # headers arrive must count as new.
         seen = now_state()
@@ -350,12 +434,23 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         if self.path == "/api/notes":
-            fields = ("cut", "t", "clip", "sentence_id", "sentence", "previous_id", "previous", "kind", "note")
+            fields = ("cut", "t", "end", "scope", "beat", "lane", "clip", "sentence_id", "sentence", "previous_id", "previous", "kind", "note")
             entry = append(self.video, {"type": "note", "id": uuid.uuid4().hex[:8], **{k: body.get(k) for k in fields}})
             return self._json(entry)
+        if self.path == '/api/stop':
+            lane = body.get('lane')
+            lanes = [lane] if lane else [c['id'] for c in tl.load(self.video)['tracks']['scene']]
+            entries = []
+            for target in lanes:
+                entry = append(self.video, {'type': 'note', 'id': uuid.uuid4().hex[:8], 'cut': cuts.last(self.video),
+                               'scope': 'lane', 'lane': target, 'clip': target, 't': None,
+                               'sentence_id': None, 'sentence': '', 'kind': 'control', 'note': 'Stop this lane' if lane else 'Stop the build'})
+                events.emit(self.video, 'stop.requested', entry['note'], lane=target, note=entry['id'])
+                entries.append(entry)
+            return self._json(entries)
         m = re.fullmatch(r"/api/notes/(\w+)/(edit|delete|accept|dismiss)", self.path)
         if m:
-            extra = {k: body[k] for k in ("note", "kind") if k in body} if m.group(2) == "edit" else {}
+            extra = {k: body[k] for k in ("note", "kind", 't', 'end', 'scope', 'beat', 'lane', 'clip', 'sentence_id', 'sentence') if k in body} if m.group(2) == "edit" else {}
             return self._json(append(self.video, {"type": m.group(2), "id": m.group(1), **extra}))
         if self.path == "/api/round":
             cut = int(body["cut"])
@@ -380,6 +475,8 @@ def live_inputs(video):
     in_place = [video / "timeline.json", video / "layout.json", video / "video.json", *(video / "boards").glob("*.json"),
                 *(f for f in owned if f.is_file())]
     page = [f for f in sorted(scenes.rglob("*")) if f.is_file() and f not in owned] if scenes.is_dir() else []
+    page += [f for f in (video / 'data').rglob('*') if f.is_file() and f.suffix in ('.js', '.json')]
+    in_place += list((video / 'cues').glob('*.json'))
     live = engine_dir("live")
     page += [live / "render.html", *sorted((live / "src").rglob("*")), *sorted(engine_dir("shared").rglob("*"))]
     return in_place, page
@@ -418,6 +515,15 @@ def bind(video, port=None, host="127.0.0.1"):
 
 def serve(video, port=None, host="127.0.0.1"):
     server = bind(video, port, host)
+    from .workspace import atomic_json
+    import os
+    atomic_json(Path(video) / 'review' / 'desk.json', {'pid': os.getpid(), 'port': server.server_port, 'video': str(Path(video).resolve())})
+    observer = events.Observer(video)
+    def watch():
+        while True:
+            observer.poll()
+            time.sleep(0.5)
+    threading.Thread(target=watch, daemon=True).start()
     print(f"desk: http://{host}:{server.server_port}/  (notes → {notes_file(video)}; "
           f"studio wait {video} wakes on each)", flush=True)
     try:
@@ -430,7 +536,35 @@ PAGE = (Path(__file__).parent / "page.html").read_text(encoding="utf-8")
 
 
 def main_serve(args):
-    serve(args.video, args.port)
+    if getattr(args, 'foreground', False):
+        serve(args.video, args.port)
+        return 0
+    import sys
+    import urllib.request
+    f = Path(args.video) / 'review' / 'desk.json'
+    def running():
+        try:
+            record = json.loads(f.read_text())
+            url = f'http://127.0.0.1:{record["port"]}/'
+            health = json.loads(urllib.request.urlopen(url + 'api/health', timeout=0.5).read())
+            return url if health['video'] == str(Path(args.video).resolve()) else None
+        except (OSError, ValueError, KeyError):
+            return None
+    url = running()
+    if not url:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        with (f.parent / 'desk.log').open('a') as log:
+            process = proc.popen([sys.executable, '-m', 'studio_kit.cli', 'desk', str(args.video), '--foreground',
+                                  *(['--port', str(args.port)] if args.port else [])],
+                                 stdout=log, stderr=log, start_new_session=True)
+        for _ in range(100):
+            url = running()
+            if url or process.poll() is not None:
+                break
+            time.sleep(0.1)
+    if not url:
+        raise SystemExit(f'desk did not start; see {f.parent / "desk.log"}')
+    print(f'desk: {url} (standalone; stays open when the agent exits)')
     return 0
 
 
@@ -448,7 +582,7 @@ def main_notes(args):
 
 
 def main_wait(args):
-    new = wait(args.video, args.timeout)
+    new = wait(args.video, args.timeout, chapter=getattr(args, 'chapter', None))
     if new is None:
         print(f"no new note in {args.timeout:g} s")
         return 2

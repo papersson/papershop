@@ -1,22 +1,42 @@
 # Review on the desk
 
-Run `studio desk VIDEO` and keep the process alive. It prints a local address on the first free
+Run `studio desk VIDEO`. It starts a standalone process that survives the agent and prints an address on the first free
 port from 8765; `--port` chooses one. Give the user that address when the reel or a new version is
 ready. The desk is a computer tool. The user watches and gives feedback; you operate the kit.
 
-The default view plays a story reel until scene cuts exist, then shows live scenes and the whole
-mix as files change. Selecting a saved cut keeps its picture and sentence timings stable. The
-version list lets the user compare earlier cuts. `studio open VIDEO [CUT]` opens and protects a
+The default view plays the real narration with boards, then live scenes as chapters land; a saved
+reel remains playable before any scene exists. Selecting a saved version keeps its picture and
+sentence timings stable. A/B switches versions at the same timecode and shows what changed.
+Space and J/K/L control playback, comma/period step frames, A adds a note even while playing,
+C toggles captions, and I/O or Shift-drag selects a range. The timeline holds story beats,
+picture thumbnails, the measured voice waveform, sound events and notes. `studio open VIDEO [CUT]` opens and protects a
 saved playable movie when the user wants the MP4.
 
-A note records the cut, time, chapter and current sentence, with the preceding sentence for
-context. Narration, picture and both are useful note kinds. Empty notes still mean “here.” Keep
+A note records its version and playhead, range, story beat, chapter lane or whole-film scope.
+Notes save as they are written; there is no round to send. Narration, picture and both are useful kinds. Keep
 controls below the picture so paused captions stay visible. The notes are stored in
 `review/notes.jsonl`, and `review/status.json` supplies the status line.
 
-Run `studio wait VIDEO` in the background while working. It returns newly queued notes, including
+Run `studio wait VIDEO --chapter s1` between chapter actions (omit the chapter for the main builder).
+It returns queued notes, including those written while a watcher was absent and
 review suggestions the user has just accepted. `studio notes VIDEO` lists the current notes.
-Keep `studio status VIDEO "Working on the input example" --busy` current; clear it when idle.
+Reading does not consume a note: `notes --start ID` acknowledges it. Honour Stop control notes,
+stop work, resolve the note and emit `agent.stopped`. Stop is cooperative; the desk says requested
+until the agent acknowledges it. Keep `studio status VIDEO "Working on the input example" --busy` current.
+
+The build lives in `review/events.jsonl`. Emit real actions, never fake heartbeats:
+`studio event VIDEO agent.activity "Typing the gradient" --lane s2`. Record `story.lock` when locked,
+`chapter.done` after checks and inspection, and `decision "Reason for this hold" --lane s2 --t 150`
+for a decision pin. The file watcher records saved scenes, cues, previews and checks. The lane becomes
+quiet after 30 seconds without evidence and stalled after two minutes, retaining its last action.
+The raw event and its source are one click away. `--hook` accepts Claude hook JSON on stdin and
+retains session, agent and tool metadata only. Scope hooks to the chapter's job; do not guess a lane
+from an unrelated transcript. Codex agents use the same event command at meaningful boundaries.
+Replay build runs the actual log at 10x. Estimates use completed lock-to-ready intervals and label
+small samples as guesses. The arrival tick is off by default.
+
+For finer story anchors, `data/story-beats.json` is a list of `{id, title, clip, t}`; `t` is a real
+timeline second or narration anchor. Without it, chapter starts form the story lane.
 
 For each accepted note:
 

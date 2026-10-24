@@ -55,6 +55,8 @@ def mark(video, name, now=None):
         with f.open("a") as out:
             out.write(json.dumps(entry) + "\n")
     lines = [f"{marks[-1]['stage']}: {fmt(now - marks[-1]['t'])}"] if marks else []
+    from . import events
+    events.emit(video, 'stage', name, ts=now, source='research/timing.jsonl')
     return lines + [f"now: {name}"]
 
 

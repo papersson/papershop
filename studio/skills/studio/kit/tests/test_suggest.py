@@ -94,26 +94,26 @@ try {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/live/engine/render.html*', route => route.fulfill({
-    contentType: 'text/html', body: '<script>window.studio={drawAt:()=>({}),reload:async()=>{}}</script>'
+    contentType: 'text/html', body: '<script>window.studio={drawAt:()=>({}),reload:async()=>{}};window.studioReady=true</script>'
   }));
   await page.goto(process.argv[3]);
-  await page.locator('[data-accept]').first().click();
-  await page.waitForFunction(() => document.querySelectorAll('[data-accept]').length === 1);
-  await page.locator('[data-dismiss]').first().click();
-  await page.waitForFunction(() => document.querySelectorAll('[data-accept]').length === 0);
+  await page.locator('[data-action="accept"]').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-action="accept"]').length === 1);
+  await page.locator('[data-action="dismiss"]').first().click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-action="accept"]').length === 0);
   if (process.argv[4] === 'live') {
-    if (await page.locator('.livewrap').count() !== 1) throw new Error('Note refresh left the live view');
+    if (!await page.locator('#live').isVisible()) throw new Error('Note refresh left the live view');
     await page.locator('[data-seek]').first().click();
-    await page.selectOption('#cutpick', '1');
-    await page.waitForFunction(() => document.querySelectorAll('.livewrap').length === 0);
-    await page.locator('[data-edit]').first().click();
-    await page.fill('#fnote', 'Enlarge the subject and keep this saved version.');
-    await page.click('#save');
-    await page.waitForSelector('#form[hidden]', {state: 'attached'});
-    if (await page.locator('.livewrap').count() !== 0) throw new Error('Note refresh left the saved version');
-    if (await page.locator('#cutpick').inputValue() !== '1') throw new Error('Version selection changed');
-    await page.selectOption('#cutpick', '0');
-    await page.waitForSelector('.livewrap');
+    await page.selectOption('#version', '1');
+    await page.waitForFunction(() => document.querySelector('#live').style.display === 'none');
+    await page.locator('[data-action="edit"]').first().click();
+    await page.fill('#noteText', 'Enlarge the subject and keep this saved version.');
+    await page.click('#closeNote');
+    await page.waitForSelector('#editor[hidden]', {state: 'attached'});
+    if (await page.locator('#live').isVisible()) throw new Error('Note refresh left the saved version');
+    if (await page.locator('#version').inputValue() !== '1') throw new Error('Version selection changed');
+    await page.selectOption('#version', '');
+    await page.waitForSelector('#live', {state: 'visible'});
   }
   if (errors.length) throw new Error(errors.join('\\n'));
 } finally {

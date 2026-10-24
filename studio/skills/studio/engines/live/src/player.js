@@ -257,6 +257,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
    * all | no-captions (band, no caption text) | no-band (the scene alone) | background.
    * Returns {error} when the scene throws: the CLI reports it as an engine error.
    */
+  let available = null // desk replay: boards remain until an actual scene-save event
   function draw(clip, f, layers = 'all') {
     const { first, frames } = clipRange(clip)
     const frame = Math.min(frames - 1, Math.max(0, f))
@@ -267,7 +268,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     if (layers !== 'background') {
       const c = context(clip, t)
       try {
-        if (scenes[clip]) scenes[clip](c)
+        if (scenes[clip] && (!available || available.has(clip))) scenes[clip](c)
         else board(c)
         if (overlay) overlay(c)
       } catch (e) {
@@ -333,6 +334,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
 
   return {
     draw, drawAt, lookPages, look,
+    setAvailable: clips => { available = clips == null ? null : new Set(clips) },
     boxes: () => ({ band: { y: bandTop(), h: L.band.height }, boxes: [...stage.boxes(), ...(stage3d?.boxes() ?? [])] }),
     /** The WebGL renderer this page uses (doctor prints it); makes the 3D stage if no scene has. */
     gl: () => G().info(),

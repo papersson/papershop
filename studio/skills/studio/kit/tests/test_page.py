@@ -81,10 +81,13 @@ def test_fold_tracks_status_and_carries_open_notes_to_later_cuts():
     assert [n["id"] for n in page.fold(log, cut=2, since="2026-10-09 10:00:00")[0]] == ["a", "b", "c"]
 
 
-def test_wait_returns_the_notes_added_after_it_started(tmp_path):
+def test_wait_recovers_queued_notes_after_a_watcher_restart(tmp_path):
     page.append(tmp_path, {"type": "note", "id": "old", "cut": 1, "t": 0, "clip": "s1", "sentence_id": "s1_01",
                            "sentence": "One.", "kind": "picture", "note": "seen"})
 
+    assert [n['id'] for n in page.wait(tmp_path, timeout=1)] == ['old']
+    assert [n['id'] for n in page.wait(tmp_path, timeout=1)] == ['old']  # read is not acknowledgement
+    page.mark(tmp_path, 'old', 'start')
     def later():
         import time
         time.sleep(0.3)
@@ -93,9 +96,26 @@ def test_wait_returns_the_notes_added_after_it_started(tmp_path):
     threading.Thread(target=later).start()
     new = page.wait(tmp_path, timeout=5, poll=0.05, settle=0.1)
     assert [n["id"] for n in new] == ["new"]
+    page.mark(tmp_path, 'new', 'start')
     assert page.wait(tmp_path, timeout=0.2, poll=0.05) is None
     text = "\n".join(page.describe(new))
     assert "s1_02 narration] explain the log  (id new, cut 1)" in text
+
+
+def test_lane_inbox_does_not_consume_another_chapters_note(tmp_path):
+    page.append(tmp_path, {'type': 'note', 'id': 'a', 'lane': 's1', 'cut': 1})
+    page.append(tmp_path, {'type': 'note', 'id': 'b', 'lane': 's2', 'cut': 1})
+    assert [n['id'] for n in page.wait(tmp_path, timeout=1, chapter='s2')] == ['b']
+    assert [n['id'] for n in page.wait(tmp_path, timeout=1, chapter='s1')] == ['a']
+
+
+def test_note_writes_do_not_wait_for_a_render_lock(tmp_path):
+    from studio_kit.workspace import operation
+    with operation(tmp_path):
+        thread = threading.Thread(target=lambda: page.append(tmp_path, {'type': 'note', 'id': 'during', 'cut': 1}))
+        thread.start()
+        thread.join(1)
+        assert not thread.is_alive()
 
 
 def test_marks_and_status_reach_the_page(tmp_path):

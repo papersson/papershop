@@ -176,6 +176,10 @@ COMMANDS = {
     "stage": ("record elapsed stage time (--report: the table)", [
         V("video"), A("name", nargs="?"), A("--report", action="store_true"),
     ], "stage:main"),
+    "event": ("append a production fact for the desk (agents or hooks)", [
+        V('video'), A('kind'), A('message', nargs='*'), A('--lane'), A('--t', type=float),
+        A('--source'), A('--check'), A('--hook', action='store_true', help='read Claude hook JSON from stdin; retain metadata only'),
+    ], 'events:main'),
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),
     "plate": ("render a chapter's plate (video.json plates) in Blender, or probe how long it will take", [
@@ -246,8 +250,8 @@ COMMANDS = {
         W("video"), A("--format", help="this format's layout (9:16, 1:1); default 16:9"),
     ], "look:main"),
     "desk": ("the desk: play the latest cut, take notes on sentences, show progress and replies",
-             [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),
-    "serve": ("alias of desk", [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),
+             [V("video"), A("--port", type=int, help="default: the first free port from 8765"), A('--foreground', action='store_true', help=argparse.SUPPRESS)], "page:main_serve"),
+    "serve": ("alias of desk", [V("video"), A("--port", type=int, help="default: the first free port from 8765"), A('--foreground', action='store_true', help=argparse.SUPPRESS)], "page:main_serve"),
     "notes": ("the notes on a cut, numbered; --start / --resolve mark one", [
         V("video"), A("--cut", type=int), A("--start", metavar="ID", help="mark a note as being worked on"),
         A("--accept", metavar="ID", help="accept a suggested note at the user’s request"),
@@ -258,7 +262,7 @@ COMMANDS = {
         A("--term", help="one term, or the terms a note's text mentions"),
     ], "glossary:main"),
     "wait": ("block until a new note arrives on the desk, then print it", [
-        V("video"), A("--timeout", type=float, help="give up after this many seconds (exit 2)"),
+        V("video"), A("--timeout", type=float, help="give up after this many seconds (exit 2)"), A('--chapter', help='only this lane and whole-video notes'),
     ], "page:main_wait"),
     "status": ("set the builder's status line on the desk (no text clears it)", [
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),

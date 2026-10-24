@@ -45,6 +45,9 @@ def prepare(video):
                   f'Write only {scene}, cues/{cid}.json and data/{cid}/. Use absolute timeline seconds or narration anchors in your cues. Prefix cue names with {cid}-.',
                   'Treat every shared file as read-only. Report any needed change to the main session. Put proposed sound and typing plans in your data folder for the main session to apply.',
                   'Keep the agreed voice, story and timing. Perform the hero moment, fill the frame and leave time for it to settle.', '',
+                  f'Keep the desk alive with `studio event {shlex.quote(str(video))} agent.activity "plain-language action" --lane {cid}` on meaningful actions; never send fake heartbeats.',
+                  f'Run `studio wait {shlex.quote(str(video))} --chapter {cid} --timeout 1` between actions. It returns queued notes even after a restart. Acknowledge each with `studio notes VIDEO --start ID`, act, then `--resolve ID --reply "what changed"`. Honour control notes immediately: stop this lane (or the whole build when addressed to all), emit agent.stopped and return.',
+                  f'Pin a judgment call with `studio event VIDEO decision "reason" --lane {cid} --t SECONDS`. End with `studio event VIDEO chapter.done "Checked and inspected" --lane {cid}`.', '',
                   'Run these commands from the main session’s environment:', '', '```sh', *commands, '```', '',
                   f'The check writes frames to .cache/chapters/{cid}/. Inspect them. Return the changed paths, the check result and any shared changes needed.', '']
         path = out / f'{cid}.md'

@@ -42,6 +42,7 @@ def working_copy(video, clip):
 
 
 def check(video, clip, samples=3, only=None, fmt=None):
+    from . import events
     from . import check as checks
     from .engine import Engine
     with working_copy(video, clip) as (work, timeline):
@@ -54,5 +55,10 @@ def check(video, clip, samples=3, only=None, fmt=None):
         if set(kinds) - {"script", "pauses", "staging", "code-view"}:
             Engine(work, fmt=fmt).stills(stills)
         atomic_json(output / "check.json", rows)
+        start = tl.clip(timeline, clip)['start']
+        for row in rows:
+            if row.get('t') is not None:
+                events.emit(video, 'check.passed' if row.get('ok') else 'check.failed', row.get('detail', ''),
+                            lane=clip, t=start + row['t'], check=row['check'], source=f'.cache/chapters/{clip}/check.json')
     print(f"Chapter checks and stills: {output}")
     return rows
