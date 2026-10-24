@@ -234,11 +234,13 @@ function renderNotes() {
   $('notes').innerHTML = S.notes.length ? S.notes.map(function (n, i) {
     return '<li><div class="row"><button class="link mono" data-seek="' + n.t + '">' + (i + 1) + '. ' + mmss(n.t) + '</button>' +
       '<span class="tag">' + esc(n.kind) + '</span>' +
+      (n.author === 'review' ? '<span class="tag">review</span>' : '') +
       (n.status && n.status !== 'queued' ? '<span class="tag ' + n.status + '">' + n.status + '</span>' : '') +
       (n.cut !== cutN ? '<span class="tag">cut ' + n.cut + '</span>' : '') +
       '<span class="hint mono">' + esc(n.sentence_id) + '</span>' +
       '<span class="spacer" style="flex:1"></span><button class="link quiet" data-edit="' + n.id + '">edit</button>' +
       '<button class="link quiet" data-del="' + n.id + '">delete</button></div>' +
+      (n.status === 'suggested' ? '<div><button data-accept="' + n.id + '">Accept</button> <button data-dismiss="' + n.id + '">Dismiss</button></div>' : '') +
       '<div>' + (n.note ? esc(n.note) : '<span class="hint">(here)</span>') + '</div>' +
       '<p class="quote">' + esc(n.sentence) + '</p>' +
       (n.reply ? '<p class="reply">\u21b3 ' + esc(n.reply) + '</p>' : '') + '</li>';
@@ -345,6 +347,10 @@ $('send').onclick = function () {
 document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-seek],[data-t],[data-del],[data-edit]');
   if (!t) return;
+  if (t.dataset.accept || t.dataset.dismiss) {
+    var action = t.dataset.accept ? 'accept' : 'dismiss';
+    api('/api/notes/' + (t.dataset.accept || t.dataset.dismiss) + '/' + action, {}).then(function () { load(cutN); }); return;
+  }
   if (t.dataset.del) { api('/api/notes/' + t.dataset.del + '/delete', {}).then(function () { load(cutN); }); return; }
   if (t.dataset.edit) { openForm(S.notes.filter(function (n) { return n.id === t.dataset.edit; })[0]); return; }
   var at = Number(t.dataset.seek !== undefined ? t.dataset.seek : t.dataset.t);

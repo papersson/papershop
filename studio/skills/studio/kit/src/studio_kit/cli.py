@@ -209,6 +209,7 @@ COMMANDS = {
     ], _cut),
     "reel": ("narrate and hold the story boards to the real voice, with a pacing report", [W("video")], "reel:main"),
     "panel": ("one parallel reading of the brief by an expert, viewer and editor", [V("video")], "panel:main"),
+    "suggest": ("import reviewer findings as suggested notes for the user on the desk", [V("video"), P("file")], "suggest:main"),
     "review-pack": ("combine motion windows, frame stills and sound for one chapter reviewer", [
         V("video"), A("--chapter", required=True), A("--cut", type=int),
     ], "review_pack:main"),
@@ -248,6 +249,8 @@ COMMANDS = {
     "serve": ("alias of desk", [V("video"), A("--port", type=int, help="default: the first free port from 8765")], "page:main_serve"),
     "notes": ("the notes on a cut, numbered; --start / --resolve mark one", [
         V("video"), A("--cut", type=int), A("--start", metavar="ID", help="mark a note as being worked on"),
+        A("--accept", metavar="ID", help="accept a suggested note at the user’s request"),
+        A("--dismiss", metavar="ID", help="dismiss a suggested note at the user’s request"),
         A("--resolve", metavar="ID", help="mark a note done"), A("--reply", help="one line shown under a resolved note"),
     ], "page:main_notes"),
     "glossary": ("the motion glossary: words a note can use for motion, and the helper behind each", [

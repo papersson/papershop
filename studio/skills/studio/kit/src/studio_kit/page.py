@@ -63,7 +63,10 @@ def fold(log, cut=None, since=None):
     notes, rounds = {}, []
     for e in log:
         if e["type"] == "note":
-            notes[e["id"]] = {**e, "status": "queued", "reply": None}
+            notes[e["id"]] = {**e, "status": e.get("status", "queued"), "reply": None}
+        elif e["type"] in ("accept", "dismiss") and e["id"] in notes:
+            if notes[e["id"]]["status"] == "suggested":
+                notes[e["id"]]["status"] = "queued" if e["type"] == "accept" else "dismissed"
         elif e["type"] == "start" and e["id"] in notes:
             notes[e["id"]]["status"] = "working"
         elif e["type"] == "resolve" and e["id"] in notes:
@@ -79,7 +82,7 @@ def fold(log, cut=None, since=None):
             if sent:
                 sent[-1]["received"] = e["created"]
     kept = [n for n in notes.values() if cut is None or n["cut"] == cut
-            or ((n["cut"] or 0) < cut and (n["status"] != "done" or (since and n.get("resolved", "") >= since)))]
+            or ((n["cut"] or 0) < cut and (n["status"] not in ("done", "dismissed") or (since and n.get("resolved", "") >= since)))]
     return kept, [r for r in rounds if cut is None or r["cut"] == cut]
 
 
@@ -164,19 +167,22 @@ def mark(video, note_id, how, reply=None):
     notes, _ = fold(read_log(video))
     if note_id not in {n["id"] for n in notes}:
         raise SystemExit(f"no open note {note_id} (studio notes VIDEO lists them)")
+    note = next(n for n in notes if n["id"] == note_id)
+    if how in ("start", "resolve") and note["status"] in ("suggested", "dismissed"):
+        raise SystemExit("The user must accept a suggested note before work starts.")
     return append(video, {"type": how, "id": note_id, **({"reply": reply} if how == "resolve" else {})})
 
 
 def wait(video, timeout=None, poll=0.5, settle=1.5):
     """Block until a note is added after the call, then return the new notes (a burst that arrives
     together comes back together). None on timeout."""
-    known = {e["id"] for e in read_log(video) if e["type"] == "note"}
+    known = {n["id"] for n in fold(read_log(video))[0] if n["status"] in ("queued", "working", "done")}
     end = time.time() + timeout if timeout else None
     while end is None or time.time() < end:
-        if any(e["type"] == "note" and e["id"] not in known for e in read_log(video)):
+        if any(n["status"] == "queued" and n["id"] not in known for n in fold(read_log(video))[0]):
             time.sleep(settle)
             notes, _ = fold(read_log(video))
-            return [n for n in notes if n["id"] not in known]
+            return [n for n in notes if n["id"] not in known and n["status"] == "queued"]
         time.sleep(poll)
     return None
 
@@ -347,7 +353,7 @@ class Handler(BaseHTTPRequestHandler):
             fields = ("cut", "t", "clip", "sentence_id", "sentence", "previous_id", "previous", "kind", "note")
             entry = append(self.video, {"type": "note", "id": uuid.uuid4().hex[:8], **{k: body.get(k) for k in fields}})
             return self._json(entry)
-        m = re.fullmatch(r"/api/notes/(\w+)/(edit|delete)", self.path)
+        m = re.fullmatch(r"/api/notes/(\w+)/(edit|delete|accept|dismiss)", self.path)
         if m:
             extra = {k: body[k] for k in ("note", "kind") if k in body} if m.group(2) == "edit" else {}
             return self._json(append(self.video, {"type": m.group(2), "id": m.group(1), **extra}))
@@ -429,11 +435,14 @@ def main_serve(args):
 
 
 def main_notes(args):
+    for action in ("accept", "dismiss"):
+        if getattr(args, action, None):
+            mark(args.video, getattr(args, action), action)
     if args.start:
         mark(args.video, args.start, "start")
     if args.resolve:
         mark(args.video, args.resolve, "resolve", args.reply)
-    if not (args.start or args.resolve):
+    if not (args.start or args.resolve or getattr(args, "accept", None) or getattr(args, "dismiss", None)):
         print(notes_text(args.video, args.cut))
     return 0
 
