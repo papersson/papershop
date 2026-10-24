@@ -92,3 +92,11 @@ def test_recorded_panels_and_terminal_mark_their_own_accent_states(tmp_path):
  c.kit.Terminal(c,{at:[3,0],w:5,runs:[{argv:['run'],stdout:'',stderr:'boom\\n',exit:1}]});}''')
     boxes = Engine(tmp_path).boxes_at([{'clip': 's1', 't': 1}])[0]['boxes']
     assert {'code line 1', 'terminal row 1'} <= {b['name'] for b in boxes if b.get('means') == 'kit'}
+
+
+def test_code_view_cues_invalidate_only_the_chapter_that_reads_them(tmp_path):
+    from studio_kit import keys
+    make(tmp_path)
+    (tmp_path / 'scenes/s2.js').write_text('export default c => c.S.text("label",100,100,"other")')
+    assert {'collapse', 'reopen', 'payoff', 'lit', 'type-x'} <= keys.scene_cues(tmp_path, 's1', ['s1', 's2'])
+    assert keys.scene_cues(tmp_path, 's2', ['s1', 's2']) == set()

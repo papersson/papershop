@@ -155,7 +155,7 @@ def scene_cues(video, clip_id, clip_ids):
     code editor (editor.tsx), which reads the cues data/typing.json names: a scene that imports that
     file reads them all."""
     names = set()
-    typing = False
+    typing = view = False
     for f in scene_files(video, clip_id, clip_ids):
         text = f.read_text(errors="replace")
         found = _cue_names(text)
@@ -163,9 +163,21 @@ def scene_cues(video, clip_id, clip_ids):
             return None
         names |= found
         typing |= "data/typing.json" in text
+        view |= "data/codeview.json" in text
     if typing and (Path(video) / "data" / "typing.json").exists():
         for b in json.loads((Path(video) / "data" / "typing.json").read_text()).values():
             names |= {b["cue"]} | {f"{b['cue']}-{k}" for k in ("save", "run", "pop")}
+    if view and (path := Path(video) / "data" / "codeview.json").exists():
+        spec = json.loads(path.read_text())
+        def add(when):
+            if when is not None:
+                names.add(when if isinstance(when, str) else when[0])
+        add(spec.get("payoff"))
+        for a, b in spec.get("open", []):
+            add(a), add(b)
+        for group in ("folds", "highlights", "helpers"):
+            for item in spec.get(group, []):
+                add(item.get("from")), add(item.get("to"))
     return names
 
 
