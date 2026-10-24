@@ -263,7 +263,7 @@ COMMANDS = {
     "status": ("set the builder's status line on the desk (no text clears it)", [
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
     ], "page:main_status"),
-    "publish": ("final cut, web encode, poster and the page in out/page/", [W("video")], "publish:main"),
+    "publish": ("final cut, web encode, poster and the page in out/page/", [W("video"), A("--by", help="record who said ship it; use after the user’s decision")], "publish:main"),
 }
 
 

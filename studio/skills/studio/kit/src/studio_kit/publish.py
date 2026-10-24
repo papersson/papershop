@@ -10,6 +10,7 @@ import html
 import json
 import shutil
 from pathlib import Path
+from datetime import datetime, timezone
 
 from . import proc
 from . import settings
@@ -129,8 +130,22 @@ def gate(video):
         raise SystemExit("publish stopped: the full check failed (fix, then `studio publish` again)")
 
 
+def ship_it(video, by=None):
+    """Record the user's decision once, so retries do not ask for the same decision again."""
+    file = Path(video) / "SHIP.md"
+    if by is not None:
+        who = " ".join(by.split())
+        if not who:
+            raise SystemExit("Name the person who said ship it.")
+        file.write_text(f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} | {who} | ship it\n")
+    if not file.exists() or not file.read_text().strip().endswith(" | ship it"):
+        raise SystemExit("The user must say ship it before publishing. Record their decision with studio publish VIDEO --by NAME.")
+    return file.read_text().strip()
+
+
 def build(video, skip_gate=False):
     video = Path(video).resolve()
+    ship_it(video)
     audio.require_voice(video, tl.build(video))   # the gate, the master and the page all read the current sources
     if not skip_gate:
         gate(video)
@@ -219,20 +234,18 @@ def chapters_html(t):
 def page_html(t, cfg, cut, credits=()):
     """The page; `credits` are lines under the chapters beside the voice's (library sounds' packs)."""
     title = cfg.get("title", "Video")
-    author = True
     sentences = json.dumps([[round(s["start"], 2), s["id"], s["caption"]] for s in t["tracks"]["narration"]])
     chapters = json.dumps([[c["id"], c["title"]] for c in t["tracks"]["scene"]])
     credit = "".join(f'<p class="credit">{html.escape(c)}</p>' for c in [t.get("voice", {}).get("credit"), *credits] if c)
     version = json.dumps(f"{cfg.get('version', 'v1')} (cut {cut})")
-    button = "Annotate" if author else "Lost me here"
-    ask = ("What is wrong here, and what would be better?" if author
-           else "What didn't make sense? A few words is plenty, and you can leave it empty.")
+    button = "Annotate"
+    ask = "What is wrong here, and what would be better?"
     kinds = ('<div class="kinds" id="kinds" role="group" aria-label="About">'
              '<button type="button" class="btn" data-kind="narration">narration</button>'
              '<button type="button" class="btn" data-kind="picture" aria-pressed="true">picture</button>'
              '<button type="button" class="btn" data-kind="both">both</button>'
              '<span class="gap"></span><button type="button" class="btn" id="minus">&minus;1 s</button>'
-             '<button type="button" class="btn" id="plus">+1 s</button></div>') if author else ""
+             '<button type="button" class="btn" id="plus">+1 s</button></div>')
     js = ascii_script(JS)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -264,7 +277,7 @@ def page_html(t, cfg, cut, credits=()):
   </section>
   <details id="mine" hidden><summary id="count"></summary><ul id="notes" class="notes"></ul></details>
 </div>
-<script>const SENTENCES={sentences};const CHAPTERS={chapters};const VERSION={version};const AUTHOR={json.dumps(author)};{js}</script>
+<script>const SENTENCES={sentences};const CHAPTERS={chapters};const VERSION={version};{js}</script>
 </body></html>
 """
 
@@ -364,7 +377,7 @@ function openPanel(){v.pause();moment=null;fill(v.currentTime);panel.hidden=fals
 function closePanel(){panel.hidden=true;note.value='';moment=null;lost.focus();}
 lost.addEventListener('click',openPanel);
 cancel.addEventListener('click',closePanel);
-if(AUTHOR){
+{
   document.getElementById('kinds').addEventListener('click',e=>{const k=e.target.dataset.kind;if(!k)return;kind=k;
     [...document.querySelectorAll('[data-kind]')].forEach(b=>b.setAttribute('aria-pressed',b.dataset.kind===k));});
   const nudge=d=>{if(!moment)return;const t=Math.max(0,moment.t+d);v.currentTime=t;fill(t);};
@@ -377,7 +390,7 @@ save.addEventListener('click',async()=>{
   if(!db||!moment)return;
   save.disabled=true;
   const body=Object.assign({},moment,{note:note.value.trim().slice(0,2000),version:VERSION,at:new Date().toISOString()},
-    AUTHOR?{kind:kind}:{});
+    {kind:kind});
   try{await db.collection('feedback').add(body);
     status.textContent='Saved at '+mmss(body.t)+'.';closePanel();
   }catch(e){status.textContent=e&&e.code==='quota_exceeded'?'The notes store is full; delete some notes below.'
@@ -409,5 +422,7 @@ function render(snap){
 
 
 def main(args):
+    if getattr(args, "by", None):
+        ship_it(args.video, args.by)
     build(args.video)
     return 0

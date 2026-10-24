@@ -2,16 +2,14 @@ from studio_kit import publish
 from test_render import make_video
 
 
-def test_page_is_ascii_and_matches_the_drive(tmp_path):
+def test_page_is_ascii_and_has_annotation_controls(tmp_path):
     t = make_video(tmp_path)
     t["tracks"]["narration"][0]["caption"] = "Charged twice · or once"
-    author = publish.page_html(t, {"title": "T", "drive": "author"}, 3)
-    learner = publish.page_html(t, {"title": "T", "drive": "learner"}, 3)
+    author = publish.page_html(t, {"title": "T"}, 3)
     script = author.split("<script>", 1)[1]
     script.encode("ascii")
     assert '<meta charset="utf-8">' in author
     assert ">Annotate<" in author and 'data-kind="picture"' in author
-    assert ">Lost me here<" in learner and 'data-kind="picture"' not in learner
     assert '"v1 (cut 3)"' in author
     assert "[hidden]{display:none!important}" in author      # buttons without a database stay hidden
 
@@ -98,3 +96,14 @@ def test_colophon_describes_the_master(tmp_path, monkeypatch):
     (v / "out" / "page" / "poster.jpg").write_bytes(b"jpg")
     text = publish.colophon(v, v / "out" / "master.mp4")
     assert text.startswith("# Inside a Hard Drive") and "320×180 at 30 fps" in text and "live engine" in text and "sha256" in text
+
+
+def test_ship_it_is_one_persistent_line_without_review_requirements(tmp_path):
+    import pytest
+    with pytest.raises(SystemExit, match="user must say ship it"):
+        publish.ship_it(tmp_path)
+    line = publish.ship_it(tmp_path, "Test viewer")
+    assert " | Test viewer | ship it" in line
+    assert len((tmp_path / "SHIP.md").read_text().splitlines()) == 1
+    assert publish.ship_it(tmp_path) == line
+    assert not (tmp_path / "research").exists()

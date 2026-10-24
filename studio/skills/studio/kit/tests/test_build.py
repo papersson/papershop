@@ -398,6 +398,7 @@ def test_an_estimated_video_is_not_finished_published_or_exported_without_its_vo
     narration.narrate(v, estimate=True)
     click_track(tmp_path / "bed.wav")
     (v / "audio" / "tracks.json").write_text(json.dumps([{"file": str(tmp_path / "bed.wav"), "start": 0}]))
+    publish.ship_it(v, "Test viewer")
     monkeypatch.setattr(publish, "gate", lambda video: pytest.fail("the refusal comes before the gate"))
     for run in (lambda: audio.main(SimpleNamespace(video=v, lufs=-16.0, peak=-1.5)),
                 lambda: publish.build(v), lambda: render.export_formats(v, ["16:9"]),
