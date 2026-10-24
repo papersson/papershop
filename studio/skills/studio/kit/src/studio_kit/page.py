@@ -1,22 +1,5 @@
-"""The desk: `studio desk VIDEO` (alias `serve`) plays the latest cut, collects notes on sentences,
-and shows the builder's progress and replies as they happen.
-
-Notes go straight to the project, with no copy and paste: every change is one line appended to
-review/notes.jsonl, so the file is a log the agent can watch. `studio wait VIDEO` blocks until a new
-note arrives, so a builder running it in the background is woken by each note.
-
-  {"type": "note", "id", "cut", "t", "clip", "sentence_id", "sentence", "previous_id", "previous",
-   "kind": "narration" | "picture" | "both", "note", "created"}
-  {"type": "edit", "id", "note", "kind", "created"}
-  {"type": "delete", "id", "created"}
-  {"type": "round", "cut", "notes": [ids], "created"}     "Send round": the batch is ready
-  {"type": "start", "id", "created"}                      the builder is working on a note
-  {"type": "resolve", "id", "reply", "created"}           done, with a one-line reply shown under it
-  {"type": "received", "cut", "created"}                  the builder read the cut's latest round
-
-`studio notes VIDEO` folds the log into the current notes for a cut; review/status.json is the
-builder's status line ({text, busy}), written by `studio status`.
-"""
+"""Standalone film review desk. Notes are immediate, durable and scoped; build marks come
+from recorded facts. Historical round records remain readable but no new round is created."""
 import hashlib
 import json
 import mimetypes
@@ -188,6 +171,8 @@ def sound_marks(video, t):
             at = t.get('cues', {}).get(e['t']) if isinstance(e['t'], str) else tl.event_time(t, e['t'])
             if at is not None:
                 result.append({'id': f'fx{i+1}', 't': at, 'title': e.get('type', 'sound')})
+                for j, key in enumerate(e.get('events', [])):
+                    result.append({'id': f'fx{i+1}-key{j}', 't': at + key[0], 'title': key[1] + ' key'})
         except (ValueError, KeyError, SystemExit):
             pass
     return result
@@ -259,21 +244,12 @@ def wait(video, timeout=None, poll=0.25, settle=0, chapter=None):
     return None
 
 
-def acknowledge(video, cut):
-    """Record that the builder read cut N's latest round, once, so the desk can say so."""
-    _, rounds = fold(read_log(video), cut)
-    if rounds and "received" not in rounds[-1]:
-        append(video, {"type": "received", "cut": cut})
-
-
 def notes_text(video, cut=None):
-    """The notes for a cut as numbered plain text, the form the agent works from; reading them
-    acknowledges the cut's round."""
+    """Reading is not acknowledgement: the builder starts each note explicitly."""
     n = cut or cuts.last(video)
-    acknowledge(video, n)
     notes, rounds = fold(read_log(video), n)
     count = f"{len(notes)} note" + ("" if len(notes) == 1 else "s")
-    lines = [f"cut {n}: {count}" + (f", round sent {rounds[-1]['created']}" if rounds else "; notes arrive immediately")]
+    lines = [f"cut {n}: {count}; notes arrive immediately"]
     lines += describe(notes)
     return "\n".join(lines)
 
@@ -452,10 +428,6 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             extra = {k: body[k] for k in ("note", "kind", 't', 'end', 'scope', 'beat', 'lane', 'clip', 'sentence_id', 'sentence') if k in body} if m.group(2) == "edit" else {}
             return self._json(append(self.video, {"type": m.group(2), "id": m.group(1), **extra}))
-        if self.path == "/api/round":
-            cut = int(body["cut"])
-            notes, _ = fold(read_log(self.video), cut)
-            return self._json(append(self.video, {"type": "round", "cut": cut, "notes": [n["id"] for n in notes]}))
         self._send(404, b"not found", "text/plain")
 
 
@@ -586,8 +558,6 @@ def main_wait(args):
     if new is None:
         print(f"no new note in {args.timeout:g} s")
         return 2
-    for c in sorted({n["cut"] for n in new if n.get("cut")}):
-        acknowledge(args.video, c)
     print(f"{len(new)} new note" + ("" if len(new) == 1 else "s") + ":")
     print("\n".join(describe(new)))
     return 0

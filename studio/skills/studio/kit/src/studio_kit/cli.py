@@ -179,6 +179,8 @@ COMMANDS = {
     "event": ("append a production fact for the desk (agents or hooks)", [
         V('video'), A('kind'), A('message', nargs='*'), A('--lane'), A('--t', type=float),
         A('--source'), A('--check'), A('--hook', action='store_true', help='read Claude hook JSON from stdin; retain metadata only'),
+        P('--rollout', help='import only activity metadata from this explicitly associated Codex rollout'),
+        A('--follow', action='store_true', help='keep following --rollout; no synthetic heartbeats'),
     ], 'events:main'),
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),

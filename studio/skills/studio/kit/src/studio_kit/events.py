@@ -40,6 +40,37 @@ def emit(video, kind, message='', **fields):
     return e
 
 
+def import_rollout(video, source, lane):
+    """Explicitly scoped Codex activity adapter. Never retain prompts, reasoning, arguments,
+    output, account metadata or unrelated sessions. Stable ids make repeated reads safe."""
+    from datetime import datetime
+    source = Path(source).resolve()
+    known = {e['id'] for e in read(video)}
+    count = 0
+    for i, line in enumerate(source.read_text().splitlines()):
+        try:
+            row = json.loads(line)
+            p = row.get('payload', {})
+            kind, message = None, None
+            if row.get('type') == 'session_meta':
+                kind, message = 'agent.started', 'Starting the chapter'
+            elif row.get('type') == 'response_item' and p.get('type') in ('function_call', 'custom_tool_call'):
+                kind, message = 'agent.tool', 'Working on the chapter'
+            elif row.get('type') == 'event_msg' and p.get('type') == 'task_complete':
+                kind, message = 'chapter.done', 'Chapter agent finished'
+            if not kind:
+                continue
+            ident = hashlib.sha256(f'{source}:{i}'.encode()).hexdigest()[:12]
+            if ident in known:
+                continue
+            emit(video, kind, message, id=ident, ts=datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00')).timestamp(),
+                 lane=lane, source=f'{source}:{i+1}', tool=p.get('name') if kind == 'agent.tool' else None)
+            count += 1
+        except (ValueError, KeyError):
+            continue
+    return count
+
+
 class Observer:
     """Watch project evidence, never the agent's unrelated sessions. Initial files are observations,
     not fabricated save times. Subsequent saves arrive within one desk polling interval."""
@@ -94,6 +125,9 @@ def view(video, chapters, at=None):
     start = locks[-1]['ts'] if locks else None
     active = [e for e in events if start is None or e['ts'] >= start]
     ready = next((e for e in reversed(active) if e['kind'] == 'version.ready'), None)
+    rendering = next((e for e in reversed(active) if e['kind'] == 'render.started'), None)
+    if rendering and ready and rendering['ts'] > ready['ts']:
+        ready = None
     lanes = []
     for c in chapters:
         own = [e for e in active if e.get('lane') == c['id']]
@@ -131,6 +165,16 @@ def view(video, chapters, at=None):
 
 
 def main(args):
+    if getattr(args, 'rollout', None):
+        if not args.lane:
+            raise SystemExit('--rollout needs an explicit --lane; never infer it from private text')
+        while True:
+            count = import_rollout(args.video, args.rollout, args.lane)
+            if count:
+                print(f'{count} activity records imported', flush=True)
+            if not args.follow:
+                return 0
+            time.sleep(0.5)
     fields = {k: getattr(args, k, None) for k in ('lane', 't', 'source', 'check')}
     message = ' '.join(args.message)
     if args.hook:

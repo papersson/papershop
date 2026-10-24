@@ -32,6 +32,9 @@ quiet after 30 seconds without evidence and stalled after two minutes, retaining
 The raw event and its source are one click away. `--hook` accepts Claude hook JSON on stdin and
 retains session, agent and tool metadata only. Scope hooks to the chapter's job; do not guess a lane
 from an unrelated transcript. Codex agents use the same event command at meaningful boundaries.
+For an explicitly identified Codex chapter session, `studio event VIDEO activity --lane s2
+--rollout /path/to/rollout.jsonl --follow` imports starts, tool metadata and completion as they
+arrive. Repeated imports are safe; prompts, reasoning, tool arguments and results are excluded.
 Replay build runs the actual log at 10x. Estimates use completed lock-to-ready intervals and label
 small samples as guesses. The arrival tick is off by default.
 

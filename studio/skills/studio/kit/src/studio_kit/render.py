@@ -105,6 +105,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     """Render cut N+1: stills first (the fastest answer), then only the clips whose key changed,
     then the composite. With boards, a stills-only cut of every chapter's board. Returns the cut record."""
     video = Path(video).resolve()
+    from . import events
+    events.emit(video, 'render.started', 'Making the next version', source='studio cut')
     stills_only = stills_only or boards
     from . import boards as bd
     bd.write_notes(video)
@@ -168,6 +170,8 @@ def make_cut(video, quality="draft", stills_only=False, changelog=None, engine=N
     if prev:
         _keep_befores(video, prev_n, d, record)
     cuts.write(video, n, record)
+    events.emit(video, 'version.ready' if not stills_only else 'stills.ready',
+                f'Version {n} ready', version=n, source=f'cuts/cut{n}/cut.json')
     from .clean import keep_cuts, prune_cuts
     freed = prune_cuts(video)
     if freed:

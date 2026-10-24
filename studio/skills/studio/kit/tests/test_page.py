@@ -48,11 +48,10 @@ def test_notes_round_trip_through_the_server(tmp_path):
     try:
         n = post(base + "/api/notes", {"cut": 1, "t": 1.2, "clip": "s1", "sentence_id": "s1_01",
                                        "sentence": "One.", "kind": "picture", "note": "move the card left"})
-        post(base + "/api/round", {"cut": 1})
         st = json.loads(urllib.request.urlopen(base + "/api/state").read())
-        assert [x["id"] for x in st["notes"]] == [n["id"]] and st["rounds"][0]["notes"] == [n["id"]]
+        assert [x["id"] for x in st["notes"]] == [n["id"]] and st['rounds'] == []
         text = page.notes_text(tmp_path)
-        assert "1 note, round sent" in text and "1. [0:01.2 s1_01 picture] move the card left" in text
+        assert "1 note; notes arrive immediately" in text and "1. [0:01.2 s1_01 picture] move the card left" in text
 
         req = urllib.request.Request(base + "/cut1/video.mp4", headers={"Range": "bytes=10-19"})
         r = urllib.request.urlopen(req)
@@ -116,6 +115,15 @@ def test_note_writes_do_not_wait_for_a_render_lock(tmp_path):
         thread.start()
         thread.join(1)
         assert not thread.is_alive()
+
+
+def test_redundant_autosave_does_not_reopen_a_resolved_note():
+    log = [{'type': 'note', 'id': 'n', 'cut': 1, 'note': 'Hold', 'kind': 'picture'},
+           {'type': 'resolve', 'id': 'n', 'reply': 'Held'},
+           {'type': 'edit', 'id': 'n', 'note': 'Hold', 'kind': 'picture'}]
+    assert page.fold(log)[0][0]['status'] == 'done'
+    log.append({'type': 'edit', 'id': 'n', 'note': 'Hold longer'})
+    assert page.fold(log)[0][0]['status'] == 'queued'
 
 
 def test_marks_and_status_reach_the_page(tmp_path):
@@ -243,15 +251,12 @@ def test_the_live_desk_plays_the_whole_mix(tmp_path, monkeypatch):
     assert page.state(video)["live"]["audio"] != ".cache/sound/abc.m4a"     # the narration, as before
 
 
-def test_the_builder_reading_a_round_marks_it_received(tmp_path):
-    # "Did you get my round of notes?": the desk now says when the builder read the round.
+def test_reading_notes_does_not_acknowledge_them_or_create_a_round(tmp_path):
     make_video(tmp_path)
     page.append(tmp_path, {"type": "note", "id": "a", "cut": 1, "t": 1.0, "clip": "s1", "sentence_id": "s1_01",
                            "sentence": "One.", "previous_id": None, "previous": None, "kind": "picture", "note": "x"})
-    page.append(tmp_path, {"type": "round", "cut": 1, "notes": ["a"]})
-    assert "received" not in page.fold(page.read_log(tmp_path), 1)[1][0]
     page.notes_text(tmp_path, 1)
-    _, rounds = page.fold(page.read_log(tmp_path), 1)
-    assert rounds[0]["received"]
+    notes, rounds = page.fold(page.read_log(tmp_path), 1)
+    assert notes[0]['status'] == 'queued' and rounds == []
     page.notes_text(tmp_path, 1)
-    assert sum(e["type"] == "received" for e in page.read_log(tmp_path)) == 1    # once a round
+    assert len(page.read_log(tmp_path)) == 1

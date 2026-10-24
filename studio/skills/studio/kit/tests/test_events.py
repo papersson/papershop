@@ -26,3 +26,29 @@ def test_failed_check_keeps_its_second_and_resolves_in_place(tmp_path):
     lane = events.view(tmp_path, chapters, 4)['lanes'][0]
     assert len(lane['checks']) == 1 and lane['checks'][0]['t'] == 132
     assert lane['checks'][0]['kind'] == 'check.passed'
+
+
+def test_rollout_adapter_is_idempotent_and_keeps_only_activity_metadata(tmp_path):
+    import json
+    f = tmp_path / 'rollout.jsonl'
+    f.write_text(json.dumps({'timestamp': '2026-10-24T17:25:00Z', 'type': 'response_item',
+                            'payload': {'type': 'function_call', 'name': 'exec', 'arguments': 'private text'}}) + '\n')
+    assert events.import_rollout(tmp_path, f, 's2') == 1
+    assert events.import_rollout(tmp_path, f, 's2') == 0
+    rows = events.read(tmp_path)
+    assert rows[0]['lane'] == 's2' and rows[0]['tool'] == 'exec'
+    assert 'private text' not in events.path(tmp_path).read_text()
+
+
+def test_new_file_after_observer_start_is_a_save_not_a_snapshot(tmp_path):
+    from test_render import make_video
+    make_video(tmp_path)
+    observer = events.Observer(tmp_path)
+    observer.poll()
+    (tmp_path / 'scenes/s1.js').write_text('export default function(c) {}')
+    observer.poll()
+    row = [e for e in events.read(tmp_path) if e.get('path') == 'scenes/s1.js'][-1]
+    assert row['kind'] == 'file.saved' and row['lane'] == 's1'
+    count = len(events.read(tmp_path))
+    observer.poll()
+    assert len(events.read(tmp_path)) == count
