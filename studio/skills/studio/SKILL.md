@@ -24,8 +24,7 @@ Three or four ideas is guidance, not a cap; breadth is welcome when each idea ha
 
 First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
 Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
-Convert the panel and brief into `research/brief.md`: the viewer, textbook order, ideas, hero moments, the physical metaphor and why it maps to the
-mechanism, permitted tactile sounds (none by default), omissions, length and level. Write `SCRIPT.md` with a beat table,
+Convert the panel and brief into `research/brief.md`: the viewer, textbook order, ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Write `SCRIPT.md` with a beat table,
 narration and screen notes. Draw rough boards that make the picture and its scale visible.
 
 Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start
@@ -36,7 +35,8 @@ Bring their findings and uncertainties to the user alongside the reel. Revise th
 **Decision 1 is story lock.** Record the user's agreement in the brief. Existing authorization
 counts. After lock, render three to five final-quality style frames in the real engine: opening,
 chapter heroes and closing. Follow the style-frame step in `story.md`, compare beside a reference
-from Ciechanowski or Kurzgesagt and record the judgment. Then shoot to those frames. This is
+of the same kind: 3Blue1Brown for abstract subjects, Ciechanowski or Kurzgesagt for physical ones.
+Apply the hard 3D admission test in `taste.md` and record the judgment. Then shoot to those frames. This is
 preparation within the existing story decision, not another routine approval stop.
 
 ## Shoot, in one go

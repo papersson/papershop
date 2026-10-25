@@ -48,8 +48,12 @@ We will explain it at [level] in about [length], with [tone].
 Our ideas are [ideas in the canonical order the viewer needs them]. We will carry them
 through [small toy example], using [few meaningful quantities].
 
-Our physical metaphor is [object], because [part-by-part mapping to the mechanism and limits].
-Our visual reference is [Ciechanowski article or Kurzgesagt film and the qualities to match].
+Our subject is [abstract or physical]. Our visual language is [2D craft or a justified spatial view].
+3D admission test: [the viewer needs to see ___, and the flat diagram hides it; or fails, use 2D].
+Any metaphor is [none, or an exact mapping with limits; abstract metaphors stay flat and illustrated].
+Our visual reference is [3Blue1Brown for abstract subjects; Ciechanowski or Kurzgesagt for physical
+ones], particularly [typography, lines, palette, composition, transformations or spatial relationships].
+Our shots vary through [close-up, overview, comparison and changing layout, with reasons].
 
 Our hero moments are:
 - In [chapter], [action] becomes [visible result]. We see [framing and motion], hear [permitted tactile event or silence],
@@ -114,21 +118,25 @@ Record their agreement in the brief. Honor any authorization they already gave. 
 
 Render three to five stills at final delivery resolution in the video’s real engine: the opening,
 the hero moment of each part and the closing (a frame may serve two roles). Use the actual look,
-materials, light, palette and object scale, not boards or a model sheet. Build shared geometry
+typography, line weights, palette, composition and scale (plus materials and light for physical
+subjects), not boards or a model sheet. Apply the hard 3D admission test in `taste.md`. Build shared geometry
 and look helpers now so chapter agents can animate those same objects. Use `studio still` with
-the final layout, or final-quality Blender plates plus their live labels. No new engine is needed.
+the final layout, or, for physical subjects that pass the test, final-quality Blender plates plus live labels. No new engine is needed.
 
 Keep the PNGs and a short manifest at `research/style-frames/manifest.json`. Each `frames` entry
 has `file` (video-relative PNG), `clip`, `t` (clip-local seconds) and `role`; also record `reference`,
 `judgment` and `accepted_by`. Keep borrowed reference stills and their URLs in `research/` for
 comparison only, never in the film. Arrange them side by side at comparable display sizes.
-Judge light, material, composition, depth and the first impression honestly: would a stranger
-call this a finished illustration worth pausing on? If it looks like a diagram tool, revise it
-before shooting. Record changes and the reason for accepting the frames; honor prior delegation.
+Use references of the same kind: 3Blue1Brown stills for abstract subjects, Ciechanowski or
+Kurzgesagt for physical ones. Judge typography, line weights, colour, composition and the planned
+continuity of forms; for physical subjects also judge light, material and depth. Ask honestly:
+would a viewer who loves this reference find these beautiful, or would they look like a slide
+deck? If they look like a diagram tool, revise before shooting. Check the set for close-ups,
+overviews, comparisons and changing layouts; a polished single view is not a film. Record changes and the reason for accepting the frames; honor prior delegation.
 This is one preparation step within story, not another review panel or approval gate.
 
 Write `research/sound.json` as a chapter-to-event-list mapping, for example
 `{"s1": [], "s2": [{"cue": "s2-click", "event": "finger presses the run button"}]}`.
 Only listed tactile events may have sound; omission means none. `studio shoot` includes these
 lists and the matching style-frame paths in each job. Chapters are built to match the frames,
-including their materials, camera, palette and scale, and the existing cut review compares them.
+including their drawing style, typography, camera, palette and scale, and the existing cut review compares them.

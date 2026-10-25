@@ -66,19 +66,51 @@ Move toward the thing being introduced. A recording surface should come close en
 a film about the inside of a mechanism should open it. A close camera can make a hero contact
 readable and its stake felt. A camera move earns its time by revealing a relationship.
 
-Make every frame a finished illustration. Ciechanowski's explainers and Kurzgesagt set the
-visual bar: depth, light, texture, considered colour and objects worth looking at. Rich over
-austere. Draw the subject as an object with material and light; beauty that reveals its form
-is not decoration. Use the lit 3D stage or Blender plates where they make a thing feel real.
-For an abstract mechanism, find a concrete physical metaphor worth lighting and explain its
-mapping and limits in the brief: drawers can embody addressable storage, but hashing is not
-physical travel. A box-and-arrow diagram on a dark stage is not a finished look.
+## Choose the look for the subject
 
-Set the bar before the shoot with three to five final-quality style frames in the video's real
-engine, using its real materials. Compare them beside a Ciechanowski or Kurzgesagt reference;
-if they look like a diagram tool, revise them. Chapters must match those frames. Let one form
-transform into the next, in Sanderson's spirit, so the viewer sees continuity instead of slides.
-Keep code legible and geometry truthful even when the surrounding object is richly lit.
+**3D admission test — a hard rule:** use 3D only when you can finish the sentence
+“the viewer needs to see ___, and the flat diagram hides it.” Record the missing spatial
+relationship in the brief. Making an abstraction feel like a physical object is not a reason.
+Abstract subjects almost never pass this test. A hash table does not: its addresses, collisions
+and comparisons are clearer in a flat drawing than in a lit cabinet.
+
+### Abstract subjects: 2D craft
+
+For data structures, algorithms, code, maths, protocols and systems, **3Blue1Brown is the bar**.
+A finished illustration need not have depth or simulated materials. Aim for:
+
+- A dark, calm ground and a small designed palette, with one meaning per colour.
+- Clean vector marks and confident line weights; never boxes-and-arrows clip art.
+- Beautiful type. Code, numbers and data are first-class graphics that move and transform.
+- A large, centred mechanism that fills the frame and is easy to inspect.
+- Continuous transformations: a key's characters fold into a number, then that number slides
+  into its slot. Preserve identity so the viewer sees how one form becomes the next, not slides.
+- Purposeful camera moves: push in on a bucket and pull back to the table. Separate reframing
+  from new content; do not hold the same static shot for minutes.
+- Visual variety across the film: close-ups, an overview, side-by-side comparisons and a layout
+  that changes as the lecture moves on. Reusing a single composition is not visual coherence.
+
+A physical metaphor is allowed only when it maps exactly onto the mechanism; explain the mapping
+and limits in the brief. Draw it in the same flat, illustrated style, never model and light it.
+Do not invent drawers, machinery or a room to make an abstract subject look substantial.
+
+### Physical subjects: spatial craft
+
+For a hard drive, an engine, a lock or another physical mechanism, Ciechanowski is the bar.
+After passing the same 3D admission test, the lit 3D stage and Blender plates are available:
+use depth, light, texture and materials to reveal real form, contacts, occlusion and motion.
+Kurzgesagt is also a useful illustration reference for physical subjects. Beauty should expose
+how the thing works; decorative geometry is not a substitute for the mechanism.
+
+### Set the bar before the shoot
+
+Render three to five final-quality style frames in the video's real engine. Compare references
+of the same kind: 3Blue1Brown stills for abstract subjects, Ciechanowski or Kurzgesagt for physical
+ones. Keep references in research only, never in the film. For abstract work ask whether a viewer
+who loves 3Blue1Brown would find these beautiful or see a slide deck. Judge typography, line,
+palette, composition and planned transformations; for physical work also judge material, light
+and depth. Revise weak frames before shooting. Chapters must match the accepted frames and the
+finished film must also earn its camera and layout variety.
 
 Treat geometry and motion as claims. A copy leaves its source in place. A reference stays connected
 to its value. Keep a map fixed when copying its record. Show the part the voice names, including
@@ -133,7 +165,7 @@ and a 540p preview often needs much larger type. Break long code lines or widen 
 shrinking its text. Keep status text outside plots, where its position could be mistaken for data.
 
 Use one colour for one meaning throughout the video, across flat and 3D pictures. Declare the
-legend and tag shapes with their meaning. Design a palette for this subject, with material neutrals and a few deliberate accents, rather
+legend and tag shapes with their meaning. Design a palette for this subject, with quiet neutrals and a few deliberate accents, rather
 than inheriting generic grey rectangles on a dark stage. Changing the
 meaning of a colour forces the viewer to relearn the diagram.
 
@@ -141,7 +173,7 @@ Use real images, source code, captures and output where they explain the subject
 short and discuss them. Record provenance off screen. Introduce invented example values as
 supposed values; decorative “simulated” tags add clutter without making the explanation clearer.
 
-Give the subject a visual identity through shape, state, framing and material. Avoid generic
+Give the subject a visual identity through shape, state, framing and, where appropriate, material. Avoid generic
 rounded cards nested inside cards, icons on every point, ornamental strips, gradients, glows,
 frame borders, blinking dots and identical fade-and-slide entrances. Those marks compete with the
 picture's meaning and make different explanations look interchangeable.
@@ -192,3 +224,11 @@ sound to touch and size holds to new content. The earlier austerity and fixed ho
 crowding; preserve one thing at a time, full sentences, canonical level and no barrage of numbers.
 Evidence: ~/drafts/studio-phase2/evidence/findings.md and the part D request; old film:
 ~/drafts/studio-phase2/scratch-videos/hash-table-elicit/out/master.mp4.
+
+Part E, hash-table feedback (2026-10-25): “This is 3D...?! I really don't think this is a use case
+where we should use 3D”; the user sets “3Blue1Brown” as the bar for abstract subjects. The part D
+brief wrongly asked for a physical metaphor worth lighting. Restore the hard spatial admission
+test, use flat mathematical craft for abstractions and compare like with like before shooting.
+The cabinet film was a taste failure, not evidence that abstract subjects need richer materials.
+Evidence: ~/drafts/studio-phase2/STEP-D.md and the part E request; rejected film:
+~/drafts/studio-phase2/scratch-videos/hash-table-taste/out/master.mp4.

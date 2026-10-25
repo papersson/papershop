@@ -26,8 +26,9 @@ The 0.15 hash-table film exposed a taste failure despite the fast production: th
 visuals lame, its sound effects cheap, its governing question forced and some holds too long.
 The loved sphere opening, Blender hard drive and tunnel game-feel pass show why austerity was
 the wrong correction. After story lock, one style-frame step now sets a finished visual target:
-three to five actual-engine frames beside a Ciechanowski or Kurzgesagt reference. The shared
-objects, materials, light and cameras become chapter inputs. This is preparation, not another
+three to five actual-engine frames beside a reference of the same kind: 3Blue1Brown for abstract
+subjects, Ciechanowski or Kurzgesagt for physical ones. Drawing style, typography, palette,
+composition and cameras become chapter inputs; admitted physical subjects also use materials and light. This is preparation, not another
 review stage or permission stop; existing delegation applies. The existing chapter review checks
 that the film matches the frames.
 
@@ -108,12 +109,16 @@ read. They are chunked from the narration with phrase breaks and a minimum readi
 labels identify things. A clean map and large close-ups keep detail from accumulating indefinitely.
 One colour retains one meaning, and outer contours carry more weight than internal dividers.
 
-Live 3D also gives an abstract mechanism a concrete object worth lighting. It shares the timeline,
-legend and checks with SVG. The lit look and Blender plates make subjects real through material,
-light and depth. Finished illustration is the bar; a dark stage of boxes and arrows is not.
-A considered palette keeps one meaning per colour, and continuous form changes carry the idea
-between views. The brief states the physical metaphor’s mapping and limits. Projected labels stay live and readable. A plate probe measures its cost before
-a long render. Live also supplies recorded code panels, terminals, the typed editor and its program
+Part D's lit hash-table cabinet failed the user's taste. Its brief confused a rich physical
+illustration with good abstract explanation. The hard rule is restored: 3D only when “the viewer
+needs to see ___, and the flat diagram hides it.” Abstract subjects almost never pass. Their bar
+is 3Blue1Brown: a calm dark ground, meaningful palette, confident vector lines, beautiful moving
+type, a large mechanism, continuous transformations and varied close-ups, overviews and comparisons.
+An exactly mapped physical metaphor can be drawn flat, never modelled and lit. No metaphor is required.
+
+For physical subjects that pass the test, live 3D shares the timeline, legend and checks with SVG.
+The lit look and Blender plates reveal real form, contact and occlusion at the Ciechanowski bar.
+Projected labels stay live and readable. A plate probe measures its cost before a long render. Live also supplies recorded code panels, terminals, the typed editor and its program
 window. Code-view folds, highlights, collapse and helper cards share the same pure replay model.
 One renderer now supplies both the desk and the movie; there is no separate scene registry or bundle.
 

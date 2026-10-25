@@ -57,7 +57,7 @@ def prepare(video):
         if frames:
             lines += [f'Look decision: {style.get("judgment", "See manifest")}; accepted by {style.get("accepted_by", "not recorded")}.',
                       f'Reference: {style.get("reference", "See manifest")}.',
-                      'Inspect these final-quality images. Match their materials, light, palette, camera and scale:']
+                      'Inspect these final-quality images. Match their drawing style, typography, palette, camera and scale. Abstract subjects use 2D craft at the 3Blue1Brown standard; physical subjects may use materials and light only after the hard 3D admission test in taste.md. Vary close-ups, overviews, comparisons and layouts:']
             lines += [f'- {f["role"]}, local {f["t"]} s: {video / f["file"]}' for f in frames]
         else:
             lines += ['No style frame recorded for this chapter. Report the missing look target to the main session.']

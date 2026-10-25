@@ -183,6 +183,9 @@ imports will break that agreement. See `templates/live/scenes/example-chapter.js
 
 ## Depth, light and plates
 
+Use these only after the hard 3D admission test in `taste.md`. Abstract subjects default to 2D;
+a physical metaphor does not justify a lit model.
+
 `c.G` draws keyed 3D objects below the SVG stage. `G.mesh(key, kind, params, options)` supports
 box, cylinder, tube, sphere, ring and extrude geometry. Options include `at`, `rot` in degrees,
 `scale`, `color`, `op`, `edges`, `box`, `means` and `view`. `G.line` draws a 3D polyline.

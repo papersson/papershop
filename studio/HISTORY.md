@@ -15,12 +15,15 @@ keyboard performance establish a richer, more tactile bar.
   is removed. One thing at a time, full
   sentences, canonical level and few numbers remain.
 - One new preparation step after story lock renders three to five finished style frames in the
-  real engine and compares them beside a Ciechanowski or Kurzgesagt reference. Shoot jobs carry
-  the matching images and material/composition judgment. Existing chapter reviews compare the
+  real engine and compares references of the same kind: 3Blue1Brown for abstract subjects,
+  Ciechanowski or Kurzgesagt for physical ones. Shoot jobs carry the matching images and
+  drawing/composition judgment. Existing chapter reviews compare the
   finished film with them; there is no new review stage or engine.
-- Rich objects, light, material and a designed palette replace austerity. Physical metaphors
-  explain abstract mechanisms, with their mapping and limits in the brief. Continuous form
-  transformations preserve identity. The banned generated-design defaults remain.
+- Abstract subjects use 2D craft at the 3Blue1Brown standard: meaningful colour, confident vector
+  marks, moving type, a large mechanism, continuous transformations and varied shots. A physical
+  metaphor must map exactly and stay flat. Physical subjects may use the lit look and Blender
+  after the restored hard test: “the viewer needs to see ___, and the flat diagram hides it.”
+  Abstract subjects almost never pass. The banned generated-design defaults remain.
 - Effects default to an empty list. Shoot jobs list exact permitted tactile touches; abstract
   bucket arrivals, labels and reveals stay silent. The recorded kit, shared event frames and
   no-music default remain.
@@ -31,11 +34,12 @@ keyboard performance establish a richer, more tactile bar.
 - The scaffold’s eight-second tail becomes 0.8 seconds. Narration adds why, cost and failure
   while the picture shows the mechanism.
 
-The fresh scratch hash-table remake follows Elicit, the lecture, three rounds of actual-engine
-style frames and parallel chapter production. Its full timing, three-way comparisons, sound
-list, pacing evidence and limitations are recorded in ~/drafts/studio-phase2/STEP-D.md.
-The final suite passes 663 tests. The fresh model comparison prefers the remake’s richer objects;
-a human delight verdict remains unobserved. No reference image appears in the film.
+Part D's hash-table cabinet followed the wrong visual brief. The user rejected the 3D result;
+the model's preference for richer objects did not predict the user's taste. Part E corrects the
+brief and remakes the prompt in flat 2D, following Elicit, story, like-for-like style comparisons
+and parallel chapter production. Evidence and honest limitations are in
+~/drafts/studio-phase2/STEP-E.md; the rejected cabinet evidence remains in STEP-D.md. References
+remain in research only. This correction stays in 0.16.0.
 
 ## Story, shoot and desk (0.15.0)
 
