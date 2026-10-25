@@ -465,9 +465,10 @@ def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
             if not p.get('breath'):
                 continue
             a, b = p['start'] - c['start'], p['end'] - c['start']
-            # Leave one sampled frame at either boundary for the landing/reset itself.
-            moving = any(min(y, b - 1 / PACING_FPS) > max(x, a + 1 / PACING_FPS)
-                         for x, y, _ in found)
+            # Measure inside the rest, not the expanded edge of a neighbouring move.
+            # The fps sampler can straddle a landing/reset at a non-grid pause boundary.
+            interior = [r for r in signal if a + 1 / PACING_FPS <= r[0] <= b - 1 / PACING_FPS]
+            moving = bool(moves(interior))
             rows.append({'check': 'pacing', 'kind': 'breath', 'clip': cid, 't': a, 'end': b,
                          'seconds': round(b-a, 3), 'ok': True,
                          **({'severity': 'warning'} if moving else {}),

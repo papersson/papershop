@@ -325,14 +325,20 @@ def test_readable_label_resets_dead_time_but_ambient_wobble_does_not():
 def test_breath_exempts_only_its_interval_and_warns_if_picture_keeps_moving(tmp_path, monkeypatch):
     (tmp_path / 'timeline.json').write_text(json.dumps({'tracks': {
         'scene': [{'id': 's1', 'start': 20, 'end': 32}],
-        'narration': [{'clip': 's1', 'pause': {'start': 24, 'end': 28, 'breath': True}}]}}))
+        'narration': [{'clip': 's1', 'pause': {'start': 24, 'end': 28.01, 'breath': True}}]}}))
     monkeypatch.setattr(motion.tl, 'events', lambda *a: [])
-    monkeypatch.setattr(motion, 'pacing_signal', lambda *a: {'s1': []})
+    sig = [(round(.05 + i / 10, 2), 0., 1., 0.) for i in range(120)]
+    monkeypatch.setattr(motion, 'pacing_signal', lambda *a: {'s1': sig})
     rows = motion.pacing(tmp_path)
-    assert [(r['t'], r['end']) for r in rows if r.get('kind') == 'dead-time'] == [(0, 4), (8, 12)]
+    assert [(r['t'], r['end']) for r in rows if r.get('kind') == 'dead-time'] == [(0, 4), (8.01, 12)]
     breath = next(r for r in rows if r.get('kind') == 'breath')
-    assert 'severity' not in breath and breath['seconds'] == 4
-    monkeypatch.setattr(motion, 'moves', lambda *a: [(5, 6, 5)])
+    assert 'severity' not in breath and breath['seconds'] == 4.01
+    # A sampled reset spans 7.9–8.0; its edge would overlap the interior by 0.01s.
+    # Its sample centre is outside the rest's margin, so it is not movement within the breath.
+    sig[79] = (7.95, 1., 1., 0.)
+    breath = next(r for r in motion.pacing(tmp_path) if r.get('kind') == 'breath')
+    assert 'severity' not in breath
+    sig[55] = (5.55, 1., 1., 0.)  # actual movement well inside the rest must still warn
     breath = next(r for r in motion.pacing(tmp_path) if r.get('kind') == 'breath')
     assert breath['severity'] == 'warning' and 'motion inside' in breath['detail']
 
