@@ -30,3 +30,9 @@ def test_stale_screen_cues_are_reported(tmp_path):
     (tmp_path / "SCRIPT.md").write_text(SCRIPT.replace("s1_02–s1_03", "s1_02–s1_07"))
     rows = [r for r in script_check.run(tmp_path) if r["rule"] == "screen"]
     assert len(rows) == 1 and "s1_07" in rows[0]["detail"] and rows[0]["severity"] == "warning"
+
+
+def test_lecture_does_not_need_prediction_pauses(tmp_path):
+    (tmp_path / "SCRIPT.md").write_text(SCRIPT)
+    rows = script_check.run(tmp_path)
+    assert not [r for r in rows if r["severity"] == "warning"]
