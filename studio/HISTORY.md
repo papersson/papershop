@@ -9,7 +9,8 @@ The user found the 0.15 hash-table film visually lame, its sound effects cheap, 
 question forced and some pauses too long. The earlier taste revision had over-corrected toward
 calm and minimal. The loved shader sphere, Blender hard drive, tunnel game-feel pass and real
 keyboard performance establish spatial and tactile craft where those subjects call for it.
-Part E establishes a separate flat drawing standard for abstract subjects.
+Part E establishes a separate flat drawing standard for abstract subjects. Part F places still,
+silent rests after key points and at section endings, with flowing motion inside each idea.
 
 - Standard lectures now follow canonical textbook order. A protagonist and governing question
   are optional tools; three or four ideas is guidance, not a cap. The old two-prediction quota
@@ -28,10 +29,16 @@ Part E establishes a separate flat drawing standard for abstract subjects.
 - Effects default to an empty list. Shoot jobs list exact permitted tactile touches; abstract
   bucket arrivals, labels and reveals stay silent. The recorded kit, shared event frames and
   no-music default remain.
-- Holds follow the time needed to read new content plus a short beat. Pacing now warns on both
-  crowding and unchanged stage intervals over three seconds, including opening and tail, with
-  only marked prediction intervals exempt. Captions and ambient motion do not conceal dead
-  time. Pixel change remains a diagnostic, not proof of meaningful visual development.
+- Rhythm now follows meaning: 1.5–3 seconds of stillness and silence after named key points and
+  hero payoffs, and 3–4 seconds between sections including a stage reset. Related motion can
+  flow under narration; there is no hold after every small change. One genuinely new mechanism
+  at a time and the dead-time warning remain. The reason is the user's part F response: the
+  attractive 2D film still felt too busy and never took a real breath.
+- The brief and beat table name breaths. `[breath N]` reuses narration's silence layout and
+  records its exact interval in the timeline and chapter jobs. The final generated caption
+  phrase stays through the rest. Pacing exempts only marked breaths/predictions from dead-time
+  warnings, reports significant motion inside breaths, and treats short gaps as diagnostics
+  rather than prescriptions for more holds. No new renderer or workflow stage is introduced.
 - The scaffold’s eight-second tail becomes 0.8 seconds. Narration adds why, cost and failure
   while the picture shows the mechanism.
 
@@ -50,7 +57,26 @@ remain absent. First playable was 15m35s after story lock, missing the target by
 The full suite passes 663 tests. The report includes matched-time cabinet/2D/reference contact
 sheets, delegated decision reasons and saved-film diagnostics. The result fits an abstraction
 better, but still falls short of 3Blue1Brown in composition and choreography. Native playback was
-blocked by computer permissions; human listening and the user's taste verdict remain unverified.
+blocked by computer permissions; human listening and the user's taste verdict were unverified
+at that stage. The user subsequently called the 2D result “really nice” and asked for breaths
+after important points and sections, while allowing motion elsewhere.
+
+Part F preserves the 2:56 film and re-times an independent scratch copy to **3:13.10**. Eleven
+still, silent breaths follow the named ideas and hero payoffs, including both section endings;
+the stage clears before the next section. Related moves absorb small per-change holds, while
+Bea/Leo insertion and resize records act sequentially and unnecessary camera excursions go.
+All 459 words and all 36 speech segments remain sample-identical. A production-found caption
+interruption was fixed by retaining the final phrase through a breath. A saved-film sampling
+edge incorrectly counted the next section's clear as breath motion; the check now measures
+interior samples and retains detection of actual motion inside the pause.
+
+The final full suite passes **670 tests**. The saved master verifies all eleven rests, including
+captions, across 687 decoded interior frames and silent audio. Publication has 172 checks with
+no failures; audio has 16 rows with no failures or warnings, and each chapter has zero general
+flashes. Eight short-gap groups and three small-trace pacing diagnostics remain explained rather
+than hidden with decorative movement. ~/drafts/studio-phase2/STEP-F.md records the exact rule,
+every breath and removed hold, both film lengths, a saved-film motion/stillness timeline, delegated reasons and an honest
+judgement. All 1,488 inventoried original-film files are unchanged. This remains version 0.16.0.
 
 ## Story, shoot and desk (0.15.0)
 
