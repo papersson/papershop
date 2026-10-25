@@ -15,10 +15,10 @@
   occluded     the element being narrated can be seen (occluded): a named 3D element the sentence says, at
                its check samples and at each event of the beat sheet, shows at least 30% of its pixels
                (the live engine's boxes report each 3D element's visible share). A warning, as inframe
-  pacing       after a significant move the stage holds at least 0.5 s before the next (motion.pacing): read
-               from the cut's rendered clips; a chapter with none is skipped unless --only pacing, which
-               samples stills at 10 fps instead (about 0.7 s of rendering a second of video). A short
-               hold is a warning, not a failure
+  pacing       warn on crowded moves and unchanged stage intervals over 3 s outside marked predictions
+               (motion.pacing), from the cut's rendered clips. A chapter with none is skipped unless
+               --only pacing samples stills at 10 fps. Reading time depends on content; these
+               diagnostics warn rather than prescribe fixed holds
   flash        no more than three general flashes in any second (motion.flashes, WCAG 2.3.1): read from
                the cut's rendered clips, a chapter with none skipped. A failure: a flash can trigger a seizure
   legend       with a colour legend in video.json: no colour stands for two meanings, no meaning is drawn
@@ -412,7 +412,7 @@ def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
 
 
 CHECKS = ("length", "determinism", "bounds", "band", "contrast")
-MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (a hold after each move), flash (at most three flashes a second), "
+MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (crowding and dead time), flash (at most three flashes a second), "
         "inframe (the narrated element stays in frame), occluded (a narrated 3D element is not hidden), legend (one colour, one meaning; with video.json legend), "
         "provenance (assets used are recorded), dead and loop (motion)")
 

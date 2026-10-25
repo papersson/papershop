@@ -83,7 +83,8 @@ def test_a_video_made_under_the_old_ignore_rules_keeps_working(tmp_path, monkeyp
     v, _ = new.create("v", directory=tmp_path / "video")
     unsigned(monkeypatch, v)
     (v / ".gitignore").write_text(OLD_GITIGNORE + "my-notes/")          # no final newline, a line of the builder's
-    (v / "audio").mkdir()
+    (v / "audio").mkdir(exist_ok=True)
+    (v / "audio/sfx.json").unlink()  # the older scaffold did not create an empty sound list
     (v / "audio/narration.mp3").write_text("mp3")                       # the allowlist took audio/
     git(v, "add", "-A")
     git(v, "commit", "-q", "-m", "made by an older kit")
