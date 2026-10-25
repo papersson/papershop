@@ -512,7 +512,11 @@ def chunk_captions(narration, fps=30, widths=None, kept=(), warn=print):
         def add(chunk, p, q):
             a, b = times[p][0], times[q - 1][1]
             if not any(a < k["end"] and k["start"] < b for k in loose):
-                timed.append({**chunk, "start": round(a, 3), "end": round(b + TAIL, 3),
+                end = b + TAIL
+                if q == len(words) and s.get('pause', {}).get('breath'):
+                    # Keep the last phrase still too, instead of clearing it mid-breath.
+                    end = max(end, s['pause']['end'])
+                timed.append({**chunk, "start": round(a, 3), "end": round(end, 3),
                               "anchor": {"sentence": s["id"], "words": [p, q], "text": " ".join(words[p:q])}})
         at = 0
         for i, j, c in sorted(locks.get(s["id"], []), key=lambda x: x[:2]) + [(len(words), len(words), None)]:

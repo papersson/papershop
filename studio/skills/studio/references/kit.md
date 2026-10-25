@@ -70,7 +70,9 @@ seconds of silence and marks `pause.breath` in the timeline. Use 1.5–3 s for k
 about 3 s plus a reset before the next section (3–4 s total). The scene must land before
 `pause.start` and stay still until `pause.end` (also `reveal:SENTENCE`); this marker does not
 freeze scene code automatically. Pacing reports motion inside breaths and excludes only their
-marked intervals from dead-time warnings. `[pause N]`, `[beat]` and `[predict N]` still work.
+marked intervals from dead-time warnings. The final generated caption phrase stays through the
+breath, so it does not disappear mid-rest. Fixed custom captions still need inspection.
+`[pause N]`, `[beat]` and `[predict N]` still work.
 `narration.json` supports `holds` by
 sentence id, `spoken` text replacements, `spoken_by_id`, `phonemes` and `phonemes_by_id`.
 A lexicon snapshot supplies shared pronunciations; per-video settings and then per-sentence

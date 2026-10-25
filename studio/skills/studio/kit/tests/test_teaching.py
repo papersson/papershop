@@ -23,6 +23,8 @@ def test_breath_keeps_speech_cache_and_marks_only_its_silent_interval(tmp_path):
     tl = timeline.from_timings(normal)
     assert tl['tracks']['narration'][1]['pause'] == line['pause']
     assert tl['cues']['reveal:s1_02'] == line['pause']['end']
+    caption = next(c for c in tl['tracks']['captions'] if c['anchor']['sentence'] == 's1_02')
+    assert caption['end'] == line['pause']['end']  # no caption disappearance mid-breath
     assert not any(s.prediction for c in script.read(v) for s in c.sentences)
 
 
