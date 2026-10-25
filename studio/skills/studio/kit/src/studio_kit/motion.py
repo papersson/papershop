@@ -6,7 +6,7 @@
             the loop stutters at the seam
   legible   every text box is at least 18 px tall at 1080p
   provenance  every asset a scene refers to is in assets/ with a provenance row
-  pacing    after a significant move, the picture holds at least HOLD_MIN before the next one starts
+  pacing    warn on crowded changes and unchanged pictures outside marked prediction intervals
   flash     no more than FLASH_MAX general flashes in any second (WCAG 2.2 SC 2.3.1, approximately)
             (pacing_signal, moves)
 
@@ -116,7 +116,8 @@ def provenance(video):
 
 PACING_FPS = 10         # samples a second: a 0.5 s hold is five
 PACING_SIZE = (192, 108)   # pixels the frame is scaled to: whole moves show, texture and antialiasing don't
-HOLD_MIN = 0.5          # seconds a significant move holds before the next one starts (taste.md)
+HOLD_MIN = 0.5          # crowding diagnostic, not a prescribed reading time for every transition
+UNCHANGED_MAX = 3.0     # inspect long unchanged pictures; do not fix them with ornamental movement
 # Calibrated on the kit's templates (SVG and 3D), in mean grey levels over the stage at PACING_SIZE.
 # A sample moving at least MOVE_LEVEL (0.15% of the stage changing fully in 0.1 s) is movement; less is
 # ambient (a jittering dot, a ticking counter, a slow fade). A run of movement is a significant move when
@@ -407,13 +408,35 @@ def _runs(short, gap=2.0):
     return out
 
 
+def unchanged_spans(signal, duration, predictions=(), limit=UNCHANGED_MAX):
+    """Long gaps without visible stage changes, including the opening and tail. Captions have
+    already been cropped away. Small label arrivals count; ambient motion does not. Subtract
+    only the marked prediction interval, never exempt the whole chapter or adjacent dead time.
+    Pixel evidence cannot establish semantic novelty; a review still has to catch empty motion."""
+    dt = 1 / PACING_FPS
+    active = [(a, b) for a, b, _ in moves(signal)]
+    # A small new label can be readable without accumulating a significant full-stage move.
+    shares = [r[3] if len(r) > 3 else 0 for r in signal]
+    k = round(AMBIENT_WINDOW / dt)
+    active += [(r[0] - dt / 2, r[0] + dt / 2) for i, r in enumerate(signal)
+               if shares[i] - statistics.median(shares[max(0, i-k):i+k+1]) >= VISIBLE_SHARE]
+    active += list(predictions)
+    cursor, gaps = 0.0, []
+    for a, b in sorted(active) + [(duration, duration)]:
+        a, b = max(0.0, min(duration, a)), max(0.0, min(duration, b))
+        if a - cursor > limit + 1e-6:
+            gaps.append((round(cursor, 3), round(a, 3)))
+        cursor = max(cursor, b)
+    return gaps
+
+
 def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
-    """Rows: a warning at every hold shorter than `hold` between two significant moves of a clip,
-    else a passing row per clip; a clip with no rendered video, when stills are not to be rendered,
-    is skipped. A short hold with a hitstop cue in it is meant (a contact held a few frames), not a
-    warning. Ground truth is the rendered stage (pacing_signal)."""
+    """Rendered-stage diagnostics for crowding and dead time. Short hitstops and marked
+    predictions are respected. Warnings need judgment against the content's reading demand."""
     rows = []
     held = [(e["clip"], e["t"]) for e in tl.events(video) if e.get("hitstop") and e["clip"]]
+    timeline = tl.load(video) if (Path(video) / 'timeline.json').exists() else {'tracks': {}}
+    scene = {c['id']: c for c in timeline['tracks'].get('scene', [])}
     for cid, signal in pacing_signal(video, engine, clips, stills).items():
         if signal is None:
             rows.append({"check": "pacing", "clip": cid, "ok": True, "skipped": True,
@@ -426,13 +449,22 @@ def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
             a, b = run[0][0], run[-1][1]
             if len(run) == 1:
                 detail = (f"{b[0] - a[1]:.1f} s hold between the move at {a[0]:.1f}-{a[1]:.1f} s and the one "
-                          f"at {b[0]:.1f} s; hold at least {hold} s after a move")
+                          f"at {b[0]:.1f} s; check whether the new content has time to be read")
             else:
                 worst = min(y[0] - x[1] for x, y in run)
                 detail = (f"{len(run)} holds under {hold} s between {a[0]:.1f} and {b[0]:.1f} s (shortest {worst:.1f} s): "
                           f"moves crowded together; space them or merge them into one")
-            rows.append({"check": "pacing", "clip": cid, "t": a[1], "ok": True, "severity": "warning", "detail": detail})
-        if not short:
+            rows.append({"check": "pacing", "kind": "crowding", "clip": cid, "t": a[1], "ok": True, "severity": "warning", "detail": detail})
+        c = scene.get(cid, {'start': 0, 'end': signal[-1][0] + 1 / PACING_FPS if signal else 0})
+        predictions = [(s['pause']['start'] - c['start'], s['pause']['end'] - c['start'])
+                       for s in timeline['tracks'].get('narration', [])
+                       if s['clip'] == cid and s.get('pause', {}).get('prediction')]
+        dead = unchanged_spans(signal, c['end'] - c['start'], predictions)
+        for a, b in dead:
+            rows.append({'check': 'pacing', 'kind': 'dead-time', 'clip': cid, 't': a, 'end': b,
+                         'seconds': round(b-a, 3), 'ok': True, 'severity': 'warning',
+                         'detail': f'{b-a:.1f} s without new visible content ({a:.1f}–{b:.1f} s), outside marked predictions; shorten the hold or develop the explanation'})
+        if not short and not dead:
             rows.append({"check": "pacing", "clip": cid, "ok": True,
-                         "detail": f"{len(found)} significant moves, each held at least {hold} s"})
+                         "detail": f"{len(found)} significant moves; no crowding under {hold} s or unchanged hold over {UNCHANGED_MAX} s outside predictions"})
     return rows

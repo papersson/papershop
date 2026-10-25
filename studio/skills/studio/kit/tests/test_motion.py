@@ -112,7 +112,7 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     (warn,), (ok,) = [r for r in rows if r["clip"] == "s1"], [r for r in rows if r["clip"] == "s2"]
     assert warn["severity"] == "warning" and warn["ok"] and warn["t"] == 0.5
     assert warn["detail"].startswith("0.2 s hold between the move at 0.4-0.5 s and the one at 0.7 s")
-    assert ok["detail"] == "2 significant moves, each held at least 0.5 s"
+    assert "2 significant moves; no crowding" in ok["detail"]
     (tmp_path / "scenes" / "s2.js").write_text("// s2, edited: its rendered clip is stale\n")
     assert [r.get("skipped") for r in motion.pacing(tmp_path, eng, stills=False)] == [None, True]
 
@@ -295,3 +295,42 @@ def test_three_flashes_a_second_pass_and_four_fail_and_a_fade_is_one_change(tmp_
     assert clip("fast", fast) > motion.FLASH_MAX
     assert clip("slow", slow) <= motion.FLASH_MAX
     assert clip("fade", fade) == 0
+
+
+def test_dead_time_includes_static_opening_tail_and_only_exempts_prediction_interval(tmp_path, monkeypatch):
+    sig = [(round(.05 + i / 10, 2), 0., 1., 0.) for i in range(120)]
+    (tmp_path / 'timeline.json').write_text(json.dumps({'tracks': {
+        'scene': [{'id': 's1', 'start': 20, 'end': 32}],
+        'narration': [{'clip': 's1', 'pause': {'start': 24, 'end': 28, 'prediction': True}}]}}))
+    monkeypatch.setattr(motion.tl, 'events', lambda *a: [])
+    monkeypatch.setattr(motion, 'pacing_signal', lambda *a: {'s1': sig})
+    rows = motion.pacing(tmp_path)
+    assert [(r['t'], r['end'], r['seconds']) for r in rows] == [(0, 4, 4), (8, 12, 4)]
+    assert all(r['kind'] == 'dead-time' and r['severity'] == 'warning' for r in rows)
+    t = json.loads((tmp_path / 'timeline.json').read_text())
+    t['tracks']['narration'][0]['pause']['prediction'] = False
+    (tmp_path / 'timeline.json').write_text(json.dumps(t))
+    assert motion.pacing(tmp_path)[0]['seconds'] == 12
+
+
+def test_readable_label_resets_dead_time_but_ambient_wobble_does_not():
+    sig = [(round(.05 + i / 10, 2), .15, 1., .0002) for i in range(60)]
+    assert motion.unchanged_spans(sig, 6) == [(0, 6)]
+    sig[29] = (2.95, .16, 1., .0012)
+    assert motion.unchanged_spans(sig, 6) == []
+    assert motion.unchanged_spans([], 3) == []
+    assert motion.unchanged_spans([], 3.1) == [(0, 3.1)]
+
+
+def test_dead_time_uses_rendered_stage_without_changing_captions(tmp_path):
+    t = make_video(tmp_path)
+    t['duration'] = 5
+    t['tracks']['scene'] = [{'id': 's1', 'start': 0, 'end': 5, 'engine': 'live', 'title': 'One'}]
+    t['tracks']['narration'] = []
+    (tmp_path / 'timeline.json').write_text(json.dumps(t))
+    cache = tmp_path / '.cache/clips'
+    cache.mkdir(parents=True)
+    f = cache / f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
+    subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', stage(0, 0, d=5), '-pix_fmt', 'yuv420p', str(f)], check=True)
+    rows = motion.pacing(tmp_path, StageEngine({}), stills=False)
+    assert len(rows) == 1 and rows[0]['kind'] == 'dead-time' and rows[0]['seconds'] == 5
