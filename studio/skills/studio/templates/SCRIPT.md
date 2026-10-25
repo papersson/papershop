@@ -4,9 +4,9 @@ The agreed story is in research/brief.md.
 
 ## Beats
 
-| Chapter | Beat | Question | Picture introduced | Action and sound | Settled hold | Voice adds | Exit state |
+| Chapter | Beat | Insight | Picture introduced | Action and sound | Settled hold | Voice adds | Exit state |
 |---|---|---|---|---|---|---|---|
-| s1 | s1-open | {{question}} | {{large subject}} | {{performed hero event and sound}} | {{time to look}} | {{why it happens}} | {{what the viewer can predict}} |
+| s1 | s1-open | {{insight in textbook order}} | {{large subject}} | {{performed change; permitted touch sound or silence}} | {{time to look}} | {{why it happens}} | {{what the viewer can predict}} |
 
 ## Script
 
@@ -14,7 +14,7 @@ The agreed story is in research/brief.md.
 
 > {{Write a full explanatory paragraph for the ear.}}
 
-*Screen:* {{Show the subject, its action and the settled result. Name the hero event and its sound.}}
+*Screen:* {{Show the subject, its action and the settled result. Name the hero event and any permitted tactile sound; default to silence.}}
 
 ### 2. {{Chapter title}}
 

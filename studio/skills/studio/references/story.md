@@ -23,33 +23,39 @@ If elicit is absent from the available skills, use this short method; never ask 
 - Draw the line between delightful and tacky, and decide what to cut.
 - Save this panel and raw material in `research/elicit.md`, labelled fallback, then write the brief.
 
-Convert the raw material into a one-page story brief: three or four ideas, one example, the hero
-moments and explicit omissions. Elicit reaches for more; this conversion cuts scope and never craft.
+Convert the raw material into a one-page story brief: ideas in textbook order, one example, the
+hero moments and explicit omissions. Three or four ideas is guidance, not a cap; limit numerical
+and caveat density, not useful breadth. Elicit reaches for more; this conversion cuts scope and never craft.
 Keep the action, framing, sound and breathing room that make each retained moment work. For each
 chapter, save just its described hero moment and relevant panel principles with their reasons in
 `research/story/<clip>.md`. `studio shoot` includes that excerpt in its chapter job, never the whole
 elicit brief. Show the short story draft quickly, with picture and sound beside each idea.
 
 Create a video with `studio new NAME`. Write the one-page brief in `research/brief.md` in language
-the user would use. Keep one central question and a small example. Set `video.json.target_minutes`
+the user would use. Keep a small example and the natural lecture order: why it exists, what it is, how it works,
+the cases that break it, what it costs and where it is used. A short hook is optional; a single
+governing question and a protagonist are optional tools when the subject naturally warrants them. Set `video.json.target_minutes`
 when there is an agreed length so the reel can compare its runtime with it. Level and tone are
 sentences in the brief. An explicit request for comedy also calls for `taste/comic.md`.
 
 ```markdown
 # Working title
 
-We are making this for [viewer and prior knowledge]. We want to answer [one question].
+We are making this for [viewer and prior knowledge]. We will explain [subject and useful insight].
 The viewer starts with [current intuition] and leaves able to [explain or predict something].
 We will explain it at [level] in about [length], with [tone].
 
-Our three or four ideas are [ideas in the order the viewer needs them]. We will carry them
+Our ideas are [ideas in the canonical order the viewer needs them]. We will carry them
 through [small toy example], using [few meaningful quantities].
 
-We follow [protagonist]. It needs [stake], is blocked by [obstacle], and the ending shows [payoff].
+Our physical metaphor is [object], because [part-by-part mapping to the mechanism and limits].
+Our visual reference is [Ciechanowski article or Kurzgesagt film and the qualities to match].
 
 Our hero moments are:
-- In [chapter], [action] becomes [visible result]. We see [framing and motion], hear [sound],
-  then hold [settled picture] while the voice adds [explanation].
+- In [chapter], [action] becomes [visible result]. We see [framing and motion], hear [permitted tactile event or silence],
+  then read [what changed] while the voice adds [why, cost or failure].
+
+Permitted sound events: [exact touches and named cues, or none]. Abstract operations stay silent.
 
 We leave out [details], because [reason]. We need to verify [specific claims or uncertainties].
 
@@ -68,11 +74,12 @@ inference and a deliberately simplified example.
 Write the beats before filling the narration. Use this table in `SCRIPT.md`, one row per visible
 change or hold. Include the chapter id so an agent can identify its part of the story.
 
-| Chapter | Beat | Question | Picture introduced | Action and sound | Settled hold | Voice adds | Exit state |
+| Chapter | Beat | Insight | Picture introduced | Action and sound | Settled hold | Voice adds | Exit state |
 |---|---|---|---|---|---|---|---|
-| s1 | s1-open | Why is this pixel red? | One large pixel and its input. | The input changes with a key click. | Hold the new colour. | Explain how the input selects it. | The viewer can predict a second input. |
+| s1 | s1-open | An input selects a colour. | One large pixel and its input. | The input changes with a key click. | Hold the new colour. | Explain how the input selects it. | The viewer can predict a second input. |
 
-Silence is a beat. Plan introduce → settle → explain. Write full spoken paragraphs beneath
+Silence is a beat when it gives new content time to be read. Plan introduce → read → explain;
+size each hold to its content and do not pad the runtime with unchanged pictures. Write full spoken paragraphs beneath
 `## Script` and `### 1. Chapter title`. Each `> ` line is a narration paragraph. Add `*Screen:*`
 notes with the picture, framing, sound and hero event; `s1_01` means the first sentence of chapter
 one. A note without ids belongs to the paragraph above it. Use `[pause 2]`, `[predict 3]` or
@@ -84,7 +91,8 @@ subject fills the frame. Make the main picture and each hero moment visible in t
 
 Run `studio reel VIDEO`. It synthesizes the real voice, builds the timeline and holds the boards
 to it. Read the pacing report for runtime, chapter lengths, long unchanged pictures and missing
-pictures. A long hold can be intentional; decide by the explanation. Start `studio desk VIDEO`,
+pictures. Boards are coarse; revise crowded sections and unjustified empty time rather than stretching
+holds to reach the target duration. Start `studio desk VIDEO`,
 give the user its local address and show the reel within minutes of the first draft.
 
 Run `studio panel VIDEO` once during this story session. Expert, viewer and editor each read the
@@ -100,5 +108,27 @@ claim. Let the user see disputed advice. The panel has one reading per role and 
 about whether production may continue.
 
 Ask for story lock when the user has seen the brief and reel and the open questions are clear.
-Record their agreement in the brief. Honor any authorization they already gave. Then proceed to
-`shoot.md`; there are no additional routine decisions before the first playable cut.
+Record their agreement in the brief. Honor any authorization they already gave. Then make the style frames below before proceeding to `shoot.md`.
+
+## Style frames, before the shoot
+
+Render three to five stills at final delivery resolution in the video’s real engine: the opening,
+the hero moment of each part and the closing (a frame may serve two roles). Use the actual look,
+materials, light, palette and object scale, not boards or a model sheet. Build shared geometry
+and look helpers now so chapter agents can animate those same objects. Use `studio still` with
+the final layout, or final-quality Blender plates plus their live labels. No new engine is needed.
+
+Keep the PNGs and a short manifest at `research/style-frames/manifest.json`. Each `frames` entry
+has `file` (video-relative PNG), `clip`, `t` (clip-local seconds) and `role`; also record `reference`,
+`judgment` and `accepted_by`. Keep borrowed reference stills and their URLs in `research/` for
+comparison only, never in the film. Arrange them side by side at comparable display sizes.
+Judge light, material, composition, depth and the first impression honestly: would a stranger
+call this a finished illustration worth pausing on? If it looks like a diagram tool, revise it
+before shooting. Record changes and the reason for accepting the frames; honor prior delegation.
+This is one preparation step within story, not another review panel or approval gate.
+
+Write `research/sound.json` as a chapter-to-event-list mapping, for example
+`{"s1": [], "s2": [{"cue": "s2-click", "event": "finger presses the run button"}]}`.
+Only listed tactile events may have sound; omission means none. `studio shoot` includes these
+lists and the matching style-frame paths in each job. Chapters are built to match the frames,
+including their materials, camera, palette and scale, and the existing cut review compares them.

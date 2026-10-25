@@ -33,6 +33,8 @@ engine is live. Existing videos keep the kit they were made with.
 | Path | What belongs there |
 |---|---|
 | `research/brief.md` | The agreed one-page story and its lock decision. |
+| `research/style-frames/manifest.json` | Final-quality images, chapter/time mapping and look judgment. |
+| `research/sound.json` | Exact permitted tactile events by chapter; omitted chapters are silent. |
 | `SCRIPT.md` | Beats, quoted narration, screen notes and source evidence. |
 | `narration.json`, `lexicon.json` | Voice, pronunciation and deliberate holds. |
 | `audio/timings.json`, `audio/words.json` | Synthesized sentence timing and recognized word alignment. |
@@ -241,12 +243,14 @@ versions and captured run output in data. The full schema is at the top of `type
 
 ## Sound and the mix
 
-Use `studio sound-lab VIDEO` to choose effects by listening in context. `studio sfx VIDEO FILE`
+New videos start with an empty `audio/sfx.json`. Default to silence. Add only the exact tactile
+events listed in `research/sound.json`; never add sounds to abstract arrivals or reveals.
+Use `studio sound-lab VIDEO` to choose those permitted effects by listening in context. `studio sfx VIDEO FILE`
 accepts a JSON list of effects and stores them in `audio/sfx.json`:
 
 ```json
-[{"t": "s1-enter", "type": "click", "sound": "kit:interface-click-001",
-  "gain": 0, "visual": "appear"}]
+[{"t": "s1-button-press", "type": "click", "sound": "kit:interface-click-001",
+  "gain": 0, "visual": "land"}]
 ```
 
 The time can be a cue name, beat name, absolute second or narration anchor. `sound` selects

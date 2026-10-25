@@ -7,7 +7,7 @@ from . import review, reviews
 ROLES = {
     "expert": "Check the claims, causal explanations and examples. Identify uncertain claims and the evidence needed to settle them.",
     "viewer": "Read at the viewer's stated level. Identify unexplained prerequisites, excess ideas, confusing terms and places to predict a toy example.",
-    "editor": "Check the one question, protagonist's stake, three or four ideas, hero moments, omissions and breathing room. Point out scope that obscures the story.",
+    "editor": "Check canonical lecture order, useful insights, hero moments, numerical density, omissions and content-sized holds. A governing question and protagonist are optional. Point out scope that obscures the explanation.",
 }
 
 

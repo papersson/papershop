@@ -9,7 +9,7 @@ export const pages = ['{{the protagonist}}']
 // motion helpers, kit.spring(t, ...m.spring) and kit.settle(t, t0, ...m.settle), and effects take
 // the pool, instead of each scene choosing its own numbers.
 export const materials = {
-  token: { spring: [170, 26], settle: [6, 3, 5], sound: ['pop-small'] },   // {{light and springy}}
+  token: { spring: [170, 26], settle: [6, 3, 5], sound: [] },   // {{material and weight; silent unless a permitted touch}}
 }
 
 /** {{The thing the video follows}}, in one state: a box with a glyph. Scenes import this. */

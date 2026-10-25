@@ -12,6 +12,12 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
     (tmp_path / 'research/story').mkdir()
     (tmp_path / 'research/story/s1.md').write_text('Hold the blocked payment in close-up; the click resolves it.\nMurch: leave silence before the contact so it matters.')
     (tmp_path / 'research/story/s2.md').write_text('The second chapter has a different hero moment.')
+    (tmp_path / 'research/style-frames').mkdir()
+    (tmp_path / 'research/style-frames/manifest.json').write_text(json.dumps({
+        'accepted_by': 'Delegated maker', 'judgment': 'Materials and scale accepted', 'reference': 'research/reference.png',
+        'frames': [{'clip': 's1', 't': 2, 'role': 'opening', 'file': 'research/style-frames/open.png'},
+                   {'clip': 's2', 't': 1, 'role': 'closing', 'file': 'research/style-frames/close.png'}]}))
+    (tmp_path / 'research/sound.json').write_text(json.dumps({'s1': [{'cue': 's1-press', 'event': 'finger presses a switch'}]}))
     (tmp_path / 'research/elicit.md').write_text('The long raw brief is not a chapter job.')
     (tmp_path / 'SCRIPT.md').write_text(SCRIPT)
     calls = []
@@ -25,6 +31,10 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
     assert '0.800' in first and 'avoid charging twice' in first
     assert 'references/taste.md' in first and '--chapter s1' in first
     assert 'Murch: leave silence' in first and 'Hold the blocked payment' in first
+    assert 'style-frames/open.png' in first and 'style-frames/close.png' not in first
+    assert 'finger presses a switch' in first and 's1-press' in first
+    second = (tmp_path / 'research/shoot/s2.md').read_text()
+    assert 'finger presses a switch' not in second and '\n[]\n' in second
     assert 'different hero moment' not in first and 'long raw brief' not in first
     active = json.loads((tmp_path / 'home/.active-shoot.json').read_text())
     assert active['video'] == str(tmp_path.resolve())

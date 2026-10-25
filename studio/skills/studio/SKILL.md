@@ -8,8 +8,8 @@ description: >
 
 # Studio
 
-Make the explanation clear, perform its important events with sound, and get it onto the desk
-quickly. The user develops the story with you and judges the video by watching it.
+Make the visuals the centerpiece: finished illustrations, continuous transformations and
+full explanatory sentences. Get the film onto the desk quickly. The user develops the story with you and judges the video by watching it.
 
 Use the absolute path to this folder as SKILL_ROOT. Run commands through `SKILL_ROOT/bin/studio`.
 VIDEO is a folder containing `video.json`; new videos go under `$STUDIO_HOME`, default `~/studio`.
@@ -19,13 +19,13 @@ anything. If something is missing, use the setup guidance in `references/kit.md`
 ## Develop the story, with the user
 
 Read `references/taste.md` and `references/story.md`. Ask only what changes the story and cannot
-be inferred. Default to an undergraduate explanation with three or four ideas, one small example
-and few numbers. Put the level and tone into ordinary sentences in the brief.
+be inferred. Default to a canonical undergraduate lecture with one small example and few numbers.
+Three or four ideas is guidance, not a cap; breadth is welcome when each idea has room. Put the level and tone into ordinary sentences in the brief.
 
 First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
 Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
-Convert the panel and brief into `research/brief.md`: the viewer, one question, ideas, protagonist and stake, hero moments
-with picture and sound, omissions, length and level. Write `SCRIPT.md` with a beat table,
+Convert the panel and brief into `research/brief.md`: the viewer, textbook order, ideas, hero moments, the physical metaphor and why it maps to the
+mechanism, permitted tactile sounds (none by default), omissions, length and level. Write `SCRIPT.md` with a beat table,
 narration and screen notes. Draw rough boards that make the picture and its scale visible.
 
 Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start
@@ -34,7 +34,10 @@ Run `studio reel VIDEO` for boards held to the real narration and its pacing rep
 Bring their findings and uncertainties to the user alongside the reel. Revise the story together.
 
 **Decision 1 is story lock.** Record the user's agreement in the brief. Existing authorization
-counts. Once the story is locked, shoot it without further routine approval stops.
+counts. After lock, render three to five final-quality style frames in the real engine: opening,
+chapter heroes and closing. Follow the style-frame step in `story.md`, compare beside a reference
+from Ciechanowski or Kurzgesagt and record the judgment. Then shoot to those frames. This is
+preparation within the existing story decision, not another routine approval stop.
 
 ## Shoot, in one go
 
@@ -48,7 +51,8 @@ job and the taste file. Each agent writes only `scenes/<clip>.js`, `cues/<clip>.
 A needed shared change comes back to you to apply. Live supplies the code editor, terminal and
 program-window components as well as diagrams and 3D.
 
-Build the performed hero moments during the shoot. Picture and sound use the same named cue.
+Build the performed hero moments to match the accepted style frames. Sound is absent unless a
+listed tactile event earns it; that picture and sound use the same named cue.
 Keep one voice and speed, readable subjects that fill the frame, and time for each idea to settle.
 
 As chapters land, apply their reported shared changes and sound plans. Run the voice check,

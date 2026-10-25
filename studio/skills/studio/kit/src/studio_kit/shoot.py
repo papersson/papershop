@@ -1,4 +1,5 @@
 """Prepare independent chapter jobs from the story the user has locked."""
+import json
 import shlex
 from pathlib import Path
 
@@ -20,6 +21,10 @@ def prepare(video):
     out.mkdir(parents=True, exist_ok=True)
     active = agent_hook.activate(video, timeline['tracks']['scene'])
     jobs = []
+    style_path = video / 'research' / 'style-frames' / 'manifest.json'
+    style = json.loads(style_path.read_text()) if style_path.exists() else {}
+    sound_path = video / 'research' / 'sound.json'
+    sound = json.loads(sound_path.read_text()) if sound_path.exists() else {}
     for c in timeline['tracks']['scene']:
         cid = chapter.validate(video, c['id'])
         (video / 'data' / cid).mkdir(parents=True, exist_ok=True)
@@ -47,11 +52,24 @@ def prepare(video):
         craft = video / 'research' / 'story' / f'{cid}.md'
         if craft.is_file():
             lines += ['', '## Chapter craft', '', craft.read_text().strip()]
+        frames = [f for f in style.get('frames', []) if f['clip'] == cid]
+        lines += ['', '## Style frames', '']
+        if frames:
+            lines += [f'Look decision: {style.get("judgment", "See manifest")}; accepted by {style.get("accepted_by", "not recorded")}.',
+                      f'Reference: {style.get("reference", "See manifest")}.',
+                      'Inspect these final-quality images. Match their materials, light, palette, camera and scale:']
+            lines += [f'- {f["role"]}, local {f["t"]} s: {video / f["file"]}' for f in frames]
+        else:
+            lines += ['No style frame recorded for this chapter. Report the missing look target to the main session.']
+        lines += ['', '## Permitted sound events', '',
+                  'Only these tactile touches may have sound. Abstract operations, labels and reveals stay silent.',
+                  json.dumps(sound.get(cid, []), ensure_ascii=False, indent=2),
+                  'An empty list means no effects. Propose any change to the main session; do not add accents yourself.']
         lines += ['', '## Your workspace', '',
                   f'Read {ROOT / "references/taste.md"} and {ROOT / "references/kit.md"}.', '',
                   f'Write only {scene}, cues/{cid}.json and data/{cid}/. Use absolute timeline seconds or narration anchors in your cues. Prefix cue names with {cid}-.',
                   'Treat every shared file as read-only. Report any needed change to the main session. Put proposed sound and typing plans in your data folder for the main session to apply.',
-                  'Keep the agreed voice, story and timing. Perform the hero moment, fill the frame and leave time for it to settle.', '',
+                  'Keep the agreed voice, story and timing. Match the style frames, perform the hero moment and size holds to what just changed. Do not pad unchanged pictures.', '',
                   f'Codex (or sessions without hooks): emit `studio event {shlex.quote(str(video))} agent.activity "plain-language action" --lane {cid}` on meaningful actions; never send fake heartbeats. Claude reports scoped tool activity automatically. Legacy Task payloads without tool-event agent ids can use explicit events for generic commands/shared-file reads; only owned paths and Studio VIDEO+CLIP commands are automatically attributable there.',
                   f'Run `studio wait {shlex.quote(str(video))} --chapter {cid} --timeout 1` between actions. It returns queued notes even after a restart. Acknowledge each with `studio notes VIDEO --start ID`, act, then `--resolve ID --reply "what changed"`. Honour control notes immediately: stop this lane (or the whole build when addressed to all), emit agent.stopped and return.',
                   f'Pin a judgment call with `studio event VIDEO decision "reason" --lane {cid} --t SECONDS`. End with `studio event VIDEO chapter.done "Checked and inspected" --lane {cid}`.', '',

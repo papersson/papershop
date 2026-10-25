@@ -2,8 +2,9 @@
 
 ## Choose a story the viewer can carry
 
-Default to a canonical undergraduate explanation. Teach three or four ideas through one small,
-visible toy example, with two or three quantities to remember. A barrage of precise details can
+Default to a canonical undergraduate explanation. Use one small, visible example and few quantities to remember.
+Three or four ideas is useful guidance, not a cap: breadth was never the problem; density of
+numbers and caveats was. A barrage of precise details can
 leave the viewer without a usable model. Put the desired level into the brief as a sentence.
 
 Teach the subject in terms the viewer can use elsewhere. Use canonical names and relate nearby
@@ -11,15 +12,11 @@ terms when their distinction matters. Explain the primitive before manipulating 
 and its value, a record, a request or a pixel. Familiarity with a specific project is a poor
 substitute for understanding the field.
 
-Build around one question. Make each chapter resolve a limitation the viewer has already seen,
-then give it local closure. Leave out history, plumbing and repeated explanations unless they
-change the answer. Keep requested exhaustive detail in a companion reference when that suits
-the user; agree the scope of the main story with them.
-
-Give the protagonist a stake. Follow a request that needs an answer, a payment that must happen
-once, a pixel that needs its colour, or a person waiting for a result. Show the blocked state early
-and resolve it visibly at the payoff. A persistent shape or glyph makes its identity and changing
-state easy to follow.
+Default to a standard lecture in the subject's natural textbook order: why it exists, what it
+is, how it works, the cases that break it, what it costs and where it is used. Give an insight
+at each step and local closure to each part. A short opening hook is welcome. A governing
+question and a protagonist with a stake are tools for subjects that naturally have them;
+never manufacture them to fill a template. Persistent forms still help us follow changing state.
 
 Use the same concrete example across the ideas. Show intermediate states, then generalize.
 A plausible wrong intuition can make a useful prediction to test. Leave real thinking time after
@@ -37,18 +34,21 @@ problems can make the explanation feel narrow and personal.
 
 ## Let the picture speak
 
-Introduce one thing, let it settle, then explain it. Give a new element about 1.5 seconds of
-stillness as a starting point, and a new label about two seconds after the camera stops.
-Watch the result and lengthen a hold when the viewer still needs it. A cause and its visible
-effect can be one introduction; unrelated arrivals compete for attention.
+Introduce one thing, let the eye read it, then move. In Murch's spirit, size a hold to what
+just changed: read the new label aloud or trace the new relationship with your eye, then add a
+short beat. A dense new picture needs longer; a simple familiar transition may need almost
+none. Do not append a hold when nothing new arrived. Prediction pauses belong only after a
+real question the viewer can answer from what they have seen. Review both crowding and dead
+time: the pacing check warns on short gaps between significant changes and on unchanged stage
+intervals over three seconds outside marked predictions. These are diagnostics, not a minimum
+hold prescription or permission to add meaningless motion to silence a warning.
 
 Let the visuals do the showing. Speak over a still picture, or over motion the viewer already
 understands when the sentence is about that motion. Leave pauses between spoken passages.
 A new mechanism, a camera move and new narration arriving together make the viewer choose which
 to miss. Keep code typing in the pauses, with every key heard, then explain the completed line.
 
-Finish a move and hold its result before another begins. Half a second is a useful minimum for
-an ordinary transition; a new idea needs longer. Stage camera moves apart from content changes.
+Finish a move and give its result the reading time it needs before another idea begins. Stage camera moves apart from content changes.
 Stop repeated demonstrations before introducing the next concept. Loop only when repetition is
 the subject, because endless activity drains attention from the explanation.
 
@@ -66,10 +66,19 @@ Move toward the thing being introduced. A recording surface should come close en
 a film about the inside of a mechanism should open it. A close camera can make a hero contact
 readable and its stake felt. A camera move earns its time by revealing a relationship.
 
-Use depth when the viewer needs to see a relation the flat picture hides. Open the diagram into
-3D and return to the same diagram, keeping identity, labels and colours. Match the dimensionality
-of the user's reference. A physical object may need material, light and shadow to feel convincing;
-use the live lit look or a plate for those shots. Keep diagrams and code clear and flat.
+Make every frame a finished illustration. Ciechanowski's explainers and Kurzgesagt set the
+visual bar: depth, light, texture, considered colour and objects worth looking at. Rich over
+austere. Draw the subject as an object with material and light; beauty that reveals its form
+is not decoration. Use the lit 3D stage or Blender plates where they make a thing feel real.
+For an abstract mechanism, find a concrete physical metaphor worth lighting and explain its
+mapping and limits in the brief: drawers can embody addressable storage, but hashing is not
+physical travel. A box-and-arrow diagram on a dark stage is not a finished look.
+
+Set the bar before the shoot with three to five final-quality style frames in the video's real
+engine, using its real materials. Compare them beside a Ciechanowski or Kurzgesagt reference;
+if they look like a diagram tool, revise them. Chapters must match those frames. Let one form
+transform into the next, in Sanderson's spirit, so the viewer sees continuity instead of slides.
+Keep code legible and geometry truthful even when the surrounding object is richly lit.
 
 Treat geometry and motion as claims. A copy leaves its source in place. A reference stays connected
 to its value. Keep a map fixed when copying its record. Show the part the voice names, including
@@ -78,20 +87,28 @@ the simplification once. A precise-looking model can teach a false mechanism ver
 
 ## Perform the hero moments
 
-Choose a few moments whose action carries the explanation and perform them with sound. Build them
-into the first shoot. Code typed in a real rhythm, a corrected typo, a held breath before running,
-real output appearing and a window answering with a thump are the canonical example. An animated
+Choose moments whose visible action carries the explanation. Build them into the first shoot. Code typed in a real rhythm, a corrected typo, a held breath before running,
+real output appearing and a window opening are useful examples. An animated
 state change alone misses the opportunity to make the mechanism felt.
 
 Keep cause and effect in one shot when possible. Let the viewer see the edit and the program
-answering it, the switch and the resulting change, the contact and its consequence. Give an event
-anticipation, a contact on a named cue and a settle. Time picture and sound from that same cue;
+answering it, the switch and the resulting change, the contact and its consequence. Give a physical event
+anticipation, a contact on a named cue and a settle. When sound is permitted, time it from that cue;
 a recorded effect lands on its transient peak.
 
-Use recorded material sounds and key recordings. Type in bursts, pause at punctuation and before
-a difficult line, and correct an occasional plausible typo. Vary repeated samples without losing
-the action's rhythm. Give Enter, save and run their own accents. Tactility comes from a consistent
-material, weight, movement and sound.
+Default to no sound effects. Ben Burtt's principle is that sound makes an object real: it
+belongs to things with a body that are touched. Permit recorded keys for performed typing,
+button or switch clicks, a window opening, or a real physical contact such as a disk head
+landing. List the exact permitted events in the shoot brief; an empty list means silence.
+Never put a whoosh, pop, ding or chime on an abstraction: a key entering a bucket, a label
+appearing or a reveal. Giving an abstraction a drawer metaphor does not license a contact
+sound for the abstract operation. This restraint keeps tactile sounds credible and prevents
+cheap punctuation from competing with the picture.
+
+The recorded sound kit stays. Keep permitted sounds below speech, with their transient on the
+pictured frame. Type in human bursts, with punctuation pauses and plausible corrections; vary
+key recordings without losing rhythm. Enter, save and run accents must correspond to performed
+keys or clicks. Do not add an accent merely because an output appeared. No music by default.
 
 Spend emphasis on meaning. Give the strongest event more space and a closer view when it reveals
 the stake. Let the world react only as the mechanism permits. A heavy physical contact can recoil
@@ -116,8 +133,8 @@ and a 540p preview often needs much larger type. Break long code lines or widen 
 shrinking its text. Keep status text outside plots, where its position could be mistaken for data.
 
 Use one colour for one meaning throughout the video, across flat and 3D pictures. Declare the
-legend and tag shapes with their meaning. A useful starting palette is ice for the subject or
-selection, amber for cost or a quantity to watch, coral for failure and grey for idle. Changing the
+legend and tag shapes with their meaning. Design a palette for this subject, with material neutrals and a few deliberate accents, rather
+than inheriting generic grey rectangles on a dark stage. Changing the
 meaning of a colour forces the viewer to relearn the diagram.
 
 Use real images, source code, captures and output where they explain the subject. Keep quotes
@@ -143,8 +160,9 @@ make the voice sound like a list. Put intuition before notation and say paramete
 Use narration to add why, what follows or what could go wrong. Cut lines that merely announce
 what the viewer can already see. Give one useful statement of scope, then continue the story.
 Avoid corrective slogan pairs, protective hedges, abstract noun piles, forced three-part lists,
-announced recaps and other LLM-speak. End with the mechanism working and a sentence that closes
-the opening question, leaving the viewer time to see it.
+announced recaps and other LLM-speak. Over a rich picture the voice can be lighter: explain why, cost and failure, without
+describing the visible action. Keep full sentences. End with the mechanism working and a useful
+consequence, leaving only the reading time that the final change needs.
 
 Keep production, tools used to make the film, briefs and private context out of the narration.
 Subject-specific product names and code belong when the viewer needs them. This keeps the
@@ -164,3 +182,13 @@ After each video, append a short entry only when the user's own note establishes
 preference. Keep the note's wording, the resulting imperative and the reason. Link the video and
 note so a future change can understand the context. Fold repeated lessons into the relevant
 paragraph above. Keep temporary fixes and reviewer opinions in the video's review files.
+
+Part D, hash-table feedback (2026-10-25): “the visuals just didn't feel very delightful at all,
+and they didn't feel like the centerpiece”; “a standard lecture, but just with stunning visuals”;
+“some pauses are just too long”. The user also named real typing and button clicks as good sound,
+and reaffirmed the sphere opening, Blender hard drive and tunnel game-feel pass. Therefore put
+finished style frames before the shoot, welcome visual richness and textbook breadth, restrict
+sound to touch and size holds to new content. The earlier austerity and fixed holds over-corrected
+crowding; preserve one thing at a time, full sentences, canonical level and no barrage of numbers.
+Evidence: ~/drafts/studio-phase2/evidence/findings.md and the part D request; old film:
+~/drafts/studio-phase2/scratch-videos/hash-table-elicit/out/master.mp4.

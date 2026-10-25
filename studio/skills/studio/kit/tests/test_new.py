@@ -9,6 +9,8 @@ def test_new_video_is_ready_for_a_script_and_an_estimate(tmp_path, monkeypatch):
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
     video, _ = new.create("retry-safety", source=str(tmp_path))
     assert video == tmp_path / "home" / "retry-safety"
+    assert json.loads((video / "audio/sfx.json").read_text()) == []
+    assert json.loads((video / "narration.json").read_text())["tail"] < 3
     cfg = json.loads((video / "video.json").read_text())
     assert cfg["title"] == "Retry safety" and cfg["source"]["path"] == str(tmp_path.resolve())
     (video / "SCRIPT.md").write_text((video / "SCRIPT.md").read_text().replace(

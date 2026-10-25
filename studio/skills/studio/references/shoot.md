@@ -1,6 +1,6 @@
 # Shoot in parallel
 
-Start after the user locks the story. The main session owns `research/brief.md`, `SCRIPT.md`,
+Start after story lock and the style frames in `story.md`. The main session owns `research/brief.md`, `SCRIPT.md`,
 `narration.json`, the boards, layout, legend, shared scene helpers and the sound mix. Keep the desk
 running and mark `studio stage VIDEO shoot` so the first playable time can be measured.
 
@@ -8,11 +8,14 @@ Run `studio shoot VIDEO`. Kokoro is the default voice; an explicitly chosen Elev
 remains the configured voice. The command reuses cached synthesis, rebuilds the timeline and writes
 `research/shoot/<clip>.md` for every chapter. Each job contains the locked brief, its narration with
 sentence ids and absolute times, beats and screen notes, the taste path and allowed commands.
+It includes the chapter’s accepted `research/style-frames/manifest.json` images and the exact
+permitted events from `research/sound.json` (none if absent). Inspect the images and match their
+materials, light, framing and scale. Sound may accompany only a listed tactile touch.
 It also includes `research/story/<clip>.md`: that chapter's hero moment as described in the elicit
 material and the relevant panel principles with reasons, selected during story conversion. Keep
 the full panel and rich brief in `research/elicit.md`; do not send them wholesale to every agent.
 
-Before dispatch, settle shared visual choices from the reel: the protagonist, legend, layout,
+Before dispatch, settle shared visual choices from the reel: the shared object and its metaphor, legend, layout,
 common helpers and any sound or typing data the chapter needs to read. A prepared typed-code plan
 can already be applied by the main session. Otherwise the chapter proposes its plan in its own
 data folder and reports it back. Shared work should be small enough to keep the chapter jobs
@@ -47,7 +50,8 @@ Use this prompt, replacing the paths and clip id:
 Build chapter CLIP of VIDEO. First use Read on the unique job path printed by studio shoot.
 Read that job, SKILL_ROOT/references/taste.md and SKILL_ROOT/references/kit.md.
 The story and voice are settled. Build the chapter in one pass, including its performed hero
-moment and the pauses that let it breathe. Make the subject large enough to inspect.
+moment, matching the accepted style frames. Size pauses to new content; do not hold an unchanged
+picture. Make the subject large enough to inspect. Use only the listed tactile sounds.
 
 Write only VIDEO/scenes/CLIP.js, VIDEO/cues/CLIP.json and VIDEO/data/CLIP/.
 Treat shared files as read-only, including the script, narration, layout, boards, timeline,
@@ -77,7 +81,8 @@ file boundary. Do not run a shared cut or audio command from a chapter job.
 ## Assemble once
 
 As each chapter lands, read its result and address a failed deterministic check in that chapter.
-Apply reported changes to shared files deliberately. Combine the proposed effects into one
+Apply reported changes to shared files deliberately. Reject effects not in the tactile allowlist.
+Combine the permitted effects into one
 file, run `studio sfx VIDEO FILE`, and apply typing plans through `studio typing` in the main
 session. Rebuild the timeline after changing timing or cues.
 
@@ -95,7 +100,7 @@ can run concurrently because each writes its own folder under `research/reviews/
 Wait for the bundle paths, then dispatch one reviewer per chapter together using the Agent tool:
 
 ```text
-Read BUNDLE/PROMPT.md and review the saved chapter once. Inspect its frame stills and motion
+Read BUNDLE/PROMPT.md and review the saved chapter once. Inspect its frame stills beside the accepted style frames and reference, and motion
 windows together, and listen at hero moments when a player is available. Use the taste file.
 Write BUNDLE/findings.json in the documented shape. State any evidence you could not inspect.
 Do not edit video sources. Return the findings file path and a short account of what you saw.

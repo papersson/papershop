@@ -53,8 +53,9 @@ def create(name, directory=None, title=None, source=None, duration=None, engine=
         raise SystemExit("Studio renders live scenes; use the older pinned kit for other engines")
     video = target(name, directory)
     (video / "scenes").mkdir(parents=True, exist_ok=True)
-    for folder in ("research", "cues", "data"):
+    for folder in ("research", "cues", "data", "audio"):
         (video / folder).mkdir(exist_ok=True)
+    (video / "audio" / "sfx.json").write_text("[]\n")
     cfg = {"title": title or default_title(name), "version": "v1", "destination": "private-page",
            "engine": engine, "poster": None, "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"]}
     if source:
