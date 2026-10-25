@@ -8,7 +8,8 @@ see current rules, not their history. DESIGN.md keeps the standing rationale.
 The user found the 0.15 hash-table film visually lame, its sound effects cheap, its governing
 question forced and some pauses too long. The earlier taste revision had over-corrected toward
 calm and minimal. The loved shader sphere, Blender hard drive, tunnel game-feel pass and real
-keyboard performance establish a richer, more tactile bar.
+keyboard performance establish spatial and tactile craft where those subjects call for it.
+Part E establishes a separate flat drawing standard for abstract subjects.
 
 - Standard lectures now follow canonical textbook order. A protagonist and governing question
   are optional tools; three or four ideas is guidance, not a cap. The old two-prediction quota
@@ -40,6 +41,16 @@ brief and remakes the prompt in flat 2D, following Elicit, story, like-for-like 
 and parallel chapter production. Evidence and honest limitations are in
 ~/drafts/studio-phase2/STEP-E.md; the rejected cabinet evidence remains in STEP-D.md. References
 remain in research only. This correction stays in 0.16.0.
+
+The fresh 2:56 hash-table remake uses original flat vector scenes, three style-frame rounds beside
+four official 3Blue1Brown lesson stills, and one combined review per chapter. Nine accepted picture
+findings and a saved-final label-overlap correction improve the actual mechanism and readability.
+The film varies association, arithmetic, table, chain, resize and cost views; effects and music
+remain absent. First playable was 15m35s after story lock, missing the target by 35 seconds.
+The full suite passes 663 tests. The report includes matched-time cabinet/2D/reference contact
+sheets, delegated decision reasons and saved-film diagnostics. The result fits an abstraction
+better, but still falls short of 3Blue1Brown in composition and choreography. Native playback was
+blocked by computer permissions; human listening and the user's taste verdict remain unverified.
 
 ## Story, shoot and desk (0.15.0)
 

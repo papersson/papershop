@@ -58,7 +58,7 @@ picture. Enlarge the subject or move the camera before adding labels. Use close-
 and return to the overview when the relationship matters.
 
 Keep the overview clean: component names and current state. Open a component into a full-frame
-close-up, with its name and a small unlabelled minimap if orientation needs it. Light the component
+close-up, with its name and a small unlabelled minimap if orientation needs it. Highlight the component
 before moving in. Return to the same overview with the relevant state changed; leave close-up
 details behind. Reframe the components that exist so early pictures stay balanced.
 
