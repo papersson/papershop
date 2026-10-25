@@ -10,8 +10,9 @@ and breathing room perceptible before scene code is expensive to change.
 
 Story starts with Elicit's model-derived panel and rich brief, saved in `research/elicit.md`.
 The user's request wins over both that material and taste; the user's recorded taste wins over
-Elicit's general knowledge. Conversion keeps three or four ideas, one example, performed hero
-moments and explicit omissions: cut scope, never craft. Chapter jobs receive only the relevant
+Elicit's general knowledge. Conversion keeps canonical lecture order, a small example, performed hero moments and explicit
+omissions: cut scope, never craft. Three or four ideas is guidance, not a cap; numbers and
+caveats can overwhelm even a narrow story. A governing question and protagonist are optional. Chapter jobs receive only the relevant
 hero description and panel principles from `research/story/<clip>.md`. Without the installed
 skill, a short local method supplies those same questions without an installation stop.
 
@@ -20,6 +21,15 @@ Elicit brief and fallback brief kept essentially the same mechanism and remember
 the sequential same-agent comparison does not establish Elicit's superiority. The raw material
 was useful but did not prevent two crowded transitions. One elicitation and Studio's existing
 review pass suffice; a longer raw brief is not permission to add a second production process.
+
+The 0.15 hash-table film exposed a taste failure despite the fast production: the user found its
+visuals lame, its sound effects cheap, its governing question forced and some holds too long.
+The loved sphere opening, Blender hard drive and tunnel game-feel pass show why austerity was
+the wrong correction. After story lock, one style-frame step now sets a finished visual target:
+three to five actual-engine frames beside a Ciechanowski or Kurzgesagt reference. The shared
+objects, materials, light and cameras become chapter inputs. This is preparation, not another
+review stage or permission stop; existing delegation applies. The existing chapter review checks
+that the film matches the frames.
 
 There are two decisions: the user locks the story, then says when to ship. Routine construction
 and corrections proceed within those decisions. The skill is a router for story, shoot and desk;
@@ -30,7 +40,9 @@ five references supply taste, collaboration and the tools needed for each job.
 A model can write an animation and describe good teaching. It cannot infer the user's specific
 preferences from first principles. `references/taste.md` retains those preferences with their
 reasons: canonical level, a toy example, full explanatory sentences, a clean overview, close-ups,
-performed events and time to look. Its final section keeps new lessons tied to actual viewer notes.
+performed events and time to read what changed. Holds follow content, not fixed minimums;
+a long unchanged picture can drag just as adjacent introductions can crowd. No prediction quota
+forces a lecture to invent questions or pauses. Its final section keeps new lessons tied to actual viewer notes.
 The user's request supplies any departure needed for a particular video.
 
 ## One timeline keeps picture and sound together
@@ -78,7 +90,11 @@ pronunciations. Voice checking caught missing synthesized sentences, and alignme
 and labels useful word anchors. ElevenLabs remains an explicitly selected option with cached
 responses, so a rebuild can reproduce paid speech.
 
-Recorded CC0 material sounds, key recordings and typed-code streams make actions tactile.
+Sound defaults to an empty list. In Burtt’s sense, recorded material sounds and typed-key streams
+make actual touches tactile: keys, buttons, windows and real physical contacts. Abstract arrivals,
+reveals and bucket operations stay silent, even when a physical metaphor depicts them. Shoot
+jobs carry exact allowed events by chapter; the main session retains control of the mix.
+Recorded CC0 material sounds, key recordings and typed-code streams remain available.
 Typing replays actual file versions and uses the same keystroke events for picture and sound.
 The mix bus supplies shared room, presence and ducking. A fixed whole-track loudness gain and
 true-peak limiter preserve quiet pauses; dynamic normalization once lifted room noise between
@@ -92,9 +108,11 @@ read. They are chunked from the narration with phrase breaks and a minimum readi
 labels identify things. A clean map and large close-ups keep detail from accumulating indefinitely.
 One colour retains one meaning, and outer contours carry more weight than internal dividers.
 
-Live 3D helps when a flat diagram hides a spatial relation. It shares the timeline, legend and
-checks with SVG. The lit look and Blender plates remain available for physical hero shots whose
-material matters. Projected labels stay live and readable. A plate probe measures its cost before
+Live 3D also gives an abstract mechanism a concrete object worth lighting. It shares the timeline,
+legend and checks with SVG. The lit look and Blender plates make subjects real through material,
+light and depth. Finished illustration is the bar; a dark stage of boxes and arrows is not.
+A considered palette keeps one meaning per colour, and continuous form changes carry the idea
+between views. The brief states the physical metaphor’s mapping and limits. Projected labels stay live and readable. A plate probe measures its cost before
 a long render. Live also supplies recorded code panels, terminals, the typed editor and its program
 window. Code-view folds, highlights, collapse and helper cards share the same pure replay model.
 One renderer now supplies both the desk and the movie; there is no separate scene registry or bundle.
@@ -105,7 +123,11 @@ Length checks caught disagreement between Python and JavaScript at half-frame bo
 Determinism checks catch state that depends on earlier frames. Bounds, band, contrast and
 legibility checks catch clipped or unreadable elements. In-frame and occlusion warnings expose
 narrated objects that the picture hides. Colour-legend checks catch meanings that change colour.
-Motion and flash checks inspect rendered frames. Asset provenance and code-view checks preserve
+Motion and flash checks inspect rendered frames. Pacing warns on both crowded moves and stage
+intervals over three seconds without visible new content, including opening and tail. It removes
+only the actual marked prediction interval, crops captions away and discounts ambient motion.
+Small readable label arrivals count. Pixel changes cannot prove semantic novelty: ornamental
+movement is not a valid fix, and the existing review still judges reading demand. Asset provenance and code-view checks preserve
 source relationships. Some checks are heuristic warnings; the story explains whether a hold or
 an overlap is intentional.
 

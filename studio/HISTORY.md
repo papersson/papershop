@@ -3,6 +3,40 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Visuals at the center (0.16.0)
+
+The user found the 0.15 hash-table film visually lame, its sound effects cheap, its governing
+question forced and some pauses too long. The earlier taste revision had over-corrected toward
+calm and minimal. The loved shader sphere, Blender hard drive, tunnel game-feel pass and real
+keyboard performance establish a richer, more tactile bar.
+
+- Standard lectures now follow canonical textbook order. A protagonist and governing question
+  are optional tools; three or four ideas is guidance, not a cap. The old two-prediction quota
+  is removed. One thing at a time, full
+  sentences, canonical level and few numbers remain.
+- One new preparation step after story lock renders three to five finished style frames in the
+  real engine and compares them beside a Ciechanowski or Kurzgesagt reference. Shoot jobs carry
+  the matching images and material/composition judgment. Existing chapter reviews compare the
+  finished film with them; there is no new review stage or engine.
+- Rich objects, light, material and a designed palette replace austerity. Physical metaphors
+  explain abstract mechanisms, with their mapping and limits in the brief. Continuous form
+  transformations preserve identity. The banned generated-design defaults remain.
+- Effects default to an empty list. Shoot jobs list exact permitted tactile touches; abstract
+  bucket arrivals, labels and reveals stay silent. The recorded kit, shared event frames and
+  no-music default remain.
+- Holds follow the time needed to read new content plus a short beat. Pacing now warns on both
+  crowding and unchanged stage intervals over three seconds, including opening and tail, with
+  only marked prediction intervals exempt. Captions and ambient motion do not conceal dead
+  time. Pixel change remains a diagnostic, not proof of meaningful visual development.
+- The scaffold’s eight-second tail becomes 0.8 seconds. Narration adds why, cost and failure
+  while the picture shows the mechanism.
+
+The fresh scratch hash-table remake follows Elicit, the lecture, three rounds of actual-engine
+style frames and parallel chapter production. Its full timing, three-way comparisons, sound
+list, pacing evidence and limitations are recorded in ~/drafts/studio-phase2/STEP-D.md.
+The final suite passes 663 tests. The fresh model comparison prefers the remake’s richer objects;
+a human delight verdict remains unobserved. No reference image appears in the film.
+
 ## Story, shoot and desk (0.15.0)
 
 Phase 1 compared the same five-minute shaders request. A bare agent produced its video in
