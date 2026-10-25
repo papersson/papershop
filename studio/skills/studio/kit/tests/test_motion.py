@@ -112,7 +112,7 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     (warn,), (ok,) = [r for r in rows if r["clip"] == "s1"], [r for r in rows if r["clip"] == "s2"]
     assert warn["severity"] == "warning" and warn["ok"] and warn["t"] == 0.5
     assert warn["detail"].startswith("0.2 s hold between the move at 0.4-0.5 s and the one at 0.7 s")
-    assert "2 significant moves; no crowding" in ok["detail"]
+    assert "2 significant moves; no short-gap diagnostic" in ok["detail"]
     (tmp_path / "scenes" / "s2.js").write_text("// s2, edited: its rendered clip is stale\n")
     assert [r.get("skipped") for r in motion.pacing(tmp_path, eng, stills=False)] == [None, True]
 
@@ -320,6 +320,21 @@ def test_readable_label_resets_dead_time_but_ambient_wobble_does_not():
     assert motion.unchanged_spans(sig, 6) == []
     assert motion.unchanged_spans([], 3) == []
     assert motion.unchanged_spans([], 3.1) == [(0, 3.1)]
+
+
+def test_breath_exempts_only_its_interval_and_warns_if_picture_keeps_moving(tmp_path, monkeypatch):
+    (tmp_path / 'timeline.json').write_text(json.dumps({'tracks': {
+        'scene': [{'id': 's1', 'start': 20, 'end': 32}],
+        'narration': [{'clip': 's1', 'pause': {'start': 24, 'end': 28, 'breath': True}}]}}))
+    monkeypatch.setattr(motion.tl, 'events', lambda *a: [])
+    monkeypatch.setattr(motion, 'pacing_signal', lambda *a: {'s1': []})
+    rows = motion.pacing(tmp_path)
+    assert [(r['t'], r['end']) for r in rows if r.get('kind') == 'dead-time'] == [(0, 4), (8, 12)]
+    breath = next(r for r in rows if r.get('kind') == 'breath')
+    assert 'severity' not in breath and breath['seconds'] == 4
+    monkeypatch.setattr(motion, 'moves', lambda *a: [(5, 6, 5)])
+    breath = next(r for r in motion.pacing(tmp_path) if r.get('kind') == 'breath')
+    assert breath['severity'] == 'warning' and 'motion inside' in breath['detail']
 
 
 def test_dead_time_uses_rendered_stage_without_changing_captions(tmp_path):

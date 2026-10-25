@@ -41,8 +41,9 @@ five references supply taste, collaboration and the tools needed for each job.
 A model can write an animation and describe good teaching. It cannot infer the user's specific
 preferences from first principles. `references/taste.md` retains those preferences with their
 reasons: canonical level, a toy example, full explanatory sentences, a clean overview, close-ups,
-performed events and time to read what changed. Holds follow content, not fixed minimums;
-a long unchanged picture can drag just as adjacent introductions can crowd. No prediction quota
+performed events and time to read what changed. Breaths fall after named key points and section
+endings; related motion flows within ideas. A long unchanged picture can drag just as adjacent
+introductions can crowd. No prediction quota
 forces a lecture to invent questions or pauses. Its final section keeps new lessons tied to actual viewer notes.
 The user's request supplies any departure needed for a particular video.
 

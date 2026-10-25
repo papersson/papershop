@@ -34,7 +34,8 @@ narration.json also holds:
   tail          seconds of silence after the last sentence, for the end card (default 6)
   timing        beat, chapter_hold and chapter_gap: explicit spacing, with one voice and speed
                 throughout. Legacy timing.pause and kokoro.role_speed are ignored. Explicit holds
-                and [pause], [predict] and [beat] markers still apply.
+                and [pause], [predict], [beat] and [breath N] markers still apply. A breath adds
+                silence and marks its interval for the scene author and pacing check.
 """
 import base64
 import hashlib
@@ -174,6 +175,7 @@ def layout(S, chapters, durations, gaps=None, words=None):
                 hold = event.pause
             if hold:
                 seg["lines"][-1]["pause"] = {"seconds": hold, "prediction": bool(event and event.prediction),
+                                                   **({"breath": True} if event and event.breath else {}),
                                                    "start": at(r + d), "end": at(r + d + hold)}
             r += d + hold
             prev_p, prev_id = pi, lid

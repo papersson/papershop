@@ -9,6 +9,7 @@ A "*Screen:*" line says what the picture shows. It may name the sentences it bel
 paragraph above it. Boards and checks read these as ScreenNote(start, end, text).
 
 Markers in narration are never spoken or captioned. Each follows a complete sentence:
+  [breath 2]                     stillness and silence after a key point (seconds required)
   [pause 2]  [predict 3]  [beat]   a hold after the sentence (a prediction hold is thinking time
                                    before a reveal; a beat is narration.json timing.beat)
   [key]  [aside]  [recap]          legacy role annotations, accepted but do not change the voice or timing
@@ -36,6 +37,7 @@ class Sentence:
     pause: float | None = None
     prediction: bool = False
     role: str | None = None     # "key", "aside" or "recap", from a marker
+    breath: bool = False
 
 
 @dataclass
@@ -79,16 +81,16 @@ ABBREVIATION = re.compile(r"(?:^|[\s(\"'“])(?:Dr|Mr|Mrs|Ms|Prof|St|vs|e\.g|i\.
 
 
 def paragraph(text, line, beat):
-    """[(sentence, hold seconds or None, prediction, role or None)], with the markers removed and
+    """[(sentence, hold seconds or None, prediction, role or None, breath)], with markers removed and
     the old splitter kept for marker-free scripts."""
     lead = re.match(r"\[(key|aside|recap)\]\s*", text)
     whole = lead[1] if lead else None
     text = text[lead.end():] if lead else text
     clean, events, cursor = "", [], 0
-    for m in re.finditer(r"\[(?:pause|predict|beat|key|aside|recap)[^\]\n]*(?:\]|$)", text):
+    for m in re.finditer(r"\[(?:breath|pause|predict|beat|key|aside|recap)[^\]\n]*(?:\]|$)", text):
         clean += text[cursor:m.start()]
-        token = re.fullmatch(r"\[(beat|pause|predict|key|aside|recap)(?: ([0-9]+(?:\.[0-9]+)?))?\]", m.group())
-        timed = token and token[1] in ("pause", "predict")
+        token = re.fullmatch(r"\[(breath|beat|pause|predict|key|aside|recap)(?: ([0-9]+(?:\.[0-9]+)?))?\]", m.group())
+        timed = token and token[1] in ("breath", "pause", "predict")
         if not token or (timed and token[2] is None) or (not timed and token[2]):
             raise SystemExit(f"SCRIPT.md:{line}: invalid marker {m.group()!r}")
         if not clean.rstrip().endswith((".", "?", "!", '."', '?"', '!"')):
@@ -99,7 +101,7 @@ def paragraph(text, line, beat):
             seconds = beat if token[1] == "beat" else float(token[2])
             if not math.isfinite(seconds) or seconds < 0:
                 raise SystemExit(f"SCRIPT.md:{line}: pause must be a finite nonnegative number")
-            events.append((len(clean), "hold", (seconds, token[1] == "predict")))
+            events.append((len(clean), "hold", (seconds, token[1] == "predict", token[1] == "breath")))
         cursor = m.end()
     clean += text[cursor:]
     boundaries = [m for m in re.finditer(r'(?<=[.!?])\s+(?=[A-Z"])', clean) if not ABBREVIATION.search(clean[:m.start()])]
@@ -117,7 +119,8 @@ def paragraph(text, line, beat):
             raise SystemExit(f"SCRIPT.md:{line}: more than one role on a sentence")
         sentence = clean[start:end].strip()
         if sentence:
-            out.append((sentence, *(holds[0] if holds else (None, False)), roles[0] if roles else whole))
+            seconds, prediction, breath = holds[0] if holds else (None, False, False)
+            out.append((sentence, seconds, prediction, roles[0] if roles else whole, breath))
     # A marker is a sentence boundary even before a lowercase continuation; make ambiguity explicit.
     if any(clean[pos:].strip() and not re.match(r'^[A-Z"]', clean[pos:].strip()) for pos, _, _ in events):
         raise SystemExit(f"SCRIPT.md:{line}: start a new sentence or paragraph after a marker")
@@ -142,9 +145,9 @@ def read(video, beat=0.5):
             chapters.append(chapter)
             pi = 0
         elif line.startswith("> ") and chapter:
-            for cap, pause, prediction, role in paragraph(line[2:].strip(), lineno, beat):
+            for cap, pause, prediction, role, breath in paragraph(line[2:].strip(), lineno, beat):
                 chapter.sentences.append(Sentence(f"{chapter.id}_{len(chapter.sentences)+1:02d}", cap, pi,
-                                                  lineno, pause, prediction, role))
+                                                  lineno, pause, prediction, role, breath))
             pi += 1
         elif line.startswith("*Screen:*") and chapter:
             above = [s.id for s in chapter.sentences if s.paragraph == pi - 1]

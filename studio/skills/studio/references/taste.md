@@ -34,23 +34,32 @@ problems can make the explanation feel narrow and personal.
 
 ## Let the picture speak
 
-Introduce one thing, let the eye read it, then move. In Murch's spirit, size a hold to what
-just changed: read the new label aloud or trace the new relationship with your eye, then add a
-short beat. A dense new picture needs longer; a simple familiar transition may need almost
-none. Do not append a hold when nothing new arrived. Prediction pauses belong only after a
-real question the viewer can answer from what they have seen. Review both crowding and dead
-time: the pacing check warns on short gaps between significant changes and on unchanged stage
-intervals over three seconds outside marked predictions. These are diagnostics, not a minimum
-hold prescription or permission to add meaningless motion to silence a warning.
+**Rhythm rule:** after each key point, leave about **1.5–3 seconds of stillness and
+silence**. Key points are the ideas named in the story brief and the payoff of each hero moment,
+not every sentence. Between sections, leave a longer pause of about **3–4 seconds** and reset
+the stage: clear it or pull back to a new composition before the next section starts. Put the
+reset after the settled rest, so the point itself has a still picture and a silent voice.
 
-Let the visuals do the showing. Speak over a still picture, or over motion the viewer already
-understands when the sentence is about that motion. Leave pauses between spoken passages.
-A new mechanism, a camera move and new narration arriving together make the viewer choose which
-to miss. Keep code typing in the pauses, with every key heard, then explain the completed line.
+Everywhere else, motion may flow, overlap the narration and move the camera, as long as it shows
+what is being said right then. There is no mandatory hold after every small change. Keep **one
+new thing at a time** for genuinely new mechanisms; avoid unrelated movements competing for
+attention. Related transformations and reframing can develop one idea continuously. Keep
+performed code typing in speech pauses, with every key heard, then explain the completed line.
 
-Finish a move and give its result the reading time it needs before another idea begins. Stage camera moves apart from content changes.
-Stop repeated demonstrations before introducing the next concept. Loop only when repetition is
-the subject, because endless activity drains attention from the explanation.
+The reason is rhythm: small holds after every change create one even pace without a real rest.
+Inside an idea the picture can move freely; when the idea lands, everything stops. A section
+break acts like a paragraph break. Mark key points and section ends in the brief and beat table's
+`Breath` column, and place `[breath N]` after the corresponding complete narration sentence.
+`narrate` adds silence and records the interval; scene authors settle the picture before it and
+keep it still throughout. Allow a reset after a section breath, before the next voice starts.
+
+Keep the dead-time warning: a long hold where nothing new arrived and nothing landed is still
+dead time; a marked breath is not. The pacing check exempts only the marked rest, not adjacent
+empty time, and warns if significant motion crosses a breath. Its short-gap warnings ask whether
+genuinely new mechanisms compete, not for extra holds between related moves. Prediction pauses
+still belong only after a real question the viewer can answer. Do not add meaningless motion to
+silence a diagnostic. Stop repeated demonstrations before introducing the next concept; loop
+only when repetition is the subject.
 
 Fill the frame with the subject. Make code, mechanisms and diagrams large enough to inspect at
 the delivered resolution. A tiny diagram or small editor surrounded by an empty stage wastes the
@@ -85,8 +94,7 @@ A finished illustration need not have depth or simulated materials. Aim for:
 - A large, centred mechanism that fills the frame and is easy to inspect.
 - Continuous transformations: a key's characters fold into a number, then that number slides
   into its slot. Preserve identity so the viewer sees how one form becomes the next, not slides.
-- Purposeful camera moves: push in on a bucket and pull back to the table. Separate reframing
-  from new content; do not hold the same static shot for minutes.
+- Purposeful camera moves: push in on a bucket and pull back to the table. Let reframing follow the current idea; do not hold the same static shot for minutes.
 - Visual variety across the film: close-ups, an overview, side-by-side comparisons and a layout
   that changes as the lecture moves on. Reusing a single composition is not visual coherence.
 
@@ -194,7 +202,7 @@ what the viewer can already see. Give one useful statement of scope, then contin
 Avoid corrective slogan pairs, protective hedges, abstract noun piles, forced three-part lists,
 announced recaps and other LLM-speak. Over a rich picture the voice can be lighter: explain why, cost and failure, without
 describing the visible action. Keep full sentences. End with the mechanism working and a useful
-consequence, leaving only the reading time that the final change needs.
+consequence, then give its final key point a still, silent breath.
 
 Keep production, tools used to make the film, briefs and private context out of the narration.
 Subject-specific product names and code belong when the viewer needs them. This keeps the
@@ -232,3 +240,12 @@ test, use flat mathematical craft for abstractions and compare like with like be
 The cabinet film was a taste failure, not evidence that abstract subjects need richer materials.
 Evidence: ~/drafts/studio-phase2/STEP-D.md and the part E request; rejected film:
 ~/drafts/studio-phase2/scratch-videos/hash-table-taste/out/master.mp4.
+
+Part F, hash-table feedback (2026-10-25): “I think it looks really nice. But maybe doesn't breath
+enough, maybe too much visuals and stuff going on?”; “Maybe breath after each section and each
+important point, but otherwise feel free to move around visuals and animations etc?” Replace
+per-change holds with still, silent rests at named key points and longer section breaks with a
+stage reset. Let related motion flow between them and leave unrelated things still. Breathing
+depends on where rests fall, not how many tiny holds are inserted. Evidence: part F request and
+~/drafts/studio-phase2/STEP-F.md; source film:
+~/drafts/studio-phase2/scratch-videos/hash-table-2d/out/master.mp4.

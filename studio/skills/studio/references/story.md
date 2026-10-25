@@ -19,7 +19,7 @@ If elicit is absent from the available skills, use this short method; never ask 
   explanation, motion, sound, and someone who questions whether this is the right video.
 - Say what each would insist on and why; names alone contribute nothing.
 - Settle the real goal and audience, including what the viewer should be able to predict.
-- Describe two to four memorable moments beat by beat in picture and sound, with settled holds.
+- Describe two to four memorable moments beat by beat in picture and sound, with breaths at their payoffs.
 - Draw the line between delightful and tacky, and decide what to cut.
 - Save this panel and raw material in `research/elicit.md`, labelled fallback, then write the brief.
 
@@ -55,9 +55,12 @@ Our visual reference is [3Blue1Brown for abstract subjects; Ciechanowski or Kurz
 ones], particularly [typography, lines, palette, composition, transformations or spatial relationships].
 Our shots vary through [close-up, overview, comparison and changing layout, with reasons].
 
+Our key points are [named ideas and the sentence after which each lands].
+Our section ends are [sentences, rest lengths and the reset before the next section].
+
 Our hero moments are:
 - In [chapter], [action] becomes [visible result]. We see [framing and motion], hear [permitted tactile event or silence],
-  then read [what changed] while the voice adds [why, cost or failure].
+  while the voice adds [why, cost or failure]; after the payoff, hold still and silent for [1.5–3 s].
 
 Permitted sound events: [exact touches and named cues, or none]. Abstract operations stay silent.
 
@@ -75,19 +78,24 @@ primary sources. Keep source notes and reproducible helpers in `research/` and `
 `data/`. The script's Evidence table ties claims to their sources. Distinguish measured output,
 inference and a deliberately simplified example.
 
-Write the beats before filling the narration. Use this table in `SCRIPT.md`, one row per visible
-change or hold. Include the chapter id so an agent can identify its part of the story.
+Write the beats before filling the narration. Use this table in `SCRIPT.md`, one row per story
+beat. Name key points and section ends in the `Breath` column; use `—` elsewhere. Include the
+chapter id so an agent can identify its part of the story.
 
-| Chapter | Beat | Insight | Picture introduced | Action and sound | Settled hold | Voice adds | Exit state |
+| Chapter | Beat | Insight | Picture introduced | Action and sound | Breath | Voice adds | Exit state |
 |---|---|---|---|---|---|---|---|
-| s1 | s1-open | An input selects a colour. | One large pixel and its input. | The input changes with a key click. | Hold the new colour. | Explain how the input selects it. | The viewer can predict a second input. |
+| s1 | s1-open | An input selects a colour. | One large pixel and its input. | The input changes with a key click. | Key point: 2 s after s1_01. | Explain how the input selects it. | The viewer can predict a second input. |
 
-Silence is a beat when it gives new content time to be read. Plan introduce → read → explain;
-size each hold to its content and do not pad the runtime with unchanged pictures. Write full spoken paragraphs beneath
+Plan flowing action inside each idea, then stillness and silence when it lands: 1.5–3 s after
+key points and hero payoffs, 3–4 s between sections including a stage reset. Do not add a hold
+after every small change or pad the runtime with unchanged pictures. Write full spoken paragraphs beneath
 `## Script` and `### 1. Chapter title`. Each `> ` line is a narration paragraph. Add `*Screen:*`
 notes with the picture, framing, sound and hero event; `s1_01` means the first sentence of chapter
-one. A note without ids belongs to the paragraph above it. Use `[pause 2]`, `[predict 3]` or
-`[beat]` after a complete sentence to reserve time in the actual narration.
+one. A note without ids belongs to the paragraph above it. Use `[breath 2]` after a complete
+sentence for a key point, or `[breath 3]` at a section end
+with reset time in `narration.json` chapter_gap. `[pause 2]` and `[beat]` reserve ordinary silence;
+`[predict 3]` reserves thinking time after a real question. Only breaths and predictions mark
+intentional rests for pacing.
 
 Draw rough frames in `boards/boards.json` so the user can judge the picture's scale and density.
 The schema is in `kit.md`. Screen notes fill gaps, but a page of notes cannot show whether the

@@ -7,6 +7,33 @@ from studio_kit import check, keys, narration, render, script, script_check, tim
 from test_narration import SCRIPT, video
 
 
+def test_breath_keeps_speech_cache_and_marks_only_its_silent_interval(tmp_path):
+    v = video(tmp_path)
+    before = script.load(v)
+    (v / 'SCRIPT.md').write_text(SCRIPT.replace('Then the network goes quiet.',
+                                              'Then the network goes quiet. [breath 2.5]'))
+    assert script.load(v) == before  # synthesis and captions see identical words/paragraphs
+    S = narration.Settings(v)
+    durations = {sid: 1 for _, _, ss in before for sid, _, _ in ss}
+    normal = narration.layout(S, before, durations)
+    line = normal['segments'][0]['lines'][1]
+    assert line['pause'] == {'seconds': 2.5, 'prediction': False, 'breath': True,
+                             'start': line['end'], 'end': line['end'] + 2.5}
+    assert normal['segments'][0]['lines'][2]['start'] >= line['pause']['end']
+    tl = timeline.from_timings(normal)
+    assert tl['tracks']['narration'][1]['pause'] == line['pause']
+    assert tl['cues']['reveal:s1_02'] == line['pause']['end']
+    assert not any(s.prediction for c in script.read(v) for s in c.sentences)
+
+
+@pytest.mark.parametrize('marker', ['[breath]', '[breath -1]', '[breath NaN]',
+                                  '[breath 2] [pause 1]', '[breath 2'])
+def test_invalid_breath_fails_with_source_location(tmp_path, marker):
+    (tmp_path / 'SCRIPT.md').write_text(f'## Script\n### 1. A\n> Hello. {marker}\n')
+    with pytest.raises(SystemExit, match='SCRIPT.md:3'):
+        script.read(tmp_path)
+
+
 def test_inline_prediction_moves_with_the_sentence_and_never_enters_speech(tmp_path):
     v = video(tmp_path)
     original = SCRIPT.replace("Did the charge go through?", "Did the charge go through? [predict 3]")

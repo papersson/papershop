@@ -19,7 +19,7 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
                    {'clip': 's2', 't': 1, 'role': 'closing', 'file': 'research/style-frames/close.png'}]}))
     (tmp_path / 'research/sound.json').write_text(json.dumps({'s1': [{'cue': 's1-press', 'event': 'finger presses a switch'}]}))
     (tmp_path / 'research/elicit.md').write_text('The long raw brief is not a chapter job.')
-    (tmp_path / 'SCRIPT.md').write_text(SCRIPT)
+    (tmp_path / 'SCRIPT.md').write_text(SCRIPT.replace('Then the network goes quiet.', 'Then the network goes quiet. [breath 2]'))
     calls = []
     original = narration.narrate
     monkeypatch.setattr(shoot.narration, 'narrate', lambda v: (calls.append(v), original(v, estimate=True)))
@@ -29,6 +29,8 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
     first = (tmp_path / 'research/shoot/s1.md').read_text()
     assert 's1_01' in first and '| s2_01 |' not in first
     assert '0.800' in first and 'avoid charging twice' in first
+    assert '| Breath |' in first and 's: still and silent' in first
+    assert '[breath' not in first
     assert 'references/taste.md' in first and '--chapter s1' in first
     assert 'Murch: leave silence' in first and 'Hold the blocked payment' in first
     assert 'style-frames/open.png' in first and 'style-frames/close.png' not in first

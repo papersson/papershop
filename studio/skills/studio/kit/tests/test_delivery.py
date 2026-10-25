@@ -118,7 +118,7 @@ def test_markers_give_roles_to_a_sentence_or_a_whole_paragraph(tmp_path):
     assert [sents[k].role for k in ("s2_01", "s2_02", "s2_03", "s2_04")] == ["recap", "recap", None, "aside"]
     assert sents["s1_01"].role is None
     # one hold and one role on a sentence is fine; two of either is not
-    assert sc.paragraph("Think. [predict 2] [key]", 1, 0.5) == [("Think.", 2.0, True, "key")]
+    assert sc.paragraph("Think. [predict 2] [key]", 1, 0.5) == [("Think.", 2.0, True, "key", False)]
 
 
 @pytest.mark.parametrize("text", ["Hello. [key] [aside]", "Hello. [key 2]", "Hello [key] world.", "Hi. [recap"])

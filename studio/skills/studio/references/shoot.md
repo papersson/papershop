@@ -51,8 +51,9 @@ Use this prompt, replacing the paths and clip id:
 Build chapter CLIP of VIDEO. First use Read on the unique job path printed by studio shoot.
 Read that job, SKILL_ROOT/references/taste.md and SKILL_ROOT/references/kit.md.
 The story and voice are settled. Build the chapter in one pass, including its performed hero
-moment, matching the accepted style frames. Size pauses to new content; do not hold an unchanged
-picture. Make the subject large enough to inspect. Use only the listed tactile sounds.
+moment, matching the accepted style frames. Follow the marked breaths: still and silent at key
+points, then reset between sections. Let related motion flow under narration elsewhere; introduce
+one genuinely new mechanism at a time and leave unrelated things still. Make the subject large enough to inspect. Use only the listed tactile sounds.
 
 Write only VIDEO/scenes/CLIP.js, VIDEO/cues/CLIP.json and VIDEO/data/CLIP/.
 Treat shared files as read-only, including the script, narration, layout, boards, timeline,

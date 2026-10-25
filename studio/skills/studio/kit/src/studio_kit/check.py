@@ -15,7 +15,7 @@
   occluded     the element being narrated can be seen (occluded): a named 3D element the sentence says, at
                its check samples and at each event of the beat sheet, shows at least 30% of its pixels
                (the live engine's boxes report each 3D element's visible share). A warning, as inframe
-  pacing       warn on crowded moves and unchanged stage intervals over 3 s outside marked predictions
+  pacing       warn on crowded moves and unchanged stage intervals over 3 s outside marked predictions and breaths
                (motion.pacing), from the cut's rendered clips. A chapter with none is skipped unless
                --only pacing samples stills at 10 fps. Reading time depends on content; these
                diagnostics warn rather than prescribe fixed holds

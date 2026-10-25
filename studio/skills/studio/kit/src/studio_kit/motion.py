@@ -6,7 +6,7 @@
             the loop stutters at the seam
   legible   every text box is at least 18 px tall at 1080p
   provenance  every asset a scene refers to is in assets/ with a provenance row
-  pacing    warn on crowded changes and unchanged pictures outside marked prediction intervals
+  pacing    warn on crowded changes and unchanged pictures outside marked prediction and breath intervals
   flash     no more than FLASH_MAX general flashes in any second (WCAG 2.2 SC 2.3.1, approximately)
             (pacing_signal, moves)
 
@@ -411,7 +411,7 @@ def _runs(short, gap=2.0):
 def unchanged_spans(signal, duration, predictions=(), limit=UNCHANGED_MAX):
     """Long gaps without visible stage changes, including the opening and tail. Captions have
     already been cropped away. Small label arrivals count; ambient motion does not. Subtract
-    only the marked prediction interval, never exempt the whole chapter or adjacent dead time.
+    only marked rest intervals, never exempt the whole chapter or adjacent dead time.
     Pixel evidence cannot establish semantic novelty; a review still has to catch empty motion."""
     dt = 1 / PACING_FPS
     active = [(a, b) for a, b, _ in moves(signal)]
@@ -432,7 +432,8 @@ def unchanged_spans(signal, duration, predictions=(), limit=UNCHANGED_MAX):
 
 def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
     """Rendered-stage diagnostics for crowding and dead time. Short hitstops and marked
-    predictions are respected. Warnings need judgment against the content's reading demand."""
+    predictions and breaths are respected. Motion inside a breath warns. Short gaps may be
+    continuous development of one idea; they do not prescribe a hold after every change."""
     rows = []
     held = [(e["clip"], e["t"]) for e in tl.events(video) if e.get("hitstop") and e["clip"]]
     timeline = tl.load(video) if (Path(video) / 'timeline.json').exists() else {'tracks': {}}
@@ -453,18 +454,31 @@ def pacing(video, engine=None, clips=None, hold=HOLD_MIN, stills=True):
             else:
                 worst = min(y[0] - x[1] for x, y in run)
                 detail = (f"{len(run)} holds under {hold} s between {a[0]:.1f} and {b[0]:.1f} s (shortest {worst:.1f} s): "
-                          f"moves crowded together; space them or merge them into one")
+                          f"check for competing new mechanisms; related motion may flow without extra holds")
             rows.append({"check": "pacing", "kind": "crowding", "clip": cid, "t": a[1], "ok": True, "severity": "warning", "detail": detail})
         c = scene.get(cid, {'start': 0, 'end': signal[-1][0] + 1 / PACING_FPS if signal else 0})
-        predictions = [(s['pause']['start'] - c['start'], s['pause']['end'] - c['start'])
-                       for s in timeline['tracks'].get('narration', [])
-                       if s['clip'] == cid and s.get('pause', {}).get('prediction')]
-        dead = unchanged_spans(signal, c['end'] - c['start'], predictions)
+        pauses = [s['pause'] for s in timeline['tracks'].get('narration', [])
+                  if s['clip'] == cid and 'pause' in s]
+        rests = [(p['start'] - c['start'], p['end'] - c['start'])
+                 for p in pauses if p.get('prediction') or p.get('breath')]
+        for p in pauses:
+            if not p.get('breath'):
+                continue
+            a, b = p['start'] - c['start'], p['end'] - c['start']
+            # Leave one sampled frame at either boundary for the landing/reset itself.
+            moving = any(min(y, b - 1 / PACING_FPS) > max(x, a + 1 / PACING_FPS)
+                         for x, y, _ in found)
+            rows.append({'check': 'pacing', 'kind': 'breath', 'clip': cid, 't': a, 'end': b,
+                         'seconds': round(b-a, 3), 'ok': True,
+                         **({'severity': 'warning'} if moving else {}),
+                         'detail': 'motion inside a marked breath; settle before the pause' if moving
+                         else 'marked breath: intentional rest; no significant stage motion'})
+        dead = unchanged_spans(signal, c['end'] - c['start'], rests)
         for a, b in dead:
             rows.append({'check': 'pacing', 'kind': 'dead-time', 'clip': cid, 't': a, 'end': b,
                          'seconds': round(b-a, 3), 'ok': True, 'severity': 'warning',
-                         'detail': f'{b-a:.1f} s without new visible content ({a:.1f}–{b:.1f} s), outside marked predictions; shorten the hold or develop the explanation'})
+                         'detail': f'{b-a:.1f} s without new visible content ({a:.1f}–{b:.1f} s), outside marked predictions and breaths; shorten the hold or develop the explanation'})
         if not short and not dead:
             rows.append({"check": "pacing", "clip": cid, "ok": True,
-                         "detail": f"{len(found)} significant moves; no crowding under {hold} s or unchanged hold over {UNCHANGED_MAX} s outside predictions"})
+                         "detail": f"{len(found)} significant moves; no short-gap diagnostic under {hold} s or unchanged hold over {UNCHANGED_MAX} s outside predictions and breaths"})
     return rows

@@ -65,7 +65,13 @@ and writes the narration and timeline. `--list` prints sentence ids, `--plan` re
 and `--estimate` builds approximate timings without sound. Use real narration for reels and cuts.
 
 Kokoro defaults to `af_heart` in paragraph mode. New videos use speed 0.95 and explicit chapter
-spacing. Keep the configured voice and speed constant. `narration.json` supports `holds` by
+spacing. Keep the configured voice and speed constant. `[breath N]` after a complete sentence adds N
+seconds of silence and marks `pause.breath` in the timeline. Use 1.5–3 s for key points and
+about 3 s plus a reset before the next section (3–4 s total). The scene must land before
+`pause.start` and stay still until `pause.end` (also `reveal:SENTENCE`); this marker does not
+freeze scene code automatically. Pacing reports motion inside breaths and excludes only their
+marked intervals from dead-time warnings. `[pause N]`, `[beat]` and `[predict N]` still work.
+`narration.json` supports `holds` by
 sentence id, `spoken` text replacements, `spoken_by_id`, `phonemes` and `phonemes_by_id`.
 A lexicon snapshot supplies shared pronunciations; per-video settings and then per-sentence
 settings override it. `studio lexicon add WORD --spoken TEXT [--phonemes IPA]` promotes a fix.

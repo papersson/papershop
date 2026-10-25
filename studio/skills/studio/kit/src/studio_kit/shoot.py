@@ -41,11 +41,13 @@ def prepare(video):
                  f'Launch in the background. Your first tool call must be Read on `{identity["job"]}`. The tagged launch result or this Read joins your subagent id to the lane; subsequent scoped tool activity and stop are automatic.', '',
                  f'This chapter occupies {c["start"]:.3f}–{c["end"]:.3f} seconds on the shared timeline.', '',
                  '## Locked story', '', brief.read_text().strip(), '',
-                 '## Chapter narration', '', '| Sentence | Start | End | Words |', '|---|---:|---:|---|']
+                 '## Chapter narration', '', '| Sentence | Start | End | Words | Breath |', '|---|---:|---:|---|---|']
         for s in timeline['tracks']['narration']:
             if s['clip'] == cid:
                 words = s.get('caption', s['text']).replace('|', '\\|')
-                lines.append(f'| {s["id"]} | {s["start"]:.3f} | {s["end"]:.3f} | {words} |')
+                pause = s.get("pause", {})
+                breath = f'{pause["start"]:.3f}–{pause["end"]:.3f} s: still and silent' if pause.get("breath") else "—"
+                lines.append(f'| {s["id"]} | {s["start"]:.3f} | {s["end"]:.3f} | {words} | {breath} |')
         own_beats = '\n'.join(line for line in beats.splitlines() if not line.startswith('|') or line.startswith('| Chapter') or line.startswith('|---') or line.split('|')[1].strip() == cid)
         lines += ['', '## Beats and hero moments', '', own_beats, '', '### Chapter screen notes', '']
         lines += [f'- {n.start}–{n.end}: {n.text}' for n in chapters[cid].screen]
@@ -69,7 +71,7 @@ def prepare(video):
                   f'Read {ROOT / "references/taste.md"} and {ROOT / "references/kit.md"}.', '',
                   f'Write only {scene}, cues/{cid}.json and data/{cid}/. Use absolute timeline seconds or narration anchors in your cues. Prefix cue names with {cid}-.',
                   'Treat every shared file as read-only. Report any needed change to the main session. Put proposed sound and typing plans in your data folder for the main session to apply.',
-                  'Keep the agreed voice, story and timing. Match the style frames, perform the hero moment and size holds to what just changed. Do not pad unchanged pictures.', '',
+                  'Keep the agreed voice, story and timing. Match the style frames and perform the hero moment. Keep marked breaths still and silent; reset between sections. Let related motion flow under narration elsewhere, with one genuinely new mechanism at a time. Avoid unrelated simultaneous activity and unmarked dead time.', '',
                   f'Codex (or sessions without hooks): emit `studio event {shlex.quote(str(video))} agent.activity "plain-language action" --lane {cid}` on meaningful actions; never send fake heartbeats. Claude reports scoped tool activity automatically. Legacy Task payloads without tool-event agent ids can use explicit events for generic commands/shared-file reads; only owned paths and Studio VIDEO+CLIP commands are automatically attributable there.',
                   f'Run `studio wait {shlex.quote(str(video))} --chapter {cid} --timeout 1` between actions. It returns queued notes even after a restart. Acknowledge each with `studio notes VIDEO --start ID`, act, then `--resolve ID --reply "what changed"`. Honour control notes immediately: stop this lane (or the whole build when addressed to all), emit agent.stopped and return.',
                   f'Pin a judgment call with `studio event VIDEO decision "reason" --lane {cid} --t SECONDS`. End with `studio event VIDEO chapter.done "Checked and inspected" --lane {cid}`.', '',
