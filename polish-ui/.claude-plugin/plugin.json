@@ -1,0 +1,8 @@
+{
+  "name": "polish-ui",
+  "version": "0.3.0",
+  "description": "Autonomously hill climb an existing UI within an agreed budget, from a focused pass to hours or days. Preserve its character, keep only improvements supported by measured checks and independent visual review, and continue until the budget or an evidenced plateau. Isolated workspaces and resumable checkpoints preserve the best result.",
+  "author": {
+    "name": "Patrik Persson"
+  }
+}

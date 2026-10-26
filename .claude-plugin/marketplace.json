@@ -45,6 +45,10 @@
     {
       "name": "elicit",
       "source": "./elicit"
+    },
+    {
+      "name": "polish-ui",
+      "source": "./polish-ui"
     }
   ]
 }

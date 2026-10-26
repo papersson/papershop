@@ -12,6 +12,7 @@ A small Claude Code plugin marketplace.
 | [`present-your-work`](./present-your-work) | Present a stretch of autonomous work to a reader who was not there, at the size the work earned: a few paragraphs in chat, a one-page memo, or an article with an appendix and a story for a `studio` video. The story is fixed on a short card before any prose, the text answers a defense's five questions and ends on the distance to the goal and the ranked next steps, a separate pass only cuts, a script checks internal labels and budgets, and a cold reader checks that the story can be retold. |
 | [`elicit`](./elicit) | Rewrite a prompt into the brief a leading practitioner would write for themselves before starting, from what the model already knows. It convenes a panel of masters (the fields the result depends on, the fields best at each quality of the effect in any medium, someone who questions the premise, someone who tries to break it), shows the roster, then writes the brief in full sentences with reasons: what to start from, what is uncertain, and above all the moments and taste that would make it exceptional, ending with checks someone else could make. No research, no review agents; it never carries the prompt out. |
 | [`screenshot-pane`](./screenshot-pane) | A mod that shows every screenshot Claude takes in a pane beside the transcript. Flip to the previous version of the same page, and point Claude at a shot with one key. Needs a terminal with the kitty graphics protocol, such as Ghostty. |
+| [`polish-ui`](./polish-ui) | Autonomously hill climb a UI you already like within a scope-sized budget of minutes, hours or days. Preserve its character, evaluate focused candidates with measured checks and independent visual review, and continue until the budget or an evidenced plateau. Returns before/after evidence and a reviewable diff. |
 
 ## Install
 
@@ -30,13 +31,14 @@ claude plugin install studio@papershop
 claude plugin install screenshot-pane@papershop
 claude plugin install present-your-work@papershop
 claude plugin install elicit@papershop
+claude plugin install polish-ui@papershop
 ```
 
 `worklog` also ships a Nix flake (it has a Python engine to build); see
 [`worklog/README.md`](./worklog/README.md) for the flake input and home-manager
 wiring. `prose` is pure Markdown — no build, install via the
 plugin command above. `present-your-work` is Markdown and one standard-library Python script, with
-nothing to build. `elicit` is pure Markdown. `studio` runs through its own `bin/studio`, which loads its own flake (see
+nothing to build. `elicit` is pure Markdown. `polish-ui` is Markdown and JSON, with no build step; it uses the target project's preview tools. `studio` runs through its own `bin/studio`, which loads its own flake (see
 [`studio/README.md`](./studio/README.md)). The retired `tutor` plugin's lessons rebuild with the kit
 each one copied; `nix develop .#tutor` still provides that kit's system tools (Manim's cairo and
 pango, espeak-ng, ffmpeg, the IBM Plex fonts).
