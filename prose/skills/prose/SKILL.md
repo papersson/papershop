@@ -207,5 +207,5 @@ reference — style is only softly verifiable, so it is never faked as a pass/fa
      the prose, and write the revision artifact (the verified change list maps directly onto its
      keep/edit/del entries) with its path.
 
-The fresh-eyes verification in step 4 is the structural answer to self-preferential bias. If the
-`orchestrate` skill is installed you can hand it this shape; otherwise fire it directly.
+The fresh-eyes verification in step 4 is the structural answer to self-preferential bias.
+Construct and fire this workflow directly.

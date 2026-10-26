@@ -65,8 +65,8 @@ Rules of extraction:
   Good `x,y` is most of what makes it look designed; `null` falls back to auto-layout.
 - **Shape the model to render well** — keep `payload` signatures short, name transforms on lineage edges,
   draw the ONE critical request for the sequence.
-- For a large repo, this is a natural fan-out (one extractor per service / source) and a good fit for the
-  `orchestrate` plugin; validation (below) is the adversarial pass.
+- For a large repo, fan out directly to one extractor per service / source; validation (below)
+  is the adversarial pass.
 
 ## Validate — the factual rung (at least as important as "it renders")
 
@@ -87,7 +87,7 @@ citation:
 **The bar:** every `unsupported` claim is fixed or downgraded to inferred (vaguer-but-true, MODEL.md →
 "Honesty") before ship; `unconfirmable` is marked, never asserted. A confidently wrong label trades on
 the diagram's authority — the worst outcome. For a large system this fans out cleanly (one auditor per
-class over the repos) — a good `orchestrate` job. A passing render check over an unvalidated model is
+class over the repos). A passing render check over an unvalidated model is
 **not** shippable.
 
 ## Render — inject the model into the spine

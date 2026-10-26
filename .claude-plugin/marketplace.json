@@ -9,10 +9,6 @@
       "source": "./worklog"
     },
     {
-      "name": "orchestrate",
-      "source": "./orchestrate"
-    },
-    {
       "name": "prose",
       "source": "./prose"
     },
