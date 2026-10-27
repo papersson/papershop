@@ -258,3 +258,14 @@ contractions. Evidence: the measurements and before/after pairs in script.md; wo
 [script-example.md](script-example.md). On 2026-10-27, after hearing the rewrite over the same
 picture and Kokoro voice, the user judged it “a lot better (although it is of course far worse
 than the best YouTube explainers, which is expected for now)”.
+
+Observability feedback (2026-10-27): “I do like them.” The user nevertheless felt the
+observability film “focuses too much on \"events\" in history” and preferred “seeing what the
+programmer would do at their computer to make things observable (and then observing).” They
+clarified: “But the historical context is still important!! I want to understand how a programmer
+would have solved this problem at different points in the last decades”. For this kind of
+history, show period-specific investigations: edit, run, inspect evidence, reason and try again.
+Keep historical constraints and context central. Preserve this as a history-of-practice option
+within [origins.md](origins.md), not a rule replacing every historical journey. Exact feedback
+and scope: ~/studio/archive/items/gen-how-we-got-here-observability-cut3/record.json; positive
+batch feedback also applies to gen-how-we-got-here-deployment-cut2.

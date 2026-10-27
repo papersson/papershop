@@ -18,6 +18,15 @@ connections. Distinct settings and changes of scale make travel legible. Preserv
 and threads across transitions so the viewer knows when, where and why they moved.
 Dates and labels orient the viewer; the events and encounters carry the film.
 
+For a history of programming practice, let the investigation carry the route. Reconstruct what
+a programmer could edit, run, inspect and infer in a documented environment from each period.
+Show the change to the program, the resulting evidence and the next decision. Historical
+context should determine the system's boundaries, available tools, access and measurement
+costs; a period label or vintage screen alone is insufficient. Dates locate these encounters,
+not the invention of every technique. Practices overlap, and older methods remain useful.
+Distinguish documented historical practice from an illustrative reconstruction executed on
+modern hardware. Never make newly added instrumentation reveal evidence from an earlier run.
+
 A mechanism explanation belongs inside an encounter: someone has a problem, an artifact
 reveals a solution, the consequence changes what becomes possible next. Return to the route
 after the explanation. Breaths follow discoveries and section endings; avoid constant camera
@@ -73,6 +82,8 @@ route, explain the original constraint, identify a consequential connection, dis
 documented influence from a comparison, and use the history to reason about the modern system.
 Check that closing imagery pays off the opening question. A pretty timeline or correct dates
 alone do not establish understanding. Save reviewer suggestions separately from user reactions.
+For histories of practice, also check whether the viewer can follow the programmer's actual
+actions, explain why those tools fit that environment and choose the next useful measurement.
 
 Reusable request:
 
