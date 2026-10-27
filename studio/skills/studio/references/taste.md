@@ -280,3 +280,10 @@ those tools. “Particular events in history are not super important to me I gue
 story, historical working conditions support the progression rather than dated events driving
 it. The user welcomes a longer film to give all these stages room. This refines the observability
 story, not every origins film. Exact note: ~/studio/archive/items/gen-observability-through-the-decades-cut3/record.json.
+
+Halting-problem feedback (2026-10-27): “I really liked the halting video.” The first film written
+to [script.md](script.md) from the start: a guide who builds with the viewer, one small example
+carried from first sentence to last, a question in the opening seconds, a voiced prediction
+before each payoff, the misconception broken on screen, an ending that returns to the opening,
+and an ElevenLabs v4 voice (Jarnathan). Keep this shape for single-argument films. Whole-film
+reaction to cut 5, not approval of every scene. Film: ~/studio/halting-problem.
