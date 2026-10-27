@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Run every plugin's tests and print one line per suite. Studio's tests need its pinned tools (Node 22,
+# ffmpeg, sox), so with Nix installed the whole run happens inside the flake's studio shell.
+#
+#   script/test                    # every suite
+#   script/test worklog studio     # only these
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ -z "${STUDIO_ENV:-}" ] && command -v nix >/dev/null; then
+  exec nix --extra-experimental-features 'nix-command flakes' develop "$root#studio" -c "$0" "$@"
+fi
+export PATH="$HOME/.local/bin:$PATH"
+cd "$root"
+
+suites=("$@")
+[ ${#suites[@]} -gt 0 ] || suites=(worklog present-your-work studio screenshot-pane)
+failed=()
+run() {
+  local name="$1"; shift
+  local log; log="$(mktemp)"
+  local start=$SECONDS
+  if "$@" >"$log" 2>&1; then
+    echo "pass  $name ($((SECONDS - start))s): $(grep -E '^(Ran |[0-9]+ passed)|passed' "$log" | tail -1)"
+  else
+    echo "FAIL  $name ($((SECONDS - start))s)"; tail -30 "$log" | sed 's/^/      /'; failed+=("$name")
+  fi
+  rm -f "$log"
+}
+
+for suite in "${suites[@]}"; do
+  case "$suite" in
+    worklog) run worklog uv run --quiet --with duckdb python -m unittest discover -s worklog/tests ;;
+    present-your-work) run present-your-work python3 present-your-work/skills/present-your-work/scripts/test_check_draft.py ;;
+    studio) run studio uv run --quiet --frozen --extra audio --project studio/skills/studio/kit pytest -q studio/skills/studio/kit/tests ;;
+    # The mod's tests import Claude Code's own `claude-code/testing` harness, which no package provides.
+    screenshot-pane) echo "skip  screenshot-pane: runs only inside Claude Code's mod test harness" ;;
+    *) echo "unknown suite: $suite" >&2; failed+=("$suite") ;;
+  esac
+done
+[ ${#failed[@]} -eq 0 ] || { echo "failed: ${failed[*]}"; exit 1; }

@@ -22,9 +22,9 @@ docker info >/dev/null 2>&1 || { echo "clean-check: the docker daemon is not run
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 git -C "$root" bundle create -q "$work/repo.bundle" HEAD
-echo "clean-check: $(git -C "$root" rev-parse --short HEAD) in a fresh ${platform[*]:-native} $image"
+echo "clean-check: $(git -C "$root" rev-parse --short HEAD) in a fresh ${platform[1]:-native} $image"
 
 # HOME is an empty directory, so nothing from ~/.claude, dotfiles or caches can leak in.
-docker run --rm "${platform[@]}" -v "$work/repo.bundle:/repo.bundle:ro" -e HOME=/home/fresh "$image" \
-  bash -c "set -euo pipefail; mkdir -p /home/fresh; git clone -q /repo.bundle /work/papershop
+docker run --rm ${platform[@]+"${platform[@]}"} -v "$work/repo.bundle:/repo.bundle:ro" -e HOME=/home/fresh "$image" \
+  bash -c "set -euo pipefail; mkdir -p /home/fresh; git -c advice.detachedHead=false clone -q /repo.bundle /work/papershop
            cd /work/papershop; $cmd"

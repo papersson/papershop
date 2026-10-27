@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# The SessionStart hook. A cloud session starts from a bare clone, so it bootstraps first; a local
+# session already has its environment and only reports readiness.
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
+  log="${TMPDIR:-/tmp}/papershop-bootstrap.log"
+  "$root/script/bootstrap" >"$log" 2>&1 || echo "bootstrap failed; see $log" >&2
+fi
+exec "$root/script/doctor" --hook

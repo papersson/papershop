@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Say in one line whether this checkout is ready for papershop work, and for anything missing, what it
+# affects and the command that fixes it. Fast (no network locally, no Nix shell, no imports), because
+# the SessionStart hook runs it on every session. `studio/skills/studio/bin/studio doctor` goes deeper.
+#
+#   script/doctor          # human-readable
+#   script/doctor --hook   # SessionStart JSON: the line for the user, the details for Claude
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="$HOME/.local/bin:$PATH"
+site="$(echo "$root"/studio/skills/studio/kit/.venv/lib/python3*/site-packages)"
+ok=() missing=()
+have() { command -v "$1" >/dev/null; }
+
+if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then where=cloud; else where="$(hostname -s)"; fi
+
+have uv && ok+=("uv") || missing+=("uv: nothing runs | script/bootstrap")
+if have nix; then
+  ok+=("system tools from the Nix flake")
+else
+  for tool in ffmpeg sox; do have "$tool" && ok+=("$tool") || missing+=("$tool: studio renders and its tests | script/bootstrap"); done
+  node_major="$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')"
+  [ "${node_major:-0}" -ge 22 ] && ok+=("node $node_major") || missing+=("node 22+: studio's engines and tests | install Node 22")
+fi
+[ -d "$site/soundfile.py" ] || [ -f "$site/soundfile.py" ] && ok+=("studio kit") || missing+=("studio kit: studio commands and tests | script/bootstrap")
+[ -d "$site/kokoro" ] && ok+=("kokoro") || missing+=("kokoro: local narration | script/bootstrap --kokoro (needs huggingface.co)")
+browsers=("$root"/studio/skills/studio/.cache/browser/*/*/*headless*)
+if [ -e "${browsers[0]}" ] || [ -n "${STUDIO_BROWSER:-}" ] || [ -d "/Applications/Google Chrome.app" ] || have chromium || have google-chrome; then
+  ok+=("browser")
+else
+  missing+=("headless browser: studio stills and renders | script/bootstrap --studio")
+fi
+have worklog && ok+=("worklog CLI") || missing+=("worklog CLI: the worklog skill | script/bootstrap")
+
+skills=0
+for s in "$root"/.claude/skills/*/SKILL.md; do [ -f "$s" ] && skills=$((skills + 1)); done
+ok+=("$skills skills from the working tree")
+
+# Only the cloud restricts hosts; Kokoro's weights are the download most likely to be blocked.
+if [ "$where" = cloud ] && ! curl -sfI -m 4 -o /dev/null https://huggingface.co/; then
+  missing+=("huggingface.co unreachable: Kokoro weights | add it to the environment's allowed hosts")
+fi
+
+line="papershop ready ($where): $(IFS=,; echo "${ok[*]}" | sed 's/,/, /g')"
+if [ ${#missing[@]} -gt 0 ]; then
+  line="$line. Not here: $(printf '%s\n' "${missing[@]}" | cut -d: -f1 | paste -sd, - | sed 's/,/, /g')"
+fi
+details="$(printf '%s\n' "${missing[@]+"${missing[@]}"}" | sed -n 's/^\(.*\): \(.*\) | \(.*\)$/- \1 (affects \2): \3/p')"
+
+if [ "${1:-}" = --hook ]; then
+  context="$line"$'\n'"$details"$'\n'"Bootstrap with script/bootstrap, test with script/test, check with script/doctor (see CLAUDE.md)."
+  python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1],
+    "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$line" "$context"
+else
+  echo "$line"
+  [ -z "$details" ] || echo "$details"
+fi
