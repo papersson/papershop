@@ -44,7 +44,7 @@ echo "clean-check: $(git -C "$root" rev-parse --short HEAD) in a fresh ${platfor
 
 # HOME is an empty directory, so nothing from ~/.claude, dotfiles or caches can leak in.
 prelude="set -euo pipefail; mkdir -p /home/fresh; export PATH=/nix/var/nix/profiles/default/bin:\$HOME/.local/bin:\$PATH"
-setup="git -c advice.detachedHead=false clone -q /repo.bundle /work/papershop; $nix; cd /work/papershop"
+setup="git -c advice.detachedHead=false clone -q /repo.bundle /work/papershop;${nix:+ $nix;} cd /work/papershop"
 run=(docker run ${platform[@]+"${platform[@]}"} -v "$work/repo.bundle:/repo.bundle:ro" -e HOME=/home/fresh)
 if [ "$offline" = 1 ]; then
   # Bootstrap (and with Nix, fetch the studio shell) with a network, keep that machine as an image, then
