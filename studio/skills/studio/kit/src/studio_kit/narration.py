@@ -18,7 +18,8 @@ Engines (narration.json "engine"):
                     list) or voice_id, model (default eleven_multilingual_v2; eleven_v4 works too;
                     eleven_v3 returns no timestamps), stability, similarity_boost, style, speed (v4
                     takes neither style nor speed), seed. Each call gets the neighbouring paragraphs
-                    as previous_text/next_text. Every response is cached in audio/elevenlabs_cache/
+                    as previous_text/next_text, and each sentence's delivery tags from SCRIPT.md
+                    ([curious]) in front of it. Every response is cached in audio/elevenlabs_cache/
                     (commit it), so a re-run never pays twice and a machine without the key builds.
 
 narration.json also holds:
@@ -392,11 +393,29 @@ def eleven_balance(key):
         return None
 
 
-def eleven_fetch(S, chunks, yes=False):
-    """Call ElevenLabs for every chunk not yet in the cache."""
-    todo = []
+def delivery_tags(S):
+    """{sentence id: the delivery tags written before it, e.g. "[curious]"}; only ElevenLabs hears them."""
+    return {s.id: s.tag for c in sc.read(S.video, S.timing["beat"]) for s in c.sentences if s.tag}
+
+
+def voiced(chunk, tags):
+    """A chunk's text as sent to ElevenLabs, each sentence's tags in front of it, and for every
+    character of that text its offset in the untagged chunk text (None inside a tag)."""
+    text, where, pos = "", [], 0
+    for i, (lid, t, _) in enumerate(chunk):
+        if i:
+            text, where, pos = text + " ", where + [pos], pos + 1
+        if lid in tags:
+            text, where = text + tags[lid] + " ", where + [None] * (len(tags[lid]) + 1)
+        text, where, pos = text + t, where + list(range(pos, pos + len(t))), pos + len(t)
+    return text, where
+
+
+def eleven_fetch(S, chunks, yes=False, tags=None):
+    """Call ElevenLabs for every chunk not yet in the cache, each sentence's delivery `tags` in front of it."""
+    todo, tags = [], tags or {}
     for chunk, prev, nxt in chunks:
-        body, f = eleven_request(S, " ".join(t for _, t, _ in chunk), prev, nxt)
+        body, f = eleven_request(S, voiced(chunk, tags)[0], prev, nxt)
         if not f.exists():
             todo.append((body, f))
     n = sum(len(b["text"]) for b, _ in todo)
@@ -437,14 +456,22 @@ def eleven_fetch(S, chunks, yes=False):
 def eleven_engine(S, chunks, yes=False):
     import numpy as np
 
-    eleven_fetch(S, chunks, yes)
+    tags = delivery_tags(S)
+    eleven_fetch(S, chunks, yes, tags)
+    sent = {" ".join(t for _, t, _ in chunk): voiced(chunk, tags) for chunk, _, _ in chunks}
 
     def synth(full, prev, nxt):
-        _, f = eleven_request(S, full, prev, nxt)
+        text, where = sent[full]
+        _, f = eleven_request(S, text, prev, nxt)
         r = json.loads(f.read_text())
         pcm = proc.ffmpeg("-i", "pipe:0", "-f", "f32le", "-ac", "1", "-ar", RATE, "pipe:1",
                           input=base64.b64decode(r["audio_base64"]), capture_output=True).stdout
-        return np.frombuffer(pcm, dtype=np.float32).copy(), eleven_words(full, r["alignment"])
+        # The alignment may cover the tags or leave them out; word offsets always index `full`.
+        if "".join(r["alignment"]["characters"]) == full:
+            words = eleven_words(full, r["alignment"])
+        else:
+            words = [(where[c], a, b) for c, a, b in eleven_words(text, r["alignment"]) if where[c] is not None]
+        return np.frombuffer(pcm, dtype=np.float32).copy(), words
 
     return synth
 
@@ -635,7 +662,7 @@ def plan(video, config=None):
     for chunk, prev, nxt in chunks:
         full = " ".join(t for _, t, _ in chunk)
         if S.engine == "elevenlabs":
-            cached = eleven_request(S, full, prev, nxt)[1].exists()
+            cached = eleven_request(S, voiced(chunk, delivery_tags(S))[0], prev, nxt)[1].exists()
         else:
             marked = " ".join(S.marked(t, lid) for lid, t, _ in chunk)
             cached = (S.video / ".cache" / "narration" / f"{kokoro_key(S, marked)}.npy").exists()

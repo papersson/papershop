@@ -36,3 +36,19 @@ def test_lecture_does_not_need_prediction_pauses(tmp_path):
     (tmp_path / "SCRIPT.md").write_text(SCRIPT)
     rows = script_check.run(tmp_path)
     assert not [r for r in rows if r["severity"] == "warning"]
+
+
+def test_delivery_tags_open_a_sentence_and_never_reach_its_caption(tmp_path):
+    (tmp_path / "SCRIPT.md").write_text(SCRIPT.replace("> First sentence. Second sentence.",
+                                                       "> [curious] First sentence. [breath 1] [sighs] Second sentence."))
+    first, second, third = script.read(tmp_path)[0].sentences
+    assert (first.text, first.tag, first.breath) == ("First sentence.", "[curious]", True)
+    assert (second.text, second.tag) == ("Second sentence.", "[sighs]")
+    assert third.tag is None
+
+
+def test_a_delivery_tag_inside_a_sentence_is_refused(tmp_path):
+    import pytest
+    (tmp_path / "SCRIPT.md").write_text(SCRIPT.replace("First sentence.", "First [quietly] sentence."))
+    with pytest.raises(SystemExit, match="start of a sentence"):
+        script.read(tmp_path)

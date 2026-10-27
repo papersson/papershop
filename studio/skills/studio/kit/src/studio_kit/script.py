@@ -15,6 +15,10 @@ Markers in narration are never spoken or captioned. Each follows a complete sent
   [key]  [aside]  [recap]          legacy role annotations, accepted but do not change the voice or timing
 A role marker at the very start of a paragraph applies to all its sentences. A sentence carries at
 most one hold and one role.
+
+Any other bracket is a delivery tag for ElevenLabs v4, such as [curious], [sighs] or [quietly], and
+goes at the start of a sentence. It is sent to ElevenLabs in front of that sentence and nowhere
+else: captions, Kokoro and the voice check never see it.
 """
 import re
 import math
@@ -38,6 +42,7 @@ class Sentence:
     prediction: bool = False
     role: str | None = None     # "key", "aside" or "recap", from a marker
     breath: bool = False
+    tag: str | None = None      # delivery tags written before it, e.g. "[curious]"
 
 
 @dataclass
@@ -80,9 +85,12 @@ ROLES = ("key", "aside", "recap")
 ABBREVIATION = re.compile(r"(?:^|[\s(\"'“])(?:Dr|Mr|Mrs|Ms|Prof|St|vs|e\.g|i\.e|etc|cf)\.$", re.I)
 
 
+TAG = re.compile(r"\[[^\[\]\n]+\]\s*")
+
+
 def paragraph(text, line, beat):
-    """[(sentence, hold seconds or None, prediction, role or None, breath)], with markers removed and
-    the old splitter kept for marker-free scripts."""
+    """[(sentence, hold seconds or None, prediction, role or None, breath, delivery tags or None)], with
+    markers and tags removed and the old splitter kept for marker-free scripts."""
     lead = re.match(r"\[(key|aside|recap)\]\s*", text)
     whole = lead[1] if lead else None
     text = text[lead.end():] if lead else text
@@ -104,9 +112,18 @@ def paragraph(text, line, beat):
             events.append((len(clean), "hold", (seconds, token[1] == "predict", token[1] == "breath")))
         cursor = m.end()
     clean += text[cursor:]
+    # Delivery tags: lift them out so they split nothing, and move the markers' positions with them.
+    spans = [(m.start(), m.end(), m.group().strip()) for m in TAG.finditer(clean)]
+    shift = lambda p: p - sum(min(e, p) - s for s, e, _ in spans if s < p)
+    tags = [(shift(s), tag) for s, _, tag in spans]
+    events = [(shift(pos), kind, value) for pos, kind, value in events]
+    clean = TAG.sub("", clean)
     boundaries = [m for m in re.finditer(r'(?<=[.!?])\s+(?=[A-Z"])', clean) if not ABBREVIATION.search(clean[:m.start()])]
     starts = [0] + [m.end() for m in boundaries]
     ends = [m.start() for m in boundaries] + [len(clean)]
+    lead_ws = len(clean) - len(clean.lstrip())
+    if any(pos not in starts and pos != lead_ws for pos, _ in tags):
+        raise SystemExit(f"SCRIPT.md:{line}: put a delivery tag at the start of a sentence")
     out = []
     for i, (start, end) in enumerate(zip(starts, ends)):
         end_event = starts[i + 1] if i + 1 < len(starts) else len(clean) + 1
@@ -120,7 +137,8 @@ def paragraph(text, line, beat):
         sentence = clean[start:end].strip()
         if sentence:
             seconds, prediction, breath = holds[0] if holds else (None, False, False)
-            out.append((sentence, seconds, prediction, roles[0] if roles else whole, breath))
+            mine = [t for pos, t in tags if pos == start or (i == 0 and pos <= lead_ws)]
+            out.append((sentence, seconds, prediction, roles[0] if roles else whole, breath, " ".join(mine) or None))
     # A marker is a sentence boundary even before a lowercase continuation; make ambiguity explicit.
     if any(clean[pos:].strip() and not re.match(r'^[A-Z"]', clean[pos:].strip()) for pos, _, _ in events):
         raise SystemExit(f"SCRIPT.md:{line}: start a new sentence or paragraph after a marker")
@@ -145,9 +163,9 @@ def read(video, beat=0.5):
             chapters.append(chapter)
             pi = 0
         elif line.startswith("> ") and chapter:
-            for cap, pause, prediction, role, breath in paragraph(line[2:].strip(), lineno, beat):
+            for cap, pause, prediction, role, breath, tag in paragraph(line[2:].strip(), lineno, beat):
                 chapter.sentences.append(Sentence(f"{chapter.id}_{len(chapter.sentences)+1:02d}", cap, pi,
-                                                  lineno, pause, prediction, role, breath))
+                                                  lineno, pause, prediction, role, breath, tag))
             pi += 1
         elif line.startswith("*Screen:*") and chapter:
             above = [s.id for s in chapter.sentences if s.paragraph == pi - 1]

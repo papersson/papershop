@@ -98,6 +98,12 @@ fooled too gives the viewer permission to have been fooled. The best place for i
 where a sharp viewer would interrupt: say the interruption for them ("So why not just fix
 TCP?") and answer it.
 
+**Direct the voice sparingly** (ElevenLabs v4). A delivery tag at the start of a sentence, such
+as `[curious]`, `[sighs]` or `[quietly, almost to itself]`, tells ElevenLabs how to say it; captions,
+Kokoro and the voice check never see it. Use a few per film, where the words alone can't carry the
+delivery: the dizzying admission, a held breath before the turn. The writing does the rest, and a
+script must still work on Kokoro, which ignores the tags.
+
 **Point; let the picture show** (Walter Murch, Sanderson). Never describe what the viewer can see
 or narrate the camera ("Now pull back", "Follow the streams", "Watch the calls become
 processes"). Say what to notice, why it matters, or nothing at all. "Look at the font bytes.

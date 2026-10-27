@@ -242,3 +242,12 @@ def test_kokoro_says_the_same_text_the_same_way_from_its_pinned_weights(monkeypa
     say = lambda: np.concatenate([p.audio.numpy() for p in synth("Same text, same audio.", voice="af_heart", speed=1.0,
                                                                   split_pattern=None)])
     assert np.array_equal(say(), say())
+
+
+def test_voiced_text_puts_tags_before_their_sentence_and_maps_back_to_the_caption():
+    chunk = [("s1_01", "Hello there.", 0), ("s1_02", "Is it?", 0)]
+    text, where = nr.voiced(chunk, {"s1_02": "[curious]"})
+    assert text == "Hello there. [curious] Is it?"
+    plain = "Hello there. Is it?"
+    assert "".join(plain[i] for i in where if i is not None) == plain
+    assert nr.voiced(chunk, {}) == (plain, list(range(len(plain))))

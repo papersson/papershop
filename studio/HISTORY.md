@@ -3,6 +3,19 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Delivery tags for ElevenLabs (0.18.0)
+
+The ElevenLabs v4 guide directs delivery with bracketed tags such as `[curious]`, but SCRIPT.md
+already uses square brackets for breaths and pauses, and any other bracket stayed in the caption
+and was read aloud by Kokoro.
+
+- Any bracket that is not a studio marker is a delivery tag. It goes at the start of a sentence
+  (a tag inside one is refused), is sent to ElevenLabs in front of that sentence, and is removed
+  from captions, Kokoro's text and the voice check.
+- Word timing skips the tag's characters, which ElevenLabs' alignment includes. A script without
+  tags sends the same text as before, so cached takes stay valid.
+- `script.md` asks for a few tags per film, where the words alone can't carry the delivery.
+
 ## Narration written for the ear (0.17.0)
 
 The user named the narration as the videos' primary weakness: “The script is not that great, I
