@@ -40,7 +40,7 @@ bytes arrive in the receive buffer but cannot pass the delivery gate. Hold lande
 *Screen:* Travel backward along an older branch to the 1980 UDP sheet. Its datagram is an
 envelope with deliberately little machinery. Follow this branch forward again.
 
-> That's QUIC. It rebuilds reliability on top of UDP one stream at a time, so the picture, the font and the code each get their own ordered line. It weaves in the TLS one point three handshake, so every connection is encrypted, and HTTP/3 carries the web on top. Now lose that same picture packet. The picture waits for its missing piece, but the font and the code don't. They were never in its line. [breath 1.5]
+> That's QUIC. It weaves in the TLS one point three handshake, so every connection is encrypted. Then it rebuilds reliability on top of UDP one stream at a time, so the picture, the font and the code each get their own ordered line, and HTTP/3 carries the web on top. Now lose that same picture packet. The picture waits for its missing piece, but the font and the code don't. They were never in its line. [breath 1.5]
 
 *Screen:* Enter a key-exchange station on the security branch, pull back for three histories
 converging, enter QUIC's independent streams. The same picture packet is lost while font and
