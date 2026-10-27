@@ -24,13 +24,32 @@ A SessionStart hook (`.claude/settings.json` → `script/session-start`) bootstr
 the pinned uv first on PATH, prints the doctor line, and records the receipt in every session's
 transcript. CI (`.github/workflows/check.yml`) runs bootstrap, receipt and tests on every push.
 
-## Pins
+## Keeping it reproducible
 
-The flake is the source: nixpkgs (flake.lock) fixes uv, Python and the system tools. `uv.toml` pins
-the same uv and keeps uv on its managed Python; `.python-version` (root and studio kit) pins the
-same Python; PEP 723 script headers pin exact versions; Kokoro's weights are pinned to a commit in
-`narration.py`. `script/check-pins` (the `pins` suite) fails when any of these disagree. To move a
-pin, update `flake.lock` first and the others to match.
+The standard: a fresh clone on any machine (the Mac, z840, a Claude cloud session, CI) bootstraps
+with `script/bootstrap`, passes `script/test` with nothing set up by hand, and makes the same output
+from the same input. Every change keeps it that way.
+
+- Declare each dependency where it is pinned, never by relying on this Mac (Homebrew, `~/.claude`,
+  a path outside the repo): Python packages in the studio kit's `pyproject.toml` and `uv.lock`, script
+  dependencies as exact `==` versions in their PEP 723 header, Node packages in a `package-lock.json`,
+  system tools in `studio/shell.nix`, downloaded models and assets at a pinned commit or checksum.
+- A new tool or download also gets a line in `script/bootstrap` (install), `script/doctor` (ready or
+  not, with the fix) and `script/receipt` (its version).
+- After adding or moving a dependency, run `script/clean-check` (and `--nix`, the closest to the
+  cloud); before calling work done, run `script/test`. CI runs bootstrap and tests on every push, and
+  a red CI is a reproducibility bug to fix, not to retry.
+- Tests that need a tool check for it once, in a conftest, and stop with one line naming the fix.
+- Outputs must not depend on chance or the machine's state: seed anything random, pass times and
+  locales explicitly, and key caches on content, not mtime (Linux mtimes tick coarsely).
+- The flake is the source of versions: nixpkgs (`flake.lock`) fixes uv, Python and the system tools;
+  `uv.toml` pins the same uv and keeps uv on its managed Python; `.python-version` (root and studio
+  kit) pins the same Python; Kokoro's weights are pinned to a commit in `narration.py`. To move a
+  pin, update `flake.lock` first and the rest to match; `script/check-pins` (the `pins` suite) fails
+  while they disagree.
+
+Known gaps: Mac and Linux renders differ from the layout layer on (likely fonts, not yet
+investigated); the cloud's default network blocks huggingface.co, so Kokoro there needs it allowed.
 
 ## Skills come from the working tree
 
