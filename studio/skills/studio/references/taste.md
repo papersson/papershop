@@ -255,4 +255,6 @@ and natural. Use full sentences, use "we", etc.” Write narration to [script.md
 person talking, a question kept open, the misconception voiced and broken, caveats in the Evidence
 table and an ending that answers the opening. Our scripts had almost no “you”, no “I” and no
 contractions. Evidence: the measurements and before/after pairs in script.md; worked example:
-[script-example.md](script-example.md).
+[script-example.md](script-example.md). On 2026-10-27, after hearing the rewrite over the same
+picture and Kokoro voice, the user judged it “a lot better (although it is of course far worse
+than the best YouTube explainers, which is expected for now)”.
