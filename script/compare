@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""Show receipts (script/receipt) from several machines side by side, marking every line whose values
+differ, so a glance says whether two places run the same thing and, if not, what differs.
+
+    script/compare mac.txt container.txt cloud.txt     # column names come from the file names
+
+Exits 1 when a line differs that is expected to match (anything but commit and os).
+"""
+import sys
+from pathlib import Path
+
+EXPECTED_TO_DIFFER = {"os", "commit"}
+
+columns = [(Path(p).stem, dict(line.split(": ", 1) for line in Path(p).read_text().splitlines() if ": " in line))
+           for p in sys.argv[1:]]
+if len(columns) < 2:
+    sys.exit("usage: script/compare RECEIPT RECEIPT [RECEIPT...]")
+keys = list(dict.fromkeys(k for _, receipt in columns for k in receipt))
+width = [max(len(k) for k in keys)] + [max(len(name), *(len(r.get(k, "-")) for k in keys)) for name, r in columns]
+
+def row(mark, cells):
+    return f"{mark} " + "  ".join(c.ljust(w) for c, w in zip(cells, width)).rstrip()
+
+print(row(" ", [""] + [name for name, _ in columns]))
+drift = []
+for k in keys:
+    values = [r.get(k, "-") for _, r in columns]
+    differs = len(set(values)) > 1
+    if differs and k not in EXPECTED_TO_DIFFER:
+        drift.append(k)
+    print(row("≠" if differs else " ", [k] + values))
+print(f"\n{len(drift)} unexplained difference{'s' * (len(drift) != 1)}" + (f": {', '.join(drift)}" if drift else ""))
+sys.exit(1 if drift else 0)
