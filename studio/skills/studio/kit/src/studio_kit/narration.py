@@ -54,6 +54,10 @@ from . import timeline as tl
 from .workspace import atomic_json
 
 RATE = 24_000
+# Kokoro's model and voices come from this commit of its Hugging Face repo, so a paragraph synthesised
+# next month comes from the same weights as the rest of the video; KPipeline alone follows `main`.
+KOKORO_REPO = "hexgrad/Kokoro-82M"
+KOKORO_REVISION = "f3ff3571791e39611d31c381e3a41a3af07b4987"
 LEAD_IN = 0.8        # silence before the first sentence
 SENTENCE_GAP = 0.3   # between sentences of one paragraph (Kokoro per-sentence mode only)
 PARAGRAPH_GAP = 0.5  # between paragraphs
@@ -257,14 +261,28 @@ def kokoro_pipeline():
     from .doctor import require_extra
     require_extra("kokoro")
     try:
-        from kokoro import KPipeline
+        import torch
+        from huggingface_hub import hf_hub_download
+        from kokoro import KModel, KPipeline
     except ImportError:
         raise SystemExit("Kokoro is not installed: run `studio doctor --fetch --extra kokoro`")
     offline = os.environ.get("STUDIO_OFFLINE") == "1" or os.environ.get("HF_HUB_OFFLINE") == "1"
     if offline:      # never reach the network: a model that is not cached is reported, not fetched
         os.environ["HF_HUB_OFFLINE"] = "1"
     try:
-        return KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
+        pinned = lambda name: hf_hub_download(KOKORO_REPO, name, revision=KOKORO_REVISION)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = KModel(repo_id=KOKORO_REPO, config=pinned("config.json"), model=pinned("kokoro-v1_0.pth"))
+        pipe = KPipeline(lang_code="a", repo_id=KOKORO_REPO, model=model.to(device).eval())
+        # A voice name would also resolve on `main`; a path is loaded as given.
+        by_name = pipe.load_single_voice
+        pipe.load_single_voice = lambda voice: by_name(voice if voice.endswith(".pt") else pinned(f"voices/{voice}.pt"))
+
+        def seeded(*args, **kwargs):
+            """The vocoder adds random phase and noise; one seed per call makes the same text the same audio."""
+            torch.manual_seed(0)
+            yield from pipe(*args, **kwargs)
+        return seeded
     except Exception as e:
         if offline:
             raise SystemExit("Kokoro's weights are not in the local cache and this run is offline (STUDIO_OFFLINE=1 or "

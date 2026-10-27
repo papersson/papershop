@@ -230,3 +230,15 @@ def test_eleven_call_reports_the_refusal_not_the_key(monkeypatch):
         narration.eleven_call("secret-key", "POST", "/text-to-speech/v/with-timestamps?x=1", {"text": "hi"})
     assert "exceeds your API key quota" in str(e.value) and "resumes" in str(e.value)
     assert "secret-key" not in str(e.value)
+
+
+def test_kokoro_says_the_same_text_the_same_way_from_its_pinned_weights(monkeypatch):
+    pytest.importorskip("kokoro")
+    from studio_kit.doctor import hf_cached
+    if not hf_cached(nr.KOKORO_REPO, nr.KOKORO_REVISION):
+        pytest.skip("Kokoro's pinned weights are not cached")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    synth = nr.kokoro_pipeline()
+    say = lambda: np.concatenate([p.audio.numpy() for p in synth("Same text, same audio.", voice="af_heart", speed=1.0,
+                                                                  split_pattern=None)])
+    assert np.array_equal(say(), say())
