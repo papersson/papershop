@@ -29,7 +29,7 @@ run() {
   if "$@" >"$log" 2>&1; then
     echo "pass  $name ($((SECONDS - start))s): $(grep -E '^(Ran |[0-9]+ passed)|passed|agree' "$log" | tail -1)"
   else
-    echo "FAIL  $name ($((SECONDS - start))s)"; tail -30 "$log" | sed 's/^/      /'; failed+=("$name")
+    echo "FAIL  $name ($((SECONDS - start))s)"; tail -30 "$log" | awk '{ print "      " $0 }'; failed+=("$name")
   fi
   rm -f "$log"
 }

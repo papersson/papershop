@@ -69,6 +69,8 @@ if ! command -v worklog >/dev/null; then
   chmod +x "$HOME/.local/bin/worklog"
   say "installed the worklog CLI in ~/.local/bin"
 fi
+# Fetch its duckdb now, so the CLI and its tests also work without a network later.
+uv run --quiet --with "$(sed -n 's/.*"\(duckdb[^"]*\)".*/\1/p' "$root/worklog/scripts/worklog.py" | head -1)" python -c 'import duckdb'
 
 if [ "$studio" = 1 ]; then
   if command -v nix >/dev/null; then "$root/studio/skills/studio/bin/studio" doctor --fetch
