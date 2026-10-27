@@ -108,19 +108,6 @@ def test_doctor_only_requires_explicit_extras_and_selected_engines(monkeypatch):
     assert cli.main(["doctor", "--extra", "audio"]) == 1
 
 
-def test_explicit_model_source_is_used_and_load_failure_is_reported(monkeypatch):
-    wheel = "/approved models/en_core_web_sm-3.8.0-py3-none-any.whl"
-    monkeypatch.setenv("STUDIO_SPACY_MODEL", wheel)
-    calls = []
-    def run(cmd, **kwargs):
-        calls.append(cmd)
-        return SimpleNamespace(stdout="3.8\n", returncode=1 if len(calls) == 3 else 0)
-    monkeypatch.setattr(doctor.proc, "run", run)
-    with pytest.raises(SystemExit, match="could not load"):
-        doctor.install_spacy_model()
-    assert calls[1][-1] == wheel
-
-
 @pytest.mark.parametrize("status,expected", [(0, doctor.OK), (1, doctor.FAIL)])
 def test_speech_smoke_reports_real_process_failure(monkeypatch, status, expected):
     monkeypatch.setattr(doctor, "extra_checks", lambda extras: [])

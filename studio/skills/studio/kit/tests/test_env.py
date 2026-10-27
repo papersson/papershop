@@ -1,3 +1,5 @@
+from pathlib import Path
+import tomllib
 from studio_kit.env import resolve_browser
 from studio_kit import doctor
 from types import SimpleNamespace
@@ -32,25 +34,12 @@ def test_engine_headless_shell_beats_installed_chrome():
     assert (path, source) == ("/e/chrome-headless-shell", "engine headless shell")
 
 
-@pytest.mark.parametrize("uv_index,pip_index,expected", [
-    (None, "https://packages.example/simple", "https://packages.example/simple"),
-    ("https://uv.example/simple", "https://pip.example/simple", "https://uv.example/simple"),
-])
-def test_spacy_wheel_uses_configured_index_without_github_fallback(monkeypatch, uv_index, pip_index, expected):
-    monkeypatch.delenv("STUDIO_SPACY_MODEL", raising=False)
-    monkeypatch.delenv("UV_INDEX_URL", raising=False)
-    if uv_index:
-        monkeypatch.setenv("UV_INDEX_URL", uv_index)
-    monkeypatch.setenv("PIP_INDEX_URL", pip_index)
-    calls = []
-    def run(cmd, **kwargs):
-        calls.append((cmd, kwargs))
-        return SimpleNamespace(stdout="3.8\n" if len(calls) == 1 else "", returncode=0)
-    monkeypatch.setattr(doctor.proc, "run", run)
-    doctor.install_spacy_model()
-    assert calls[1][0][-1] == "en-core-web-sm~=3.8.0"
-    assert calls[1][1]["env"]["UV_INDEX_URL"] == expected
-    assert len(calls) == 3 and "github" not in str([cmd for cmd, _ in calls])
+def test_spacy_model_is_a_locked_kokoro_dependency():
+    # Kokoro's phonemizer loads en_core_web_sm, so it installs with the extra from the lock.
+    root = Path(__file__).resolve().parents[1]
+    kokoro = tomllib.loads((root / "pyproject.toml").read_text())["project"]["optional-dependencies"]["kokoro"]
+    assert any(d.startswith("en-core-web-sm @ https://") for d in kokoro)
+    assert 'name = "en-core-web-sm"' in (root / "uv.lock").read_text()
 
 
 def test_missing_model_fails_before_synthesis_with_one_repair(monkeypatch):
@@ -61,11 +50,11 @@ def test_missing_model_fails_before_synthesis_with_one_repair(monkeypatch):
 
 def test_blocked_model_host_is_diagnostic_not_success(monkeypatch):
     def blocked(*args, **kwargs):
-        raise urllib.error.HTTPError("https://raw.githubusercontent.com/", 403, "blocked", {}, None)
+        raise urllib.error.HTTPError("https://github.com/", 403, "blocked", {}, None)
     monkeypatch.setattr(doctor.urllib.request, "urlopen", blocked)
     level, host, detail, fix = doctor.check_host(doctor.HOSTS[-1])
-    assert level == doctor.WARN and "raw.githubusercontent.com" in host
-    assert "403" in detail and "wheel" in fix
+    assert level == doctor.WARN and "github.com" in host
+    assert "403" in detail and "mirror" in fix
 
 
 def test_the_launch_check_skips_without_the_live_engine(monkeypatch, tmp_path):

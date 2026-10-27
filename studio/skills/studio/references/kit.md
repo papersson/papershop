@@ -13,9 +13,7 @@ prints fixes. Its `--net` checks download hosts and `--speech` tests synthesis a
 The launcher enters the plugin's Nix environment with Python, uv, Node, ffmpeg and sox, and caches
 that environment against its lock file. Python dependencies are pinned in `kit/uv.lock`; engine
 packages have their own lock files. Kokoro, audio processing and alignment are Python extras.
-Use the printed setup command for missing dependencies. If the configured package index has no
-spaCy model wheel, set `STUDIO_SPACY_MODEL` to an explicitly chosen wheel URL or local path
-compatible with the installed spaCy major/minor version, then rerun the printed doctor command. Explain downloads and paid services
+Use the printed setup command for missing dependencies. Explain downloads and paid services
 before initiating work outside the user's authorization. Never silently substitute a paid voice.
 
 `studio doctor --fetch --engine live --extra kokoro --extra align` prepares the engine and speech

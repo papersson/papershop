@@ -10,14 +10,24 @@ dependencies = ["pillow"]
 audio = ["numpy", "soundfile", "num2words"]
 # Word timings and the voice check's recogniser (faster-whisper downloads its model from Hugging Face).
 align = ["studio-kit[audio]", "faster-whisper==1.2.1"]
-# Local narration with Kokoro. Heavy (torch); only videos narrated locally need it.
-kokoro = ["studio-kit[audio]", "kokoro==0.9.4"]
+# Local narration with Kokoro. Heavy (torch); only videos narrated locally need it. Kokoro's English
+# phonemizer (misaki) tags words with spaCy's small English model, which is not on PyPI, so it is
+# pinned here by its release URL and locked like any other package.
+kokoro = [
+  "studio-kit[audio]",
+  "kokoro==0.9.4",
+  "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+]
 
 [project.scripts]
 studio = "studio_kit.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "numpy", "num2words"]
+
+# The spaCy model in the kokoro extra is a direct URL reference.
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [build-system]
 requires = ["hatchling"]
