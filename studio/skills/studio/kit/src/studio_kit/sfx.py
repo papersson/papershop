@@ -427,10 +427,11 @@ class Kit:
     _loaded = (None, None)
 
     def _manifest(self):
-        """soundkit.json, read again only when the file changes (placing reads it once a cue)."""
+        """soundkit.json, parsed again only when its bytes change (placing reads it once a cue). Keyed
+        on the bytes, not the mtime: Linux stamps files at clock-tick granularity, so a same-size
+        rewrite within a few milliseconds keeps its mtime."""
         from . import soundkit
-        st = soundkit.MANIFEST.stat()
-        key = (str(soundkit.MANIFEST), st.st_mtime_ns, st.st_size)
+        key = soundkit.MANIFEST.read_bytes()
         if self._loaded[0] != key:
             self._loaded = (key, soundkit.load(soundkit.MANIFEST))
         return self._loaded[1]
