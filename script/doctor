@@ -22,7 +22,7 @@ else
   node_major="$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')"
   [ "${node_major:-0}" -ge 22 ] && ok+=("node $node_major") || missing+=("node 22+: studio's engines and tests | install Node 22")
 fi
-[ -d "$site/soundfile.py" ] || [ -f "$site/soundfile.py" ] && ok+=("studio kit") || missing+=("studio kit: studio commands and tests | script/bootstrap")
+[ -f "$site/soundfile.py" ] && ok+=("studio kit") || missing+=("studio kit: studio commands and tests | script/bootstrap")
 [ -d "$site/kokoro" ] && ok+=("kokoro") || missing+=("kokoro: local narration | script/bootstrap --kokoro (needs huggingface.co)")
 browsers=("$root"/studio/skills/studio/.cache/browser/*/*/*headless*)
 if [ -e "${browsers[0]}" ] || [ -n "${STUDIO_BROWSER:-}" ] || [ -d "/Applications/Google Chrome.app" ] || have chromium || have google-chrome; then
