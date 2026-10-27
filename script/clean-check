@@ -5,7 +5,9 @@
 #
 # The image stands in for Claude's cloud image: Debian with Node 22, Python 3, git and curl. The cloud
 # image also has Nix (seen in a session, not documented), which --nix adds: Nix on a Linux that is not
-# NixOS is where its Python can't load the system's shared libraries. It does not reproduce the cloud's
+# NixOS is where its Python can't load the system's shared libraries. --nix also makes uv prefer the
+# Pythons on PATH, as it does on the cloud's Ubuntu, whose system Python is the kit's 3.12; Debian's is
+# 3.11, so uv would otherwise download its own and never meet Nix's. It does not reproduce the cloud's
 # network allowlist; script/doctor reports reachability there.
 #
 #   script/clean-check                 # this machine's architecture (fast)
@@ -20,7 +22,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --amd64) platform=(--platform linux/amd64); shift ;;
     --nix) nix="curl -sSfL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm >/tmp/nix.log 2>&1 || { tail /tmp/nix.log; exit 1; }
-           export PATH=/nix/var/nix/profiles/default/bin:\$PATH; echo \"clean-check: \$(nix --version)\""; shift ;;
+           export PATH=/nix/var/nix/profiles/default/bin:\$PATH UV_PYTHON_PREFERENCE=system; echo \"clean-check: \$(nix --version)\""; shift ;;
     --) shift; break ;;
     *) echo "usage: script/clean-check [--amd64] [--nix] [-- <cmd...>]" >&2; exit 2 ;;
   esac

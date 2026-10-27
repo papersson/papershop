@@ -13,7 +13,7 @@ with a real build (a Python kit under uv, Node engines, a Nix flake for system t
   flake's studio shell itself.
 - `script/doctor`: one line saying what is ready and what is not, with the fix.
 - `script/clean-check`: clones HEAD into a container with nothing of mine in it and runs bootstrap and
-  test. Run it after adding a dependency.
+  test. Run it after adding a dependency; `--nix` is closest to the cloud, whose image has Nix.
 
 A SessionStart hook (`.claude/settings.json` → `script/session-start`) bootstraps cloud sessions and
 prints the doctor line in every session.
