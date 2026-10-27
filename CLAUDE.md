@@ -9,8 +9,8 @@ with a real build (a Python kit under uv, Node engines, a Nix flake for system t
 - `script/bootstrap`: makes a fresh clone ready; idempotent. `--kokoro` adds local narration (GBs,
   weights from huggingface.co), `--studio` adds studio's browser, live engine and sounds.
 - `script/test [suite...]`: every plugin's tests (worklog, present-your-work, studio). Studio's take
-  about seven minutes and need Node 22, ffmpeg and sox; with Nix installed the script enters the
-  flake's studio shell itself.
+  one to two minutes (11 in a container without Nix) and need Node 22, ffmpeg and sox; with Nix
+  installed the script takes them from the flake's studio shell itself.
 - `script/doctor`: one line saying what is ready and what is not, with the fix.
 - `script/clean-check`: clones HEAD into a container with nothing of mine in it and runs bootstrap and
   test. Run it after adding a dependency; `--nix` is closest to the cloud, whose image has Nix.
