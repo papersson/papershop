@@ -19,6 +19,8 @@ if have nix; then
   ok+=("system tools from the Nix flake")
 else
   for tool in ffmpeg sox; do have "$tool" && ok+=("$tool") || missing+=("$tool: studio renders and its tests | script/bootstrap"); done
+  # The system's ffmpeg is not the flake's (apt's is a different major version), so renders may differ.
+  have ffmpeg && missing+=("the flake's system tools: renders that match other machines' | install Nix")
   node_major="$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')"
   [ "${node_major:-0}" -ge 22 ] && ok+=("node $node_major") || missing+=("node 22+: studio's engines and tests | install Node 22")
 fi
