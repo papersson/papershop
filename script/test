@@ -3,26 +3,23 @@
 # ffmpeg, sox), so with Nix installed the studio suite alone takes PATH from the flake's studio shell,
 # as bin/studio does. Only PATH: the whole Darwin shell sets SDK variables that break Apple's
 # /usr/bin/git. Only studio: on Linux outside NixOS, Nix's Python can't load wheels that link the
-# system's libstdc++ (duckdb, for one), so the other suites run without Nix, and studio pins the Python
-# uv finds without it.
+# system's libstdc++ (duckdb, for one). uv.toml keeps uv on its own managed Python everywhere.
 #
 #   script/test                    # every suite
 #   script/test worklog studio     # only these
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
 cd "$root"
 
 suites=("$@")
-[ ${#suites[@]} -gt 0 ] || suites=(worklog present-your-work studio screenshot-pane)
+[ ${#suites[@]} -gt 0 ] || suites=(pins worklog present-your-work studio screenshot-pane)
 studio_env=()
 if [[ " ${suites[*]} " == *" studio "* ]] && [ -z "${STUDIO_ENV:-}" ] && command -v nix >/dev/null; then
   while IFS= read -r var; do studio_env+=("$var"); done < <(
     nix --extra-experimental-features 'nix-command flakes' develop "$root#studio" -c bash -c \
       'for v in PATH STUDIO_ENV SSL_CERT_FILE NIX_SSL_CERT_FILE; do
          if [ -n "${!v:-}" ]; then printf "%s=%s\n" "$v" "${!v}"; fi; done')
-  # Nix's Python is first on that PATH; pin the one uv finds without it.
-  studio_env+=("UV_PYTHON=$(uv python find --project "$root/studio/skills/studio/kit")")
 fi
 failed=()
 run() {
@@ -30,7 +27,7 @@ run() {
   local log; log="$(mktemp)"
   local start=$SECONDS
   if "$@" >"$log" 2>&1; then
-    echo "pass  $name ($((SECONDS - start))s): $(grep -E '^(Ran |[0-9]+ passed)|passed' "$log" | tail -1)"
+    echo "pass  $name ($((SECONDS - start))s): $(grep -E '^(Ran |[0-9]+ passed)|passed|agree' "$log" | tail -1)"
   else
     echo "FAIL  $name ($((SECONDS - start))s)"; tail -30 "$log" | sed 's/^/      /'; failed+=("$name")
   fi
@@ -39,7 +36,8 @@ run() {
 
 for suite in "${suites[@]}"; do
   case "$suite" in
-    worklog) run worklog uv run --quiet --with duckdb python -m unittest discover -s worklog/tests ;;
+    pins) run pins script/check-pins ;;
+    worklog) run worklog uv run --quiet --with "duckdb$(sed -n 's/.*"duckdb\([^"]*\)".*/\1/p' worklog/scripts/worklog.py | head -1)" python -m unittest discover -s worklog/tests ;;
     present-your-work) run present-your-work python3 present-your-work/skills/present-your-work/scripts/test_check_draft.py ;;
     studio) run studio env ${studio_env[@]+"${studio_env[@]}"} uv run --quiet --frozen --extra audio --project studio/skills/studio/kit pytest -q studio/skills/studio/kit/tests ;;
     # The mod's tests import Claude Code's own `claude-code/testing` harness, which no package provides.

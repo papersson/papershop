@@ -7,7 +7,7 @@
 #   script/doctor --hook   # SessionStart JSON: the line for the user, the details for Claude
 set -uo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
 site="$(echo "$root"/studio/skills/studio/kit/.venv/lib/python3*/site-packages)"
 ok=() missing=()
 have() { command -v "$1" >/dev/null; }

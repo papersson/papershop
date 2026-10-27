@@ -1,0 +1,5 @@
+# One uv and one Python on every machine. The versions are the flake's: nixpkgs (flake.lock) pins
+# uv 0.11.16, whose managed CPython 3.12 is 3.12.13, the flake's own Python. Where Nix is absent,
+# script/bootstrap installs this uv from PyPI into .cache/tools. script/test checks they agree.
+required-version = "==0.11.16"
+python-preference = "only-managed"

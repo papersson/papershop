@@ -21,23 +21,25 @@ for arg in "$@"; do
   esac
 done
 say() { echo "bootstrap: $*"; }
-export PATH="$HOME/.local/bin:$PATH"
+tools="$root/.cache/tools"
+export PATH="$tools/bin:$HOME/.local/bin:$PATH"
 
-# uv comes from PyPI rather than astral.sh, which the cloud's default network does not allow
-# (the cloud image ships uv anyway). Debian's python3 has no pip until apt installs it.
-if ! command -v uv >/dev/null; then
-  if ! python3 -m pip --version >/dev/null 2>&1 && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
-    say "installing pip with apt-get"
-    apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3-pip >/dev/null
-  fi
-  if python3 -m pip --version >/dev/null 2>&1; then
-    say "installing uv from PyPI"
-    python3 -m pip install --quiet --user uv 2>/dev/null ||
-      python3 -m pip install --quiet --user --break-system-packages uv
+# The uv that uv.toml pins goes in .cache/tools, from PyPI rather than astral.sh, which the cloud's
+# default network does not allow. Any uv already here can fetch it (ignoring uv.toml, which an older uv
+# would refuse); otherwise pip, which Debian's python3 lacks until apt installs it.
+pin="$(sed -n 's/^required-version = "==\(.*\)"$/\1/p' "$root/uv.toml")"
+if [ "$(uv --version 2>/dev/null | cut -d' ' -f2)" != "$pin" ]; then
+  say "installing uv $pin into .cache/tools"
+  if command -v uv >/dev/null; then
+    uv pip install --quiet --no-config --system --target "$tools" "uv==$pin"
   else
-    say "installing uv from astral.sh"
-    curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
+    if ! python3 -m pip --version >/dev/null 2>&1 && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
+      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3-pip >/dev/null
+    fi
+    python3 -m pip install --quiet --target "$tools" "uv==$pin" 2>/dev/null ||
+      python3 -m pip install --quiet --break-system-packages --target "$tools" "uv==$pin"
   fi
+  hash -r   # bash remembers where it found the old uv
 fi
 
 if ! command -v nix >/dev/null; then

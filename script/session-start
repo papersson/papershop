@@ -5,7 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
   log="${TMPDIR:-/tmp}/papershop-bootstrap.log"
   "$root/script/bootstrap" >"$log" 2>&1 || echo "bootstrap failed; see $log" >&2
-  # Bootstrap may put uv and the worklog shim in ~/.local/bin; keep it on PATH for the session's commands.
-  [ -z "${CLAUDE_ENV_FILE:-}" ] || echo 'export PATH="$HOME/.local/bin:$PATH"' >>"$CLAUDE_ENV_FILE"
 fi
+# The session's commands get the repo's pinned uv (.cache/tools) and bootstrap's worklog shim.
+[ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$root/.cache/tools/bin:\$HOME/.local/bin:\$PATH\"" >>"$CLAUDE_ENV_FILE"
 exec "$root/script/doctor" --hook
