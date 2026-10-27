@@ -19,7 +19,8 @@
 // A scene that throws fails the call with the clip, the time and the error (the kit's EngineError).
 import { chromium } from 'playwright-core'
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, createReadStream } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync, createReadStream } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -115,8 +116,18 @@ async function drawn(page, clip, frame, layers = 'all') {
 
 function scaled(buf, scale, out) {
   if (Number(scale) === 1) return writeFileSync(out, buf)
-  const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-i', '-', '-vf', `scale=iw*${scale}:-2`, out], { input: buf })
-  if (r.status !== 0) throw new Error(`could not scale a still to ${out}`)
+  // A bounded file input avoids occasional image2pipe EOF stalls during long thumbnail batches.
+  // Keep the temporary source private to this invocation; concurrent chapter checks share no files.
+  const dir = mkdtempSync(path.join(tmpdir(), 'studio-still-'))
+  try {
+    const source = path.join(dir, 'source.image')
+    writeFileSync(source, buf)
+    const r = spawnSync('ffmpeg', ['-v', 'error', '-nostdin', '-y', '-i', source,
+      '-vf', `scale=iw*${scale}:-2`, '-frames:v', '1', out], { timeout: 30000, encoding: 'utf8' })
+    if (r.status !== 0) throw new Error(`could not scale a still to ${out}: ${r.error?.message ?? r.stderr?.trim() ?? r.signal ?? r.status}`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 }
 
 async function stills(video, requests) {
