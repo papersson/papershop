@@ -25,10 +25,10 @@ say() { echo "bootstrap: $*"; }
 tools="$root/.cache/tools"
 export PATH="$tools/bin:$HOME/.local/bin:$PATH"
 
-# The uv that uv.toml pins goes in .cache/tools, from PyPI rather than astral.sh, which the cloud's
+# The uv that uv.toml names goes in .cache/tools, from PyPI rather than astral.sh, which the cloud's
 # default network does not allow. Any uv already here can fetch it (ignoring uv.toml, which an older uv
 # would refuse); otherwise pip, which Debian's python3 lacks until apt installs it.
-pin="$(sed -n 's/^required-version = "==\(.*\)"$/\1/p' "$root/uv.toml")"
+pin="$(sed -n 's/^required-version = ">=\(.*\)"$/\1/p' "$root/uv.toml")"
 if [ "$(uv --version 2>/dev/null | cut -d' ' -f2)" != "$pin" ]; then
   say "installing uv $pin into .cache/tools"
   if command -v uv >/dev/null; then

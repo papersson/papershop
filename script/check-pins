@@ -20,7 +20,7 @@ def nixpkgs(lock):
 if nixpkgs("flake.lock") != nixpkgs("studio/flake.lock"):
     problems.append("flake.lock and studio/flake.lock pin different nixpkgs")
 
-uv_pin = re.search(r'^required-version = "==(.+)"$', (root / "uv.toml").read_text(), re.M).group(1)
+uv_pin = re.search(r'^required-version = ">=(.+)"$', (root / "uv.toml").read_text(), re.M).group(1)
 python_pin = (root / ".python-version").read_text().strip()
 kit_python = (root / "studio/skills/studio/kit/.python-version").read_text().strip()
 if kit_python != python_pin:

@@ -43,7 +43,8 @@ from the same input. Every change keeps it that way.
 - Outputs must not depend on chance or the machine's state: seed anything random, pass times and
   locales explicitly, and key caches on content, not mtime (Linux mtimes tick coarsely).
 - The flake is the source of versions: nixpkgs (`flake.lock`) fixes uv, Python and the system tools;
-  `uv.toml` pins the same uv and keeps uv on its managed Python; `.python-version` (root and studio
+  `uv.toml` names the same uv (scripts and sessions run exactly it from `.cache/tools`; a newer
+  one in a terminal is accepted) and keeps uv on its managed Python; `.python-version` (root and studio
   kit) pins the same Python; Kokoro's weights are pinned to a commit in `narration.py`. To move a
   pin, update `flake.lock` first and the rest to match; `script/check-pins` (the `pins` suite) fails
   while they disagree.
