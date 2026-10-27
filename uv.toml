@@ -1,0 +1,7 @@
+# One Python on every machine, and the flake's uv for everything the scripts and sessions run: nixpkgs
+# (flake.lock) pins uv 0.11.16, whose managed CPython 3.12 is 3.12.13, the flake's own Python.
+# script/bootstrap installs exactly this uv into .cache/tools, which the scripts and sessions put first
+# on PATH; a newer uv in someone's terminal is accepted, since uv.lock and .python-version fix what it
+# installs. script/test checks these agree.
+required-version = ">=0.11.16"
+python-preference = "only-managed"

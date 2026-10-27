@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Prove a fresh clone works on a machine that has nothing of mine on it: bundle this checkout's HEAD,
+# clone it inside a throwaway container with no home directory, Nix or Homebrew, then run
+# script/bootstrap and script/test. Anything the repo relies on but does not declare fails here.
+#
+# The image stands in for Claude's cloud image: Debian with Node 22, Python 3, git and curl. The cloud
+# image also has Nix (seen in sessions, not documented), which --nix adds: Nix on a Linux that is not
+# NixOS is where its Python can't load the system's shared libraries. --offline bootstraps with the
+# network, then tests in a second container without one, so a test that reaches the network fails. The
+# cloud's network allowlist is not reproduced; script/doctor reports reachability there.
+#
+#   script/clean-check                 # this machine's architecture (fast)
+#   script/clean-check --amd64         # x86_64, like the cloud (emulated on Apple silicon, slower)
+#   script/clean-check --nix           # with Nix installed first, like the cloud
+#   script/clean-check --offline       # tests with no network
+#   script/clean-check -- <cmd...>     # run <cmd> in the fresh clone instead of bootstrap + test
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+image="node:22-bookworm"
+platform=() nix="" offline=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --amd64) platform=(--platform linux/amd64); shift ;;
+    --nix) nix="curl -sSfL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm >/tmp/nix.log 2>&1 || { tail /tmp/nix.log; exit 1; }
+           echo \"clean-check: \$(/nix/var/nix/profiles/default/bin/nix --version)\""; shift ;;
+    --offline) offline=1; shift ;;
+    --) shift; break ;;
+    *) echo "usage: script/clean-check [--amd64] [--nix] [--offline] [-- <cmd...>]" >&2; exit 2 ;;
+  esac
+done
+if [ $# -gt 0 ]; then cmd="$*"; elif [ "$offline" = 1 ]; then cmd="script/test"; else cmd="script/bootstrap && script/test"; fi
+# Always name the platform: the image tag holds whichever architecture was pulled last.
+if [ ${#platform[@]} -eq 0 ]; then
+  case "$(uname -m)" in arm64|aarch64) platform=(--platform linux/arm64) ;; *) platform=(--platform linux/amd64) ;; esac
+fi
+
+command -v docker >/dev/null || { echo "clean-check: docker is not installed" >&2; exit 1; }
+docker info >/dev/null 2>&1 || { echo "clean-check: the docker daemon is not running" >&2; exit 1; }
+
+work="$(mktemp -d)" tag="papershop-clean-check:$$"
+trap 'rm -rf "$work"; docker rmi -f "$tag" >/dev/null 2>&1 || true' EXIT
+git -C "$root" bundle create -q "$work/repo.bundle" HEAD
+echo "clean-check: $(git -C "$root" rev-parse --short HEAD) in a fresh ${platform[1]} $image${nix:+ with Nix}$([ "$offline" = 0 ] || echo ', tests offline')"
+
+# HOME is an empty directory, so nothing from ~/.claude, dotfiles or caches can leak in.
+prelude="set -euo pipefail; mkdir -p /home/fresh; export PATH=/nix/var/nix/profiles/default/bin:\$HOME/.local/bin:\$PATH"
+setup="git -c advice.detachedHead=false clone -q /repo.bundle /work/papershop;${nix:+ $nix;} cd /work/papershop"
+run=(docker run ${platform[@]+"${platform[@]}"} -v "$work/repo.bundle:/repo.bundle:ro" -e HOME=/home/fresh)
+if [ "$offline" = 1 ]; then
+  # Bootstrap (and with Nix, fetch the studio shell) with a network, keep that machine as an image, then
+  # test in it without one. uv works from its cache (UV_OFFLINE), so whatever still reaches out is a test.
+  warm="script/bootstrap >/dev/null; ! command -v nix >/dev/null || nix --extra-experimental-features 'nix-command flakes' develop .#studio -c true 2>/dev/null"
+  "${run[@]}" --cidfile "$work/cid" "$image" bash -c "$prelude; $setup; $warm"
+  docker commit "$(cat "$work/cid")" "$tag" >/dev/null && docker rm "$(cat "$work/cid")" >/dev/null
+  "${run[@]}" --rm --network none -e UV_OFFLINE=1 "$tag" bash -c "$prelude; cd /work/papershop; $cmd"
+else
+  "${run[@]}" --rm "$image" bash -c "$prelude; $setup; $cmd"
+fi

@@ -23,6 +23,21 @@ contractions, kept nearly every sentence at twelve to fifteen words and rarely a
   narration against it.
 - Voice remains Kokoro; moving to ElevenLabs is a separate change.
 
+## Reproducible narration and checks (0.16.2)
+
+The papershop repo now has to bootstrap and pass its tests on any machine (the Mac, Claude's cloud,
+CI), and to make the same output from the same input. Three studio fixes came out of checking that.
+
+- Kokoro loads its model and voices from one pinned commit of its Hugging Face repo instead of
+  following `main`, and each synthesis call is seeded: the vocoder adds random noise, so the same
+  sentence used to come out different on every run. Paragraphs synthesised from now on can sound
+  slightly different from earlier ones; cached audio is untouched.
+- The sound kit's manifest cache is keyed on the file's bytes, not its mtime, which on Linux ticks
+  too coarsely to see a quick rewrite.
+- `studio doctor` probes the browser with `--no-sandbox` when it runs as root (a container, the
+  cloud), as Playwright does when it renders, so the check no longer fails where rendering works.
+- The tests stop at once, with the fix, when Node 22, ffmpeg or sox is missing.
+
 ## Visuals at the center (0.16.0)
 
 The user found the 0.15 hash-table film visually lame, its sound effects cheap, its governing

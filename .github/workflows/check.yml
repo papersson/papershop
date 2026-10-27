@@ -1,0 +1,20 @@
+# A fresh clone on a machine like Claude's cloud (Ubuntu 24.04 with Nix): bootstrap, print the receipt,
+# run every suite. Weekly as well, so drift upstream of the pins (images, caches) shows up unprompted.
+name: check
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Nix
+        run: |
+          curl -sSfL https://install.determinate.systems/nix | sh -s -- install --no-confirm
+          echo /nix/var/nix/profiles/default/bin >> "$GITHUB_PATH"
+      - run: script/bootstrap
+      - run: script/receipt --tools
+      - run: script/test

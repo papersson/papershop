@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Render a small fixture and print a hash per layer of the output (script/output_receipt.py), inside the
+# same environment as studio's tests: the flake's tools when Nix is installed. Needs script/bootstrap
+# --studio (browser and live engine); add --kokoro for the audio layer.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
+if [ -z "${STUDIO_ENV:-}" ] && command -v nix >/dev/null; then
+  PATH="$(nix --extra-experimental-features 'nix-command flakes' develop "$root#studio" -c printenv PATH 2>/dev/null)"
+fi
+HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" uv run --quiet --frozen --extra audio --project "$root/studio/skills/studio/kit" \
+  python "$root/script/output_receipt.py" 2> >(grep -v -i warn >&2)

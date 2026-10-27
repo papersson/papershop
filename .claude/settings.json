@@ -1,0 +1,18 @@
+{
+  "enabledPlugins": {
+    "worklog@papershop": false,
+    "prose@papershop": false,
+    "studio@papershop": false,
+    "present-your-work@papershop": false,
+    "elicit@papershop": false
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/script/session-start", "timeout": 600 }
+        ]
+      }
+    ]
+  }
+}

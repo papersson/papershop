@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["duckdb>=1.0"]
+# dependencies = ["duckdb==2.0.0"]
 # ///
 """
 worklog.py — query Claude Code transcripts as a work history.

@@ -62,8 +62,11 @@ def check_browser():
     if path is None:
         return WARN, "browser", "none installed; fetch the headless shell during setup", \
             "studio doctor --fetch, install Chrome or set STUDIO_BROWSER"
+    # Chrome refuses to run as root (a container, Claude's cloud) without --no-sandbox, which Playwright
+    # passes when the engine launches it; the probe matches it there.
+    root = ["--no-sandbox"] if hasattr(os, "geteuid") and os.geteuid() == 0 else []
     try:
-        run = proc.run([path, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"],
+        run = proc.run([path, "--headless=new", "--disable-gpu", *root, "--dump-dom", "about:blank"],
                        capture_output=True, text=True, timeout=30)
     except (OSError, proc.TimeoutExpired) as e:
         return FAIL, "browser", f"{path} ({source}) did not start: {e}", "set STUDIO_BROWSER to a working Chrome"
@@ -296,10 +299,12 @@ def require_engines(rows, engines):
             for level, name, detail, fix in rows]
 
 
-def hf_cached(repo):
-    """Whether a Hugging Face model repo is in the local cache (no network): HF_HOME, else ~/.cache/huggingface."""
+def hf_cached(repo, revision=None):
+    """Whether a Hugging Face model repo, or one commit of it, is in the local cache (no network): HF_HOME,
+    else ~/.cache/huggingface."""
     home = Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface")
-    return (home / "hub" / ("models--" + repo.replace("/", "--"))).is_dir()
+    cached = home / "hub" / ("models--" + repo.replace("/", "--"))
+    return (cached / "snapshots" / revision if revision else cached).is_dir()
 
 
 
@@ -308,8 +313,9 @@ def model_checks(extras):
     """Speech models in the local cache, so an offline run (STUDIO_OFFLINE=1) can say what it lacks before it starts."""
     rows = []
     if "kokoro" in extras:
-        rows.append((OK, "kokoro weights", "cached", "") if hf_cached("hexgrad/Kokoro-82M") else
-                    (WARN, "kokoro weights", "not in the local cache", "studio doctor --fetch --extra kokoro on a machine with network, then copy ~/.cache/huggingface over; offline runs (STUDIO_OFFLINE=1) cannot fetch them"))
+        from .narration import KOKORO_REPO, KOKORO_REVISION
+        rows.append((OK, "kokoro weights", f"cached at {KOKORO_REVISION[:12]}", "") if hf_cached(KOKORO_REPO, KOKORO_REVISION) else
+                    (WARN, "kokoro weights", f"{KOKORO_REVISION[:12]} is not in the local cache", "studio doctor --fetch --extra kokoro on a machine with network, then copy ~/.cache/huggingface over; offline runs (STUDIO_OFFLINE=1) cannot fetch them"))
     return rows
 
 

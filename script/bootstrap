@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Make a fresh clone ready for papershop work. Idempotent and quick when nothing changed, so the cloud
+# SessionStart hook can run it on every session.
+#
+# With Nix installed (the Mac, z840), the flake supplies the system tools: bin/studio and script/test
+# enter it, and this script only prepares the Python environments. Without Nix (Claude's cloud image),
+# it installs missing system tools with apt-get when it runs as root, which the cloud does.
+#
+#   script/bootstrap            # uv, ffmpeg, sox, the studio kit (audio extra + dev), the worklog CLI
+#   script/bootstrap --kokoro   # also local narration: torch and Kokoro, several GB, weights from huggingface.co
+#   script/bootstrap --studio   # also studio's browser, live engine and sound kit (`studio doctor --fetch`)
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+kit="$root/studio/skills/studio/kit"
+cd "$root"   # uv reads uv.toml from here
+kokoro=0 studio=0
+for arg in "$@"; do
+  case "$arg" in
+    --kokoro) kokoro=1 ;;
+    --studio) studio=1 ;;
+    *) echo "usage: script/bootstrap [--kokoro] [--studio]" >&2; exit 2 ;;
+  esac
+done
+say() { echo "bootstrap: $*"; }
+tools="$root/.cache/tools"
+export PATH="$tools/bin:$HOME/.local/bin:$PATH"
+
+# The uv that uv.toml names goes in .cache/tools, from PyPI rather than astral.sh, which the cloud's
+# default network does not allow. Any uv already here can fetch it (ignoring uv.toml, which an older uv
+# would refuse); otherwise pip, which Debian's python3 lacks until apt installs it.
+pin="$(sed -n 's/^required-version = ">=\(.*\)"$/\1/p' "$root/uv.toml")"
+if [ "$(uv --version 2>/dev/null | cut -d' ' -f2)" != "$pin" ]; then
+  say "installing uv $pin into .cache/tools"
+  if command -v uv >/dev/null; then
+    uv pip install --quiet --no-config --system --target "$tools" "uv==$pin"
+  else
+    if ! python3 -m pip --version >/dev/null 2>&1 && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
+      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3-pip >/dev/null
+    fi
+    python3 -m pip install --quiet --target "$tools" "uv==$pin" 2>/dev/null ||
+      python3 -m pip install --quiet --break-system-packages --target "$tools" "uv==$pin"
+  fi
+  hash -r   # bash remembers where it found the old uv
+fi
+
+if ! command -v nix >/dev/null; then
+  missing=()
+  for tool in ffmpeg sox; do command -v "$tool" >/dev/null || missing+=("$tool"); done
+  if [ ${#missing[@]} -gt 0 ]; then
+    if [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
+      say "installing ${missing[*]} with apt-get"
+      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}" >/dev/null
+    else
+      say "missing ${missing[*]}: install them, or install Nix and use the flake" >&2
+    fi
+  fi
+  node_major="$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')"
+  [ "${node_major:-0}" -ge 22 ] || say "studio needs Node 22 or newer (found ${node_major:-none})" >&2
+fi
+
+# --inexact keeps extras installed earlier (Kokoro, align) instead of removing everything not asked for.
+extras=(--extra audio)
+[ "$kokoro" = 0 ] || extras+=(--extra kokoro)
+uv sync --quiet --frozen --inexact "${extras[@]}" --project "$kit"
+
+# worklog's plugin hook drops this shim; outside the plugin (a cloud session) nothing else would.
+if ! command -v worklog >/dev/null; then
+  mkdir -p "$HOME/.local/bin"
+  printf '#!/usr/bin/env bash\nexec uv run --script "%s" "$@"\n' "$root/worklog/scripts/worklog.py" > "$HOME/.local/bin/worklog"
+  chmod +x "$HOME/.local/bin/worklog"
+  say "installed the worklog CLI in ~/.local/bin"
+fi
+# Fetch its duckdb now, so the CLI and its tests also work without a network later.
+uv run --quiet --with "$(sed -n 's/.*"\(duckdb[^"]*\)".*/\1/p' "$root/worklog/scripts/worklog.py" | head -1)" python -c 'import duckdb'
+
+if [ "$studio" = 1 ]; then
+  studio=("$root/studio/skills/studio/bin/studio")
+  command -v nix >/dev/null || studio=(env STUDIO_NO_NIX=1 "${studio[@]}")
+  # Fetch first (its closing check may fail on a bare Linux), then give the headless shell the system
+  # libraries it links (NSS, ATK, X11), which Playwright knows and installs with apt as root.
+  "${studio[@]}" doctor --fetch || true
+  if [ "$(uname -s)" = Linux ] && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
+    (cd "$root/studio/skills/studio/engines/live" && node node_modules/playwright-core/cli.js install-deps chromium-headless-shell >/dev/null)
+  fi
+  "${studio[@]}" doctor
+fi
+say "done"

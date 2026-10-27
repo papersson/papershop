@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Print what this checkout runs with, one `key: value` line each, so two machines can be compared
+# line by line (script/compare). The default is cheap (no Nix shell, no network) for the SessionStart
+# hook; --tools also asks each tool the way the tests and studio reach it, through the flake's studio
+# shell when Nix is installed.
+#
+#   script/receipt            # pins and versions on PATH
+#   script/receipt --tools    # plus the versions inside the studio environment
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+kit="$root/studio/skills/studio/kit"
+export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
+first() { "$@" 2>/dev/null | head -1; }
+hash() { [ -f "$1" ] && shasum -a 256 "$1" | cut -c1-12 || echo none; }
+version() { grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)*' | head -1; }
+
+git -C "$root" diff --quiet HEAD -- 2>/dev/null && dirty="" || dirty=" (uncommitted changes)"
+echo "commit: $(git -C "$root" rev-parse --short HEAD)$dirty"
+echo "os: $(uname -s) $(uname -m)"
+echo "uv: $(first uv --version | version)"
+echo "python (studio kit venv): $(first "$kit/.venv/bin/python" --version | version)"
+echo "node (PATH): $(first node --version | version)"
+echo "nix: $(first nix --version | version)"
+echo "nixpkgs: $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["nodes"]["nixpkgs"]["locked"]["rev"][:12])' "$root/flake.lock" 2>/dev/null)"
+echo "lock flake.lock: $(hash "$root/flake.lock")"
+echo "lock studio/flake.lock: $(hash "$root/studio/flake.lock")"
+echo "lock studio kit uv.lock: $(hash "$kit/uv.lock")"
+echo "lock live engine package-lock: $(hash "$root/studio/skills/studio/engines/live/package-lock.json")"
+echo "pin duckdb (worklog): $(sed -n 's/.*"duckdb\([^"]*\)".*/\1/p' "$root/worklog/scripts/worklog.py" | head -1)"
+echo "pin kokoro weights: $(sed -n 's/^KOKORO_REVISION = "\(.\{12\}\).*/\1/p' "$kit/src/studio_kit/narration.py")"
+
+if [ "${1:-}" = --tools ]; then
+  studio_path="$PATH"
+  if command -v nix >/dev/null; then
+    studio_path="$(nix --extra-experimental-features 'nix-command flakes' develop "$root#studio" -c printenv PATH 2>/dev/null)"
+  fi
+  echo "studio env node: $(PATH="$studio_path" first node --version | version)"
+  echo "studio env ffmpeg: $(PATH="$studio_path" first ffmpeg -version | version)"
+  echo "studio env sox: $(PATH="$studio_path" first sox --version | version)"
+  echo "studio env uv: $(PATH="$studio_path" first uv --version | version)"
+  echo "duckdb (worklog tests): $(cd "$root" && first uv run --quiet --with "duckdb$(sed -n 's/.*"duckdb\([^"]*\)".*/\1/p' worklog/scripts/worklog.py | head -1)" python -c 'import duckdb; print(duckdb.__version__)')"
+fi
