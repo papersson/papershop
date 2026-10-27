@@ -59,9 +59,12 @@ if ! command -v nix >/dev/null; then
 fi
 
 # --inexact keeps extras installed earlier (Kokoro, align) instead of removing everything not asked for.
-extras=(--extra audio)
+# align is the voice check's recogniser, which every narration uses; kit/.extras lets bin/studio
+# restore these when uv rebuilds the environment.
+extras=(--extra audio --extra align)
 [ "$kokoro" = 0 ] || extras+=(--extra kokoro)
 uv sync --quiet --frozen --inexact "${extras[@]}" --project "$kit"
+printf '%s\n' audio align $([ "$kokoro" = 0 ] || echo kokoro) $(cat "$kit/.extras" 2>/dev/null) | awk 'NF && !seen[$0]++' > "$kit/.extras.tmp" && mv "$kit/.extras.tmp" "$kit/.extras"
 
 # worklog's plugin hook drops this shim; outside the plugin (a cloud session) nothing else would.
 if ! command -v worklog >/dev/null; then

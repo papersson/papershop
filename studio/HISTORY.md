@@ -3,6 +3,16 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Extras survive a rebuilt environment (0.18.1)
+
+Pinning the managed Python (3.12.13) made uv rebuild the kit's `.venv`, which keeps only what the
+next sync asks for. `script/bootstrap` asked for audio and Kokoro, so the voice check's recogniser
+(the align extra) silently disappeared and `studio voice-check` and `studio align` failed.
+
+- `studio doctor --fetch` records the extras it installs in `kit/.extras`, outside the environment,
+  and `bin/studio` restores them on every run with its usual non-destructive sync.
+- `script/bootstrap` installs align with audio (Kokoro stays opt-in) and records them too.
+
 ## Delivery tags for ElevenLabs (0.18.0)
 
 The ElevenLabs v4 guide directs delivery with bracketed tags such as `[curious]`, but SCRIPT.md

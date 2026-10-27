@@ -55,6 +55,11 @@ if ! command -v uv >/dev/null; then
   exit 1
 fi
 
-# Sync base dependencies without removing extras or separately installed model wheels.
-uv sync --quiet --frozen --inexact --project "$here/kit"
+# Sync base dependencies without removing extras or separately installed model wheels, and restore the
+# extras doctor --fetch recorded in kit/.extras, which a rebuilt .venv (a new Python) would otherwise lose.
+extras=()
+if [ -f "$here/kit/.extras" ]; then
+  while read -r extra; do [ -z "$extra" ] || extras+=(--extra "$extra"); done < "$here/kit/.extras"
+fi
+uv sync --quiet --frozen --inexact ${extras[@]+"${extras[@]}"} --project "$here/kit"
 exec uv run --quiet --no-sync --project "$here/kit" studio "$@"

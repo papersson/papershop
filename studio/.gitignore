@@ -1,4 +1,5 @@
 skills/studio/.cache/
 skills/studio/kit/.venv/
+skills/studio/kit/.extras
 skills/studio/engines/*/node_modules/
 __pycache__/

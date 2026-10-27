@@ -165,6 +165,15 @@ def fetch(engines=("live",), extras=()):
     if extras:
         cmd = ["uv", "sync", "--quiet", "--frozen", "--inexact", "--project", str(ROOT / "kit")]
         proc.run(cmd + [a for e in extras for a in ("--extra", e)], check=True)
+        remember_extras(extras)
+
+
+def remember_extras(extras):
+    """Record the installed extras in kit/.extras, outside the environment, so bin/studio can restore
+    them when uv rebuilds .venv (a new Python, say) and leaves only the base dependencies."""
+    record = ROOT / "kit" / ".extras"
+    known = record.read_text().split() if record.exists() else []
+    record.write_text("\n".join(dict.fromkeys([*known, *extras])) + "\n")
 
 
 EXTRAS = {"audio": ("numpy", "soundfile", "num2words"),
