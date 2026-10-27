@@ -269,3 +269,14 @@ Keep historical constraints and context central. Preserve this as a history-of-p
 within [origins.md](origins.md), not a rule replacing every historical journey. Exact feedback
 and scope: ~/studio/archive/items/gen-how-we-got-here-observability-cut3/record.json; positive
 batch feedback also applies to gen-how-we-got-here-deployment-cut2.
+
+Observability progression feedback (2026-10-27), on `gen-observability-through-the-decades-cut3`:
+“I think it's ok but I don't love it”; “there is no clicking sounds when typing the code”;
+the original document is “much more tactile/visceral and appealing”. Preserve the concrete
+progression from printing to local log files that the programmer writes and analyzes. Perform
+typing and clicks with synchronized recorded sounds. Let new problems motivate the next tool,
+and make modern practice the destination: “Datadog, Sentry, etc.”, showing effective use of
+those tools. “Particular events in history are not super important to me I guess”; for this
+story, historical working conditions support the progression rather than dated events driving
+it. The user welcomes a longer film to give all these stages room. This refines the observability
+story, not every origins film. Exact note: ~/studio/archive/items/gen-observability-through-the-decades-cut3/record.json.
