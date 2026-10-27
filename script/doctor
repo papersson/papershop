@@ -50,7 +50,9 @@ fi
 details="$(printf '%s\n' "${missing[@]+"${missing[@]}"}" | sed -n 's/^\(.*\): \(.*\) | \(.*\)$/- \1 (affects \2): \3/p')"
 
 if [ "${1:-}" = --hook ]; then
+  # The receipt lands in the transcript, so a past session says what it ran with.
   context="$line"$'\n'"$details"$'\n'"Bootstrap with script/bootstrap, test with script/test, check with script/doctor (see CLAUDE.md)."
+  context="$context"$'\n'"Environment receipt (script/receipt):"$'\n'"$("$root/script/receipt")"
   python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1],
     "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$line" "$context"
 else
