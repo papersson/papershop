@@ -249,3 +249,5 @@ stage reset. Let related motion flow between them and leave unrelated things sti
 depends on where rests fall, not how many tiny holds are inserted. Evidence: part F request and
 ~/drafts/studio-phase2/STEP-F.md; source film:
 ~/drafts/studio-phase2/scratch-videos/hash-table-2d/out/master.mp4.
+
+Origins-format feedback (2026-10-26): “Ours is too sterile, his is like a journey through time and space.” Use [origins.md](origins.md) for this format's story order, visual reference and review criteria. Evidence: ~/studio/gpu-time-journey/research/reference/SOURCES.md. On 2026-10-27 the user judged the prototype “much better”, then the three full journey films “Nice! I do like them.” These are whole-film reactions, not timestamp-specific approvals. Personal examples and provenance live in ~/studio/references/ and ~/studio/archive/; the production history is in ~/studio/collections/computing/ORIGINS-FORMAT.md.

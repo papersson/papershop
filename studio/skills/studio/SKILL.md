@@ -18,13 +18,16 @@ anything. If something is missing, use the setup guidance in `references/kit.md`
 
 ## Develop the story, with the user
 
-Read `references/taste.md` and `references/story.md`. Ask only what changes the story and cannot
-be inferred. Default to a canonical undergraduate lecture with one small example and few numbers.
+Read `references/taste.md` and `references/story.md`. For an origins film, historical journey,
+or a request to explain a modern system through its history, also read
+[`references/origins.md`](references/origins.md). Its story order and reference selection take
+precedence over the lecture defaults below. Ask only what changes the story and cannot
+be inferred. Otherwise default to a canonical undergraduate lecture with one small example and few numbers.
 Three or four ideas is guidance, not a cap; breadth is welcome when each idea has room. Put the level and tone into ordinary sentences in the brief.
 
 First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
 Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
-Convert the panel and brief into `research/brief.md`: the viewer, textbook order, ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Name key points and section ends. Write `SCRIPT.md` with a beat table including breaths,
+Convert the panel and brief into `research/brief.md`: the viewer, story order (historical route for origins films), ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Name key points and section ends. Write `SCRIPT.md` with a beat table including breaths,
 narration and screen notes. Draw rough boards that make the picture and its scale visible.
 
 Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start
@@ -35,7 +38,8 @@ Bring their findings and uncertainties to the user alongside the reel. Revise th
 **Decision 1 is story lock.** Record the user's agreement in the brief. Existing authorization
 counts. After lock, render three to five final-quality style frames in the real engine: opening,
 chapter heroes and closing. Follow the style-frame step in `story.md`, compare beside a reference
-of the same kind: 3Blue1Brown for abstract subjects, Ciechanowski or Kurzgesagt for physical ones.
+of the same kind: the selected historical-journey reference for origins films, otherwise
+3Blue1Brown for abstract subjects, Ciechanowski or Kurzgesagt for physical ones.
 Apply the hard 3D admission test in `taste.md` and record the judgment. Then shoot to those frames. This is
 preparation within the existing story decision, not another routine approval stop.
 
