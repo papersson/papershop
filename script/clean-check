@@ -8,7 +8,7 @@
 # NixOS is where its Python can't load the system's shared libraries. It does not reproduce the cloud's
 # network allowlist; script/doctor reports reachability there.
 #
-#   script/clean-check                 # native architecture (fast)
+#   script/clean-check                 # this machine's architecture (fast)
 #   script/clean-check --amd64         # x86_64, like the cloud (emulated on Apple silicon, slower)
 #   script/clean-check --nix           # with Nix installed first, like the cloud
 #   script/clean-check -- <cmd...>     # run <cmd> in the fresh clone instead of bootstrap + test
@@ -19,13 +19,17 @@ platform=() nix=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --amd64) platform=(--platform linux/amd64); shift ;;
-    --nix) nix="curl -sSfL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm >/dev/null 2>&1
+    --nix) nix="curl -sSfL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm >/tmp/nix.log 2>&1 || { tail /tmp/nix.log; exit 1; }
            export PATH=/nix/var/nix/profiles/default/bin:\$PATH; echo \"clean-check: \$(nix --version)\""; shift ;;
     --) shift; break ;;
     *) echo "usage: script/clean-check [--amd64] [--nix] [-- <cmd...>]" >&2; exit 2 ;;
   esac
 done
 if [ $# -gt 0 ]; then cmd="$*"; else cmd="script/bootstrap && script/test"; fi
+# Always name the platform: the image tag holds whichever architecture was pulled last.
+if [ ${#platform[@]} -eq 0 ]; then
+  case "$(uname -m)" in arm64|aarch64) platform=(--platform linux/arm64) ;; *) platform=(--platform linux/amd64) ;; esac
+fi
 
 command -v docker >/dev/null || { echo "clean-check: docker is not installed" >&2; exit 1; }
 docker info >/dev/null 2>&1 || { echo "clean-check: the docker daemon is not running" >&2; exit 1; }
@@ -33,7 +37,7 @@ docker info >/dev/null 2>&1 || { echo "clean-check: the docker daemon is not run
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 git -C "$root" bundle create -q "$work/repo.bundle" HEAD
-echo "clean-check: $(git -C "$root" rev-parse --short HEAD) in a fresh ${platform[1]:-native} $image${nix:+ with Nix}"
+echo "clean-check: $(git -C "$root" rev-parse --short HEAD) in a fresh ${platform[1]} $image${nix:+ with Nix}"
 
 # HOME is an empty directory, so nothing from ~/.claude, dotfiles or caches can leak in.
 docker run --rm ${platform[@]+"${platform[@]}"} -v "$work/repo.bundle:/repo.bundle:ro" -e HOME=/home/fresh "$image" \
