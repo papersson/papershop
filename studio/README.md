@@ -40,4 +40,5 @@ Publish includes a colophon beside the master. The standing `studio ablation` co
 paired bare-agent and Studio starts for a later comparison.
 
 Read the [skill](skills/studio/SKILL.md), [taste](skills/studio/references/taste.md),
+[narration](skills/studio/references/script.md),
 [kit reference](skills/studio/references/kit.md) and [design reasons](skills/studio/DESIGN.md).

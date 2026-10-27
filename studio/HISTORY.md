@@ -3,6 +3,26 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Narration written for the ear (0.17.0)
+
+The user named the narration as the videos' primary weakness: “The script is not that great, I
+think it has to be much more engaging and natural. Use full sentences, use "we", etc.” Measured
+against 3Blue1Brown, Sebastian Lague, the Mollick AI-origins film and a corpus of popular
+explainers' captions, our eleven October scripts never said “I”, almost never said “you”, used no
+contractions, kept nearly every sentence at twelve to fifteen words and rarely asked a question.
+
+- New working reference `references/script.md`: talk to one person, keep a question open, give
+  2 + 2, people and things before abstractions, chain cause to cause, write for the ear, beat the
+  misconception, point rather than narrate the camera, keep caveats in the Evidence table, and end
+  on the opening changed. It names the four moments a viewer remembers, the tics to cut and five
+  before/after pairs from our own films, and ends with Saunders's read-aloud revision method.
+- `references/script-example.md` rewrites the TCP origins film's narration end to end, with
+  the reason for each change.
+- The skill, story step, desk revisions and SCRIPT template point to it. The taste file's
+  narration section shrinks to a summary and a link. The story panel's editor now reads the
+  narration against it.
+- Voice remains Kokoro; moving to ElevenLabs is a separate change.
+
 ## Visuals at the center (0.16.0)
 
 The user found the 0.15 hash-table film visually lame, its sound effects cheap, its governing

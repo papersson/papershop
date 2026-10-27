@@ -54,8 +54,8 @@ timeline second or narration anchor. Without it, chapter starts form the story l
 For each accepted note:
 
 1. Read it against the cut and sentence the user saw. Mark it with `studio notes VIDEO --start ID`.
-2. Make the smallest coherent change. A structural complaint needs a change to the story, even
-   when it arrived beside one sentence. Take whole-video feedback in chat as well; the user
+2. Make the smallest coherent change; rewrite narration to `script.md` and read it aloud. A
+   structural complaint needs a change to the story, even when it arrived beside one sentence. Take whole-video feedback in chat as well; the user
    should never need to annotate every instance of the same underlying problem.
 3. If speech changed, narrate again and check the affected voice. Sentence ids are positional;
    update anchors and pronunciation overrides after edits. If only the picture changed, keep

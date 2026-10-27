@@ -12,13 +12,13 @@ The agreed story is in research/brief.md.
 
 ### 1. {{Chapter title}}
 
-> {{Write a full explanatory paragraph for the ear.}}
+> {{Open on something concrete and make it strange; the viewer should have a question within ten seconds. Talk to one person: "we", "you", "I", contractions. See references/script.md.}}
 
 *Screen:* {{Show the subject, its action and the settled result. Name the hero event and any permitted tactile sound; default to silence.}}
 
 ### 2. {{Chapter title}}
 
-> {{Carry the same small example through the next idea.}}
+> {{Carry the same small example through the next idea. Say the plausible wrong intuition, then let the picture break it.}}
 
 *Screen:* {{Frame the subject closely enough to read.}}
 

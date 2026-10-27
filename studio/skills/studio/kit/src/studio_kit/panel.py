@@ -3,11 +3,13 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import review, reviews
+from .env import ROOT
 
 ROLES = {
     "expert": "Check the claims, causal explanations and examples. Identify uncertain claims and the evidence needed to settle them.",
     "viewer": "Read at the viewer's stated level. Identify unexplained prerequisites, excess ideas, confusing terms and places to predict a toy example.",
-    "editor": "Check canonical lecture order, useful insights, hero moments, numerical density, omissions and content-sized holds. A governing question and protagonist are optional. Point out scope that obscures the explanation.",
+    "editor": "Check canonical lecture order, useful insights, hero moments, numerical density, omissions and content-sized holds. A governing question and protagonist are optional. Point out scope that obscures the explanation. "
+              f"Hear the narration against {ROOT / 'references/script.md'}: quote sentences where attention drops, the camera is narrated, a claim is defended or no question is open, and say whether the ending answers the opening.",
 }
 
 

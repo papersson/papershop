@@ -88,8 +88,8 @@ chapter id so an agent can identify its part of the story.
 
 Plan flowing action inside each idea, then stillness and silence when it lands: 1.5–3 s after
 key points and hero payoffs, 3–4 s between sections including a stage reset. Do not add a hold
-after every small change or pad the runtime with unchanged pictures. Write full spoken paragraphs beneath
-`## Script` and `### 1. Chapter title`. Each `> ` line is a narration paragraph. Add `*Screen:*`
+after every small change or pad the runtime with unchanged pictures. Read `script.md`, then write
+spoken paragraphs beneath `## Script` and `### 1. Chapter title`, revising them by ear as it describes. Each `> ` line is a narration paragraph. Add `*Screen:*`
 notes with the picture, framing, sound and hero event; `s1_01` means the first sentence of chapter
 one. A note without ids belongs to the paragraph above it. Use `[breath 2]` after a complete
 sentence for a key point, or `[breath 3]` at a section end

@@ -193,16 +193,13 @@ are needed. End on the complete working program so the pieces become one mechani
 
 ## Speak as a person
 
-Write full explanatory “we” sentences in the spirit of 3Blue1Brown and Sebastian Lague. Use short
-clauses with clear causal links and plain verbs. Keep the thought complete; clipped fragments
-make the voice sound like a list. Put intuition before notation and say parameter names as words.
-
-Use narration to add why, what follows or what could go wrong. Cut lines that merely announce
-what the viewer can already see. Give one useful statement of scope, then continue the story.
-Avoid corrective slogan pairs, protective hedges, abstract noun piles, forced three-part lists,
-announced recaps and other LLM-speak. Over a rich picture the voice can be lighter: explain why, cost and failure, without
-describing the visible action. Keep full sentences. End with the mechanism working and a useful
-consequence, then give its final key point a still, silent breath.
+The narration is a person talking to one curious viewer, in full spoken sentences with "we",
+"you" and "I", contractions, an open question and a callback at the end. [script.md](script.md)
+holds the principles, the tics to cut, before-and-after pairs from our own films and the
+read-aloud revision method. Put intuition before notation and say parameter names as words.
+Over a rich picture the voice can be lighter: explain why, cost and failure, without describing
+the visible action. End with the mechanism working and a useful consequence, then give its final
+key point a still, silent breath.
 
 Keep production, tools used to make the film, briefs and private context out of the narration.
 Subject-specific product names and code belong when the viewer needs them. This keeps the
@@ -251,3 +248,11 @@ depends on where rests fall, not how many tiny holds are inserted. Evidence: par
 ~/drafts/studio-phase2/scratch-videos/hash-table-2d/out/master.mp4.
 
 Origins-format feedback (2026-10-26): “Ours is too sterile, his is like a journey through time and space.” Use [origins.md](origins.md) for this format's story order, visual reference and review criteria. Evidence: ~/studio/gpu-time-journey/research/reference/SOURCES.md. On 2026-10-27 the user judged the prototype “much better”, then the three full journey films “Nice! I do like them.” These are whole-film reactions, not timestamp-specific approvals. Personal examples and provenance live in ~/studio/references/ and ~/studio/archive/; the production history is in ~/studio/collections/computing/ORIGINS-FORMAT.md.
+
+Narration feedback (2026-10-27): “I think the primary weakness of the videos currently are
+related to the narration”; “The script is not that great, I think it has to be much more engaging
+and natural. Use full sentences, use "we", etc.” Write narration to [script.md](script.md): one
+person talking, a question kept open, the misconception voiced and broken, caveats in the Evidence
+table and an ending that answers the opening. Our scripts had almost no “you”, no “I” and no
+contractions. Evidence: the measurements and before/after pairs in script.md; worked example:
+[script-example.md](script-example.md).

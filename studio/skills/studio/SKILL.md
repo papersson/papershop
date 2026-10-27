@@ -28,7 +28,7 @@ Three or four ideas is guidance, not a cap; breadth is welcome when each idea ha
 First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
 Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
 Convert the panel and brief into `research/brief.md`: the viewer, story order (historical route for origins films), ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Name key points and section ends. Write `SCRIPT.md` with a beat table including breaths,
-narration and screen notes. Draw rough boards that make the picture and its scale visible.
+narration and screen notes. Write and revise the narration to `references/script.md`, and read it aloud before anyone else hears it. Draw rough boards that make the picture and its scale visible.
 
 Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start
 `studio desk VIDEO` and give the user its address within minutes of the first draft. Run
@@ -74,7 +74,7 @@ Read `references/desk.md`. Keep the desk open on the computer. The user watches,
 on sentences and sees your replies. Keep `studio wait VIDEO` running in the background while
 working so new notes reach you. A whole-story comment in chat deserves a whole-story response.
 
-Take each accepted note, make the smallest coherent change, run the relevant checks and put a
+Take each accepted note, make the smallest coherent change (narration changes follow `references/script.md`), run the relevant checks and put a
 new version on the desk in minutes. Use cached narration and incremental cuts. Keep your status
 current and answer the note with what changed. Continue through the requested work.
 
@@ -100,5 +100,5 @@ After the video, append lasting lessons from the user's notes to the last sectio
 `references/taste.md`. Preserve the note and its reason. Read `references/taste/comic.md` only
 when the user asks for comedy. For other kinds of video, use `references/by-hand.md`.
 
-The five working references are `taste.md`, `story.md`, `shoot.md`, `desk.md` and `kit.md`.
+The six working references are `taste.md`, `story.md`, `script.md`, `shoot.md`, `desk.md` and `kit.md`.
 `DESIGN.md` records the reasons behind the tools.
