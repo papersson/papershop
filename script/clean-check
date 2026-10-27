@@ -51,7 +51,7 @@ if [ "$offline" = 1 ]; then
   # test in it without one. uv works from its cache (UV_OFFLINE), so whatever still reaches out is a test.
   warm="script/bootstrap >/dev/null; ! command -v nix >/dev/null || nix --extra-experimental-features 'nix-command flakes' develop .#studio -c true 2>/dev/null"
   "${run[@]}" --cidfile "$work/cid" "$image" bash -c "$prelude; $setup; $warm"
-  docker commit -q "$(cat "$work/cid")" "$tag" >/dev/null && docker rm "$(cat "$work/cid")" >/dev/null
+  docker commit "$(cat "$work/cid")" "$tag" >/dev/null && docker rm "$(cat "$work/cid")" >/dev/null
   "${run[@]}" --rm --network none -e UV_OFFLINE=1 "$tag" bash -c "$prelude; cd /work/papershop; $cmd"
 else
   "${run[@]}" --rm "$image" bash -c "$prelude; $setup; $cmd"
