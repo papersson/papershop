@@ -74,7 +74,14 @@ fi
 uv run --quiet --with "$(sed -n 's/.*"\(duckdb[^"]*\)".*/\1/p' "$root/worklog/scripts/worklog.py" | head -1)" python -c 'import duckdb'
 
 if [ "$studio" = 1 ]; then
-  if command -v nix >/dev/null; then "$root/studio/skills/studio/bin/studio" doctor --fetch
-  else STUDIO_NO_NIX=1 "$root/studio/skills/studio/bin/studio" doctor --fetch; fi
+  studio=("$root/studio/skills/studio/bin/studio")
+  command -v nix >/dev/null || studio=(env STUDIO_NO_NIX=1 "${studio[@]}")
+  # Fetch first (its closing check may fail on a bare Linux), then give the headless shell the system
+  # libraries it links (NSS, ATK, X11), which Playwright knows and installs with apt as root.
+  "${studio[@]}" doctor --fetch || true
+  if [ "$(uname -s)" = Linux ] && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
+    (cd "$root/studio/skills/studio/engines/live" && node node_modules/playwright-core/cli.js install-deps chromium-headless-shell >/dev/null)
+  fi
+  "${studio[@]}" doctor
 fi
 say "done"

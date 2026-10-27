@@ -62,8 +62,11 @@ def check_browser():
     if path is None:
         return WARN, "browser", "none installed; fetch the headless shell during setup", \
             "studio doctor --fetch, install Chrome or set STUDIO_BROWSER"
+    # Chrome refuses to run as root (a container, Claude's cloud) without --no-sandbox, which Playwright
+    # passes when the engine launches it; the probe matches it there.
+    root = ["--no-sandbox"] if hasattr(os, "geteuid") and os.geteuid() == 0 else []
     try:
-        run = proc.run([path, "--headless=new", "--disable-gpu", "--dump-dom", "about:blank"],
+        run = proc.run([path, "--headless=new", "--disable-gpu", *root, "--dump-dom", "about:blank"],
                        capture_output=True, text=True, timeout=30)
     except (OSError, proc.TimeoutExpired) as e:
         return FAIL, "browser", f"{path} ({source}) did not start: {e}", "set STUDIO_BROWSER to a working Chrome"
