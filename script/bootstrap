@@ -12,6 +12,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 kit="$root/studio/skills/studio/kit"
+cd "$root"   # uv reads uv.toml from here
 kokoro=0 studio=0
 for arg in "$@"; do
   case "$arg" in
