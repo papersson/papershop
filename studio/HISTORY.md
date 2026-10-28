@@ -13,6 +13,9 @@ failing · 10/11 chapters finished" for one accepted legibility check in a finis
   the timeline until shown.
 - The chapter-agent rows are the shoot's build log. Once a version is ready (and no build is being
   replayed) only the chapters that need attention keep a row: failing, stalled or unbuilt ones.
+- The desk broke mid-review when a sentence was re-narrated: the live mix came out at the old length,
+  the soundtrack raised, and the whole page state failed. The live desk now falls back to the
+  narration alone, as it already did when an effect's cue was gone.
 - With a version ready, the header names it and the chapter with a failed check ("v5 ready · s10
   has a failed check") instead of counting chapters as if the build were still running.
 

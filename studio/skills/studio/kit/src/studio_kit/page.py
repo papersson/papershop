@@ -96,7 +96,8 @@ def live_view(video, cut, latest):
 
 def live_audio(video, t):
     """What the live desk plays under the scenes: the whole mix, cached as a cut's is, else the
-    narration alone when the mix can't be made (an effect's cue gone, the sound tools missing). An
+    narration alone when the mix can't be made (an effect's cue gone, the sound tools missing, a mix
+    that comes out the wrong length while the timeline is mid-edit). An
     estimate has no narration to clock the scenes by, and its effects are not placed yet: silence."""
     import contextlib
     import io
@@ -106,7 +107,7 @@ def live_audio(video, t):
     try:
         with contextlib.redirect_stdout(io.StringIO()):
             return str(audio.soundtrack(video, t).relative_to(video))
-    except (SystemExit, ImportError, OSError, ValueError, proc.SubprocessError):
+    except (SystemExit, ImportError, OSError, ValueError, RuntimeError, proc.SubprocessError):
         return (tl.narration_audio(t) or {}).get("file")
 
 
