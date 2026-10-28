@@ -6,6 +6,6 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = true ]; then
   log="${TMPDIR:-/tmp}/papershop-bootstrap.log"
   "$root/script/bootstrap" >"$log" 2>&1 || echo "bootstrap failed; see $log" >&2
 fi
-# The session's commands get the repo's pinned uv (.cache/tools) and bootstrap's worklog shim.
-[ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$root/.cache/tools/bin:\$HOME/.local/bin:\$PATH\"" >>"$CLAUDE_ENV_FILE"
+# The session's commands get the repo's pinned uv and sops (.cache/tools) and bootstrap's worklog shim.
+[ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$root/.cache/tools/bin:$root/.cache/tools/secrets/bin:\$HOME/.local/bin:\$PATH\"" >>"$CLAUDE_ENV_FILE"
 exec "$root/script/doctor" --hook

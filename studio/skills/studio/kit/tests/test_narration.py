@@ -232,6 +232,67 @@ def test_eleven_call_reports_the_refusal_not_the_key(monkeypatch):
     assert "secret-key" not in str(e.value)
 
 
+def test_eleven_call_says_how_to_allow_a_blocked_host(monkeypatch):
+    import urllib.error
+    from studio_kit import narration
+
+    def blocked(req, timeout=0):
+        raise urllib.error.URLError("Tunnel connection failed: 403 Forbidden")
+
+    monkeypatch.setattr(narration.urllib.request, "urlopen", blocked)
+    with pytest.raises(SystemExit, match="allowed domains"):
+        narration.eleven_call("secret-key", "GET", "/voices")
+
+
+def test_eleven_fetch_without_a_key_says_where_to_put_one(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from studio_kit import narration
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    monkeypatch.setenv("PAPERSHOP_SECRETS", str(tmp_path / "none.json"))
+    monkeypatch.setattr(narration, "eleven_request", lambda S, full, p, n: ({"text": full}, tmp_path / "missing.json"))
+    S = SimpleNamespace(eleven={"model": "eleven_v4", "voice_id": "v", "voice": "Alice"}, audio=tmp_path)
+    with pytest.raises(SystemExit, match="SOPS_AGE_KEY.*Nothing was spent"):
+        narration.eleven_fetch(S, [([("s1_01", "Hi.", None)], None, None)])
+
+
+def test_eleven_key_decrypts_the_secrets_file_with_this_machines_age_key(tmp_path, monkeypatch):
+    """The key is committed encrypted; a machine with an age recipient reads it, any other gets None."""
+    import json
+    import subprocess
+    from studio_kit import narration
+    keygen = lambda: subprocess.run(["age-keygen"], capture_output=True, text=True).stdout
+    mine, other = keygen(), keygen()
+    public = subprocess.run(["age-keygen", "-y"], input=mine, capture_output=True, text=True).stdout.strip()
+    f = tmp_path / "secrets" / "secrets.json"
+    f.parent.mkdir()
+    enc = subprocess.run(["sops", "encrypt", "--input-type", "json", "--output-type", "json", "--age", public,
+                          "--filename-override", str(f), "/dev/stdin"],
+                         input=json.dumps({"ELEVENLABS_API_KEY": "sk_planted"}), capture_output=True, text=True)
+    f.write_text(enc.stdout)
+    assert "sk_planted" not in f.read_text()
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    monkeypatch.delenv("SOPS_AGE_KEY_FILE", raising=False)
+    monkeypatch.setenv("PAPERSHOP_SECRETS", str(f))
+    monkeypatch.setenv("SOPS_AGE_KEY", mine)
+    assert narration.eleven_key() == "sk_planted"
+    monkeypatch.setenv("SOPS_AGE_KEY", other)
+    assert narration.eleven_key() is None
+
+
+@pytest.mark.parametrize("script", [["script/doctor", "--hook"], ["script/receipt"]])
+def test_doctor_and_receipt_say_the_key_is_present_but_never_print_it(script):
+    """Both land in every session's transcript, so they report presence and nothing of the value."""
+    import os
+    import subprocess
+    from studio_kit.env import ROOT
+    repo = ROOT.parents[2]
+    key = "sk_sentinel_" + "7f3a9c" * 6
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_REMOTE"} | {"ELEVENLABS_API_KEY": key}
+    out = subprocess.run([str(repo / script[0]), *script[1:]], cwd=repo, env=env, capture_output=True, text=True)
+    assert "ElevenLabs key" in out.stdout or "elevenlabs key: present" in out.stdout
+    assert "7f3a9c" not in out.stdout + out.stderr
+
+
 def test_kokoro_says_the_same_text_the_same_way_from_its_pinned_weights(monkeypatch):
     pytest.importorskip("kokoro")
     from studio_kit.doctor import hf_cached

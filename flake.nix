@@ -28,6 +28,9 @@
               exec ${py}/bin/python ${./worklog/scripts/worklog.py} "$@"
             '';
           };
+          # sops and age for script/secrets and script/doctor, outside the studio shell; bootstrap
+          # links them at .cache/tools/secrets.
+          secrets = pkgs.symlinkJoin { name = "papershop-secrets"; paths = [ pkgs.sops pkgs.age ]; };
           default = worklog;
         });
 

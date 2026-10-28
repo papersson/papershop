@@ -13,6 +13,7 @@ with a real build (a Python kit under uv, Node engines, a Nix flake for system t
   one to two minutes (11 in a container without Nix) and need Node 22, ffmpeg and sox; with Nix
   installed the script takes them from the flake's studio shell itself.
 - `script/doctor`: one line saying what is ready and what is not, with the fix.
+- `script/secrets`: the encrypted keys and which machines can read them (`init`, `cloud`, `set`, `rekey`).
 - `script/clean-check`: clones HEAD into a container with nothing of mine in it and runs bootstrap and
   test. Run it after adding a dependency; `--nix` is closest to the cloud, whose image has Nix, and
   `--offline` tests without a network.
@@ -42,6 +43,14 @@ from the same input. Every change keeps it that way.
 - Tests that need a tool check for it once, in a conftest, and stop with one line naming the fix.
 - Outputs must not depend on chance or the machine's state: seed anything random, pass times and
   locales explicitly, and key caches on content, not mtime (Linux mtimes tick coarsely).
+- Secrets are committed encrypted, never in plain text: `secrets/secrets.json` is sops-encrypted to
+  one age key per machine (`secrets/recipients`), so a machine needs only its own age key (a file on
+  the Mac and z840, `SOPS_AGE_KEY` in a cloud environment's variables) and `script/secrets` does the
+  rest. Builds and tests never need the ElevenLabs key; only new ElevenLabs narration does, which
+  decrypts it at that moment and commits its `audio/elevenlabs_cache/` with the video, so nothing pays
+  twice and a keyless machine builds. Nothing ever prints a value: no `env`, `printenv`, `sops decrypt`
+  to the terminal or inline `KEY=… cmd`, since transcripts and worklog keep everything; `script/doctor`
+  and the receipt say present or absent.
 - The flake is the source of versions: nixpkgs (`flake.lock`) fixes uv, Python and the system tools;
   `uv.toml` names the same uv (scripts and sessions run exactly it from `.cache/tools`; a newer
   one in a terminal is accepted) and keeps uv on its managed Python; `.python-version` (root and studio
@@ -50,7 +59,8 @@ from the same input. Every change keeps it that way.
   while they disagree.
 
 Known gaps: Mac and Linux renders differ from the layout layer on (likely fonts, not yet
-investigated); the cloud's default network blocks huggingface.co, so Kokoro there needs it allowed.
+investigated); the cloud's default network blocks huggingface.co and api.elevenlabs.io, so Kokoro and new
+ElevenLabs narration there need them allowed.
 
 ## Skills come from the working tree
 

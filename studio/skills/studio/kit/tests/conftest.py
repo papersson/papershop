@@ -10,7 +10,8 @@ NODE_MAJOR = 22
 
 
 def pytest_sessionstart(session):
-    problems = [f"{tool} is not on PATH" for tool in ("ffmpeg", "ffprobe", "sox") if not shutil.which(tool)]
+    tools = ("ffmpeg", "ffprobe", "sox", "sops", "age-keygen")
+    problems = [f"{tool} is not on PATH" for tool in tools if not shutil.which(tool)]
     node = shutil.which("node")
     version = subprocess.run([node, "--version"], capture_output=True, text=True).stdout if node else ""
     major = int(re.match(r"v(\d+)", version).group(1)) if version else 0

@@ -7,7 +7,7 @@
 #   script/doctor --hook   # SessionStart JSON: the line for the user, the details for Claude
 set -uo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
+export PATH="$root/.cache/tools/bin:$root/.cache/tools/secrets/bin:$HOME/.local/bin:$PATH"
 site="$(echo "$root"/studio/skills/studio/kit/.venv/lib/python3*/site-packages)"
 ok=() missing=()
 have() { command -v "$1" >/dev/null; }
@@ -41,6 +41,27 @@ ok+=("$skills skills from the working tree")
 # Only the cloud restricts hosts; Kokoro's weights are the download most likely to be blocked.
 if [ "$where" = cloud ] && ! curl -sfI -m 4 -o /dev/null https://huggingface.co/; then
   missing+=("huggingface.co unreachable: Kokoro weights | add it to the environment's allowed hosts")
+fi
+
+# Only new ElevenLabs narration needs the key; videos whose audio/elevenlabs_cache/ is committed build
+# without it. It comes committed and encrypted (script/secrets); this machine needs its age key. Checked
+# by decrypting to nowhere: this line lands in every session's transcript, so never the value.
+secrets="$root/secrets/secrets.json"
+if [ -n "${ELEVENLABS_API_KEY:-}" ]; then
+  ok+=("ElevenLabs key")
+elif ! have sops; then
+  missing+=("sops and age: new ElevenLabs narration | script/bootstrap")
+elif [ ! -f "$secrets" ]; then
+  missing+=("ElevenLabs key: new ElevenLabs narration only | on the Mac, script/secrets init mac, then script/secrets set ELEVENLABS_API_KEY")
+elif sops decrypt --extract '["ELEVENLABS_API_KEY"]' "$secrets" >/dev/null 2>&1; then
+  ok+=("ElevenLabs key (secrets)")
+elif [ "$where" = cloud ]; then
+  missing+=("ElevenLabs key: new ElevenLabs narration only | set SOPS_AGE_KEY in the environment's variables (script/secrets cloud on the Mac makes it), then start a new session")
+else
+  missing+=("ElevenLabs key: new ElevenLabs narration only | script/secrets init $where, commit, then script/secrets rekey on a machine that can decrypt")
+fi
+if [ "$where" = cloud ] && [ "$(curl -s -o /dev/null -m 4 -w '%{http_code}' https://api.elevenlabs.io/v1/models)" = 000 ]; then
+  missing+=("api.elevenlabs.io unreachable: new ElevenLabs narration | add it to the environment's allowed hosts")
 fi
 
 line="papershop ready ($where): $(IFS=,; echo "${ok[*]}" | sed 's/,/, /g')"
