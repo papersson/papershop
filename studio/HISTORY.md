@@ -3,6 +3,12 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Taste notes cite verdicts, not a Mac's folders (0.20.1)
+
+The studio journey moved ~/studio into one repo: films under films/, verdicts under verdicts/, the
+slate under slate/. taste.md pointed at ~/studio paths that no longer exist and that no other machine
+has. It now cites verdict ids (verdicts/ID/record.json in the journey repo) and repo paths.
+
 ## A video's media on any machine (0.20.0)
 
 With the studio journey in Git and its media backed up to a Cloudflare R2 bucket, a clone on another

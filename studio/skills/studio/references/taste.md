@@ -248,7 +248,7 @@ depends on where rests fall, not how many tiny holds are inserted. Evidence: par
 ~/drafts/studio-phase2/STEP-F.md; source film:
 ~/drafts/studio-phase2/scratch-videos/hash-table-2d/out/master.mp4.
 
-Origins-format feedback (2026-10-26): “Ours is too sterile, his is like a journey through time and space.” Use [origins.md](origins.md) for this format's story order, visual reference and review criteria. Evidence: ~/studio/gpu-time-journey/research/reference/SOURCES.md. On 2026-10-27 the user judged the prototype “much better”, then the three full journey films “Nice! I do like them.” These are whole-film reactions, not timestamp-specific approvals. Personal examples and provenance live in ~/studio/references/ and ~/studio/archive/; the production history is in ~/studio/collections/computing/ORIGINS-FORMAT.md.
+Origins-format feedback (2026-10-26): “Ours is too sterile, his is like a journey through time and space.” Use [origins.md](origins.md) for this format's story order, visual reference and review criteria. Evidence: films/gpu-time-journey/research/reference/SOURCES.md. On 2026-10-27 the user judged the prototype “much better”, then the three full journey films “Nice! I do like them.” These are whole-film reactions, not timestamp-specific approvals. Paths and verdict ids here are in the studio journey repo (verdicts/ID/record.json); production history: slate/ORIGINS-FORMAT.md.
 
 Narration feedback (2026-10-27): “I think the primary weakness of the videos currently are
 related to the narration”; “The script is not that great, I think it has to be much more engaging
@@ -268,7 +268,7 @@ would have solved this problem at different points in the last decades”. For t
 history, show period-specific investigations: edit, run, inspect evidence, reason and try again.
 Keep historical constraints and context central. Preserve this as a history-of-practice option
 within [origins.md](origins.md), not a rule replacing every historical journey. Exact feedback
-and scope: ~/studio/archive/items/gen-how-we-got-here-observability-cut3/record.json; positive
+and scope: verdict `gen-how-we-got-here-observability-cut3`; positive
 batch feedback also applies to gen-how-we-got-here-deployment-cut2.
 
 Observability progression feedback (2026-10-27), on `gen-observability-through-the-decades-cut3`:
@@ -280,15 +280,15 @@ and make modern practice the destination: “Datadog, Sentry, etc.”, showing e
 those tools. “Particular events in history are not super important to me I guess”; for this
 story, historical working conditions support the progression rather than dated events driving
 it. The user welcomes a longer film to give all these stages room. This refines the observability
-story, not every origins film. Exact note: ~/studio/archive/items/gen-observability-through-the-decades-cut3/record.json.
+story, not every origins film. Exact note: verdict `gen-observability-through-the-decades-cut3`.
 
 Halting-problem feedback (2026-10-27): “I really liked the halting video.” The first film written
 to [script.md](script.md) from the start: a guide who builds with the viewer, one small example
 carried from first sentence to last, a question in the opening seconds, a voiced prediction
 before each payoff, the misconception broken on screen, an ending that returns to the opening,
 and an ElevenLabs v4 voice (Jarnathan). Keep this shape for single-argument films. Whole-film
-reaction to cut 5, not approval of every scene. Verdict: archive record
-`gen-halting-problem-cut5` in ~/studio; film: ~/studio/halting-problem.
+reaction to cut 5, not approval of every scene. Verdict:
+`gen-halting-problem-cut5`; film: films/halting-problem.
 
 Observability episode 1 feedback (2026-10-28), on cut 5: “You never explained what Datadog is”;
 “you dont emphasize and explain metrics, you just allude to it”; “not just use flowery language
