@@ -42,6 +42,23 @@ def test_private_checkpoint_preserves_unrelated_staged_changes_and_excludes_medi
     assert "video/cuts/cut1/cut.json" in git(tmp_path, "ls-tree", "-r", "--name-only", "HEAD")
 
 
+def test_a_video_in_a_home_repo_that_ignores_it_gets_its_own_repo(tmp_path, monkeypatch):
+    """~/studio kept in Git opts folders in with `/*`; a video there was committed into nothing."""
+    home = tmp_path / "home"
+    home.mkdir()
+    subprocess.run(["git", "init", "-q", str(home)], check=True)
+    (home / ".gitignore").write_text("/*\n!/.gitignore\n!/films/\n")
+    monkeypatch.setenv("STUDIO_HOME", str(home))
+    ignored, _ = new.create("ignored")
+    unsigned(monkeypatch, ignored)
+    checkpoint.commit(ignored, "sources")
+    assert git(ignored, "rev-parse", "--show-toplevel") == str(ignored.resolve())
+    assert "SCRIPT.md" in git(ignored, "ls-tree", "-r", "--name-only", "HEAD")
+    (home / "films").mkdir()
+    tracked, _ = new.create("tracked")
+    assert git(tracked, "rev-parse", "--show-toplevel") == str(home.resolve()), "a tracked folder stays in the home repo"
+
+
 OLD_GITIGNORE = ".cache/\naudio/*.wav\ncuts/*/*\n!cuts/*/cut.json\nout/\n__pycache__/\n"
 
 

@@ -110,3 +110,11 @@ def test_paths_are_resolved_against_the_callers_folder_while_parsing(home):
     assert args.out == elsewhere / "out" / "s1.png"
     sheets = cli.build_parser().parse_args(["sheets", str(home / "myvideo"), "sheets", "--windows", "w.json"])
     assert sheets.outdir == elsewhere / "sheets" and sheets.windows == elsewhere / "w.json"
+
+
+def test_the_nearest_video_lookup_also_searches_films(home):
+    (home / "films" / "observability-1").mkdir(parents=True)
+    (home / "films" / "observability-1" / "video.json").write_text("{}\n")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["notes", "observability-2"])
+    assert f"  {home / 'films' / 'observability-1'}\n" in str(e.value)

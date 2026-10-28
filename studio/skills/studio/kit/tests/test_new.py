@@ -22,6 +22,15 @@ def test_new_video_is_ready_for_a_script_and_an_estimate(tmp_path, monkeypatch):
     assert not keys.has_scene(video, "s1")          # a new explainer starts on boards
 
 
+def test_a_home_with_a_films_folder_gets_new_videos_there(tmp_path, monkeypatch):
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "home"))
+    (tmp_path / "home" / "films").mkdir(parents=True)
+    video, _ = new.create("retry-safety")
+    assert video == tmp_path / "home" / "films" / "retry-safety"
+    with pytest.raises(SystemExit, match="holds the videos"):
+        new.create("films", directory=str(tmp_path / "home" / "films"))
+
+
 def test_new_refuses_an_existing_video(tmp_path):
     new.create("x", directory=str(tmp_path / "v"))
     try:

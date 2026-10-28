@@ -286,4 +286,5 @@ to [script.md](script.md) from the start: a guide who builds with the viewer, on
 carried from first sentence to last, a question in the opening seconds, a voiced prediction
 before each payoff, the misconception broken on screen, an ending that returns to the opening,
 and an ElevenLabs v4 voice (Jarnathan). Keep this shape for single-argument films. Whole-film
-reaction to cut 5, not approval of every scene. Film: ~/studio/halting-problem.
+reaction to cut 5, not approval of every scene. Verdict: archive record
+`gen-halting-problem-cut5` in ~/studio; film: ~/studio/halting-problem.

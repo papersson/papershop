@@ -12,7 +12,7 @@ Make the visuals the centerpiece: finished illustrations, continuous transformat
 full explanatory sentences. Get the film onto the desk quickly. The user develops the story with you and judges the video by watching it.
 
 Use the absolute path to this folder as SKILL_ROOT. Run commands through `SKILL_ROOT/bin/studio`.
-VIDEO is a folder containing `video.json`; new videos go under `$STUDIO_HOME`, default `~/studio`.
+VIDEO is a folder containing `video.json`; new videos go under `$STUDIO_HOME/films` when that folder exists, else `$STUDIO_HOME`, default `~/studio`.
 Run `studio preflight [VIDEO]` once before production. It reads prerequisites without installing
 anything. If something is missing, use the setup guidance in `references/kit.md`.
 

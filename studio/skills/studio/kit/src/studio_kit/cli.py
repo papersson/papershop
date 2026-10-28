@@ -56,11 +56,12 @@ def video(arg):
     import difflib
     from .env import studio_home
     home = studio_home()
-    videos = [d.name for d in home.iterdir() if (d / "video.json").is_file()] if home.is_dir() else []
-    near = difflib.get_close_matches(p.resolve().name, videos, n=5, cutoff=0.5)
+    folders = [f for f in (home, home / "films") if f.is_dir()]
+    videos = {d.name: d for f in folders for d in f.iterdir() if (d / "video.json").is_file()}
+    near = difflib.get_close_matches(p.resolve().name, list(videos), n=5, cutoff=0.5)
     lines = [f"{arg} is not a video: " + (f"{p.resolve()} has no video.json" if p.is_dir() else f"no folder at {p.resolve()}")]
     if near:
-        lines += [f"nearest videos in {home}:"] + [f"  {home / n}" for n in near] + ["pass the video's path"]
+        lines += [f"nearest videos in {home}:"] + [f"  {videos[n]}" for n in near] + ["pass the video's path"]
     else:
         lines += [f"no video in {home} has a similar name; `studio new NAME` makes one"]
     raise SystemExit("\n".join(lines))
@@ -117,7 +118,7 @@ COMMANDS = {
     "ablation": ("prepare paired bare-agent and Studio video folders and prompts", [A("--topic", default="shaders")], "ablation:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),
-        P("--dir", help="where to create it (default: $STUDIO_HOME/NAME, STUDIO_HOME defaults to ~/studio)"),
+        P("--dir", help="where to create it (default: $STUDIO_HOME/films/NAME when films/ exists, else $STUDIO_HOME/NAME; STUDIO_HOME defaults to ~/studio)"),
         A("--title"),
         V("--from", dest="from_video", help="inherit look and pronunciation from a series episode"),
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
