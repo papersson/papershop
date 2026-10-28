@@ -10,7 +10,8 @@ leave the viewer without a usable model. Put the desired level into the brief as
 Teach the subject in terms the viewer can use elsewhere. Use canonical names and relate nearby
 terms when their distinction matters. Explain the primitive before manipulating it: show a key
 and its value, a record, a request or a pixel. Familiarity with a specific project is a poor
-substitute for understanding the field.
+substitute for understanding the field. Define each core term when it first matters, and
+introduce each tool by the problem that created it. Say things literally.
 
 Default to a standard lecture in the subject's natural textbook order: why it exists, what it
 is, how it works, the cases that break it, what it costs and where it is used. Give an insight
@@ -288,3 +289,10 @@ before each payoff, the misconception broken on screen, an ending that returns t
 and an ElevenLabs v4 voice (Jarnathan). Keep this shape for single-argument films. Whole-film
 reaction to cut 5, not approval of every scene. Verdict: archive record
 `gen-halting-problem-cut5` in ~/studio; film: ~/studio/halting-problem.
+
+Observability episode 1 feedback (2026-10-28), on cut 5: “You never explained what Datadog is”;
+“you dont emphasize and explain metrics, you just allude to it”; “not just use flowery language
+alluding to it”. The viewer is learning the field, so allusion left them without its vocabulary.
+Hence the definition rule above. Cut 7 added eleven definition cards, tools by their problem and a
+plain-sentence pass: “Really good video, I'm done.” Notes: research/reviews/notes-archive-v5.jsonl in
+the film's folder, observability-1-print-to-datadog-sentry.
