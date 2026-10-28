@@ -18,6 +18,10 @@ failing · 10/11 chapters finished" for one accepted legibility check in a finis
   narration alone, as it already did when an effect's cue was gone.
 - With a version ready, the header names it and the chapter with a failed check ("v5 ready · s10
   has a failed check") instead of counting chapters as if the build were still running.
+- On cut 7 the header still said "s4 failing · s9 failing" for checks that had since passed. Results
+  were keyed by check and second, and re-timing a chapter moves its checks to new seconds, so an old
+  failure was never replaced. Each run of a chapter's checks now records a `checks.ran` event, and a
+  lane shows only its latest run's results.
 
 ## Films in a home kept in Git (0.19.0)
 

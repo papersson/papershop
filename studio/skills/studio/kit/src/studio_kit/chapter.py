@@ -56,9 +56,12 @@ def check(video, clip, samples=3, only=None, fmt=None):
             Engine(work, fmt=fmt).stills(stills)
         atomic_json(output / "check.json", rows)
         start = tl.clip(timeline, clip)['start']
+        run = events.emit(video, 'checks.ran', 'Chapter checks ran', lane=clip,
+                          source=f'.cache/chapters/{clip}/check.json')['id']
         for row in rows:
             if row.get('t') is not None:
                 events.emit(video, 'check.passed' if row.get('ok') else 'check.failed', row.get('detail', ''),
-                            lane=clip, t=start + row['t'], check=row['check'], source=f'.cache/chapters/{clip}/check.json')
+                            lane=clip, t=start + row['t'], check=row['check'], run=run,
+                            source=f'.cache/chapters/{clip}/check.json')
     print(f"Chapter checks and stills: {output}")
     return rows

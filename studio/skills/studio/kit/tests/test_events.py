@@ -28,6 +28,20 @@ def test_failed_check_keeps_its_second_and_resolves_in_place(tmp_path):
     assert lane['checks'][0]['kind'] == 'check.passed'
 
 
+def test_a_new_run_of_checks_clears_failures_from_older_runs(tmp_path):
+    chapters = [{'id': 's4'}]
+    old = events.emit(tmp_path, 'checks.ran', lane='s4', ts=1)['id']
+    events.emit(tmp_path, 'check.failed', 'Code too small', lane='s4', t=580, check='legible', run=old, ts=2)
+    assert events.view(tmp_path, chapters, 3)['lanes'][0]['state'] == 'failing'
+    # Re-timed: the same check now passes at another second, and a run with nothing to report is clean too.
+    new = events.emit(tmp_path, 'checks.ran', lane='s4', ts=4)['id']
+    events.emit(tmp_path, 'check.passed', 'Clear', lane='s4', t=596, check='legible', run=new, ts=5)
+    lane = events.view(tmp_path, chapters, 6)['lanes'][0]
+    assert lane['state'] != 'failing' and [c['t'] for c in lane['checks']] == [596]
+    events.emit(tmp_path, 'checks.ran', lane='s4', ts=7)
+    assert events.view(tmp_path, chapters, 8)['lanes'][0]['checks'] == []
+
+
 def test_rollout_adapter_is_idempotent_and_keeps_only_activity_metadata(tmp_path):
     import json
     f = tmp_path / 'rollout.jsonl'

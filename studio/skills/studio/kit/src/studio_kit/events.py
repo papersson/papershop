@@ -111,7 +111,7 @@ class Observer:
                             if row.get('t') is not None:
                                 emit(self.video, 'check.passed' if row.get('ok') else 'check.failed', row.get('detail', ''),
                                      lane=lane, t=chapters.get(lane, {}).get('start', 0) + row['t'],
-                                     check=row.get('check'), source=rel, evidence=e['id'])
+                                     check=row.get('check'), source=rel, evidence=e['id'], run=e['id'])
                 except (OSError, ValueError):
                     continue
         self.started = True
@@ -136,9 +136,13 @@ def view(video, chapters, at=None):
         scene = next((e for e in reversed(own) if e.get('path') == f'scenes/{c["id"]}.js'), None)
         done = next((e for e in reversed(own) if e['kind'] == 'chapter.done'), None)
         age = max(0, now - (last['ts'] if last else start or now))
+        # A run of the chapter's checks replaces every earlier result: a re-timed chapter moves its
+        # checks to new seconds, so a failure from an older run would otherwise never clear.
+        ran = [e for e in own if e['kind'] in ('checks.ran', 'check.failed', 'check.passed')]
+        run = ran[-1].get('run', ran[-1]['id'] if ran[-1]['kind'] == 'checks.ran' else None) if ran else None
         checks = {}
         for e in own:
-            if e['kind'] in ('check.failed', 'check.passed'):
+            if e['kind'] in ('check.failed', 'check.passed') and (run is None or e.get('run') == run):
                 checks[(e.get('check'), e.get('t'))] = e
         failing = any(e['kind'] == 'check.failed' for e in checks.values())
         lifecycle = [e for e in own if e['kind'] in ('agent.activity', 'agent.started', 'agent.stopped')]
