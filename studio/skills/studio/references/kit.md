@@ -84,7 +84,9 @@ needs judgment: recognition can miss the difference between an acronym spoken as
 ElevenLabs remains available in `narration.json.engine`, with its settings under `elevenlabs`.
 Choose it before scene timing when the user asks. `--plan` reports work, `--fetch-only` fills the
 response cache, and `--yes` authorizes spending beyond the command's confirmation threshold.
-Keep `audio/elevenlabs_cache/` so a rebuild can reuse paid responses. Do not change the voice as
+Commit `audio/elevenlabs_cache/` with the video, so a rebuild reuses paid responses and a machine without
+the key builds. Only text not yet cached needs the key (`ELEVENLABS_API_KEY`, or decrypted from
+papershop's `secrets/secrets.json`); never print it, echo it or write it inline on a command line. Do not change the voice as
 an incidental finishing step.
 
 `studio timeline VIDEO --events` rebuilds the shared timeline and prints each cue's absolute time,

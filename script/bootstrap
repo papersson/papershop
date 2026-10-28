@@ -6,7 +6,7 @@
 # enter it, and this script only prepares the Python environments. Without Nix (Claude's cloud image),
 # it installs missing system tools with apt-get when it runs as root, which the cloud does.
 #
-#   script/bootstrap            # uv, ffmpeg, sox, the studio kit (audio extra + dev), the worklog CLI
+#   script/bootstrap            # uv, ffmpeg, sox, sops and age, the studio kit (audio extra + dev), the worklog CLI
 #   script/bootstrap --kokoro   # also local narration: torch and Kokoro, several GB, weights from huggingface.co
 #   script/bootstrap --studio   # also studio's browser, live engine and sound kit (`studio doctor --fetch`)
 set -euo pipefail
@@ -56,6 +56,34 @@ if ! command -v nix >/dev/null; then
   fi
   node_major="$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')"
   [ "${node_major:-0}" -ge 22 ] || say "studio needs Node 22 or newer (found ${node_major:-none})" >&2
+fi
+
+# sops and age decrypt the committed secrets (script/secrets). With Nix, the flake's, linked into
+# .cache/tools/secrets; without, sops's release binary at the flake's version, checked against its
+# published checksum, and apt's age.
+sops_pin=3.13.1
+if command -v nix >/dev/null; then
+  nix --extra-experimental-features 'nix-command flakes' build "$root#secrets" --out-link "$tools/secrets"
+elif [ "$("$tools/secrets/bin/sops" --version 2>/dev/null | head -1 | cut -d' ' -f2)" != "$sops_pin" ]; then
+  case "$(uname -s)-$(uname -m)" in
+    Linux-x86_64) asset=linux.amd64 ;; Linux-aarch64) asset=linux.arm64 ;; Darwin-arm64) asset=darwin.arm64 ;;
+    *) asset="" ;;
+  esac
+  if [ -n "$asset" ]; then
+    say "installing sops $sops_pin into .cache/tools/secrets"
+    url="https://github.com/getsops/sops/releases/download/v$sops_pin"
+    mkdir -p "$tools/secrets/bin"
+    curl -sSfL "$url/sops-v$sops_pin.$asset" -o "$tools/secrets/bin/sops.tmp"
+    want="$(curl -sSfL "$url/sops-v$sops_pin.checksums.txt" | awk -v f="sops-v$sops_pin.$asset" '$2 == f { print $1 }')"
+    if [ "$(sha256sum "$tools/secrets/bin/sops.tmp" | cut -d' ' -f1)" = "$want" ]; then
+      chmod +x "$tools/secrets/bin/sops.tmp" && mv "$tools/secrets/bin/sops.tmp" "$tools/secrets/bin/sops"
+    else
+      rm -f "$tools/secrets/bin/sops.tmp"; say "sops download failed its checksum; not installed" >&2
+    fi
+  fi
+  if ! command -v age-keygen >/dev/null && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends age >/dev/null
+  fi
 fi
 
 # --inexact keeps extras installed earlier (Kokoro, align) instead of removing everything not asked for.

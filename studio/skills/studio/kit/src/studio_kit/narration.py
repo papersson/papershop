@@ -14,10 +14,11 @@ Engines (narration.json "engine"):
   kokoro (default)  local, free, deterministic. "kokoro": voice, speed, paragraph. Each chunk's
                     audio is cached by its text and settings, so an edited sentence re-synthesises
                     only its paragraph.
-  elevenlabs        hosted; needs ELEVENLABS_API_KEY. "elevenlabs": voice (a name from your voice
-                    list) or voice_id, model (default eleven_multilingual_v2; eleven_v4 works too;
-                    eleven_v3 returns no timestamps), stability, similarity_boost, style, speed (v4
-                    takes neither style nor speed), seed. Each call gets the neighbouring paragraphs
+  elevenlabs        hosted; text not yet cached needs a key (eleven_key: ELEVENLABS_API_KEY, or
+                    decrypted from papershop's secrets/secrets.json). "elevenlabs": voice (a name from your voice list) or voice_id,
+                    model (default eleven_multilingual_v2; eleven_v4 works too; eleven_v3 returns no
+                    timestamps), stability, similarity_boost, style, speed (v4 takes neither style nor
+                    speed), seed. Each call gets the neighbouring paragraphs
                     as previous_text/next_text, and each sentence's delivery tags from SCRIPT.md
                     ([curious]) in front of it. Every response is cached in audio/elevenlabs_cache/
                     (commit it), so a re-run never pays twice and a machine without the key builds.
@@ -44,6 +45,7 @@ import json
 import math
 import os
 import re
+import shutil
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -364,6 +366,31 @@ def eleven_request(S, full, prev, nxt):
     return body, S.audio / "elevenlabs_cache" / f"{key}.json"
 
 
+def secrets_file():
+    """papershop's sops-encrypted secrets (script/secrets): PAPERSHOP_SECRETS, else the checkout's own."""
+    from .env import ROOT
+    return Path(os.environ.get("PAPERSHOP_SECRETS") or ROOT.parents[2] / "secrets" / "secrets.json")
+
+
+def eleven_key():
+    """The ElevenLabs key: ELEVENLABS_API_KEY if set, else decrypted from the secrets file with this
+    machine's age key, only now, when text must be fetched, so no shell has to hold it. Never printed."""
+    if os.environ.get("ELEVENLABS_API_KEY"):
+        return os.environ["ELEVENLABS_API_KEY"]
+    f = secrets_file()
+    sops = shutil.which("sops") or str(f.parents[1] / ".cache" / "tools" / "secrets" / "bin" / "sops")
+    if not f.exists() or not Path(sops).exists():
+        return None
+    r = proc.run([sops, "decrypt", "--extract", '["ELEVENLABS_API_KEY"]', str(f)], capture_output=True, text=True)
+    return (r.stdout.strip() or None) if r.returncode == 0 else None
+
+
+NO_KEY = ("no ElevenLabs key, and this text is not in audio/elevenlabs_cache/ yet. This machine can't decrypt "
+          "papershop's secrets/secrets.json: in a cloud session, set SOPS_AGE_KEY in the environment's "
+          "variables and start a new session; elsewhere, `script/secrets init NAME` (see script/doctor). "
+          "Nothing was spent")
+
+
 def eleven_call(key, method, path, body=None):
     """One ElevenLabs API call; a refusal stops the run with ElevenLabs' own message (never the key)."""
     req = urllib.request.Request("https://api.elevenlabs.io/v1" + path, method=method,
@@ -380,6 +407,9 @@ def eleven_call(key, method, path, body=None):
             msg = e.reason
         raise SystemExit(f"ElevenLabs refused {path.split('?')[0]} ({e.code}): {str(msg).rstrip('.')}. "
                          "Responses already fetched are cached; the next run resumes from there.")
+    except urllib.error.URLError as e:
+        raise SystemExit(f"can't reach api.elevenlabs.io ({e.reason}). In a cloud session, add it to the "
+                         "environment's allowed domains. Responses already fetched are cached.")
 
 
 def eleven_balance(key):
@@ -424,9 +454,9 @@ def eleven_fetch(S, chunks, yes=False, tags=None):
         return
     if n > ASK_ABOVE and not yes:
         raise SystemExit("re-run with --yes to spend those credits")
-    key = os.environ.get("ELEVENLABS_API_KEY")
+    key = eleven_key()
     if not key:
-        raise SystemExit("ELEVENLABS_API_KEY is not set in this environment")
+        raise SystemExit(NO_KEY)
     left = eleven_balance(key)
     if left is not None:
         print(f"ElevenLabs: {left} characters left on the account")
@@ -683,7 +713,7 @@ def main(args):
               f"({sum(len(f) for _, f in todo)} characters) with {S.voice_info()}")
         for chunk, _ in todo:
             print(f"  {chunk[0][0]}..{chunk[-1][0]}")
-        key = os.environ.get("ELEVENLABS_API_KEY") if S.engine == "elevenlabs" else None
+        key = eleven_key() if S.engine == "elevenlabs" and todo else None
         left = eleven_balance(key) if key else None
         if left is not None:
             need = sum(len(f) for _, f in todo)

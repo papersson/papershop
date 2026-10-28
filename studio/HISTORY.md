@@ -3,6 +3,19 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## ElevenLabs narration from a cloud session (0.18.2)
+
+A fresh cloud session should be able to make new ElevenLabs narration, not only rebuild cached audio.
+No package can carry a secret, so the key is committed encrypted (sops, one age recipient per machine,
+`script/secrets` in papershop) and each machine holds only its age key. Builds and tests still never
+need it, and each response is still cached in `audio/elevenlabs_cache/` and committed.
+
+- `narration.eleven_key()` reads `ELEVENLABS_API_KEY`, else decrypts it from papershop's
+  `secrets/secrets.json` (or `PAPERSHOP_SECRETS`) only when text must be fetched.
+- A missing key or a blocked `api.elevenlabs.io` stops with the setting that fixes it, before any
+  spending, instead of a bare error or a traceback.
+- The studio shell carries sops and age; its tests need them.
+
 ## Extras survive a rebuilt environment (0.18.1)
 
 Pinning the managed Python (3.12.13) made uv rebuild the kit's `.venv`, which keeps only what the

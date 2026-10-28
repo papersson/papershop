@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Check that the repo's pins agree with each other and with the flake, which is their source: one
 nixpkgs in both flake.locks, uv.toml's uv and .python-version's Python equal to nixpkgs' (when Nix is
-here to ask), the studio kit on the same Python, exact versions in every PEP 723 script header, and
-Kokoro's weights pinned to a commit. Prints one line per problem; exits 1 if there is any."""
+here to ask), the studio kit on the same Python, bootstrap's sops (used without Nix) the flake's, exact
+versions in every PEP 723 script header, and Kokoro's weights pinned to a commit. Prints one line per
+problem; exits 1 if there is any."""
 import json
 import re
 import shutil
@@ -22,12 +23,14 @@ if nixpkgs("flake.lock") != nixpkgs("studio/flake.lock"):
 
 uv_pin = re.search(r'^required-version = ">=(.+)"$', (root / "uv.toml").read_text(), re.M).group(1)
 python_pin = (root / ".python-version").read_text().strip()
+sops_pin = re.search(r"^sops_pin=(.+)$", (root / "script/bootstrap").read_text(), re.M).group(1)
 kit_python = (root / "studio/skills/studio/kit/.python-version").read_text().strip()
 if kit_python != python_pin:
     problems.append(f"studio kit .python-version is {kit_python}, the repo's is {python_pin}")
 
 if shutil.which("nix"):
-    for attr, pin, where in (("uv", uv_pin, "uv.toml"), ("python312", python_pin, ".python-version")):
+    for attr, pin, where in (("uv", uv_pin, "uv.toml"), ("python312", python_pin, ".python-version"),
+                             ("sops", sops_pin, "script/bootstrap")):
         found = subprocess.run(["nix", "--extra-experimental-features", "nix-command flakes", "eval", "--raw",
                                 "--inputs-from", str(root), f"nixpkgs#{attr}.version"],
                                capture_output=True, text=True, check=True).stdout
