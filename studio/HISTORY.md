@@ -3,6 +3,25 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A cold start in the cloud (0.20.2)
+
+A drill on 2026-10-28 (studio-journey branch `drill/cold-start`) started a fresh cloud session with
+papershop and studio-journey cloned and asked it to start observability episode 2 and narrate a line.
+It worked in about 3.5 minutes, but only with guesses, which this release removes.
+
+- The session started in the folder above both clones, so papershop's SessionStart hook never ran. Now
+  the first `bin/studio` call in a cloud session runs `script/bootstrap` when its stamp
+  (`.cache/bootstrapped`) is missing.
+- There is no `~/studio` in the cloud. STUDIO_HOME now defaults to `~/studio`, else a `studio-journey`
+  checkout beside papershop's.
+- `studio new --from` recorded the episode it came from as an absolute path on the machine that ran
+  it. `series_of` and research/series.json's `source` are now relative to the Git repo holding the new
+  video when the episode is in it.
+- An episode brief written in the series folder was not where SCRIPT.md, the panel and the shoot read
+  it. `studio new --brief FILE` copies it to `research/brief.md`.
+- The first call's Nix download printed a minute of `copying path` lines. It now says what it is doing in
+  one line and keeps Nix's output in a log, shown only on failure.
+
 ## Taste notes cite verdicts, not a Mac's folders (0.20.1)
 
 The studio journey moved ~/studio into one repo: films under films/, verdicts under verdicts/, the

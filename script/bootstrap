@@ -115,4 +115,5 @@ if [ "$studio" = 1 ]; then
   fi
   "${studio[@]}" doctor
 fi
+touch "$root/.cache/bootstrapped"   # bin/studio bootstraps a cloud session whose hook did not run
 say "done"

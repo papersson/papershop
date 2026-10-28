@@ -23,7 +23,10 @@ with a real build (a Python kit under uv, Node engines, a Nix flake for system t
 
 A SessionStart hook (`.claude/settings.json` → `script/session-start`) bootstraps cloud sessions, puts
 the pinned uv first on PATH, prints the doctor line, and records the receipt in every session's
-transcript. CI (`.github/workflows/check.yml`) runs bootstrap, receipt and tests on every push.
+transcript. A cloud session that clones several repos starts in their parent folder, where the hook
+never loads; there the first `bin/studio` call runs bootstrap itself, and `STUDIO_HOME` defaults to a
+`studio-journey` checkout beside this one when there is no `~/studio`. CI
+(`.github/workflows/check.yml`) runs bootstrap, receipt and tests on every push.
 
 ## Keeping it reproducible
 

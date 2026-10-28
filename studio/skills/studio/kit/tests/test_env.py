@@ -123,3 +123,18 @@ def test_explicit_fetch_uses_playwright_and_the_independent_browser_cache(tmp_pa
     assert calls[0][0] == ['npm', 'ci', '--no-audit', '--no-fund']
     assert calls[1][0][-2:] == ['install', 'chromium-headless-shell']
     assert calls[1][1]['env']['PLAYWRIGHT_BROWSERS_PATH'] == str(tmp_path / 'browser')
+
+
+def test_studio_home_falls_back_to_a_journey_checkout_beside_papershop(tmp_path, monkeypatch):
+    from studio_kit.env import studio_home
+    root = tmp_path / "papershop" / "studio" / "skills" / "studio"
+    root.mkdir(parents=True)
+    monkeypatch.delenv("STUDIO_HOME", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    assert studio_home(root) == tmp_path / "home" / "studio"
+    (tmp_path / "studio-journey").mkdir()
+    assert studio_home(root) == tmp_path / "studio-journey"
+    (tmp_path / "home" / "studio").mkdir(parents=True)
+    assert studio_home(root) == tmp_path / "home" / "studio"
+    monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "elsewhere"))
+    assert studio_home(root) == tmp_path / "elsewhere"

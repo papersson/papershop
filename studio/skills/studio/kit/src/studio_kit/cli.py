@@ -118,10 +118,11 @@ COMMANDS = {
     "ablation": ("prepare paired bare-agent and Studio video folders and prompts", [A("--topic", default="shaders")], "ablation:main"),
     "new": ("a video folder, ready for a script", [
         A("name"),
-        P("--dir", help="where to create it (default: $STUDIO_HOME/films/NAME when films/ exists, else $STUDIO_HOME/NAME; STUDIO_HOME defaults to ~/studio)"),
+        P("--dir", help="where to create it (default: $STUDIO_HOME/films/NAME when films/ exists, else $STUDIO_HOME/NAME; STUDIO_HOME defaults to ~/studio, else a studio-journey checkout beside papershop)"),
         A("--title"),
         V("--from", dest="from_video", help="inherit look and pronunciation from a series episode"),
         A("--include", action="append", default=[], help="relative source/data file to copy from --from (repeatable)"),
+        P("--brief", help="a brief written already (a series' episode brief), copied to research/brief.md"),
         P("--source", help="the repo or folder the video explains; its path and commit are recorded"),
         A("--duration", type=float, help="seconds for a silent scene test"),
         A("--engine", choices=["live"], help="which engine renders the scenes (default: live)"),
