@@ -29,6 +29,8 @@ The build lives in `review/events.jsonl`. Emit real actions, never fake heartbea
 `chapter.done` after checks and inspection, and `decision "Reason for this hold" --lane s2 --t 150`
 for a decision pin. The file watcher records saved scenes, cues, previews and checks. The lane becomes
 quiet after 30 seconds without evidence and stalled after two minutes, retaining its last action.
+Once a version is ready, finished lanes leave the timeline; only failing, stalled or unbuilt ones stay.
+The Notes panel lists open notes and folds closed ones behind "Show N closed".
 The raw event and its source are one click away. The plugin's Claude hooks report tools and subagent
 completion automatically through the tagged background launch and first job Read in `shoot.md`.
 The hook first checks one small active-shoot file; absent or expired shoots do no production work.

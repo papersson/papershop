@@ -59,6 +59,7 @@ aside .heading{display:flex;align-items:center;gap:8px;margin-bottom:16px}
 .note .reply{color:var(--good);font-size:12px;margin-top:8px}
 .note button{font-size:11px;padding:3px 5px}
 .note.done .body{color:var(--muted)}
+.fold{margin-top:12px;font-size:11px}
 #changes{font-size:12px;color:var(--muted);margin-bottom:18px}
 #changes li{margin:6px 0}
 #raw{white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.6 'IBM Plex Mono',monospace;max-height:54vh;overflow:auto}
@@ -195,7 +196,7 @@ async function load(changeMedia = true) { const next = await get('/api/state' + 
     renderBuild(S.build); if (changeMedia)
     await media(); updateTime(); }
 function refresh(changeMedia = false) { refreshChain = refreshChain.then(() => load(changeMedia)).catch(e => notify(e.message)); return refreshChain; }
-function renderNotes() { const ns = S.notes.filter(n => n.status !== 'dismissed'); $('#noteCount').textContent = ns.filter(n => n.status !== 'done').length + ' open'; $('#notes').innerHTML = ns.length ? ns.map(n => '<article class="note ' + esc(n.status) + '" data-id="' + esc(n.id) + '"><div class="meta"><button data-seek="' + (n.t ?? 0) + '">' + (n.scope === 'video' ? 'Whole video' : fmt(n.t) + (n.end != null ? ' - ' + fmt(n.end) : '')) + '</button><span>' + esc(n.lane || n.clip || '') + '</span><span class="spacer"></span><span>' + ({ queued: 'Sent', working: 'Received', done: 'Acted on', suggested: 'Suggested' }[n.status] || n.status) + '</span></div><div class="body">' + esc(n.note) + '</div>' + (n.reply ? '<div class="reply">' + esc(n.reply) + '</div>' : '') + (n.status === 'suggested' ? '<button data-action="accept">Accept</button><button data-action="dismiss">Dismiss</button>' : '<button data-action="edit">Edit</button><button data-action="delete">Delete</button>') + '</article>').join('') : '<p class="muted">No notes yet. Press A at the moment you want to change.</p>'; renderMarks(); }
+function renderNotes() { const all = S.notes.filter(n => n.status !== 'dismissed'), open = all.filter(n => n.status !== 'done'), closed = all.length - open.length, ns = showClosed ? all : open; $('#noteCount').textContent = open.length + ' open'; $('#notes').innerHTML = (ns.length ? ns.map(n => '<article class="note ' + esc(n.status) + '" data-id="' + esc(n.id) + '"><div class="meta"><button data-seek="' + (n.t ?? 0) + '">' + (n.scope === 'video' ? 'Whole video' : fmt(n.t) + (n.end != null ? ' - ' + fmt(n.end) : '')) + '</button><span>' + esc(n.lane || n.clip || '') + '</span><span class="spacer"></span><span>' + ({ queued: 'Sent', working: 'Received', done: 'Acted on', suggested: 'Suggested' }[n.status] || n.status) + '</span></div><div class="body">' + esc(n.note) + '</div>' + (n.reply ? '<div class="reply">' + esc(n.reply) + '</div>' : '') + (n.status === 'suggested' ? '<button data-action="accept">Accept</button><button data-action="dismiss">Dismiss</button>' : '<button data-action="edit">Edit</button><button data-action="delete">Delete</button>') + '</article>').join('') : '<p class="muted">' + (closed ? 'No open notes.' : 'No notes yet. Press A at the moment you want to change.') + '</p>') + (closed ? '<button class="fold" data-fold="1">' + (showClosed ? 'Hide' : 'Show') + ' ' + closed + ' closed</button>' : ''); renderMarks(); }
 function renderTimeline() { const key = JSON.stringify([S.cut?.cut, S.duration, S.beats, S.waveform.length]); if (key === dataSignature)
     return; dataSignature = key; $('#ruler').innerHTML = ''; for (let t = 0; t <= S.duration; t += 30) {
     const e = el('span', 'ruler-tick', fmt(t));
@@ -211,11 +212,11 @@ function paintWave() { if (!S)
 function addMark(target, t, label, title, cls, click, event) { const e = el('button', 'mark ' + cls, label); e.style.left = pct(t) + '%'; e.title = title + (event ? '\nEvent ' + event : ''); if (event)
     e.dataset.event = event; e.onclick = click; $(target).append(e); return e; }
 function renderMarks() { if (!S)
-    return; $('#marks').innerHTML = ''; S.notes.filter(n => n.status !== 'dismissed' && n.t != null).forEach(n => addMark('#marks', n.t, '\u2022', n.note, n.status === 'suggested' ? 'pin' : '', () => { seek(n.t); editNote(n); })); build?.pins.forEach(p => addMark('#marks', p.t, '\u25c7', p.message, 'pin', () => openNote('lane', { lane: p.lane, clip: p.lane, t: p.t, sentence: p.message }), p.id)); build?.lanes.forEach(l => l.checks.filter(c => c.kind === 'check.failed' || build.now - c.ts < 10).forEach(c => {const mark=addMark('#marks', c.t, c.kind === 'check.failed' ? '!' : '\u2713', c.message + ' / ' + fmt(c.t), c.kind === 'check.failed' ? 'failed' : 'passed', () => { seek(c.t); showRaw(l.id); }, c.id);if(c.kind==='check.passed')mark.style.opacity=Math.max(0,1-(build.now-c.ts)/10)})); }
-function renderBuild(b) { build = b; livePictures(b); document.documentElement.style.setProperty('--timeline-height', (214 + 28 * b.lanes.length) + 'px'); const before = new Set([...document.querySelectorAll('#lanes .lane-bar[data-landed="true"]')].map(e => e.dataset.lane)); const sig = JSON.stringify(b.lanes.map(l => [l.id, l.state, l.last?.id, l.landed])); if (sig !== laneSignature) {
+    return; $('#marks').innerHTML = ''; S.notes.filter(n => n.status !== 'dismissed' && (showClosed || n.status !== 'done') && n.t != null).forEach(n => addMark('#marks', n.t, '\u2022', n.note, n.status === 'suggested' ? 'pin' : '', () => { seek(n.t); editNote(n); })); build?.pins.forEach(p => addMark('#marks', p.t, '\u25c7', p.message, 'pin', () => openNote('lane', { lane: p.lane, clip: p.lane, t: p.t, sentence: p.message }), p.id)); build?.lanes.forEach(l => l.checks.filter(c => c.kind === 'check.failed' || build.now - c.ts < 10).forEach(c => {const mark=addMark('#marks', c.t, c.kind === 'check.failed' ? '!' : '\u2713', c.message + ' / ' + fmt(c.t), c.kind === 'check.failed' ? 'failed' : 'passed', () => { seek(c.t); showRaw(l.id); }, c.id);if(c.kind==='check.passed')mark.style.opacity=Math.max(0,1-(build.now-c.ts)/10)})); }
+function renderBuild(b) { build = b; livePictures(b); const shown = b.ready && !replay ? b.lanes.filter(l => l.state !== 'built') : b.lanes; document.documentElement.style.setProperty('--timeline-height', (214 + 28 * shown.length) + 'px'); const before = new Set([...document.querySelectorAll('#lanes .lane-bar[data-landed="true"]')].map(e => e.dataset.lane)); const sig = JSON.stringify(shown.map(l => [l.id, l.state, l.last?.id, l.landed])); if (sig !== laneSignature) {
     laneSignature = sig;
     $('#lanes').innerHTML = '';
-    b.lanes.forEach(l => { const row = el('div', 'track lane'); const label = el('div', 'track-label'); const strong = el('strong', '', l.id); label.append(strong, el('span', 'lane-state', l.state)); const raw = el('button', '', '...'); raw.title = 'Raw activity for ' + l.id; raw.onclick = () => showRaw(l.id); const stop = el('button', '', 'Stop'); stop.title = 'Stop ' + l.id; stop.onclick = () => stopBuild(l.id); label.append(raw, stop); const rail = el('div', 'rail'); const bar = el('div', 'lane-bar ' + l.state + (l.landed && !before.has(l.id) ? ' landed' : '')); bar.dataset.lane = l.id; bar.dataset.landed = l.landed; bar.style.left = pct(l.start) + '%'; bar.style.width = (pct(l.end) - pct(l.start)) + '%'; bar.dataset.event = l.last?.id || ''; bar.title = ((l.state === 'built' ? 'Chapter finished' : l.last?.message) || l.title) + (l.last ? '\nEvent ' + l.last.id : ''); bar.append(el('span', 'last-action', (l.state === 'built' ? 'Chapter finished' : l.last?.message) || l.title)); bar.onclick = () => openNote('lane', { lane: l.id, clip: l.id, t: at, sentence: l.title }); rail.append(bar); row.append(label, rail); $('#lanes').append(row); if (l.landed && !before.has(l.id) && tickOn)
+    shown.forEach(l => { const row = el('div', 'track lane'); const label = el('div', 'track-label'); const strong = el('strong', '', l.id); label.append(strong, el('span', 'lane-state', l.state)); const raw = el('button', '', '...'); raw.title = 'Raw activity for ' + l.id; raw.onclick = () => showRaw(l.id); const stop = el('button', '', 'Stop'); stop.title = 'Stop ' + l.id; stop.onclick = () => stopBuild(l.id); label.append(raw, stop); const rail = el('div', 'rail'); const bar = el('div', 'lane-bar ' + l.state + (l.landed && !before.has(l.id) ? ' landed' : '')); bar.dataset.lane = l.id; bar.dataset.landed = l.landed; bar.style.left = pct(l.start) + '%'; bar.style.width = (pct(l.end) - pct(l.start)) + '%'; bar.dataset.event = l.last?.id || ''; bar.title = ((l.state === 'built' ? 'Chapter finished' : l.last?.message) || l.title) + (l.last ? '\nEvent ' + l.last.id : ''); bar.append(el('span', 'last-action', (l.state === 'built' ? 'Chapter finished' : l.last?.message) || l.title)); bar.onclick = () => openNote('lane', { lane: l.id, clip: l.id, t: at, sentence: l.title }); rail.append(bar); row.append(label, rail); $('#lanes').append(row); if (l.landed && !before.has(l.id) && tickOn)
         arrivalTick(); });
 } document.querySelectorAll('.thumb').forEach(e => { const l = b.lanes.find(l => l.id === e.dataset.clip); e.classList.toggle('board', !pictureMode && Boolean(replay || !b.ready) && !l?.landed); let label = e.querySelector('.board-label'); if (e.classList.contains('board') && !label) {
     label = el('span', 'board-label', 'Story board');
@@ -237,7 +238,7 @@ else if (!e.classList.contains('board'))
     }
 }
 else if (stalled.length) {
-    text = stalled.map(l => l.id + ' ' + l.state).join(' \u00b7 ') + ' \u00b7 ' + done + '/' + b.lanes.length + ' chapters finished';
+    text = b.ready ? 'v' + (b.ready.version || b.ready.cut || S.latest) + ' ready \u00b7 ' + stalled.map(l => l.id + (l.state === 'failing' ? ' has a failed check' : ' ' + l.state)).join(' \u00b7 ') : stalled.map(l => l.id + ' ' + l.state).join(' \u00b7 ') + ' \u00b7 ' + done + '/' + b.lanes.length + ' chapters finished';
     $('#alive').style.background = 'var(--bad)';
 }
 else {
@@ -285,7 +286,7 @@ function saveNote() { clearTimeout(saveTimer); if (!editor)
 } const saved = await post(current.id ? '/api/notes/' + current.id + '/edit' : '/api/notes', draft); current.id = saved.id; current.sent = fingerprint; if (editor === current)
     $('#delivery').textContent = 'Sent' + (current.lane ? ' to ' + current.lane : ' to the builder'); await refresh(false); }).catch(e => { $('#delivery').textContent = 'Not sent: ' + e.message; notify('Note remains here; retry typing to send'); }); return saveChain; }
 async function stopBuild(lane = null) { await post('/api/stop', { lane }); notify(lane ? 'Stop requested for ' + lane : 'Stop requested for every chapter'); await refresh(false); }
-let pictureMode = false;
+let pictureMode = false, showClosed = false;
 function livePictures(b) {
     const active = !b.ready || Boolean(replay);
     if (active && !pictureMode) {
@@ -393,7 +394,10 @@ $('#noteStart').onchange = e => { editor.t = Math.max(0, +e.target.value); saveN
 $('#noteEnd').onchange = e => { editor.end = Math.max(editor.t, +e.target.value); saveNote(); };
 $('#closeNote').onclick = async () => { await saveNote(); $('#editor').hidden = true; editor = null; };
 $('#closeRaw').onclick = closeRaw;
-$('#notes').onclick = async (e) => { const action = e.target.dataset.action, article = e.target.closest('[data-id]'); if (e.target.dataset.seek != null)
+$('#notes').onclick = async (e) => { if (e.target.dataset.fold) {
+    showClosed = !showClosed;
+    return renderNotes();
+} const action = e.target.dataset.action, article = e.target.closest('[data-id]'); if (e.target.dataset.seek != null)
     seek(+e.target.dataset.seek); if (!action || !article)
     return; const n = S.notes.find(n => n.id === article.dataset.id); if (action === 'edit')
     return editNote(n); await post('/api/notes/' + n.id + '/' + action, {}); await refresh(false); };

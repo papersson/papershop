@@ -253,6 +253,13 @@ def test_the_live_desk_plays_the_whole_mix(tmp_path, monkeypatch):
     monkeypatch.setattr(audio, "soundtrack", unavailable)
     assert page.state(video)["live"]["audio"] != ".cache/sound/abc.m4a"     # the narration, as before
 
+    def wrong_length(v, t):
+        # A re-narration moved the timeline while the effects still pointed at the old one; the
+        # desk's whole state failed and the page broke mid-review.
+        raise RuntimeError("the soundtrack did not come out at 1149.8 s; nothing was cached")
+    monkeypatch.setattr(audio, "soundtrack", wrong_length)
+    assert page.state(video)["live"]["audio"] != ".cache/sound/abc.m4a"
+
 
 def test_reading_notes_does_not_acknowledge_them_or_create_a_round(tmp_path):
     make_video(tmp_path)

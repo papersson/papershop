@@ -3,6 +3,26 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A quieter desk once a cut is ready (0.19.1)
+
+Watching episode 1's fifth cut, Patrik found the desk mostly noise: 114 notes already acted on filled
+the Notes panel, eleven "Chapter finished" rows filled the timeline, and the header said "s10
+failing · 10/11 chapters finished" for one accepted legibility check in a finished film.
+
+- The Notes panel lists open notes; closed ones fold behind "Show N closed", and their marks leave
+  the timeline until shown.
+- The chapter-agent rows are the shoot's build log. Once a version is ready (and no build is being
+  replayed) only the chapters that need attention keep a row: failing, stalled or unbuilt ones.
+- The desk broke mid-review when a sentence was re-narrated: the live mix came out at the old length,
+  the soundtrack raised, and the whole page state failed. The live desk now falls back to the
+  narration alone, as it already did when an effect's cue was gone.
+- With a version ready, the header names it and the chapter with a failed check ("v5 ready · s10
+  has a failed check") instead of counting chapters as if the build were still running.
+- On cut 7 the header still said "s4 failing · s9 failing" for checks that had since passed. Results
+  were keyed by check and second, and re-timing a chapter moves its checks to new seconds, so an old
+  failure was never replaced. Each run of a chapter's checks now records a `checks.ran` event, and a
+  lane shows only its latest run's results.
+
 ## Films in a home kept in Git (0.19.0)
 
 ~/studio is becoming one Git repository for the whole practice, with films under `films/` next to
