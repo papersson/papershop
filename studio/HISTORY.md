@@ -3,6 +3,17 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Review stills stay out of Git (0.19.2)
+
+Episode 1 of the observability series added 287 MB to the studio journey repo, 248 MB of it the stills
+and motion sheets of its chapter reviews. Those images are copies of a cut's frames that a new review
+makes again, and the checkpoint meant to leave them out, but its rule named the older bundle folders
+(`research/*_review/`) while chapter reviews write to `research/reviews/cutN/CHAPTER/`.
+
+- `studio commit` now leaves out PNG, JPEG and WebP files under `research/reviews/` too; a review's
+  manifest, prompt, findings and the panel notes are still committed. A film made earlier gets the
+  rule on its next commit; images it already tracks stay tracked until removed with `git rm --cached`.
+
 ## A quieter desk once a cut is ready (0.19.1)
 
 Watching episode 1's fifth cut, Patrik found the desk mostly noise: 114 notes already acted on filled
