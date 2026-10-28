@@ -46,11 +46,20 @@ def ignore(video):
 
 
 def init(video):
+    """A repository for the video, unless one already encloses it and tracks it. An enclosing repository
+    that ignores the folder (a STUDIO_HOME kept in Git that opts folders in) would take no file of it,
+    and every checkpoint would quietly commit nothing."""
     video = Path(video)
     git = proc.tool("git")
     r = proc.run([git, "-C", str(video), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
-    if r.returncode:
-        proc.run([git, "-C", str(video), "init", "-q"], check=True)
+    if r.returncode == 0:
+        top = Path(r.stdout.strip()).resolve()
+        if top == video.resolve():
+            return
+        rel = os.path.relpath(video.resolve(), top) + "/"
+        if proc.run([git, "-C", str(top), "check-ignore", "-q", "--", rel], capture_output=True).returncode:
+            return
+    proc.run([git, "-C", str(video), "init", "-q"], check=True)
 
 
 def commit(video, message):

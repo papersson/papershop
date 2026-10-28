@@ -21,8 +21,15 @@ CHROME_PATHS = {
 
 
 def studio_home():
-    """Where `studio new` puts videos and the shared sound cache and lexicon live."""
+    """Where the videos, the shared sound cache and the lexicon live."""
     return Path(os.environ.get("STUDIO_HOME", "~/studio")).expanduser()
+
+
+def films_home():
+    """Where `studio new` puts a video: STUDIO_HOME/films when that folder exists (a home that keeps
+    its films apart from its notes and plans), else STUDIO_HOME itself."""
+    films = studio_home() / "films"
+    return films if films.is_dir() else studio_home()
 
 
 def engine_dir(name):

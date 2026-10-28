@@ -3,6 +3,17 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Films in a home kept in Git (0.19.0)
+
+~/studio is becoming one Git repository for the whole practice, with films under `films/` next to
+notes, verdicts and plans. Two things stood in the way.
+
+- `studio new` puts a film in `$STUDIO_HOME/films/NAME` when `films/` exists, and in
+  `$STUDIO_HOME/NAME` as before when it doesn't. The nearest-video suggestion searches both.
+- A film inside a home repository that ignores its folder (the home's `.gitignore` opts folders in
+  with `/*`) got no repository of its own, so every checkpoint quietly committed nothing. A film now
+  gets its own repository unless the enclosing one actually tracks its folder.
+
 ## ElevenLabs narration from a cloud session (0.18.2)
 
 A fresh cloud session should be able to make new ElevenLabs narration, not only rebuild cached audio.

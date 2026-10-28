@@ -1,6 +1,7 @@
 """`studio new NAME`: a video folder, ready for a script.
 
-The folder goes to --dir, else $STUDIO_HOME/NAME (default ~/studio/NAME), so a video about a repo
+The folder goes to --dir, else $STUDIO_HOME/films/NAME when films/ exists, else $STUDIO_HOME/NAME
+(default ~/studio/NAME), so a video about a repo
 does not put renders and caches into that repo; --source records which repo and commit it explains.
 """
 import json
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from . import proc
 from . import settings
-from .env import ROOT, studio_home
+from .env import ROOT, films_home, studio_home
 from . import timeline as tl
 from .timeline import DEFAULT_LAYOUT
 
@@ -35,14 +36,14 @@ def default_title(name):
 
 
 def target(name, directory=None):
-    """The folder a new video goes into: --dir, else $STUDIO_HOME/NAME. Refused when it already
-    holds a video, is STUDIO_HOME itself, or holds anything else: `new --dir $STUDIO_HOME` once made
-    the home a video repository, with every video in it swept into its commits."""
-    video = (Path(directory).expanduser() if directory else studio_home() / name).resolve()
+    """The folder a new video goes into: --dir, else films_home()/NAME. Refused when it already
+    holds a video, is STUDIO_HOME or its films/ itself, or holds anything else: `new --dir $STUDIO_HOME`
+    once made the home a video repository, with every video in it swept into its commits."""
+    video = (Path(directory).expanduser() if directory else films_home() / name).resolve()
     if (video / "video.json").exists():
         raise SystemExit(f"{video} already holds a video")
-    if video == studio_home().resolve():
-        raise SystemExit(f"{video} is STUDIO_HOME, which holds the videos; make the video in a new folder of its own")
+    if video in (studio_home().resolve(), films_home().resolve()):
+        raise SystemExit(f"{video} holds the videos; make the video in a new folder of its own")
     if video.is_dir() and any(video.iterdir()):
         raise SystemExit(f"{video} is not empty; make the video in a new folder")
     return video
