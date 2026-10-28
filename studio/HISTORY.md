@@ -3,12 +3,32 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
-## Review stills stay out of Git (0.19.2)
+## A video's media on any machine (0.20.0)
 
-Episode 1 of the observability series added 287 MB to the studio journey repo, 248 MB of it the stills
-and motion sheets of its chapter reviews. Those images are copies of a cut's frames that a new review
-makes again, and the checkpoint meant to leave them out, but its rule named the older bundle folders
-(`research/*_review/`) while chapter reviews write to `research/reviews/cutN/CHAPTER/`.
+With the studio journey in Git and its media backed up to a Cloudflare R2 bucket, a clone on another
+machine or in a cloud session had every script and narration response but none of the media Git leaves
+out: a recording, a downloaded sound, the shipped master. Patrik asked for the reproducible way to work
+on a video anywhere.
+
+- `studio media push VIDEO` uploads each such file to the media bucket under its SHA-256 and lists it,
+  with its size, in the video's `media.json`, which Git keeps. The default set is the ignored media
+  outside `.cache/`, `cuts/` and `research/`, which studio makes again; a file named on the command line
+  is listed too, and a listed file stays listed on a machine that never pulled it. Content addressing
+  means an unchanged file or a sound two videos share is stored once.
+- `studio media pull VIDEO` fetches each listed file a folder lacks and checks it against its hash
+  before it replaces anything; a local copy that differs is kept unless `--force`. `--dry-run` says
+  what is present and what would come.
+- The bucket speaks S3; requests are signed in the kit with AWS Signature V4 (checked against Amazon's
+  published example), so nothing new is installed. The credentials are papershop's
+  `RCLONE_CONFIG_R2_*` secrets, from the environment or decrypted for the transfer, the way the
+  ElevenLabs key is; `script/doctor` and the receipt say whether they decrypt, and in a cloud session
+  whether the bucket's host is allowed.
+
+Review stills stay out of Git too. Episode 1 of the observability series added 287 MB to the studio
+journey repo, 248 MB of it the stills and motion sheets of its chapter reviews. Those images are copies
+of a cut's frames that a new review makes again, and the checkpoint meant to leave them out, but its
+rule named the older bundle folders (`research/*_review/`) while chapter reviews write to
+`research/reviews/cutN/CHAPTER/`.
 
 - `studio commit` now leaves out PNG, JPEG and WebP files under `research/reviews/` too; a review's
   manifest, prompt, findings and the panel notes are still committed. A film made earlier gets the

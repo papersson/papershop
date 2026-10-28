@@ -1,6 +1,6 @@
 {
   "name": "studio",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "description": "Narrated explainer lectures with visuals at the center: elicit the story, set final-quality style frames, shoot chapters in parallel and review on a local desk. Rich objects, tactile-only sound, content-sized holds, one timeline and deterministic checks. The user locks the story and says when to ship.",
   "author": {
     "name": "Patrik Persson"

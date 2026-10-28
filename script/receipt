@@ -35,6 +35,9 @@ if [ -n "${ELEVENLABS_API_KEY:-}" ]; then eleven="present (environment)"
 elif [ -f "$secrets" ] && sops decrypt --extract '["ELEVENLABS_API_KEY"]' "$secrets" >/dev/null 2>&1; then eleven="present (secrets)"
 else eleven=absent; fi
 echo "elevenlabs key: $eleven"
+if [ -f "$secrets" ] && sops decrypt --extract '["RCLONE_CONFIG_R2_SECRET_ACCESS_KEY"]' "$secrets" >/dev/null 2>&1; then media=present
+else media=absent; fi
+echo "media bucket keys: $media"
 echo "secrets readable by: $(awk 'NF == 2 { print $1 }' "$root/secrets/recipients" 2>/dev/null | paste -sd' ' -)"
 echo "pin kokoro weights: $(sed -n 's/^KOKORO_REVISION = "\(.\{12\}\).*/\1/p' "$kit/src/studio_kit/narration.py")"
 

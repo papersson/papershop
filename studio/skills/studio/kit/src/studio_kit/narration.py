@@ -372,17 +372,23 @@ def secrets_file():
     return Path(os.environ.get("PAPERSHOP_SECRETS") or ROOT.parents[2] / "secrets" / "secrets.json")
 
 
-def eleven_key():
-    """The ElevenLabs key: ELEVENLABS_API_KEY if set, else decrypted from the secrets file with this
-    machine's age key, only now, when text must be fetched, so no shell has to hold it. Never printed."""
-    if os.environ.get("ELEVENLABS_API_KEY"):
-        return os.environ["ELEVENLABS_API_KEY"]
+def secret(name):
+    """One value: the environment's NAME if set, else decrypted from the secrets file with this
+    machine's age key, only when it is needed, so no shell has to hold it. Never printed; None when
+    this machine can't decrypt it."""
+    if os.environ.get(name):
+        return os.environ[name]
     f = secrets_file()
     sops = shutil.which("sops") or str(f.parents[1] / ".cache" / "tools" / "secrets" / "bin" / "sops")
     if not f.exists() or not Path(sops).exists():
         return None
-    r = proc.run([sops, "decrypt", "--extract", '["ELEVENLABS_API_KEY"]', str(f)], capture_output=True, text=True)
+    r = proc.run([sops, "decrypt", "--extract", f'["{name}"]', str(f)], capture_output=True, text=True)
     return (r.stdout.strip() or None) if r.returncode == 0 else None
+
+
+def eleven_key():
+    """The ElevenLabs key, decrypted only now, when text must be fetched."""
+    return secret("ELEVENLABS_API_KEY")
 
 
 NO_KEY = ("no ElevenLabs key, and this text is not in audio/elevenlabs_cache/ yet. This machine can't decrypt "

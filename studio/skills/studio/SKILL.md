@@ -93,7 +93,8 @@ shared products wait on a file lock. Timing records measure story, shoot, desk, 
 finished; they impose no work limit.
 
 Use `studio commit VIDEO "message"` for source checkpoints and `studio clean VIDEO --dry-run`
-to inspect expendable caches. Keep the kit unchanged while making a video. Put reproducible
+to inspect expendable caches. After recording or shipping, `studio media push VIDEO`; elsewhere,
+`studio media pull VIDEO`. Keep the kit unchanged while making a video. Put reproducible
 helpers in `sims/` or the chapter's data folder and run them through `studio run`.
 
 After the video, append lasting lessons from the user's notes to the last section of
