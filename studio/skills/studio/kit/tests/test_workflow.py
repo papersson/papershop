@@ -129,7 +129,9 @@ def test_a_checkpoint_leaves_out_secrets_media_in_any_case_and_large_new_files(t
     files = {".env": "KEY=x", ".env.local": "KEY=y", "footage/IMG_0001.MOV": "rec", "assets/room.AIFF": "a",
              "assets/loop.gif": "g", "assets/bed.Flac": "f", "keys/deploy.pem": "k", "notes.txt": "mine",
              "research/motion_review/cut1-ab/sheets/drop.png": "p", "research/frame_review/cut1-ab/stills/s1_01.JPG": "j",
-             "research/motion_review/cut1-ab/result.md": "MOTION: PASS"}
+             "research/motion_review/cut1-ab/result.md": "MOTION: PASS",
+             "research/reviews/cut1/s0/sheets/w1.png": "p", "research/reviews/cut1/s0/frames/000.PNG": "p",
+             "research/reviews/cut1/s0/manifest.json": "{}", "research/reviews/panel-1.md": "q"}
     for rel, text in files.items():
         (v / rel).parent.mkdir(parents=True, exist_ok=True)
         (v / rel).write_text(text)
@@ -137,7 +139,8 @@ def test_a_checkpoint_leaves_out_secrets_media_in_any_case_and_large_new_files(t
         f.truncate(checkpoint.LARGE + 1)
     checkpoint.commit(v, "sources")
     tracked = set(git(v, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
-    kept = {"notes.txt", "research/motion_review/cut1-ab/result.md"}
+    kept = {"notes.txt", "research/motion_review/cut1-ab/result.md", "research/reviews/cut1/s0/manifest.json",
+            "research/reviews/panel-1.md"}
     assert kept <= tracked and not tracked & (set(files) - kept | {"assets/big.zip"})
     assert "not committed: assets/big.zip (20 MB)" in capsys.readouterr().out
     git(v, "add", "assets/big.zip")                       # tracked by choice: later commits keep it

@@ -64,6 +64,19 @@ if [ "$where" = cloud ] && [ "$(curl -s -o /dev/null -m 4 -w '%{http_code}' http
   missing+=("api.elevenlabs.io unreachable: new ElevenLabs narration | add it to the environment's allowed hosts")
 fi
 
+# studio media pull/push reach the media bucket with the RCLONE_CONFIG_R2_* secrets; checked the same way,
+# and in the cloud whether the bucket's host is allowed (its endpoint is decrypted, never printed).
+if have sops && [ -f "$secrets" ] && sops decrypt --extract '["ELEVENLABS_API_KEY"]' "$secrets" >/dev/null 2>&1; then
+  if endpoint="$(sops decrypt --extract '["RCLONE_CONFIG_R2_ENDPOINT"]' "$secrets" 2>/dev/null)"; then
+    ok+=("media bucket keys (secrets)")
+    if [ "$where" = cloud ] && [ "$(curl -s -o /dev/null -m 4 -w '%{http_code}' "$endpoint")" = 000 ]; then
+      missing+=("media bucket unreachable: studio media pull and push | add the bucket's host (secrets RCLONE_CONFIG_R2_ENDPOINT) to the environment's allowed hosts")
+    fi
+  else
+    missing+=("media bucket keys: studio media pull and push | on the Mac, script/secrets set each RCLONE_CONFIG_R2_* value")
+  fi
+fi
+
 line="papershop ready ($where): $(IFS=,; echo "${ok[*]}" | sed 's/,/, /g')"
 if [ ${#missing[@]} -gt 0 ]; then
   line="$line. Not here: $(printf '%s\n' "${missing[@]}" | cut -d: -f1 | paste -sd, - | sed 's/,/, /g')"

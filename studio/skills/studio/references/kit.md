@@ -314,6 +314,7 @@ that pronunciation or balance sounds right. A missing listening pass never block
 | `export VIDEO --formats 16:9,9:16,1:1` | Reframed formats on the same timeline with separate layout checks and caches. |
 | `clean VIDEO --dry-run`, `clean VIDEO [--videos]` | Expendable caches and previews; deleting eligible old movies is explicit. |
 | `commit VIDEO MESSAGE` | A source checkpoint that respects signing and preserves unrelated staged work. |
+| `media push VIDEO [PATH...]`, `media pull VIDEO [--dry-run]` | Media Git ignores, kept by SHA-256 in the bucket and listed in `media.json`. |
 
 Shared commands wait on file locks. Chapter checks and review packs have disjoint work folders.
 The deterministic checks catch actual frame and audio problems. Full-video checks retain optional

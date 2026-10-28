@@ -185,6 +185,12 @@ COMMANDS = {
     ], 'events:main'),
     "open": ("open and protect a playable cut", [V("video"), A("cut", nargs="?", type=int)], "cuts:main_open"),
     "commit": ("checkpoint this video's sources, respecting git.sign", [W("video"), A("message")], "checkpoint:main"),
+    "media": ("push: upload the media a clone can't remake to the bucket and list it in media.json; pull: fetch what media.json lists", [
+        A("action", choices=["push", "pull"]), W("video"),
+        A("paths", nargs="*", help="push: also list these files (default: the ignored media outside caches, cuts and reviews)"),
+        A("--dry-run", action="store_true", help="pull: only say what is present and what would be fetched"),
+        A("--force", action="store_true", help="pull: replace a file that differs from media.json"),
+    ], "media:main"),
     "plate": ("render a chapter's plate (video.json plates) in Blender, or probe how long it will take", [
         W("video"), A("clips", nargs="*", help="the chapters (default: every plated chapter)"),
         A("--quality", default="draft", choices=["draft", "final"]),
@@ -279,7 +285,8 @@ ENGINE_READS = {"boxes", "duration"}
 
 
 def reads_only(args):
-    return (args.cmd == "clean" and args.dry_run) or (args.cmd == "check" and args.chapter)
+    return ((args.cmd == "clean" and args.dry_run) or (args.cmd == "check" and args.chapter)
+            or (args.cmd == "media" and args.action == "pull" and args.dry_run))
 
 
 def build_parser():
