@@ -9,6 +9,17 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 preflight=0
 [ "${1:-}" != preflight ] || preflight=1
 
+# A cloud session opened outside papershop (one that clones several repos starts in their parent) never
+# runs papershop's SessionStart hook, so the first call there bootstraps the checkout; bootstrap's stamp
+# marks it done, by the hook or by this.
+papershop="$(cd "$here/../../.." 2>/dev/null && pwd || true)"
+if [ "${CLAUDE_CODE_REMOTE:-}" = true ] && [ "$preflight" = 0 ] && [ "$papershop/studio/skills/studio" -ef "$here" ] &&
+   [ -x "$papershop/script/bootstrap" ] && [ ! -e "$papershop/.cache/bootstrapped" ]; then
+  log="${TMPDIR:-/tmp}/papershop-bootstrap.log"
+  echo "studio: first call in this cloud session; running papershop's script/bootstrap (about a minute, log in $log)" >&2
+  "$papershop/script/bootstrap" >"$log" 2>&1 || echo "studio: bootstrap failed; see $log" >&2
+fi
+
 if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/dev/null; then
   # A workspace copy carries its own flake; otherwise it is the plugin's, two levels up.
   if [ -f "$here/flake.nix" ]; then flake="$here"; else flake="$(cd "$here/../.." && pwd)"; fi
@@ -21,11 +32,14 @@ if [ -z "${STUDIO_ENV:-}" ] && [ -z "${STUDIO_NO_NIX:-}" ] && command -v nix >/d
       exit 1
     fi
     mkdir -p "$here/.cache"
+    echo "studio: preparing the pinned environment (nix develop .#studio), once per flake.lock; a minute or two on a new machine" >&2
     # Only the variables the kit needs: the full `print-dev-env` script uses bash 4+ syntax, and
-    # macOS runs this wrapper with bash 3.2.
-    nix --extra-experimental-features 'nix-command flakes' develop "$flake#studio" -c bash -c \
+    # macOS runs this wrapper with bash 3.2. Nix's download lines go to a log, shown only on failure.
+    if ! nix --extra-experimental-features 'nix-command flakes' develop "$flake#studio" -c bash -c \
       'for v in PATH STUDIO_ENV SSL_CERT_FILE NIX_SSL_CERT_FILE; do
-         if [ -n "${!v:-}" ]; then printf "export %s=%q\n" "$v" "${!v}"; fi; done' > "$env_file.tmp"
+         if [ -n "${!v:-}" ]; then printf "export %s=%q\n" "$v" "${!v}"; fi; done' > "$env_file.tmp" 2>"$here/.cache/devenv.log"; then
+      cat "$here/.cache/devenv.log" >&2; exit 1
+    fi
     mv "$env_file.tmp" "$env_file"
   fi
   # shellcheck disable=SC1090

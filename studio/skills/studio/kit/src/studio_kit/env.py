@@ -20,9 +20,15 @@ CHROME_PATHS = {
 }
 
 
-def studio_home():
-    """Where the videos, the shared sound cache and the lexicon live."""
-    return Path(os.environ.get("STUDIO_HOME", "~/studio")).expanduser()
+def studio_home(root=None):
+    """Where the videos, the shared sound cache and the lexicon live: $STUDIO_HOME, else ~/studio, else
+    a studio-journey checkout beside the papershop one (a cloud session clones both under one folder
+    and has no ~/studio), else ~/studio."""
+    if os.environ.get("STUDIO_HOME"):
+        return Path(os.environ["STUDIO_HOME"]).expanduser()
+    home = Path("~/studio").expanduser()
+    sibling = (root or ROOT).parents[2].parent / "studio-journey"
+    return sibling if not home.is_dir() and sibling.is_dir() else home
 
 
 def films_home():

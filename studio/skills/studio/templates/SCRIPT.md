@@ -1,6 +1,6 @@
 # {{Title}}
 
-The agreed story is in research/brief.md.
+The agreed story is in [research/brief.md](research/brief.md).
 
 ## Beats
 

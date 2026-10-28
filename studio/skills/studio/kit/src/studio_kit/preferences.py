@@ -5,7 +5,7 @@ import re
 import shutil
 from pathlib import Path
 
-from . import settings
+from . import proc, settings
 from .env import studio_home
 from .workspace import atomic_json, locked
 
@@ -38,6 +38,18 @@ def main_lexicon(args):
             cfg.setdefault("phonemes", {})[args.word] = args.phonemes
         atomic_json(p, cfg)
     print(f"saved {args.word!r} in {p}; existing videos keep their snapshot")
+
+
+def portable(path, video):
+    """PATH relative to the repo that holds VIDEO when it lies inside it (a series in one Git repo,
+    as studio-journey's films/ are), so the record reads the same on every machine; else absolute."""
+    path, video = Path(path).resolve(), Path(video).resolve()
+    try:
+        top = Path(proc.run(["git", "-C", str(video), "rev-parse", "--show-toplevel"], capture_output=True,
+                            text=True, check=True).stdout.strip()).resolve()
+    except (proc.CalledProcessError, FileNotFoundError):
+        top = studio_home().resolve()
+    return str(path.relative_to(top)) if path.is_relative_to(top) else str(path)
 
 
 def inherit(video, source, includes=()):
@@ -86,5 +98,5 @@ def inherit(video, source, includes=()):
         evidence = sections((source / "SCRIPT.md").read_text()).get("Evidence", "")
         (video / "research" / "series-evidence.md").write_text(
             f"# Evidence from {source.name}\n\nReference only: select the rows supporting this episode.\n\n" + evidence)
-    atomic_json(video / "research" / "series.json", {"source": str(source), "original_source": source_cfg.get("source"), "files": copied})
+    atomic_json(video / "research" / "series.json", {"source": portable(source, video), "original_source": source_cfg.get("source"), "files": copied})
     return copied

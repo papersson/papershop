@@ -1,7 +1,7 @@
 """`studio new NAME`: a video folder, ready for a script.
 
 The folder goes to --dir, else $STUDIO_HOME/films/NAME when films/ exists, else $STUDIO_HOME/NAME
-(default ~/studio/NAME), so a video about a repo
+(STUDIO_HOME: see env.studio_home), so a video about a repo
 does not put renders and caches into that repo; --source records which repo and commit it explains.
 """
 import json
@@ -83,18 +83,31 @@ def create(name, directory=None, title=None, source=None, duration=None, engine=
     return video, ROOT / "references" / "taste.md"
 
 
+def brief(video, path):
+    """Copy a brief written before the video existed (a series' episode brief) to research/brief.md,
+    where the panel, the shoot and SCRIPT.md look for it, naming where it came from."""
+    src = Path(path).expanduser()
+    out = Path(video) / "research" / "brief.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(f"<!-- copied by `studio new` from {preferences.portable(src, video)} -->\n\n" + src.read_text())
+
+
 def main(args):
+    if getattr(args, "brief", None) and not Path(args.brief).expanduser().is_file():
+        raise SystemExit(f"--brief {args.brief}: no such file")
     source_cfg = settings.raw(args.from_video) if args.from_video else {}
     args.engine = args.engine or source_cfg.get("engine") or "live"
     video, _ = create(args.name, args.dir, args.title, args.source, args.duration, args.engine)
     if args.from_video:
         copied = preferences.inherit(video, args.from_video, args.include)
         cfg = json.loads((video / "video.json").read_text())
-        cfg["series_of"] = str(Path(args.from_video).resolve())
+        cfg["series_of"] = preferences.portable(args.from_video, video)
         if not args.source and source_cfg.get("source"):
             cfg["source"] = source_cfg["source"]
         (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
         print("series files copied: " + (", ".join(copied) or "look and pronunciation only"))
+    if getattr(args, "brief", None):
+        brief(video, args.brief)
     print(f"new video at {video}")
     return 0
 
