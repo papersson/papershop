@@ -8,9 +8,19 @@
 
 import * as motion from '../../shared/motion.js'
 import * as camera from '../../shared/camera.js'
+import * as screensModel from './screens.js'
+import * as screensDraw from './screens-draw.js'
+import * as screensPages from './pages.js'
 
 export { CodePanel, Terminal, Editor, HelperCard, RunTerminal, ProgramWindow,
   editorAt, codeViewAt, runAt, windowMotion, legibleSize } from './code.js'
+
+// The screens layer (references/screens.md): desktops, editor, terminal and browser windows replayed
+// from data/screens.json, the explaining overlays and product-page parts. Everything is also on
+// `screens`; a scene may import the modules directly as '@studio/screens-draw.js' and '@studio/pages.js'.
+export { loadScreens, screensAt, screensCamera, drawScreens, editorWindow, terminalWindow, browserWindow } from './screens-draw.js'
+export { defCard, progressStrip, checklist, productFrame, timeSeries, table, waterfall, pointPlot, rankedList, CARD_VARIANTS } from './pages.js'
+export const screens = { ...screensModel, ...screensDraw, ...screensPages }
 
 export { clamp, lerp, mix, ease, stagger, spring, track, rand, rng, countUp, keyed, follow, settle, wobble } from '../../shared/motion.js'
 export { phraseStart } from '../../shared/timing.js'

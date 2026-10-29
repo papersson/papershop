@@ -3,6 +3,32 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Episode 1's screens, made reusable (0.21.0)
+
+Observability episode 1 built its desk by hand: desktops side by side, an editor, a terminal and the
+shop's page, slides between sentences, typed commands with real output, and a definition card for
+each core term. That lived in one film's scenes/desk.js and looks.js, eleven copies of a sound script
+and a merge helper. Patrik asked for it as studio's default for screen films (2026-10-29).
+
+- The screens layer (references/screens.md): one log per film, data/screens.json, names the desktops
+  and what happens on them (type, edit, save, open, tab, switch, click, drag, output, clear and more).
+  engines/live/src/screens.js replays it to every window's state at any time; screens-draw.js draws
+  the windows, the indicator, the pointer and a camera that goes out, across and in at each switch.
+- `studio screens VIDEO` runs the same code in node to write the key and click sounds into
+  audio/sfx.json, so picture and sound come from one schedule, and moves each desktop switch into
+  the nearest gap between sentences.
+- The `screens` check: undeclared names, a switch with no gap, an action before its desktop arrives
+  and stale sounds fail; a line that wraps inside a token or typing faster than 13 keys a second
+  warns. Legibility, bounds and overlap now also sample every moment the screens change.
+- pages.js: the definition card in five variants (`blur`, episode 1's, plus `side`, `lower`,
+  `spotlight` and `type`) so a default can be chosen by eye, the progress strip, the checklist, and
+  product-page parts (frame with reconstruction label, time series, table, waterfall, point plot,
+  ranked list) drawn from data.
+- Episode 1 pushed in on a window while a command was typed. The layer instead sets legible default
+  type sizes and checks them at every change; chapters still point the camera themselves.
+- Episode 1 is not re-rendered: its scenes keep their own copy. Its opening, first switch and grep
+  were rebuilt on the layer as a check, and match its style frames.
+
 ## A cold start in the cloud (0.20.2)
 
 A drill on 2026-10-28 (studio-journey branch `drill/cold-start`) started a fresh cloud session with
