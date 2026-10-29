@@ -81,6 +81,8 @@ the cue) and one verb:
 | `page` | browser | the tab shows another page, no pointer |
 | `output` | terminal | lines appear without a command (a log being written) |
 | `clear`, `split`, `unsplit`, `close`, `show` | window | clears a terminal; splits it; closes or shows a window |
+| `point` | window | underlines a target and dims the rest of the window, whole on the cue; `until` (a cue) or `for` (seconds, default 2.5); `dim` |
+| `mark` | window | puts an outcome mark after a target: `state` is `running`, `finished`, `failed`, `cancelled` or `none` (removes it) |
 
 Keep captured runs ({argv, stdout, stderr, exit}) as files under data/runs/ and real source
 versions under data/: the screen shows what the program actually prints.
@@ -105,10 +107,33 @@ export default function draw(c) {
 then), `'all'` (the pull-back), `{on, region: [x0, y0, x1, y1]}` in that desktop's pixels,
 `{window, pad}` or a plain `{x, y, z}`. It never shows wallpaper outside a slide or a pull-back.
 A browser page is `page(c, box, tab, ctx)`, drawn in world pixels inside `box`; it returns
-`{targets: {name: [x, y, w, h]}}` so clicks and drags know where to go. `tab.clicked`,
+`{targets: {name: [x, y, w, h]}}` so clicks, drags, points and marks know where to go. `tab.clicked`,
 `tab.selected` and `tab.since` say what has happened on it. `drawScreens` returns each window's box
 for annotations on top; window boxes are named `scr:<id>` for the checks. The template is
 `templates/live/scenes/example-screens.js`.
+
+## Pointing and outcome marks
+
+The narrator names a thing and the screen shows which one: point on the word, act in the pauses
+(`taste.md`, "Perform the hero moments"). A `point` puts its cue on the word, a `phrase` anchor in
+cues/<clip>.json; the underline draws in over the 0.2 s before it and is whole as the word is said,
+while the rest of the window dims (a veil in the window's own background). One point a window at a
+time: a newer one takes over. A `mark` is an act, so its cue sits in the pause after the sentence
+(an `end` anchor with an offset). Marks stay until replaced: running spins, finished is a tick in
+the accent, failed a cross in the problem colour, cancelled a dash.
+
+A target is named the way the window draws things:
+
+- editor: `{"line": 12}`, `{"line": 12, "text": "stock.take"}` or `{"text": "stock.take"}` (the first
+  line showing it); `{"panel": true, "text": "…"}` in the terminal panel;
+- terminal: `{"text": "…"}`, the newest row showing it;
+- browser: a page target's name. A page target may be `{box: [x, y, w, h], line: [x0, x1]}` when the
+  underline should run under part of it (a trace row: label and bar lit, the line under the bar).
+  Pages get the window's marks in `ctx.marks`, so a failed row can turn the problem colour itself.
+
+A target scrolled out of view draws nothing. `"outcomeSounds": true` at the top of the log adds two
+generated sounds, `finished` and `failed` (sfx.py voices), on their marks; they are a trial, off by
+default, and judged by ear in a cut. The template is `templates/live/scenes/example-pointing.js`.
 
 ## Overlays and page parts
 
@@ -130,7 +155,7 @@ for annotations on top; window boxes are named `scr:<id>` for the checks. The te
 audio/sfx.json (each character, Enter, the chords of a tab, desktop switch or save, clicks and a
 drag's press and release), marked `"source": "screens"`; it keeps other effects. Run it after
 changing the log or the timeline. The sounds follow the permitted-sound rule in `taste.md`: keys and
-clicks that are performed, nothing on an abstraction.
+clicks that are performed, nothing on an abstraction; the outcome sounds only when the log asks.
 
 `studio check` runs the `screens` check whenever data/screens.json exists: a name the log doesn't
 declare, a switch with no gap, an action before its desktop arrives, or stale sounds fail; a line

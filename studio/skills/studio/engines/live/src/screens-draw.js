@@ -10,7 +10,7 @@
 //     drawScreens(c, scr, s, {pages: {logs: (c, box, tab) => …}})
 //   }
 
-import { compile, state, switches, TRAVEL, CHORD } from './screens.js'
+import { compile, state, switches, targetKey, TRAVEL, CHORD, FADE } from './screens.js'
 import { cameraAt } from '../../shared/camera.js'
 import { ease } from '../../shared/motion.js'
 
@@ -216,15 +216,26 @@ function termRows(c, key, look, box, src, { size, lh, rows, input, caret, t }) {
     const { lines } = wrapLine(src.prompt + input, cols)
     lines.forEach((piece, k) => out.push(k === 0 ? [{ text: piece.slice(0, src.prompt.length), fill: L.accent }, { text: piece.slice(src.prompt.length), fill: L.ink }] : [{ text: piece, fill: L.ink }]))
   }
-  const shown = out.slice(-rows)
-  shown.forEach((parts, r) => monoLine(c, key + ':r' + r, box.x + 36, box.y + 24 + (r + .5) * step, parts, { size }))
+  const shown = out.slice(-rows), x0 = box.x + 36, rowY = r => box.y + 24 + (r + .5) * step
+  shown.forEach((parts, r) => monoLine(c, key + ':r' + r, x0, rowY(r), parts, { size }))
   if (input !== null && caret) {
     const lastLen = shown.at(-1).reduce((n, p) => n + p.text.length, 0)
     const blink = caret === 'solid' || Math.floor(t / .53) % 2 === 0
     if (blink) c.S.rect(key + ':caret', box.x + 36 + lastLen * size * .6, box.y + 24 + (shown.length - .5) * step - size * .6, size * .58, size * 1.2, { fill: L.ink, r: 0, op: .75 })
   }
-  return { step, cols, rows: shown.length }
+  // the last row showing `text` (output scrolls up, so the newest is the one meant)
+  const find = text => {
+    for (let r = shown.length - 1; r >= 0; r--) {
+      const k = shown[r].map(p => p.text).join('').indexOf(text)
+      if (k >= 0) return textBox(x0 + k * size * .6, rowY(r), text.length * size * .6, step, size)
+    }
+    return null
+  }
+  return { step, cols, rows: shown.length, find }
 }
+
+/** A piece of monospace text's box for pointing: centre y, the underline just below its letters. */
+const textBox = (x, y, w, h, size) => ({ x, y, w, h, base: y + size * .62, size })
 
 /** A terminal window: tabs when there are several, scrollback, the line being typed, an optional split. */
 export function terminalWindow(c, key, scr, s, id, o = {}) {
@@ -236,14 +247,16 @@ export function terminalWindow(c, key, scr, s, id, o = {}) {
   const size = o.size ?? d.size ?? 30, lh = d.lh ?? 1.45, area = { x: box.x, y, w: box.w, h: box.y + box.h - y }
   const typing = a => a !== undefined
   const fit = h => Math.max(1, Math.floor((h - 36) / (size * lh)))
+  let finds = []
   if (st.split) {
     const other = st.tabs.find(x => x.id === st.split) ?? (() => { throw new Error(`desktop ${id}: no tab ${st.split} to split with`) })()
     const top = { ...area, h: area.h / 2 }, bottom = { ...area, y: area.y + area.h / 2, h: area.h / 2 }
-    termRows(c, key + ':top', L, top, other, { size, lh, rows: fit(top.h), input: null, t: c.t })
+    const up = termRows(c, key + ':top', L, top, other, { size, lh, rows: fit(top.h), input: null, t: c.t })
     c.S.line(key + ':splitrule', area.x + 1, bottom.y, area.x + area.w - 1, bottom.y, { stroke: L.line, sw: 1.5 })
-    termRows(c, key + ':bottom', L, bottom, tab, { size, lh, rows: fit(bottom.h), input: tab.running ? null : tab.input, caret: true, t: c.t })
-  } else termRows(c, key + ':text', L, area, tab, { size, lh, rows: fit(area.h), input: typing(tab.input) && !tab.running ? tab.input : null, caret: true, t: c.t })
-  return { box: area, size, lh, cols: terminalCols(area.w, size) }
+    finds = [termRows(c, key + ':bottom', L, bottom, tab, { size, lh, rows: fit(bottom.h), input: tab.running ? null : tab.input, caret: true, t: c.t }).find, up.find]
+  } else finds = [termRows(c, key + ':text', L, area, tab, { size, lh, rows: fit(area.h), input: typing(tab.input) && !tab.running ? tab.input : null, caret: true, t: c.t }).find]
+  const locate = g => g?.text ? finds.reduce((got, f) => got ?? f(g.text), null) : null
+  return { box: area, size, lh, cols: terminalCols(area.w, size), locate, bg: L.win }
 }
 
 /**
@@ -275,16 +288,28 @@ export function editorWindow(c, key, scr, s, id, o = {}) {
       if (blink) S.rect(key + ':caret', box.x + 86 + st.caret.col * CS * .6, yy - CS * .6, 2.5, CS * 1.2, { fill: L.ink, r: 0 })
     }
   }
-  let panel = null
+  let panel = null, panelFind = () => null
   if (P) {
     S.line(key + ':panelrule', box.x + 1, py, box.x + box.w - 1, py, { stroke: L.line, sw: 1.5 })
     S.text(key + ':paneltitle', box.x + 24, py + 20, P.title, { size: 16, fill: L.dim, ls: 1.5 })
     if (P.name) S.text(key + ':panelname', box.x + 24 + P.title.length * 11 + 20, py + 20, P.name, { size: 16, fill: L.faint })
     const area = { x: box.x - 12, y: py + 22, w: box.w, h: box.y + box.h - py - 22 }
-    termRows(c, key + ':panel', L, area, P, { size: PS, lh: PL, rows: prow, input: !P.running && (P.input || st.panelActive) ? P.input : null, caret: !!P.input, t: c.t })
+    panelFind = termRows(c, key + ':panel', L, area, P, { size: PS, lh: PL, rows: prow, input: !P.running && (P.input || st.panelActive) ? P.input : null, caret: !!P.input, t: c.t }).find
     panel = { x: box.x, y: py, w: box.w, h: box.y + box.h - py }
   }
-  return { box, first, rows, step, size: CS, panel, lineY: n => top + 8 + (n - first + .5) * step, codeX: box.x + 86 }
+  const lineY = n => top + 8 + (n - first + .5) * step, codeX = box.x + 86
+  // a line ({line}), a piece of one ({line, text}) or the first line showing a piece ({text}), or a
+  // piece of the terminal panel ({panel: true, text}); null when it is scrolled out of view
+  const locate = g => {
+    if (!g || typeof g !== 'object') return null
+    if (g.panel) return g.text ? panelFind(g.text) : null
+    const n = g.line ?? src.findIndex(l => l.includes(g.text)) + 1
+    if (n < first || n >= first + rows || n > src.length) return null
+    const l = src[n - 1], k = g.text ? l.indexOf(g.text) : l.length - l.trimStart().length
+    if (k < 0) return null
+    return textBox(codeX + k * CS * .6, lineY(n), (g.text ?? l.trim()).length * CS * .6, step, CS)
+  }
+  return { box, first, rows, step, size: CS, panel, lineY, codeX, locate, bg: L.win }
 }
 
 /** The mouse pointer at world (x, y); `pressed` 0..1 draws the ring of a press fading out. */
@@ -296,8 +321,8 @@ export function pointer(c, key, x, y, { pressed = 0, op = 1, look = LOOK } = {})
 /**
  * A browser window: tabs in the title bar, the address bar (the url, or a url being typed), and the
  * page, drawn by pages[tab.page](c, box, tab, ctx) in world pixels. A page returns {targets: {name:
- * [x, y, w, h]}} so clicks and drags in the log know where to send the pointer; ctx carries the drag
- * in progress and the look. A page the film doesn't draw shows its name, quietly, as a placeholder.
+ * [x, y, w, h]}} so clicks, drags, points and marks in the log know where to go; ctx carries the drag
+ * in progress, the look, and the window's outcome marks by target (so a failed row can turn red). A page the film doesn't draw shows its name, quietly, as a placeholder.
  */
 export function browserWindow(c, key, scr, s, id, o = {}) {
   const st = s.desks[id], d = st.spec, L = s.look, b = windowBox(c, scr, s, id), S = c.S
@@ -308,12 +333,12 @@ export function browserWindow(c, key, scr, s, id, o = {}) {
   S.text(key + ':url', box.x + 40, box.y + 26, tab.fields.url ?? tab.url, { size: 19, mono: true, fill: light ? L.paperDim : L.dim })
   const page = { x: box.x, y: box.y + 52, w: box.w, h: box.h - 52 }
   const fn = (o.pages ?? {})[tab.page]
-  const ctx = { look: L, light, t: c.t, film: c.t + s.f0, drag: st.drag?.target ? st.drag : null, tab, since: tab.since - s.f0 }
+  const ctx = { look: L, light, t: c.t, film: c.t + s.f0, drag: st.drag?.target ? st.drag : null, tab, since: tab.since - s.f0, marks: st.marks }
   const got = fn ? fn(c, page, tab, ctx) ?? {} : (S.text(key + ':page', page.x + page.w / 2, page.y + page.h / 2, tab.page, { size: 22, anchor: 'middle', fill: light ? L.paperDim : L.faint }), {})
-  const targets = got.targets ?? {}
+  const targets = got.targets ?? {}, rectOf = r => Array.isArray(r) ? r : r?.box
   if (st.pointer) {
     const centre = (name, at) => {
-      const r = targets[name]
+      const r = rectOf(targets[name])
       if (!r) return null
       return at ? [r[0] + r[2] * at[0], r[1] + r[3] * at[1]] : [r[0] + r[2] * .5, r[1] + r[3] * .55]
     }
@@ -331,7 +356,15 @@ export function browserWindow(c, key, scr, s, id, o = {}) {
     const since = pr ? film - pr.at : 99, up = st.drag ? film - st.drag.release : 99
     pointer(c, key + ':pointer', p[0], p[1], { pressed: since >= 0 && since < .3 ? since / .3 : up >= 0 && up < .3 ? up / .3 : 0, look: L })
   }
-  return { box: page, targets, tab }
+  // a target is [x, y, w, h], or {box, line: [x0, x1]} when the underline should run under part of it
+  // (a trace row: its label and bar stay lit, the underline goes under the bar)
+  const locate = g => {
+    const t = typeof g === 'string' ? targets[g] : null, r = rectOf(t)
+    if (!r) return null
+    const box = { x: r[0], y: r[1] + r[3] / 2, w: r[2], h: r[3], base: r[1] + r[3] + 6, size: Math.min(24, r[3] * .5) }
+    return t.line ? { ...box, line: t.line } : box
+  }
+  return { box: page, targets, tab, locate, bg: light ? L.paper : L.win }
 }
 
 /**
@@ -361,6 +394,74 @@ export function indicator(c, scr, s) {
   S.rect('screens:pill', cx + (pos - (n - 1) / 2) * gap - 20, y - 9, 40, 18, { fill: L.ink, r: 9, op: vis, layer: 'ui' })
 }
 
+// ── Pointing and outcome marks ──────────────────────────────────────────────────────────────────
+/** A point's progress at film time: the underline's draw-in `p` (whole on the word) and its fade `vis`. */
+export function pointAt(pt, film) {
+  const p = clamp((film - pt.from) / Math.max(1e-6, pt.at - pt.from))
+  return { p: ease.out(p), vis: p > 0 ? Math.min(clamp(p * 2), clamp((pt.until + FADE - film) / FADE)) : 0 }
+}
+
+/**
+ * The point on a window: everything but the target dims (a veil in the window's own background, so
+ * text loses contrast and empty space looks the same), and an underline in the ink (the subject's colour) draws in under
+ * the target, whole on the word the narrator says. Not a hand cursor: a pointer means someone is
+ * operating the screen, an underline means the film is showing you (references/taste.md, "Pointing").
+ */
+export function drawPoint(c, key, g, pt, film, look, bg, { extra = 0 } = {}) {
+  const r = g.locate?.(pt.target)
+  if (!r) return null
+  const { p, vis } = pointAt(pt, film), S = c.S, b = g.box
+  if (vis <= 0) return r
+  const pad = 8, x0 = Math.max(b.x, r.x - pad), x1 = Math.min(b.x + b.w, r.x + r.w + pad + extra)
+  const y0 = Math.max(b.y, r.y - r.h / 2), y1 = Math.min(b.y + b.h, r.y + r.h / 2 + 4), op = pt.dim * vis
+  S.rect(key + ':veil-t', b.x, b.y, b.w, y0 - b.y, { fill: bg, r: 0, op })
+  S.rect(key + ':veil-b', b.x, y1, b.w, b.y + b.h - y1, { fill: bg, r: 0, op })
+  S.rect(key + ':veil-l', b.x, y0, x0 - b.x, y1 - y0, { fill: bg, r: 0, op })
+  S.rect(key + ':veil-r', x1, y0, b.x + b.w - x1, y1 - y0, { fill: bg, r: 0, op })
+  const th = Math.max(3, r.size * .11), [u0, u1] = r.line ?? [r.x - 2, r.x + r.w + 2]
+  S.rect(key + ':underline', u0, r.base - th / 2, (u1 - u0) * p, th, { fill: look.ink, r: th / 2, op: vis, box: key + ':underline' })
+  return r
+}
+
+const markR = r => Math.max(9, r.size * .36)
+/** The width a mark takes after its target. */
+export const markGap = r => 2 * markR(r) + 18
+
+/** Seconds a mark takes to arrive: the tick or cross draws on, the spinner fades in. */
+export const MARK_IN = .25
+
+/**
+ * An outcome mark just after its target (markGap(r) wide): running spins (muted), finished is a tick (accent), failed a
+ * cross (problem), cancelled a dash (faint). One meaning per colour, as the rest of the desk.
+ */
+export function drawMark(c, key, g, m, film, look) {
+  const r = g.locate?.(m.target)
+  if (!r) return
+  const S = c.S, k = clamp((film - m.at) / MARK_IN), e = ease.out(k), R = markR(r)
+  const x = r.x + r.w + R + 14, y = r.y, sw = Math.max(2.5, R * .28)
+  if (m.state === 'running') {
+    const a = film * Math.PI * 2 * 1.1, a2 = a + Math.PI * 1.5
+    S.circle(key + ':track', x, y, R, { stroke: look.line, sw, op: k })
+    S.path(key + ':spin', `M ${x + R * Math.cos(a)} ${y + R * Math.sin(a)} A ${R} ${R} 0 0 1 ${x + R * Math.cos(a2)} ${y + R * Math.sin(a2)}`, { stroke: look.dim, sw, op: k, box: key })
+  } else if (m.state === 'finished') {
+    S.path(key + ':tick', `M ${x - R * .8} ${y + R * .05} L ${x - R * .2} ${y + R * .65} L ${x + R * .9} ${y - R * .6}`, { stroke: look.accent, sw: sw * 1.2, p: e, box: key })
+  } else if (m.state === 'failed') {
+    S.path(key + ':cross', `M ${x - R * .7} ${y - R * .7} L ${x + R * .7} ${y + R * .7} M ${x + R * .7} ${y - R * .7} L ${x - R * .7} ${y + R * .7}`, { stroke: look.problem, sw: sw * 1.2, p: e, box: key })
+  } else if (m.state === 'cancelled') {
+    S.line(key + ':dash', x - R * .7, y, x + R * .7, y, { stroke: look.faint, sw: sw * 1.2, p: e, box: key })
+  }
+}
+
+/** A window's point and marks, over its drawing; returns the box pointed at, if any. */
+function annotate(c, key, s, st, g) {
+  const film = c.t + s.f0, marks = Object.values(st.marks)
+  marks.forEach((m, k) => drawMark(c, key + ':mark' + k, g, m, film, s.look))
+  if (!st.point) return null
+  // the veil goes over the marks too, except the pointed target's own mark
+  const own = marks.some(m => targetKey(m.target) === targetKey(st.point.target)), r = own ? g.locate?.(st.point.target) : null
+  return drawPoint(c, key + ':point', g, st.point, film, s.look, g.bg, { extra: r ? markGap(r) : 0 })
+}
+
 /**
  * Draw every window on every desktop present (the camera shows the ones in view), then the indicator.
  * o.pages: browser pages by name; o.windows: per window id, options for its drawing ({first, lit,
@@ -376,6 +477,7 @@ export function drawScreens(c, scr, s, o = {}) {
     out[d.id] = d.kind === 'editor' ? editorWindow(c, 'scr:' + d.id, scr, s, d.id, opts)
       : d.kind === 'terminal' ? terminalWindow(c, 'scr:' + d.id, scr, s, d.id, opts)
         : browserWindow(c, 'scr:' + d.id, scr, s, d.id, opts)
+    out[d.id].pointed = annotate(c, 'scr:' + d.id, s, st, out[d.id])
   }
   if (o.indicator !== false) indicator(c, scr, s)
   return out

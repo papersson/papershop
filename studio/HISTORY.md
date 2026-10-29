@@ -3,6 +3,25 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Pointing and outcome marks on the screens layer (0.22.0)
+
+Patrik approved the Kit Langton proposal's three decisions (2026-10-29): point on the word and act in
+the pauses; point with an underline and dimming, not a hand cursor; try two generated sounds for
+outcomes, off by default and judged by ear.
+
+- Two new screens.json verbs. `point` underlines a target and dims the rest of its window, drawing in
+  over the 0.2 s before its cue so it is whole on the word; one point a window, held to `until` or
+  `for`. `mark` puts an outcome after a target: running (a spinner), finished (a tick, accent),
+  failed (a cross, problem colour), cancelled (a dash), or none.
+- Targets: editor lines and pieces of them, terminal text, browser page targets; a page target can be
+  `{box, line}` so a trace row stays lit while the underline runs under its bar. Pages get the marks
+  in `ctx.marks`.
+- Two synth voices, `finished` (a soft C5) and `failed` (a low sagging tone), sound on marks only
+  when the log sets `outcomeSounds`. taste.md names them as the one trial exception to "no sound on
+  abstractions", and adds the rule "point on the word, act in the pauses".
+- A click or point that begins before its cue no longer waits for an earlier action that hasn't.
+- Template `example-pointing.js`: a mock trace view with the whole choreography.
+
 ## Timing cleanup before pointing (0.21.1)
 
 The Kit Langton study (2026-10-29) proposed pointing at what the narrator names, on the word. Reading
