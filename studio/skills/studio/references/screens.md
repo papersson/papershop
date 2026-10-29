@@ -70,7 +70,7 @@ the cue) and one verb:
 
 | verb | on | what it does |
 |---|---|---|
-| `type` | window | types the text at the prompt (or the editor's panel), Enter, then `run` (a captured run's output) or `output` (lines); `returns: false` for a server or `tail -f`: the prompt stays away until `clear`; `enter: false` types without Enter; `speed`, `lead`, `pause`, `breath`, `stream` tune the rhythm |
+| `type` | window | types the text at the prompt (or the editor's panel), Enter, then `run` (a captured run's output) or `output` (lines); the prompt comes back once the last output line is in (at once for a command ending in `&`, or with `returns: true`); `returns: false` for a server or `tail -f`: the prompt stays away until `clear`; `enter: false` types without Enter; `speed`, `lead`, `pause`, `breath`, `stream` tune the rhythm |
 | `edit` | editor | {file, line, text, mode}: `insert` (default) a new line below `line` with `indent` spaces, `replace` the line keeping its first `keep` characters, or `append` to it |
 | `save` | editor | Cmd-S: the dirty dot clears |
 | `open` | editor, browser | a file (editor; optional `line`), or {url, page, title} (browser) |
