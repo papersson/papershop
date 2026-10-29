@@ -134,6 +134,7 @@ export function screensCamera(c, scr, s, keys = [], { out = .35, inn = .4 } = {}
   }
   k ??= user(c.t)
   c.camAt([[c.t, k]])
+  scr.view = { k, t: c.t, clip: c.clip }
   return k
 }
 
@@ -470,9 +471,17 @@ function annotate(c, key, s, st, g) {
 export function drawScreens(c, scr, s, o = {}) {
   c.S.rect('screens:wall', 0, 0, c.W, c.H, { fill: s.look.wall, r: 0, layer: 'back' })
   const out = {}
+  // this frame's camera, when screensCamera set it: a desktop wholly outside it isn't drawn, so the
+  // checks don't count its windows as leaving the frame
+  const v = scr.view && scr.view.t === c.t && scr.view.clip === c.clip ? scr.view.k : null
+  const seen = plate => {
+    if (!v) return true
+    const X = plateX(c, plateIndex(scr, plate)), half = c.W / 2 / v.z
+    return X < v.x + half && X + c.W > v.x - half
+  }
   for (const d of scr.compiled.desktops) {
     const st = s.desks[d.id], plate = scr.compiled.plateOf[d.id]
-    if (st.closed || !s.present.includes(plate)) continue
+    if (st.closed || !s.present.includes(plate) || !seen(plate)) continue
     const opts = { ...(o.windows?.[d.id] ?? {}), pages: o.pages }
     out[d.id] = d.kind === 'editor' ? editorWindow(c, 'scr:' + d.id, scr, s, d.id, opts)
       : d.kind === 'terminal' ? terminalWindow(c, 'scr:' + d.id, scr, s, d.id, opts)
