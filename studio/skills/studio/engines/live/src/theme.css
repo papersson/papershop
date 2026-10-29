@@ -5,3 +5,7 @@
   --bad: #E4715F; --bad-bg: #3A2024; --good: #8FD19E; --good-bg: #1E3326; --log: #F2D27A; --key: #C3A6F2;
   --water: #12243A; --edge: #C9D3DD; --tray: #17202A; --sans: "IBM Plex Sans", sans-serif; --mono: "IBM Plex Mono", monospace;
 }
+/* Glyphs placed at their layout positions under any camera zoom: without it the pinned headless shell
+   hints each run at a rounded size, so a long mono run drifts up to half a character from the next
+   coloured run beside it (an editor's `timespec=` then its "milliseconds" string). */
+svg text { text-rendering: geometricPrecision; }

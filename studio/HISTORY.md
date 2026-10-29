@@ -3,6 +3,20 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Text drawn where it is laid out; off-screen desktops left out (0.22.1)
+
+Two fixes found making the logger film.
+
+- In the pinned headless shell, a long monospace run under a camera zoom was hinted at a rounded
+  size, so its glyphs drifted up to half a character from where the layout put them. An editor line
+  is several coloured runs side by side, so a string after `=` or `(` showed a gap or overlapped the
+  character before it. `svg text { text-rendering: geometricPrecision }` in the live theme places
+  every glyph at its layout position. It may also be part of the known Mac and Linux render
+  difference, not yet checked.
+- `drawScreens` now skips a desktop wholly outside the camera that `screensCamera` set for the frame.
+  Every desktop used to be drawn side by side, so whenever the first desktop filled the frame at rest
+  the bounds check counted all of the second desktop's windows as leaving it.
+
 ## Pointing and outcome marks on the screens layer (0.22.0)
 
 Patrik approved the Kit Langton proposal's three decisions (2026-10-29): point on the word and act in
