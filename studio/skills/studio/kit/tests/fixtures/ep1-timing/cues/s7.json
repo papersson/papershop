@@ -1,0 +1,306 @@
+{
+ "s7-diag-in": {
+  "sentence": "s7_01",
+  "at": "start",
+  "offset": -0.33
+ },
+ "s7-diag-stock": {
+  "sentence": "s7_01",
+  "phrase": "moved stock"
+ },
+ "s7-diag-dots": {
+  "sentence": "s7_01",
+  "phrase": "asks it about each tea"
+ },
+ "s7-diag-fail": {
+  "sentence": "s7_01",
+  "phrase": "the failures"
+ },
+ "s7-diag-out": {
+  "sentence": "s7_01",
+  "at": "end",
+  "offset": 0.1
+ },
+ "s7-click-search": {
+  "sentence": "s7_01",
+  "at": "end",
+  "offset": 1.1
+ },
+ "s7-type-query": {
+  "sentence": "s7_01",
+  "at": "end",
+  "offset": 1.45
+ },
+ "s7-rows": {
+  "sentence": "s7_01",
+  "at": "end",
+  "offset": 3.048
+ },
+ "s7-count": {
+  "sentence": "s7_02",
+  "at": "start",
+  "offset": 0
+ },
+ "s7-whole-rows": {
+  "sentence": "s7_04",
+  "at": "start",
+  "offset": 0
+ },
+ "s7-block": {
+  "sentence": "s7_04",
+  "phrase": "a block of text"
+ },
+ "s7-again": {
+  "sentence": "s7_04",
+  "phrase": "repeated thousands"
+ },
+ "s7-card-in": {
+  "sentence": "s7_05",
+  "at": "start",
+  "offset": -0.9
+ },
+ "s7-card-out": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 0.8
+ },
+ "s7-type-left1": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 1.75
+ },
+ "s7-type-left2": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 1.99
+ },
+ "s7-type-tab": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 2.38
+ },
+ "s7-type-deploy": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 3.03
+ },
+ "s7-type-save2": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 7.366
+ },
+ "s7-type-tab2": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 7.666
+ },
+ "s7-type-user": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 8.266
+ },
+ "s7-type-imp": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 10.263
+ },
+ "s7-type-init": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 11.394
+ },
+ "s7-type-save1": {
+  "sentence": "s7_06",
+  "at": "end",
+  "offset": 11.695
+ },
+ "s7-sdk": {
+  "sentence": "s7_07",
+  "at": "start",
+  "offset": 0
+ },
+ "s7-lit-lib": {
+  "sentence": "s7_07",
+  "phrase": "a small library"
+ },
+ "s7-lit-rel": {
+  "sentence": "s7_07",
+  "phrase": "the release it came from"
+ },
+ "s7-type-right1": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 0.35
+ },
+ "s7-type-ship0": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 0.89
+ },
+ "s7-ship0-enter": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 1.978
+ },
+ "s7-type-right2": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 2.948
+ },
+ "s7-type-ddback": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 3.448
+ },
+ "s7-type-cmdt": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 4.048
+ },
+ "s7-type-sentry": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 4.398
+ },
+ "s7-issues": {
+  "sentence": "s7_08",
+  "at": "end",
+  "offset": 5.609
+ },
+ "s7-lit-events": {
+  "sentence": "s7_09",
+  "phrase": "three thousand"
+ },
+ "s7-click-issue": {
+  "sentence": "s7_09",
+  "at": "end",
+  "offset": 0.6
+ },
+ "s7-click-frame": {
+  "sentence": "s7_09",
+  "at": "end",
+  "offset": 3
+ },
+ "s7-cam-frame": {
+  "sentence": "s7_10",
+  "phrase": "line forty-one",
+  "offset": -0.3
+ },
+ "s7-lit-loop": {
+  "sentence": "s7_10",
+  "phrase": "the loop"
+ },
+ "s7-cam-commit": {
+  "sentence": "s7_10",
+  "phrase": "matched that line",
+  "offset": -0.3
+ },
+ "s7-push-commit": {
+  "sentence": "s7_10",
+  "phrase": "the commit that last"
+ },
+ "s7-lit-retry": {
+  "sentence": "s7_10",
+  "phrase": "added retries"
+ },
+ "s7-diag2-in": {
+  "sentence": "s7_12",
+  "at": "start",
+  "offset": -0.4
+ },
+ "s7-diag2-twice": {
+  "sentence": "s7_13",
+  "phrase": "asked twice"
+ },
+ "s7-diag2-four": {
+  "sentence": "s7_14",
+  "phrase": "four times"
+ },
+ "s7-diag2-two": {
+  "sentence": "s7_14",
+  "phrase": "two seconds"
+ },
+ "s7-diag2-pile": {
+  "sentence": "s7_14",
+  "phrase": "piles onto"
+ },
+ "s7-diag2-out": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 1.5
+ },
+ "s7-type-left3": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 2.1
+ },
+ "s7-type-revert": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 2.59
+ },
+ "s7-revert-enter": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 3.732
+ },
+ "s7-type-ship": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 4.082
+ },
+ "s7-ship-enter": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 4.959
+ },
+ "s7-type-right3": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 5.859
+ },
+ "s7-click-resolve": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 6.399
+ },
+ "s7-click-next": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 6.949
+ },
+ "s7-graph": {
+  "sentence": "s7_14",
+  "at": "end",
+  "offset": 7.299
+ },
+ "s7-graph-end": {
+  "sentence": "s7_15",
+  "at": "end",
+  "offset": -0.6
+ },
+ "s7-type-cmd1": {
+  "sentence": "s7_15",
+  "at": "end",
+  "offset": 0.06
+ },
+ "s7-cam-chart": {
+  "sentence": "s7_15",
+  "at": "end",
+  "offset": 0.2
+ },
+ "s7-diag3-in": {
+  "sentence": "s7_17",
+  "at": "start",
+  "offset": -0.15
+ },
+ "s7-diag3-stock": {
+  "sentence": "s7_18",
+  "phrase": "the stock service"
+ },
+ "s7-reset": {
+  "sentence": "s7_18",
+  "at": "end",
+  "offset": 3.05
+ }
+}

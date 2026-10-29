@@ -138,14 +138,17 @@ answering it, the switch and the resulting change, the contact and its consequen
 anticipation, a contact on a named cue and a settle. When sound is permitted, time it from that cue;
 a recorded effect lands on its transient peak.
 
-Default to no sound effects. Ben Burtt's principle is that sound makes an object real: it
-belongs to things with a body that are touched. Permit recorded keys for performed typing,
-button or switch clicks, a window opening, or a real physical contact such as a disk head
-landing. List the exact permitted events in the shoot brief; an empty list means silence.
-Never put a whoosh, pop, ding or chime on an abstraction: a key entering a bucket, a label
-appearing or a reveal. Giving an abstraction a drawer metaphor does not license a contact
-sound for the abstract operation. This restraint keeps tactile sounds credible and prevents
-cheap punctuation from competing with the picture.
+Point on the word, act in the pauses. When the narrator names one of several things on screen,
+underline it and dim the rest, whole as the word is said (`screens.md`, "Pointing and outcome
+marks"); a state change (a tick, a cross, a switch) lands in the pause after the sentence.
+
+Default to no sound effects. Sound makes an object real (Ben Burtt): it belongs to things with
+a body that are touched. Permit recorded keys for performed typing, clicks, a window opening, or
+a real physical contact such as a disk head landing. List the exact permitted events in the shoot
+brief; an empty list means silence. Never put a whoosh, pop, ding or chime on an abstraction: a
+key entering a bucket, a label appearing or a reveal; a drawer metaphor does not license one.
+One trial exception: the outcome sounds, `finished` and `failed`, on outcome marks, when the
+director asks.
 
 The recorded sound kit stays. Keep permitted sounds below speech, with their transient on the
 pictured frame. Type in human bursts, with punctuation pauses and plausible corrections; vary
@@ -157,7 +160,7 @@ the stake. Let the world react only as the mechanism permits. A heavy physical c
 or hold briefly; a packet needs no invented mass. Use tiny overshoot on UI objects, keep type steady
 and give outer contours more weight than internal dividers so objects retain their shape.
 
-Leave unimportant things still. Avoid drifting decorations, particles, pulsing labels and effects
+Leave unimportant things still: no drifting decorations, particles, pulsing labels or effects
 on every arrival. Silence can express a missing mechanism or make the payoff land. Let a loud
 action decay before the next word.
 
@@ -173,19 +176,17 @@ the subject. Keep labels comfortably readable at the playback size; 18 px at 108
 and a 540p preview often needs much larger type. Break long code lines or widen the editor before
 shrinking its text. Keep status text outside plots, where its position could be mistaken for data.
 
-Use one colour for one meaning throughout the video, across flat and 3D pictures. Declare the
-legend and tag shapes with their meaning. Design a palette for this subject, with quiet neutrals and a few deliberate accents, rather
-than inheriting generic grey rectangles on a dark stage. Changing the
-meaning of a colour forces the viewer to relearn the diagram.
+Use one colour for one meaning throughout the video, across flat and 3D pictures; changing it
+forces the viewer to relearn the diagram. Declare the legend and tag shapes with their meaning.
+Design a palette for this subject: quiet neutrals and a few deliberate accents.
 
 Use real images, source code, captures and output where they explain the subject. Keep quotes
 short and discuss them. Record provenance off screen. Introduce invented example values as
-supposed values; decorative “simulated” tags add clutter without making the explanation clearer.
+supposed values, not with “simulated” tags.
 
-Give the subject a visual identity through shape, state, framing and, where appropriate, material. Avoid generic
-rounded cards nested inside cards, icons on every point, ornamental strips, gradients, glows,
-frame borders, blinking dots and identical fade-and-slide entrances. Those marks compete with the
-picture's meaning and make different explanations look interchangeable.
+Give the subject a visual identity through shape, state, framing and, where appropriate, material. Avoid cards
+nested inside cards, icons on every point, ornamental strips, gradients, glows, frame borders,
+blinking dots and identical fade-and-slide entrances: they make explanations look interchangeable.
 
 For code, start with the smallest useful program and add what resolves the visible limitation.
 Collapse the editor between uses. Fold already explained declarations in source order, introduce

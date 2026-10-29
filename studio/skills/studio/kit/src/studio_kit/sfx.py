@@ -321,6 +321,24 @@ def _counter_tick(t, p):
     return (_sin(f, t) + 0.3 * _sin(2 * f, t)) * np.exp(-t * p.get("decay", 200)) * 0.25
 
 
+@_voice("finished", 0.4)
+def _finished(t, p):
+    """A task finishing on screen (an outcome mark's tick): one soft, round tone, C5 by default."""
+    import numpy as np
+    f = p.get("freq", 523.25)
+    tone = _sin(f, t) + 0.25 * _sin(2 * f, t)
+    return tone * np.clip(t / 0.004, 0, 1) * np.exp(-t * p.get("decay", 9)) * _fade(t) * 0.3
+
+
+@_voice("failed", 0.5)
+def _failed(t, p):
+    """A task failing on screen (an outcome mark's cross): a low tone that sags, felt more than heard."""
+    import numpy as np
+    f = p.get("freq", 98)
+    body = _chirp(f, 0.9 * f, t) + 0.5 * _chirp(2 * f, 1.8 * f, t) + 0.25 * _chirp(3 * f, 2.7 * f, t)
+    return body * np.clip(t / 0.006, 0, 1) * np.exp(-t * p.get("decay", 6)) * _fade(t) * 0.45
+
+
 KINDS = tuple(VOICES)
 
 # What a cue's `visual` tag says the picture does on the effect's frame; audio-check measures it
@@ -965,6 +983,8 @@ CANDIDATES = {
     "shimmer": [{"freq": 1568}, {}, {"freq": 2637}],
     "key-tick": [{"freq": 3000}, {}, {"freq": 5000}],
     "counter-tick": [{"freq": 1600}, {}, {"freq": 3000}],
+    "finished": [{"freq": 440}, {}, {"freq": 659.25}],
+    "failed": [{"freq": 82.4}, {}, {"freq": 130.8}],
 }
 
 

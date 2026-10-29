@@ -25,6 +25,13 @@ export const MAX_KEYS = 13
 export const BREATH = 0.15, LINE = 0.03
 /** Seconds the pointer travels before a click lands. */
 export const TRAVEL = 0.45
+/**
+ * Pointing at what the narrator names: the underline draws in over LEAD seconds and is whole on the
+ * word (the cue), the rest of the window dims to DIM; it holds HOLD seconds unless `until` says, then
+ * fades over FADE. An outcome mark (running, finished, failed, cancelled) is an act: it lands on its cue.
+ */
+export const LEAD = 0.2, HOLD = 2.5, FADE = 0.3, DIM = 0.55
+export const MARKS = ['running', 'finished', 'failed', 'cancelled', 'none']
 
 // ── Rhythm ──────────────────────────────────────────────────────────────────────────────────────
 /** A small seeded generator (mulberry32 over a string's hash): the same seed, the same rhythm. */
@@ -67,7 +74,7 @@ export function keyTimes(text, seed, { speed = 1, maxKeys = MAX_KEYS } = {}) {
 }
 
 // ── Compiling the log ───────────────────────────────────────────────────────────────────────────
-const KINDS = ['type', 'edit', 'save', 'open', 'tab', 'switch', 'click', 'drag', 'clear', 'split', 'unsplit', 'page', 'output', 'close', 'show']
+const KINDS = ['type', 'edit', 'save', 'open', 'tab', 'switch', 'click', 'drag', 'clear', 'split', 'unsplit', 'page', 'output', 'close', 'show', 'point', 'mark']
 /** The verb of an action: the one of KINDS it carries. */
 export const verb = a => KINDS.find(k => k in a)
 
@@ -188,6 +195,17 @@ export function compile(spec, T, runs = {}) {
       const every = a.stream ?? (out.length > 40 ? LINE : 0)
       x.output = out.map((l, k) => ({ ...l, at: +(at + every * k).toFixed(4) }))
       x.done = x.output.at(-1)?.at ?? at
+    } else if (kind === 'point') {
+      if (!a.point || !(typeof a.point === 'string' || a.point.text || a.point.line)) throw new Error(`screens action ${i + 1} (point): name a target: a page target, {text} or {line, text}`)
+      const until = a.until === undefined ? at + (a.for ?? HOLD) : cueTime(T, { at: a.until }, i)
+      if (until <= at) throw new Error(`screens action ${i + 1} (point): until (${a.until}) is not after at (${a.at})`)
+      Object.assign(x, { from: +(at - (a.lead ?? LEAD)).toFixed(4), until, dim: a.dim ?? spec.dim ?? DIM, done: until })
+    } else if (kind === 'mark') {
+      if (!a.mark || !(typeof a.mark === 'string' || a.mark.text || a.mark.line)) throw new Error(`screens action ${i + 1} (mark): name a target: a page target, {text} or {line, text}`)
+      if (!MARKS.includes(a.state)) throw new Error(`screens action ${i + 1} (mark): state must be one of ${MARKS.join(', ')} (got ${JSON.stringify(a.state)})`)
+      // the two outcome sounds are a trial, off unless the log asks for them (references/taste.md, "Sound")
+      if (spec.outcomeSounds === true && (a.state === 'finished' || a.state === 'failed') && a.sound !== false) x.sounds.push([at, a.state])
+      x.done = at
     } else x.done = at
     if (kind !== 'switch' && x.t < arrive[on] - 1e-6) problems.push({ i, kind, t: x.t, why: `${kind} on ${on} before that desktop arrives` })
     out.push(x)
@@ -235,6 +253,9 @@ function termTarget(st, a) {
   if (st.kind === 'editor') return st.panel ?? (() => { throw new Error(`screens action ${a.i + 1}: desktop ${a.on} has no terminal panel`) })()
   return st.tabs[a.tab !== undefined ? tabIndex(st, a.tab, a) : st.active]
 }
+
+/** One name for a point or mark target, so a later mark on the same thing replaces the earlier one. */
+export const targetKey = g => typeof g === 'string' ? g : JSON.stringify([g.panel ?? false, g.line ?? null, g.text ?? null])
 
 /** Apply action `a` to desktop state `st` as it stands at film time t (a may be in progress). */
 function apply(st, a, t) {
@@ -320,6 +341,12 @@ function apply(st, a, t) {
       if (a.page) { tb.page = a.page; tb.since = a.press }
       if (a.url) tb.url = a.url
     }
+  } else if (kind === 'point') {
+    // one point a window at a time: a newer one takes over; an ended one is gone once it has faded
+    st.point = t < a.until + FADE ? { target: a.point, from: a.from, at: a.t, until: a.until, dim: a.dim } : null
+  } else if (kind === 'mark') {
+    const id = targetKey(a.mark), { [id]: _, ...rest } = st.marks
+    st.marks = a.state === 'none' ? rest : { ...rest, [id]: { target: a.mark, state: a.state, at: a.t } }
   } else if (kind === 'drag') {
     const tb = st.tabs?.[st.active]
     st.drag = { target: a.drag, from: a.from ?? [.2, .2], to: a.to ?? [.8, .8], press: a.press, release: a.release, p: clamp((t - a.press) / (a.release - a.press)) }
@@ -336,11 +363,11 @@ function apply(st, a, t) {
  */
 export function state(screens, t) {
   const { desktops, actions, arrive } = screens
-  const desks = Object.fromEntries(desktops.map(d => [d.id, { ...fresh(d), id: d.id, spec: d, closed: !!d.hidden }]))
+  const desks = Object.fromEntries(desktops.map(d => [d.id, { ...fresh(d), id: d.id, spec: d, closed: !!d.hidden, point: null, marks: {} }]))
   let current = screens.start, slide = null
-  const begun = a => a.kind === 'switch' ? t >= a.t : a.kind === 'click' || a.kind === 'drag' ? t >= a.press - TRAVEL : t >= a.t
+  const begun = a => a.kind === 'switch' ? t >= a.t : a.kind === 'click' || a.kind === 'drag' ? t >= a.press - TRAVEL : a.kind === 'point' ? t >= a.from : t >= a.t
   for (const a of actions) {
-    if (!begun(a)) break
+    if (!begun(a)) continue // a click or a point begins before its time, so a later one may have begun
     if (a.kind === 'switch') {
       const from = current, p = clamp((t - a.slideAt) / a.ms)
       if (t >= a.slideAt) { current = a.on; if (p < 1) slide = { from, to: a.on, p, at: a.slideAt, ms: a.ms } }
@@ -365,10 +392,14 @@ export function switches(screens) {
 }
 
 // ── Sound ───────────────────────────────────────────────────────────────────────────────────────
-/** The stream's sounds by kind: the kit's typing take, its Enter, and a trackpad click. */
+/**
+ * The stream's sounds by kind: the kit's typing take, its Enter, and a trackpad click; and the two
+ * outcome sounds, generated, that a log turns on with `outcomeSounds` (sfx.py's finished and failed).
+ */
 export const SOUNDS = {
   key: 'grains:kit:keys-typing-cherry-blue', space: 'grains:kit:keys-typing-cherry-blue#low',
   enter: { sound: 'kit:keys-enter-press', gain: -14 }, click: { sound: 'kit:ui-mouseclick1', gain: -12 },
+  finished: { sound: 'synth:finished', gain: -2 }, failed: { sound: 'synth:failed', gain: -4 },
 }
 
 /**
@@ -396,6 +427,8 @@ export function moments(screens) {
     if (a.keys.length) out.push({ t: a.keys.at(-1) + .05, on: a.on, why: `typed: ${(a.type ?? a.edit?.text ?? '').toString().slice(0, 40)}` })
     if (a.output?.length) out.push({ t: a.output.at(-1).at + .1, on: a.on, why: 'output shown' })
     if (a.kind === 'switch') out.push({ t: a.land + .1, on: a.on, why: `landed on ${a.on}` })
+    if (a.kind === 'point') out.push({ t: a.t + .05, on: a.on, why: `pointing at ${targetKey(a.point)}` })
+    if (a.kind === 'mark') out.push({ t: a.t + .25, on: a.on, why: `${a.state}: ${targetKey(a.mark)}` })
   }
   return out
 }

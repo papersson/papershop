@@ -1,0 +1,113 @@
+{
+ "s6-hover": {
+  "sentence": "s6_01",
+  "phrase": "eight o'clock",
+  "offset": -0.1
+ },
+ "s6-nav": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 0.4
+ },
+ "s6-new": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 0.75
+ },
+ "s6-query-click": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 1.05
+ },
+ "s6-query": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 1.2
+ },
+ "s6-window-click": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 4.55
+ },
+ "s6-window-pick": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 4.9
+ },
+ "s6-threshold-click": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 5.2
+ },
+ "s6-threshold": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 5.35
+ },
+ "s6-message-click": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 6.0
+ },
+ "s6-paste": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 6.15
+ },
+ "s6-create": {
+  "sentence": "s6_02",
+  "at": "end",
+  "offset": 7.5,
+  "weight": 2
+ },
+ "s6-card": {
+  "sentence": "s6_03",
+  "at": "start",
+  "offset": -0.3
+ },
+ "s6-card-out": {
+  "sentence": "s6_04",
+  "at": "end",
+  "offset": 2.0
+ },
+ "s6-p99": {
+  "sentence": "s6_05",
+  "phrase": "the p99"
+ },
+ "s6-pages": {
+  "sentence": "s6_05",
+  "phrase": "pages us"
+ },
+ "s6-two-seconds": {
+  "sentence": "s6_05",
+  "phrase": "over two seconds"
+ },
+ "s6-ten-minutes": {
+  "sentence": "s6_05",
+  "phrase": "ten minutes"
+ },
+ "s6-rest": {
+  "sentence": "s6_05",
+  "at": "end"
+ },
+ "s6-room": {
+  "sentence": "s6_06",
+  "at": "start",
+  "offset": -0.35
+ },
+ "s6-buzz": {
+  "sentence": "s6_06",
+  "phrase": "pages us",
+  "weight": 3
+ },
+ "s6-error": {
+  "sentence": "s6_07",
+  "at": "start",
+  "offset": -0.1,
+  "weight": 3
+ },
+ "s6-watch": {
+  "sentence": "s6_05",
+  "at": "start"
+ }
+}

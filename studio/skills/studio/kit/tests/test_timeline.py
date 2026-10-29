@@ -179,6 +179,40 @@ def test_the_engines_shared_phrase_start_and_frame_rounding_agree_with_the_kits(
     assert any(x is None for row in js["starts"] for x in row) and any(x is not None for x in js["starts"][1])
 
 
+WORD_PARITY = """
+import { wordStart } from %s
+const { entries, n } = JSON.parse(process.argv[2])
+const tryStart = (e, i) => { try { return wordStart(e, i) } catch (err) { return String(err.message) } }
+console.log(JSON.stringify(entries.map(e => [...Array(n).keys()].map(i => tryStart(e, i)))))
+"""
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is not installed")
+def test_word_i_means_the_same_caption_word_in_a_scene_and_in_a_cue(tmp_path):
+    """A scene's c.word(id, i) and a cue's {"word": i} once counted different words: the scene the
+    recognised ones, the cue the caption's. Both now take caption word i (_word_times)."""
+    aligned = "Every checkout logs how long it took."
+    rewritten = "The HTTP call failed."           # a spoken rule read HTTP as four letters: words don't match
+    entries = [
+        {"id": "s3_02", "start": 2.0, "end": 5.0, "caption": aligned,
+         "words": [{"w": w.strip("."), "start": round(2.0 + 0.4 * i, 3), "end": round(2.3 + 0.4 * i, 3)} for i, w in enumerate(aligned.split())]},
+        {"id": "s3_03", "start": 6.0, "end": 8.0, "caption": rewritten,
+         "words": [{"w": w, "start": round(6.0 + 0.25 * i, 3), "end": round(6.2 + 0.25 * i, 3)} for i, w in enumerate("The H T T P call failed.".split())]},
+        {"id": "s3_04", "start": 9.0, "end": 10.0, "caption": "Except it didn't.", "words": []}]
+    n = 8
+    script = tmp_path / "words.mjs"
+    script.write_text(WORD_PARITY % json.dumps((engine_dir("shared") / "timing.js").as_uri()))
+    run = subprocess.run(["node", str(script), json.dumps({"entries": entries, "n": n})], capture_output=True, text=True, check=True)
+    t = {"fps": 1000, "tracks": {"narration": entries}}
+
+    def kit(e, i):
+        times = tl._word_times(e, e["caption"].split())
+        return times[i][0] if i < len(times) else f"{e['id']} has {len(times)} words, no word {i}"
+    assert json.loads(run.stdout) == [[kit(e, i) for i in range(n)] for e in entries]
+    assert json.loads(run.stdout)[1][3] == pytest.approx(6.0 + 2.0 * len("The HTTP call ") / len(rewritten))   # "failed", not "T"
+    assert tl.event_time(t, {"sentence": "s3_02", "word": 3}) == pytest.approx(3.2)
+
+
 def test_captions_are_wrapped_for_every_format_and_lines_stay_the_16_9_ones():
     text = "After a few seconds the client gives up on it"
     (c,) = tl.chunk_captions([sentence(text, 0.0, 4.0)])
@@ -235,8 +269,10 @@ def test_a_phrase_in_another_case_or_spacing_resolves_on_an_estimate():
     cap = "The ball hits the floor, then hits the floor again."
     t = {"fps": 30, "tracks": {"narration": [{"id": "s1_01", "start": 1.0, "end": 4.0, "caption": cap, "words": []}]}}
     on_grid = lambda x: round(tl.half_up(x * 30) / 30, 6)
-    hits = on_grid(1.0 + 3.0 * cap.index("hits") / len(cap))
-    assert tl.event_time(t, {"sentence": "s1_01", "phrase": "Hits the floor"}) == hits == tl.event_time(t, {"sentence": "s1_01", "phrase": "hits  the FLOOR"})
+    ball = on_grid(1.0 + 3.0 * cap.index("ball") / len(cap))
+    assert tl.event_time(t, {"sentence": "s1_01", "phrase": "Ball hits the floor"}) == ball == tl.event_time(t, {"sentence": "s1_01", "phrase": "ball  HITS the floor"})
+    with pytest.raises(ValueError, match="said 2 times"):           # which "hits the floor"? (it once took the first)
+        tl.event_time(t, {"sentence": "s1_01", "phrase": "Hits the floor"})
     assert tl.event_time(t, {"sentence": "s1_01", "phrase": "Floor again"}) == on_grid(1.0 + 3.0 * cap.index("floor again") / len(cap))
     assert tl.phrase_start(t["tracks"]["narration"][0], "HITS") == 1.0 + 3.0 * cap.index("hits") / len(cap)
 
@@ -262,3 +298,64 @@ console.log(JSON.stringify(late))
     cues = [[f, tl.frame_time(f / 30, 30)] for f in range(1, 2400)]
     late = json.loads(subprocess.run(["node", str(script), json.dumps(cues)], capture_output=True, text=True, check=True).stdout)
     assert late == []
+
+
+def test_a_phrase_said_twice_in_its_sentence_stops_the_build_instead_of_taking_the_first():
+    words = [{"w": w.strip(","), "start": round(1.0 + 0.3 * i, 3), "end": round(1.2 + 0.3 * i, 3)}
+             for i, w in enumerate("The floor, then the floor again.".split())]
+    t = {"fps": 30, "timing": "narrated", "tracks": {"narration": [
+        {"id": "s1_01", "start": 1.0, "end": 3.0, "caption": "The floor, then the floor again.", "words": words}]}}
+    with pytest.raises(ValueError, match="'the floor' is said 2 times in s1_01: lengthen the phrase"):
+        tl.event_time(t, {"sentence": "s1_01", "phrase": "the floor"})
+    assert tl.event_time(t, {"sentence": "s1_01", "phrase": "the floor again"}) == round(tl.half_up(1.9 * 30) / 30, 6)
+
+
+def test_an_anchor_the_recogniser_did_not_hear_is_marked_as_an_estimate(tmp_path, capsys):
+    """Whisper hears "VeryBadRoll" as "very bad roll": the phrase falls back to the caption's share of
+    the sentence, a guess the build now names instead of using silently."""
+    caption = "We will throw a VeryBadRoll error."
+    heard = [{"w": w, "start": round(2.0 + 0.3 * i, 3), "end": round(2.2 + 0.3 * i, 3)}
+             for i, w in enumerate("We will throw a very bad roll error.".split())]
+    t = {"fps": 30, "timing": "narrated", "tracks": {"narration": [
+        {"id": "s1_01", "start": 2.0, "end": 4.7, "caption": caption, "words": heard}]}}
+    assert tl.estimated(t, {"sentence": "s1_01", "phrase": "VeryBadRoll"})
+    assert not tl.estimated(t, {"sentence": "s1_01", "phrase": "throw a"})
+    assert tl.estimated(t, {"sentence": "s1_01", "word": 2})              # recognised words don't match the caption's
+    assert not tl.estimated(t, {"sentence": "s1_01", "at": "end"}) and not tl.estimated(t, 3.0)
+    assert not tl.estimated({**t, "timing": "estimate"}, {"sentence": "s1_01", "phrase": "VeryBadRoll"})
+
+    from types import SimpleNamespace
+    (tmp_path / "video.json").write_text(json.dumps({"title": "T", "engine": "live"}))
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "timings.json").write_text(json.dumps({"total": 6.0, "timing": "narrated", "segments": [
+        {"id": "s1", "title": "One", "start": 0.0, "end": 6.0,
+         "lines": [{"id": "s1_01", "text": caption, "caption": caption, "paragraph": 0, "start": 2.0, "end": 4.7, "words": heard}]}]}))
+    (tmp_path / "cues.json").write_text(json.dumps({"roll": {"sentence": "s1_01", "phrase": "VeryBadRoll"},
+                                                     "throw": {"sentence": "s1_01", "phrase": "throw a"}}))
+    tl.main(SimpleNamespace(video=tmp_path, events=True))
+    out = capsys.readouterr().out
+    assert "warn: 'roll' is timed by estimate" in out
+    rows = {line.split()[7]: line for line in out.splitlines() if line.startswith("  ")}
+    assert rows["roll"].endswith(" ~") and not rows["throw"].endswith(" ~")
+
+
+def test_the_moments_scene_code_reads_from_the_narration_are_listed_beside_the_cues(tmp_path, capsys):
+    from types import SimpleNamespace
+    caption = "Our worst checkout took eight point eight seconds."
+    heard = [{"w": w.strip("."), "start": round(1.0 + 0.3 * i, 3), "end": round(1.2 + 0.3 * i, 3)} for i, w in enumerate(caption.split())]
+    (tmp_path / "video.json").write_text(json.dumps({"title": "T", "engine": "live"}))
+    (tmp_path / "audio").mkdir()
+    (tmp_path / "audio" / "timings.json").write_text(json.dumps({"total": 6.0, "timing": "narrated", "segments": [
+        {"id": "s3", "title": "Three", "start": 0.0, "end": 6.0,
+         "lines": [{"id": "s3_03", "text": caption, "caption": caption, "paragraph": 0, "start": 1.0, "end": 3.7, "words": heard}]}]}))
+    (tmp_path / "scenes").mkdir()
+    (tmp_path / "scenes" / "s3.js").write_text(
+        "export default function draw(c) {\n"
+        "  const a = c.P(c.phrase('03', 'eight point eight'), .35)\n"
+        "  const b = c.word(\"s3_03\", 2) + c.phrase('03', 'nine')\n}\n")
+    rows = tl.scene_anchors(tmp_path, tl.build(tmp_path, quiet=True))
+    assert [(r["kind"], r.get("phrase", r.get("word")), r["time"], r["problem"]) for r in rows] == [
+        ("word", 2, 1.6, None), ("phrase", "eight point eight", 2.2, None), ("phrase", "nine", None, "s3_03: no phrase 'nine'")]
+    tl.main(SimpleNamespace(video=tmp_path, events=True))
+    out = capsys.readouterr().out
+    assert "3 more in scene code" in out and "s3_03 at 'eight point eight'" in out and "(s3_03: no phrase 'nine')" in out

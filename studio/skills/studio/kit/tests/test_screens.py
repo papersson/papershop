@@ -108,6 +108,38 @@ def test_sounds_sit_on_their_frames_relative_to_the_cue():
     assert click["events"] == [[0, "click"]]
 
 
+def test_a_point_draws_in_before_its_word_holds_then_hands_over_and_marks_replace_by_target():
+    T = timeline(5.0)
+    spec = {**SPEC, "actions": SPEC["actions"] + [
+        {"at": "click", "on": "laptop", "point": {"line": 3, "text": "stock.take"}, "until": "late"},
+        {"at": "tab", "on": "laptop", "point": {"text": "reserve"}, "for": 1.5},
+        {"at": "edit", "on": "servers", "mark": {"text": "grep"}, "state": "running"},
+        {"at": "late", "on": "servers", "mark": {"text": "grep"}, "state": "failed"},
+        {"at": "late", "on": "shop", "mark": "checkout", "state": "finished"},
+    ]}
+    r = node("const k=m.compile(S,T,S.runs);const at=t=>m.state(k,t);"
+             "const pick=s=>({point:s.desks.laptop.point&&s.desks.laptop.point.target,marks:Object.values(s.desks.servers.marks).map(x=>x.state)});"
+             "return {before:pick(at(.75)),lead:pick(at(.85)),handed:pick(at(2.7)),gone:pick(at(4.9)),"
+             "sounds:m.streams(k).filter(x=>x.stream.includes('mark')).length,"
+             "on:m.streams(m.compile({...S,outcomeSounds:true},T,S.runs)).filter(x=>x.stream.includes('mark')).map(x=>x.events)}", S=spec, T=T)
+    assert r["before"]["point"] is None                                     # nothing until LEAD before the word
+    assert r["lead"]["point"] == {"line": 3, "text": "stock.take"}          # drawing in, 0.15 s before the click cue
+    assert r["handed"]["point"] == {"text": "reserve"}                      # a newer point on the window takes over
+    assert r["gone"]["point"] is None                                       # held its 1.5 s, then faded
+    assert r["before"]["marks"] == ["running"] and r["gone"]["marks"] == ["failed"]   # one mark a target, the latest
+    assert r["sounds"] == 0                                                 # the outcome sounds are off by default
+    assert sorted(e[0][1] for e in r["on"]) == ["failed", "finished"]       # running makes no sound
+
+
+def test_a_point_or_mark_without_a_target_or_with_an_unknown_state_stops_the_build():
+    T = timeline()
+    for bad, says in (({"at": "edit", "on": "laptop", "point": {}}, "name a target"),
+                      ({"at": "edit", "on": "laptop", "mark": {"text": "x"}, "state": "done"}, "state must be one of"),
+                      ({"at": "late", "on": "laptop", "point": {"text": "x"}, "until": "edit"}, "is not after")):
+        r = node("try{m.compile(S,T,S.runs);return null}catch(e){return e.message}", S={**SPEC, "actions": [bad]}, T=T)
+        assert r and says in r, r
+
+
 def test_a_name_the_log_does_not_declare_stops_with_its_action():
     T = timeline()
     bad = {**SPEC, "actions": [{"at": "late", "on": "nowhere", "type": "ls"}]}
@@ -194,3 +226,18 @@ def test_the_screens_render_the_same_frame_twice_and_name_their_windows(tmp_path
     eng.still("s1", 1.7, a)
     Engine(tmp_path).still("s1", 1.7, b)
     assert hashlib.sha256(a.read_bytes()).hexdigest() == hashlib.sha256(b.read_bytes()).hexdigest()
+
+
+@needs_engine
+def test_a_point_underlines_its_target_on_the_word_and_a_mark_sits_after_it(tmp_path):
+    spec = json.loads(json.dumps(SPEC))
+    spec["actions"] += [{"at": "edit", "on": "laptop", "point": {"text": "stock.take"}, "for": 1.0},
+                        {"at": "click", "on": "shop", "mark": "checkout", "state": "finished"}]
+    write_video(tmp_path, spec)
+    boxes = {b["name"]: b for b in Engine(tmp_path).boxes("s1", 1.3)["boxes"]["boxes"]}
+    line = boxes["scr:laptop:point:underline"]
+    assert line["w"] > 100 and line["h"] < 12                      # whole under "stock.take", a thin rule
+    tick, button = boxes["scr:shop:mark0"], boxes["checkout button"]
+    assert tick["x"] > button["x"] + button["w"] and abs(tick["y"] + tick["h"] / 2 - (button["y"] + button["h"] / 2)) < 12
+    before = {b["name"] for b in Engine(tmp_path).boxes("s1", .1)["boxes"]["boxes"]}
+    assert "scr:laptop:point:underline" not in before

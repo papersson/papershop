@@ -20,7 +20,7 @@
 //   camAt(keys, e)   point the camera along keys [time, {x, y, z}, ease?] at t, each key's point centred
 //                    in the view; returns {x, y, z}. frameOn([x0, y0, x1, y1]) is a key that fits a region
 //   at(id, off)      start of a sentence ("03" means "<clip>_03"); end(id, off) its end
-//   word(id, i, off) the i-th spoken word; phrase(id, text, off) when the voice says that phrase
+//   word(id, i, off) caption word i, as a cue's {word: i}; phrase(id, text, off) when the voice says that phrase
 //   cue(name, off)   a timeline cue; P(t0, d, ease) progress of a movement; kit: the helpers
 //   legend           the video's colour legend (video.json legend) as meaning -> CSS colour: draw a
 //                    meaning with {stroke: c.legend.request, means: 'request'} and the legend check sees it

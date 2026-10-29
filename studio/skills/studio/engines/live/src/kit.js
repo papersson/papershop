@@ -23,7 +23,7 @@ export { defCard, progressStrip, checklist, productFrame, timeSeries, table, wat
 export const screens = { ...screensModel, ...screensDraw, ...screensPages }
 
 export { clamp, lerp, mix, ease, stagger, spring, track, rand, rng, countUp, keyed, follow, settle, wobble } from '../../shared/motion.js'
-export { phraseStart } from '../../shared/timing.js'
+export { phraseStart, wordStart } from '../../shared/timing.js'
 // 3D shots: c.shot, c.flatShot and c.frameOn3 point the 3D stage with them; these are the pure versions.
 export { shotAt, flatShot, frameOn3, placement } from '../../shared/camera3d.js'
 

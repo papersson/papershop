@@ -281,6 +281,36 @@ def _phrase_word(s, phrase):
     return len(cap[:k].split()) - (1 if k and not cap[k - 1].isspace() else 0)
 
 
+def _once(s, phrase):
+    """s, when it says the phrase once; a phrase said twice in one sentence would silently take the
+    first, so it stops the build instead."""
+    want = [w for w in map(_norm, phrase.split()) if w]
+    got = [_norm(w) for w in s.get("caption", s.get("text", "")).split()]
+    n = sum(got[i:i + len(want)] == want for i in range(len(got) - len(want) + 1)) if want else 0
+    if n > 1:
+        raise ValueError(f"{phrase!r} is said {n} times in {s['id']}: lengthen the phrase so it names one place")
+    return s
+
+
+def estimated(timeline, spec):
+    """Whether an anchor's time is a guess on a narrated film: its phrase isn't among the sentence's
+    recognised words (a misheard identifier, a word a spoken rule rewrote), or a word anchor's sentence
+    has recognised words that don't match its caption, so the time is the caption's share of the
+    sentence. Seconds and sentence ends are never guesses; on an estimate every time is one, by design."""
+    if not isinstance(spec, dict) or timeline.get("timing") != "narrated" or _at(spec) in ("start", "end"):
+        return False
+    try:
+        s, _ = _event_sentence(timeline["tracks"]["narration"], spec)
+    except ValueError:
+        return False
+    heard = s.get("words") or []
+    if not heard:
+        return True
+    if _at(spec) == "phrase":
+        return _words_at([w["w"] for w in heard], spec["phrase"]) is None
+    return len(heard) != len(s["caption"].split())
+
+
 def _event_sentence(narration, spec):
     """(sentence, first word of the phrase) an anchor names in this narration; ValueError if none."""
     sid, phrase = spec.get("sentence"), spec.get("phrase")
@@ -290,10 +320,10 @@ def _event_sentence(narration, spec):
             raise ValueError(f"no sentence {sid} in the narration (an anchor with a phrase follows a renumbering)")
         return by_id[sid], 0
     if sid in by_id and _phrase_word(by_id[sid], phrase) is not None:
-        return by_id[sid], _phrase_word(by_id[sid], phrase)
+        return _once(by_id[sid], phrase), _phrase_word(by_id[sid], phrase)
     found = [(s, _phrase_word(s, phrase)) for s in narration if _phrase_word(s, phrase) is not None]
     if len(found) == 1:
-        return found[0]
+        return _once(found[0][0], phrase), found[0][1]
     if not found:
         raise ValueError(f"no sentence says {phrase!r} any more" + (f" ({sid} doesn't)" if sid else ""))
     raise ValueError(f"{phrase!r} is said in {', '.join(s['id'] for s, _ in found)}: name the sentence it belongs to")
@@ -390,7 +420,7 @@ def cue_sources(video, timeline=None):
 
 
 def events(video, t=None):
-    """Every cue with its resolved time: [{name, time, frame, clip, t, anchor, weight?, hitstop?}], in
+    """Every cue with its resolved time: [{name, time, frame, clip, t, anchor, estimated, weight?, hitstop?}], in
     time order. cues.json's carry their anchor; reveal: cues are the timings' holds."""
     t = t or load(video)
     raw, _ = cue_sources(video)
@@ -407,11 +437,57 @@ def events(video, t=None):
         rows.append({"name": name, "time": at, "frame": half_up(at * t["fps"]), "clip": c["id"] if c else None,
                      "t": round(at - c["start"], 3) if c else None,
                      "anchor": "hold end" if name.startswith("reveal:") else describe_anchor(spec, sid) if spec is not None else "seconds",
+                     "estimated": estimated(t, spec),
                      **{k: spec[k] for k in ("weight", "hitstop") if isinstance(spec, dict) and k in spec}})
     return sorted(rows, key=lambda r: (r["time"], r["name"]))
 
 
 # --- captions -------------------------------------------------------------------------------------
+
+_SCENE_ANCHOR = re.compile(r"""\bc\.(phrase|word)\(\s*(['"`])([^'"`]+)\2\s*,\s*(?:(['"`])([^'"`]*)\4|(\d+))""")
+
+
+def scene_anchors(video, t=None):
+    """The moments scene code times itself from the narration by a literal c.phrase('03', 'text') or
+    c.word('03', i): [{clip, file, kind, sentence, phrase|word, time, estimated, problem}], in time
+    order, resolved as the engines resolve them (phrase_start, _word_times). They aren't cues, so this
+    is how they get listed beside them; a computed id or phrase can't be read and isn't listed."""
+    from .keys import scene_files
+    video, t = Path(video), t or load(video)
+    clips = [c["id"] for c in t["tracks"]["scene"]]
+    said = {s["id"]: s for s in t["tracks"]["narration"]}
+    rows = []
+    for clip in clips:
+        for f in scene_files(video, clip, clips):
+            if Path(f).stem != clip:
+                continue
+            for m in _SCENE_ANCHOR.finditer(Path(f).read_text(errors="replace")):
+                kind, sid = m.group(1), m.group(3) if "_" in m.group(3) else f"{clip}_{m.group(3)}"
+                row = {"clip": clip, "file": str(Path(f).relative_to(video)), "kind": kind, "sentence": sid,
+                       "time": None, "estimated": False, "problem": None}
+                if kind == "phrase":
+                    row["phrase"] = m.group(5) or ""
+                else:
+                    row["word"] = int(m.group(6)) if m.group(6) else None
+                s = said.get(sid)
+                try:
+                    if s is None:
+                        raise ValueError(f"no sentence {sid}")
+                    if kind == "phrase":
+                        _once(s, row["phrase"])
+                        row["time"] = phrase_start(s, row["phrase"])
+                        row["estimated"] = estimated(t, {"sentence": sid, "phrase": row["phrase"]})
+                    elif row["word"] is not None:
+                        times = _word_times(s, s["caption"].split())
+                        if row["word"] >= len(times):
+                            raise ValueError(f"{sid} has {len(times)} words, no word {row['word']}")
+                        row["time"] = times[row["word"]][0]
+                        row["estimated"] = estimated(t, {"sentence": sid, "word": row["word"]})
+                except (ValueError, KeyError) as e:
+                    row["problem"] = str(e.args[0]) if e.args else str(e)
+                rows.append(row)
+    return sorted(rows, key=lambda r: (r["time"] is None, r["time"] or 0, r["clip"]))
+
 
 def wrap(text, width=LINE_CHARS):
     """As few lines of at most `width` characters as hold the text, as even in length as they can
@@ -780,6 +856,11 @@ def build(video, quiet=False):
         if cue_files:
             t["cues"] = {**_resolve_cues(cues, t), **t["cues"]}
             used.extend(cue_files)
+            guessed = [k for k, v in cues.items() if estimated(t, v)]
+            if guessed:
+                say(f"warn: {', '.join(map(repr, guessed))} {'is' if len(guessed) == 1 else 'are'} timed by estimate: "
+                    "the phrase isn't among the recognised words (`studio timeline VIDEO --events` marks them ~). "
+                    "Anchor on a nearby plain word, or add a lexicon entry and narrate again")
         t["cues"] = {k: frame_time(v, t["fps"]) for k, v in t.get("cues", {}).items()}
         sfx = (a / "sfx.json").exists()
         extra = _read(a / "tracks.json")
@@ -909,5 +990,12 @@ def main(args):
         print(f"{len(rows)} events (cues.json and holds), on the {t['fps']} fps grid:" if rows else "no events: cues.json is the beat sheet")
         for r in rows:
             where = f"{r['clip']} {r['t']:7.3f} s" if r["clip"] else "before the start" if r["time"] < 0 else "after the end"
-            print(f"  {r['time']:8.3f} s  frame {r['frame']:<6} {where:16} {r['name']:24} {r['anchor']}")
+            print(f"  {r['time']:8.3f} s  frame {r['frame']:<6} {where:16} {r['name']:24} {r['anchor']}" + (" ~" if r["estimated"] else ""))
+        found = scene_anchors(args.video, t)
+        if found:
+            print(f"{len(found)} more in scene code (c.phrase and c.word, not cues):")
+        for r in found:
+            what = f"{r['sentence']} " + (f"at {r['phrase']!r}" if r["kind"] == "phrase" else f"word {r['word']}")
+            when = f"{r['time']:8.3f} s  frame {half_up(r['time'] * t['fps']):<6}" if r["time"] is not None else f"{'no time':>10}  {'':12}"
+            print(f"  {when} {r['clip']:16} {r['file']:24} {what}" + (" ~" if r["estimated"] else "") + (f"  ({r['problem']})" if r["problem"] else ""))
     return 0
