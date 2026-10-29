@@ -1,6 +1,6 @@
 // Narration times for every engine: a clip's sentence-time API (at, end, word, phrase, cue) and
 // half-up frame rounding. The kit's timeline.phrase_start and timeline.half_up are their Python
-// twins, and kit/tests checks phraseStart against phrase_start.
+// twins, and kit/tests checks phraseStart and wordStart against phrase_start and _word_times.
 
 /** @typedef {{w: string, start: number, end: number}} Word */
 /** @typedef {{id: string, clip?: string, start: number, end: number, caption?: string, text?: string, words?: Word[]}} Sentence */
@@ -43,6 +43,22 @@ export function phraseStart(s, phrase) {
 }
 
 /**
+ * When a sentence's caption word i starts, in timeline seconds: its recognised word's start when the
+ * recognised words match the caption one for one (as `studio align` stores them), else the word's share
+ * of the sentence's time by character position (an estimate, or words a spoken rule rewrote). The same
+ * words and the same rule as a cue's {"word": i} (timeline._word_times), so a scene and a cue that name
+ * word i agree. Throws past the last word.
+ * @param {Sentence} s @param {number} i @returns {number}
+ */
+export function wordStart(s, i) {
+  const words = (s.caption ?? s.text ?? '').split(/\s+/).filter(Boolean)
+  if (!(Number.isInteger(i) && i >= 0 && i < words.length)) throw new Error(`${s.id} has ${words.length} words, no word ${i}`)
+  const heard = s.words ?? []
+  if (heard.length === words.length) return heard[i].start
+  return s.start + (s.end - s.start) * [...words.slice(0, i), ''].join(' ').length / Math.max(1, words.join(' ').length)
+}
+
+/**
  * A clip's narration times, in clip seconds from `start`, the clip's first frame (frameOf(clip start)
  * / fps, as every engine passes it). Sentence ids may be short ("03" is "<clip>_03"); every time takes
  * an offset. A cue is on the frame grid (the kit builds it there), so cue() returns its clip frame
@@ -63,12 +79,8 @@ export function clipTimes(T, clip, start) {
     at: (id, off = 0) => sentence(id).start - start + off,
     /** End of a sentence. @type {(id: string, off?: number) => number} */
     end: (id, off = 0) => sentence(id).end - start + off,
-    /** Start of the i-th spoken word of a sentence (needs `studio align`). @type {(id: string, i: number, off?: number) => number} */
-    word: (id, i, off = 0) => {
-      const w = sentence(id).words?.[i]
-      if (!w) throw new Error(`sentence ${id} has no word ${i}; run studio align`)
-      return w.start - start + off
-    },
+    /** Start of caption word i of a sentence (wordStart). @type {(id: string, i: number, off?: number) => number} */
+    word: (id, i, off = 0) => wordStart(sentence(id), i) - start + off,
     /** When the voice says a phrase of a sentence (phraseStart). @type {(id: string, text: string, off?: number) => number} */
     phrase: (id, text, off = 0) => phraseStart(sentence(id), text) - start + off,
     /** A timeline cue. @type {(name: string, off?: number) => number} */

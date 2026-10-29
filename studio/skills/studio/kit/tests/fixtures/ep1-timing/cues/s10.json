@@ -1,0 +1,105 @@
+{
+ "s10-agent-in": {
+  "sentence": "s10_01",
+  "at": "end",
+  "offset": 0.1
+ },
+ "s10-type-q1": {
+  "sentence": "s10_02",
+  "at": "end",
+  "offset": 0.15
+ },
+ "s10-q1-query": {
+  "sentence": "s10_03",
+  "phrase": "writes the query"
+ },
+ "s10-q1-answer": {
+  "sentence": "s10_03",
+  "phrase": "reads the answer back"
+ },
+ "s10-gold": {
+  "sentence": "s10_04",
+  "at": "start"
+ },
+ "s10-open-link": {
+  "sentence": "s10_04",
+  "at": "end",
+  "offset": 0.02
+ },
+ "s10-query-ran": {
+  "sentence": "s10_05",
+  "phrase": "the query it ran"
+ },
+ "s10-same-bars": {
+  "sentence": "s10_05",
+  "phrase": "the same bars"
+ },
+ "s10-back": {
+  "sentence": "s10_05",
+  "at": "end",
+  "offset": 2.1
+ },
+ "s10-type-q2": {
+  "sentence": "s10_05",
+  "at": "end",
+  "offset": 2.95
+ },
+ "s10-cant-say": {
+  "sentence": "s10_06",
+  "phrase": "it couldn't say"
+ },
+ "s10-to-code": {
+  "sentence": "s10_08",
+  "phrase": "back when we added tracing"
+ },
+ "s10-tier-lit": {
+  "sentence": "s10_08",
+  "phrase": "the customer's tier"
+ },
+ "s10-instrumentation": {
+  "sentence": "s10_09",
+  "at": "start"
+ },
+ "s10-path": {
+  "sentence": "s10_10",
+  "at": "start"
+ },
+ "s10-text": {
+  "sentence": "s10_10",
+  "phrase": "text written for people"
+ },
+ "s10-data": {
+  "sentence": "s10_10",
+  "phrase": "data with named fields"
+ },
+ "s10-tools": {
+  "sentence": "s10_10",
+  "phrase": "tools that build"
+ },
+ "s10-card": {
+  "sentence": "s10_11",
+  "at": "start",
+  "offset": -0.6
+ },
+ "s10-card-out": {
+  "sentence": "s10_11",
+  "at": "end",
+  "offset": 3
+ },
+ "s10-type-print": {
+  "sentence": "s10_12",
+  "at": "end",
+  "offset": 0.35
+ },
+ "s10-now": {
+  "sentence": "s10_13",
+  "at": "word",
+  "word": 0,
+  "weight": 3
+ },
+ "s10-end-card": {
+  "sentence": "s10_13",
+  "at": "end",
+  "offset": 3.4
+ }
+}

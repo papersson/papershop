@@ -99,11 +99,11 @@ frame, chapter, local time and anchor. A chapter cue file is an object:
 }
 ```
 
-A value can be absolute seconds or an anchor with `sentence`, `at` (`start`, `end`, `word` or
-`phrase`), `word` index, `phrase` and `offset`. A phrase can follow a sentence renumbering when it
-has one unambiguous match. `weight` describes emphasis; `hitstop` records a physical contact's
-hold in frames. Both leave the event time unchanged. Cue names are unique across files. Chapter
-cues stay inside their chapter. The build snaps cues to the same frame grid the engines use.
+A value is seconds or an anchor (`sentence`, `at`: `start`, `end`, `word` or `phrase`, `word`,
+`phrase`, `offset`; the contract atop `timeline.py`). `weight` (emphasis) and `hitstop` (a contact's
+hold in frames) leave the time unchanged. Cue names are unique; chapter cues stay in their chapter.
+A phrase said twice in its sentence stops the build; one the recogniser didn't hear warns and shows
+`~` in `--events`, which also lists scene code's literal `c.phrase` and `c.word` calls.
 
 The scene's `cue(name)` and its sound use that one event. Use literal cue names so incremental
 keys can identify dependencies. Inline holds create `reveal:s1_01` cues at their end. Times in

@@ -1,0 +1,272 @@
+{
+ "s2-push-open": {
+  "sentence": "s2_02",
+  "at": "start",
+  "offset": 0.2
+ },
+ "s2-type-nohup": {
+  "sentence": "s2_02",
+  "at": "end",
+  "offset": 0.25
+ },
+ "s2-type-ls": {
+  "sentence": "s2_02",
+  "at": "end",
+  "offset": 3.895
+ },
+ "s2-mark-arrows": {
+  "sentence": "s2_03",
+  "phrase": "two arrows",
+  "offset": 0
+ },
+ "s2-mark-twoone": {
+  "sentence": "s2_03",
+  "phrase": "two-and-one",
+  "offset": 0
+ },
+ "s2-card-log": {
+  "sentence": "s2_05",
+  "at": "start",
+  "offset": -0.4
+ },
+ "s2-card-log-out": {
+  "sentence": "s2_05",
+  "at": "end",
+  "offset": 2
+ },
+ "s2-pull-wide": {
+  "sentence": "s2_07",
+  "at": "end",
+  "offset": 0.05
+ },
+ "s2-type-tail": {
+  "sentence": "s2_07",
+  "at": "end",
+  "offset": 0.1
+ },
+ "s2-flood": {
+  "sentence": "s2_07",
+  "at": "end",
+  "offset": 1.495
+ },
+ "s2-ctrl-c": {
+  "sentence": "s2_07",
+  "at": "end",
+  "offset": 5.095
+ },
+ "s2-type-grep": {
+  "sentence": "s2_07",
+  "at": "end",
+  "offset": 5.485
+ },
+ "s2-type-count": {
+  "sentence": "s2_09",
+  "at": "end",
+  "offset": 0.12
+ },
+ "s2-mark-given": {
+  "sentence": "s2_11",
+  "phrase": "the text you give it",
+  "offset": 0
+ },
+ "s2-mark-match": {
+  "sentence": "s2_11",
+  "phrase": "contain the text",
+  "offset": 0
+ },
+ "s2-push-1004": {
+  "sentence": "s2_13",
+  "at": "start",
+  "offset": 0
+ },
+ "s2-to0a": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 0.2
+ },
+ "s2-paste": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 0.92
+ },
+ "s2-scroll-1": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 1.37
+ },
+ "s2-edit-start": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 1.72
+ },
+ "s2-edit-reserved": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 3.28
+ },
+ "s2-edit-paid": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 3.78
+ },
+ "s2-scroll-2": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 4.78
+ },
+ "s2-edit-debug": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 5.16
+ },
+ "s2-scroll-3": {
+  "sentence": "s2_15",
+  "at": "end",
+  "offset": 6.52
+ },
+ "s2-mark-time": {
+  "sentence": "s2_16",
+  "phrase": "the time",
+  "offset": 0
+ },
+ "s2-mark-level": {
+  "sentence": "s2_16",
+  "phrase": "a level",
+  "offset": 0
+ },
+ "s2-card-level": {
+  "sentence": "s2_17",
+  "at": "start",
+  "offset": -0.45
+ },
+ "s2-card-level-out": {
+  "sentence": "s2_17",
+  "at": "end",
+  "offset": 0
+ },
+ "s2-scroll-4": {
+  "sentence": "s2_18",
+  "at": "start",
+  "offset": 0.02
+ },
+ "s2-to1a": {
+  "sentence": "s2_18",
+  "at": "end",
+  "offset": 1.62
+ },
+ "s2-cut-night": {
+  "sentence": "s2_18",
+  "at": "end",
+  "offset": 1.62
+ },
+ "s2-type-1042": {
+  "sentence": "s2_19",
+  "at": "end",
+  "offset": 0.25
+ },
+ "s2-push-1042": {
+  "sentence": "s2_19",
+  "at": "end",
+  "offset": 2.676
+ },
+ "s2-mark-35": {
+  "sentence": "s2_20",
+  "phrase": "the first two lines",
+  "offset": 0
+ },
+ "s2-mark-44": {
+  "sentence": "s2_20",
+  "phrase": "the first two lines",
+  "offset": 0.35
+ },
+ "s2-mark-big": {
+  "sentence": "s2_21",
+  "phrase": "a big basket",
+  "offset": 0
+ },
+ "s2-type-lsbig": {
+  "sentence": "s2_22",
+  "at": "start",
+  "offset": -1.518
+ },
+ "s2-type-df": {
+  "sentence": "s2_22",
+  "at": "start",
+  "offset": -2.517
+ },
+ "s2-split": {
+  "sentence": "s2_22",
+  "at": "start",
+  "offset": -2.797
+ },
+ "s2-cut-weeks": {
+  "sentence": "s2_22",
+  "at": "start",
+  "offset": -3.047
+ },
+ "s2-push-disk": {
+  "sentence": "s2_22",
+  "at": "start",
+  "offset": 0.2
+ },
+ "s2-mark-19g": {
+  "sentence": "s2_23",
+  "phrase": "the log itself",
+  "offset": 0
+ },
+ "s2-mark-full": {
+  "sentence": "s2_23",
+  "phrase": "filled the disk",
+  "offset": 0
+ },
+ "s2-unsplit": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 0.12
+ },
+ "s2-type-kill": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 0.34
+ },
+ "s2-to0b": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 2.034
+ },
+ "s2-edit-rotate": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 2.484
+ },
+ "s2-push-rotate": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 3.284
+ },
+ "s2-to1b": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 5.847
+ },
+ "s2-cut-later": {
+  "sentence": "s2_23",
+  "at": "end",
+  "offset": 5.847
+ },
+ "s2-mark-six": {
+  "sentence": "s2_24",
+  "phrase": "six files",
+  "offset": 0
+ },
+ "s2-mark-oldest": {
+  "sentence": "s2_24",
+  "phrase": "delete the oldest",
+  "offset": 0
+ },
+ "s2-clear": {
+  "sentence": "s2_25",
+  "at": "end",
+  "offset": 3.05
+ }
+}

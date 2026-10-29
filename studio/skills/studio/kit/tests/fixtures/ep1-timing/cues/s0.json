@@ -1,0 +1,15 @@
+{
+  "s0-checkout-click": {"sentence": "s0_01", "at": "end", "offset": 0.5, "weight": 2},
+  "s0-cut-in": {"sentence": "s0_05", "at": "start", "offset": -0.45},
+  "s0-newline": {"sentence": "s0_06", "at": "end", "offset": 0.6},
+  "s0-type-print": {"sentence": "s0_06", "at": "end", "offset": 1.65},
+  "s0-type-here": {"sentence": "s0_06", "at": "end", "offset": 2.5},
+  "s0-save": {"sentence": "s0_06", "at": "end", "offset": 3.86},
+  "s0-type-run": {"sentence": "s0_06", "at": "end", "offset": 4.31},
+  "s0-checkout-run": {"sentence": "s0_06", "at": "end", "offset": 7.06, "weight": 3},
+  "s0-time-t0": {"sentence": "s0_12", "at": "end", "offset": 0.42},
+  "s0-time-print": {"sentence": "s0_12", "at": "end", "offset": 1.81},
+  "s0-time-import": {"sentence": "s0_12", "at": "end", "offset": 4.05},
+  "s0-run2": {"sentence": "s0_12", "at": "end", "offset": 5.41},
+  "s0-checkout-time": {"sentence": "s0_12", "at": "end", "offset": 6.45, "weight": 3}
+}

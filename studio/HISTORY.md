@@ -3,6 +3,23 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Timing cleanup before pointing (0.21.1)
+
+The Kit Langton study (2026-10-29) proposed pointing at what the narrator names, on the word. Reading
+the timeline first showed studio already ties moments to words; before adding pointing, this release
+closes three leaks in that, with no change in any shipped film's output.
+
+- Observability episode 1's timing is pinned (tests/test_ep1_timing.py, a snapshot of its narration
+  and cue files): all 359 cues and the 14 phrases its scene code reads must keep their frames.
+- `c.word(id, i)` in scene code and a cue's `{"word": i}` both mean caption word i (engines'
+  `wordStart`, the twin of `_word_times`). The scene once counted recognised words, which differ
+  when a spoken rule rewrites a word.
+- A phrase said twice in its sentence stops the build instead of silently taking the first. On a
+  narrated film, an anchor timed by estimate because the recogniser didn't hear its phrase warns,
+  and `studio timeline --events` marks it `~`.
+- `--events` also lists literal `c.phrase` and `c.word` calls in scene code, so every moment tied to
+  the narration is in one list.
+
 ## Episode 1's screens, made reusable (0.21.0)
 
 Observability episode 1 built its desk by hand: desktops side by side, an editor, a terminal and the

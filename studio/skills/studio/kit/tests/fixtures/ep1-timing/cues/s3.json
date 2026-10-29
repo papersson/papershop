@@ -1,0 +1,82 @@
+{
+ "s3-type-sort": {
+  "sentence": "s3_02",
+  "at": "end",
+  "offset": 0.29
+ },
+ "s3-type-1014": {
+  "sentence": "s3_04",
+  "at": "end",
+  "offset": 0.26
+ },
+ "s3-rerun": {
+  "sentence": "s3_04",
+  "at": "end",
+  "offset": 2.51
+ },
+ "s3-switch-left": {
+  "sentence": "s3_06",
+  "at": "end",
+  "offset": 2.04
+ },
+ "s3-edit-del": {
+  "sentence": "s3_09",
+  "at": "end",
+  "offset": 0.12
+ },
+ "s3-edit-call": {
+  "sentence": "s3_09",
+  "at": "end",
+  "offset": 0.6
+ },
+ "s3-edit-setup": {
+  "sentence": "s3_09",
+  "at": "end",
+  "offset": 7.68
+ },
+ "s3-switch-right": {
+  "sentence": "s3_10",
+  "at": "start",
+  "offset": -5.33
+ },
+ "s3-type-deploy": {
+  "sentence": "s3_10",
+  "at": "start",
+  "offset": -4.7
+ },
+ "s3-type-tail1": {
+  "sentence": "s3_10",
+  "at": "start",
+  "offset": -2.82
+ },
+ "s3-card": {
+  "sentence": "s3_10",
+  "at": "start",
+  "offset": 0.0
+ },
+ "s3-type-jq1": {
+  "sentence": "s3_14",
+  "at": "end",
+  "offset": 0.15
+ },
+ "s3-type-jq2": {
+  "sentence": "s3_16",
+  "at": "end",
+  "offset": 0.15
+ },
+ "s3-table": {
+  "sentence": "s3_17",
+  "at": "start",
+  "offset": -0.85
+ },
+ "s3-type-tailf": {
+  "sentence": "s3_20",
+  "at": "end",
+  "offset": 0.2
+ },
+ "s3-tail-stop": {
+  "sentence": "s3_21",
+  "at": "start",
+  "offset": -1.3
+ }
+}
