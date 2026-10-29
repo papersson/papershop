@@ -115,8 +115,8 @@ for annotations on top; window boxes are named `scr:<id>` for the checks. The te
 `c.kit` (or `@studio/pages.js`) has the explaining overlays and the parts of product pages:
 
 - `defCard(c, key, {term, def, tools, t0, t1, diagram, diagramH, variant, focus})`: the definition
-  card, when a core term first matters. `variant` is one of `CARD_VARIANTS`: `blur` (the scene
-  blurs behind a centred card; episode 1's), `side` (a panel over the right third, scene sharp),
+  card, when a core term first matters. `variant` is one of `CARD_VARIANTS`: `blur` (the default and
+  episode 1's: the scene blurs behind a centred card), `side` (a panel over the right third, scene sharp),
   `lower` (a strip above the captions), `spotlight` (all dims but `focus`) or `type` (the term typed
   large on the wall). Start it in a pause or on the defining sentence's first word.
 - `progressStrip(c, stages, current)` and `checklist(c, items, ticks)`: where the film is.
