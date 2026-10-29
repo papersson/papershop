@@ -142,9 +142,10 @@ def scene_cues(video, clip_id, clip_ids):
     """The cue names a clip's scene code reads (scene_files), or None for all cues when any of it
     computes a cue name. The engine kits read cues only through their cue() helper, except the typed
     code editor (code.js), which reads the cues data/typing.json names: a scene that imports that
-    file reads them all."""
+    file reads them all; and the screens layer (screens.js), whose state at any frame replays every
+    action data/screens.json names: a scene that calls loadScreens reads all of its cues."""
     names = set()
-    typing = view = False
+    typing = view = screens = False
     for f in scene_files(video, clip_id, clip_ids):
         text = f.read_text(errors="replace")
         found = _cue_names(text)
@@ -153,6 +154,10 @@ def scene_cues(video, clip_id, clip_ids):
         names |= found
         typing |= "data/typing.json" in text
         view |= "data/codeview.json" in text
+        screens |= "loadScreens" in text
+    if screens and (spec := _screens_spec(video)):
+        names |= {a["at"] for a in spec.get("actions", []) if isinstance(a.get("at"), str)}
+        names |= {d["arrive"] for d in spec.get("desktops", []) if isinstance(d.get("arrive"), str)}
     if typing and (Path(video) / "data" / "typing.json").exists():
         for b in json.loads((Path(video) / "data" / "typing.json").read_text()).values():
             names |= {b["cue"]} | {f"{b['cue']}-{k}" for k in ("save", "run", "pop")}
@@ -168,6 +173,31 @@ def scene_cues(video, clip_id, clip_ids):
             for item in spec.get(group, []):
                 add(item.get("from")), add(item.get("to"))
     return names
+
+
+def _screens_spec(video):
+    f = Path(video) / "data" / "screens.json"
+    return json.loads(f.read_text()) if f.exists() else None
+
+
+def _screens_files(spec):
+    """data/screens.json and the files and runs it names by path (screens.py load)."""
+    out = {"data/screens.json"}
+    for d in spec.get("desktops", []):
+        out |= {p for p in (d.get("files") or {}).values() if isinstance(p, str) and "\n" not in p and Path(p).suffix}
+    out |= {p for p in (spec.get("runs") or {}).values() if isinstance(p, str)}
+    return out
+
+
+def _screens_spoken(video, timeline, rel):
+    """The spoken spans a screens log's switches may snap around (screens.js snapSwitch looks SNAP
+    seconds either way), relative to the clip: a word moved in another chapter can move a switch."""
+    spec = _screens_spec(video) or {}
+    cues = timeline.get("cues", {})
+    at = [cues[a["at"]] if isinstance(a["at"], str) else a["at"]
+          for a in spec.get("actions", []) if "switch" in a and (a.get("at") in cues or isinstance(a.get("at"), (int, float)))]
+    spans = [(w["start"], w["end"]) for s in timeline["tracks"]["narration"] for w in (s.get("words") or [s])]
+    return sorted({(rel(a), rel(b)) for a, b in spans for t in at if b > t - 2.5 and a < t + 2.5})
 
 
 # A path into the video's data/ as scene code names it: an import ('../data/typing.json'), a fetch or a
@@ -188,6 +218,8 @@ def scene_data(video, clip_id, clip_ids):
         if _DYNAMIC.search(_STATIC_FETCH.sub("", text)):
             return None
         found |= set(_DATA.findall(text))
+        if "loadScreens" in text and (spec := _screens_spec(video)):
+            found |= _screens_files(spec)
     return found
 
 
@@ -251,6 +283,9 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
         "beats": timeline.get("beats", {}) if scene_reads_beats(video, clip_id, clip_ids) else {},
         "layout": tl.layout(video, fmt),
     }
+    if (named is None or any("loadScreens" in f.read_text(errors="replace") for f in scene_files(video, clip_id, clip_ids))) \
+            and _screens_spec(video):
+        part["screens"] = _screens_spoken(video, timeline, rel)
     # A plate (plates.py) is part of the frame: its key, at the quality a render of this clip draws.
     from . import plates
     if clip_id in plates.config(video):

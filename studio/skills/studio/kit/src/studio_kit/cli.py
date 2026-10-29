@@ -199,6 +199,8 @@ COMMANDS = {
     ], "plates:main"),
     "typing": ("type code into an editor from a plan: the editor's steps (data/typing.json), cues and key sounds",
                [W("video"), P("plan", help="the plan: sources, bursts of edits, the run (typecode.py)")], "typecode:main"),
+    "screens": ("the screens layer's key and click sounds from data/screens.json, and where each desktop switch lands",
+                [W("video")], "screens:main"),
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [
         A("action", choices=["add"]), A("word"), A("--spoken"), A("--phonemes"),
     ], "preferences:main_lexicon"),

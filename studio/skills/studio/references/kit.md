@@ -54,7 +54,7 @@ Keep temporary work inside the video. Chapter helpers may write only their assig
 
 The implementation is in `kit/src/studio_kit/`, commands in `cli.py`, and tests in `kit/tests/`.
 The renderer is `engines/live/`; pure timing and motion helpers also used by the kit’s checks
-live in `engines/shared/`. Templates show real API calls and are useful to copy selectively.
+live in `engines/shared/`. Templates show real API calls.
 
 ## Narration, captions and the beat sheet
 
@@ -63,7 +63,7 @@ and writes the narration and timeline. `--list` prints sentence ids, `--plan` re
 and `--estimate` builds approximate timings without sound. Use real narration for reels and cuts.
 
 Kokoro defaults to `af_heart` in paragraph mode. New videos use speed 0.95 and explicit chapter
-spacing. Keep the configured voice and speed constant. `[breath N]` after a complete sentence adds N
+spacing. `[breath N]` after a complete sentence adds N
 seconds of silence and marks `pause.breath` in the timeline. Use 1.5–3 s for key points and
 about 3 s plus a reset before the next section (3–4 s total). The scene must land before
 `pause.start` and stay still until `pause.end` (also `reveal:SENTENCE`); this marker does not
@@ -180,13 +180,12 @@ is owned by the main session.
 `c.kit` supplies `C` theme colours, `ease`, `lerp`, `clamp`, `keyed`, `stagger`, `pulse`, `spring`,
 `track`, `countUp`, `follow`, `settle`, `wobble` and `rng(seed)`. `keyed(t, keys)` interpolates
 numbers or arrays. `follow(t, fn, lag, stiffness, damping)` trails a time-based source;
-`settle(t, contact, amplitude, frequency, decay)` adds a decaying physical settle. Use these where
-the subject earns them. Named eases include `out`, `in`, `inOut`, `smooth`, `back`, `heavy`,
+`settle(t, contact, amplitude, frequency, decay)` adds a decaying physical settle. Named eases include `out`, `in`, `inOut`, `smooth`, `back`, `heavy`,
 `float` and `snap`. `studio glossary [--term WORD]` connects motion words to helpers and examples.
 
 Import live helpers through `@studio/`, such as `@studio/kit.js`. Import three.js through `three`
-or `three/addons/...`. The desk and renderer resolve those names together. Absolute `/engine/`
-imports will break that agreement. See `templates/live/scenes/example-chapter.js` and
+or `three/addons/...`. Absolute `/engine/` imports break the desk
+and renderer. See `templates/live/scenes/example-chapter.js` and
 `engines/live/src/` for complete primitive signatures.
 
 ## Depth, light and plates
@@ -236,7 +235,7 @@ states. The view adds open intervals, folds, line highlights and a full-program 
 `RunTerminal` takes the same typing/ids and displays the captured command and output.
 `ProgramWindow` takes typing/ids, at/w/h and `draw(id, pop, context)`. Draw the actual result in
 `context.window` (`x, y, w, h` in pixels); the kit clips, closes and opens it on the run’s frames.
-Show the editor and its program’s result together. Use stable, distinct `name` values for multiple
+Use stable, distinct `name` values for multiple
 instances. See `templates/live/scenes/example-code.js` and `engines/live/src/code.js`.
 
 `CodePanel` shows recorded `source: {text, sha256}`, an optional 1-based `range`, `current` line,
@@ -251,6 +250,11 @@ yank, save and run. Each can have an anchor it is `due` by, a `start` anchor and
 A text segment's `typo` asks for characters to be mistyped and corrected. Keep actual program
 versions and captured run output in data. The full schema is at the top of `typecode.py`.
 `codeview.py` documents optional editor folds and highlights, checked with `--only code-view`.
+
+## Screens
+
+A screen film keeps one log of its desktops, `data/screens.json`, drawn by `screens-draw.js`;
+`studio screens VIDEO` writes its sounds. See `screens.md`.
 
 ## Sound and the mix
 

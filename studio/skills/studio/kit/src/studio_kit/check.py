@@ -29,6 +29,10 @@
                failure for each named conflict (intro under voice, unsettled, question not held, loop runs on…)
   code-view    with data/codeview.json: fold and highlight ranges, a highlight's lead before its words, the complete
                program at the payoff, and every name closed (codeview.py)
+  screens      with data/screens.json: every name declared, every desktop switch between sentences, nothing on a
+               desktop before it arrives, its sounds current in audio/sfx.json; warnings for a terminal line that wraps
+               inside a token and for typing that reads as autotype (screens.py). Its moments (each command typed,
+               output shown, switch landed) are added to the samples of the boxed checks
 
 Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
@@ -130,7 +134,9 @@ def determinism(video, samples=3, engine=None, clips=None):
 
 
 def _boxes(video, per_clip, engine, clips=None):
-    times = sample_times(tl.load(video), per_clip, clips)
+    from . import screens
+    t = tl.load(video)
+    times = sample_times(t, per_clip, clips) + screens.sample_requests(video, t, clips)
     return engine.layout(), (engine.boxes_at(times) if times else [])
 
 
@@ -495,7 +501,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, cha
     default = only is None
     always = ("legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "script", "pauses", "staging", "code-view"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "script", "pauses", "staging", "code-view", "screens"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -511,7 +517,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, cha
     if "code-view" in only or (default and (Path(video) / "data" / "codeview.json").exists()):
         from . import codeview
         preflight += codeview.check(video)
-    if only <= {"script", "pauses", "staging", "code-view"}:
+    if "screens" in only or (default and (Path(video) / "data" / "screens.json").exists()):
+        from . import screens
+        preflight += screens.check(video)
+    if only <= {"script", "pauses", "staging", "code-view", "screens"}:
         return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))

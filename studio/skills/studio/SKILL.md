@@ -53,7 +53,8 @@ Use the main session's Agent tool to spawn one agent per chapter in parallel, ea
 job and the taste file. Each agent writes only `scenes/<clip>.js`, `cues/<clip>.json` and
 `data/<clip>/`, runs `studio check VIDEO --chapter CLIP`, and inspects its rendered frames.
 A needed shared change comes back to you to apply. Live supplies the code editor, terminal and
-program-window components as well as diagrams and 3D.
+program-window components as well as diagrams and 3D; screen films use
+`references/screens.md`.
 
 Build the performed hero moments to match the accepted style frames. Sound is absent unless a
 listed tactile event earns it; that picture and sound use the same named cue.

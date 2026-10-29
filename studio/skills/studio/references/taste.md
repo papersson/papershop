@@ -132,7 +132,8 @@ Choose moments whose visible action carries the explanation. Build them into the
 real output appearing and a window opening are useful examples. An animated
 state change alone misses the opportunity to make the mechanism felt.
 
-Keep cause and effect in one shot when possible. Let the viewer see the edit and the program
+On screens, follow `screens.md`: a desktop per kind of work, a tab for more of the same, a
+switch sliding between sentences. Keep cause and effect in one shot when possible. Let the viewer see the edit and the program
 answering it, the switch and the resulting change, the contact and its consequence. Give a physical event
 anticipation, a contact on a named cue and a settle. When sound is permitted, time it from that cue;
 a recorded effect lands on its transient peak.
@@ -157,9 +158,8 @@ or hold briefly; a packet needs no invented mass. Use tiny overshoot on UI objec
 and give outer contours more weight than internal dividers so objects retain their shape.
 
 Leave unimportant things still. Avoid drifting decorations, particles, pulsing labels and effects
-on every arrival. Silence can express a missing mechanism or make the payoff land. Keep effects
-below speech and let a loud action decay before the next word. Music is absent unless requested;
-the subject already supplies the sounds that matter.
+on every arrival. Silence can express a missing mechanism or make the payoff land. Let a loud
+action decay before the next word.
 
 ## Give every mark a job
 
