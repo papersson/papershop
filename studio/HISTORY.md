@@ -3,6 +3,15 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A chapter check sees every chapter's cues (0.22.2)
+
+Found making the "customers couldn't pay" film. A screens film has one log for the whole film,
+and its actions are anchored on cues that each chapter owns. `studio check --chapter` built its
+private timeline from that chapter's cue file alone, so compiling the log met every other chapter's
+cue as unknown and the check failed before drawing anything. The working copy
+now copies every chapter's cue file. One chapter's broken cues must still not stop another's work, so
+when they don't build, the check falls back to the chapter's own cues and prints why.
+
 ## Text drawn where it is laid out; off-screen desktops left out (0.22.1)
 
 Two fixes found making the logger film.

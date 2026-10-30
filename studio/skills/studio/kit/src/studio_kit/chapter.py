@@ -33,11 +33,23 @@ def working_copy(video, clip):
                 shutil.copytree(src, dst, ignore=shutil.ignore_patterns("node_modules", ".cache", ".git"))
             elif src.is_file():
                 shutil.copy2(src, dst)
-        own = video / "cues" / f"{clip}.json"
-        if own.exists():
+        # Every chapter's cues, since a shared log (data/screens.json) can anchor on another chapter's
+        # cue, such as a desktop that arrives in an earlier chapter. Only this chapter's file is its own:
+        # if another chapter's cues don't build, this chapter checks against its own and says why.
+        if (video / "cues").is_dir():
             (work / "cues").mkdir()
-            shutil.copy2(own, work / "cues" / own.name)
-        timeline = tl.build(work, quiet=True)
+            for f in sorted((video / "cues").glob("*.json")):
+                shutil.copy2(f, work / "cues" / f.name)
+        try:
+            timeline = tl.build(work, quiet=True)
+        except SystemExit as e:
+            others = [f for f in (work / "cues").glob("*.json") if f.name != f"{clip}.json"]
+            if not others:
+                raise
+            for f in others:
+                f.unlink()
+            timeline = tl.build(work, quiet=True)
+            print(f"{clip}: checked without other chapters' cues, which don't build: {e}")
         yield work, timeline
 
 
