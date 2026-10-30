@@ -267,6 +267,7 @@ export function terminalWindow(c, key, scr, s, id, o = {}) {
  * (a line to keep in view) steer it. Returns the code geometry for annotations: lineY(n).
  */
 export function editorWindow(c, key, scr, s, id, o = {}) {
+  if (s.desks[id].spec.style === 'nvim') return nvimWindow(c, key, scr, s, id, o)
   const st = s.desks[id], d = st.spec, L = s.look, b = windowBox(c, scr, s, id), S = c.S
   const box = chrome(c, key, b.X, b.y, b.w, b.h, { title: d.title ?? 'Editor', look: L })
   const top = tabStrip(c, key + ':tabs', box.x, box.y, box.w, st.open.map(f => f + (st.dirty[f] ? '  ●' : '')), Math.max(0, st.open.indexOf(st.active)), { look: L })
@@ -301,6 +302,83 @@ export function editorWindow(c, key, scr, s, id, o = {}) {
   const lineY = n => top + 8 + (n - first + .5) * step, codeX = box.x + 86
   // a line ({line}), a piece of one ({line, text}) or the first line showing a piece ({text}), or a
   // piece of the terminal panel ({panel: true, text}); null when it is scrolled out of view
+  const locate = g => {
+    if (!g || typeof g !== 'object') return null
+    if (g.panel) return g.text ? panelFind(g.text) : null
+    const n = g.line ?? src.findIndex(l => l.includes(g.text)) + 1
+    if (n < first || n >= first + rows || n > src.length) return null
+    const l = src[n - 1], k = g.text ? l.indexOf(g.text) : l.length - l.trimStart().length
+    if (k < 0) return null
+    return textBox(codeX + k * CS * .6, lineY(n), (g.text ?? l.trim()).length * CS * .6, step, CS)
+  }
+  return { box, first, rows, step, size: CS, panel, lineY, codeX, locate, bg: L.win }
+}
+
+/**
+ * The same editor as Neovim draws it (`"style": "nvim"`): no tab strip unless several files are open, `~`
+ * past the end of the file, a block caret in NORMAL and a bar in INSERT, a status line with the mode, the
+ * file ([+] while unsaved) and line:col, the terminal panel as a split with its own status line, and the
+ * command line, where a save leaves INSERT, types `:w` and reports the file written. Same actions, same geometry out.
+ */
+function nvimWindow(c, key, scr, s, id, o = {}) {
+  const st = s.desks[id], d = st.spec, L = s.look, b = windowBox(c, scr, s, id), S = c.S, now = c.t + s.f0
+  const box = chrome(c, key, b.X, b.y, b.w, b.h, { title: d.title ?? `nvim ${st.active}`, look: L })
+  const top = st.open.length > 1 ? tabStrip(c, key + ':tabs', box.x, box.y, box.w, st.open.map(f => f + (st.dirty[f] ? ' [+]' : '')), Math.max(0, st.open.indexOf(st.active)), { look: L }) : box.y
+  const P = st.panel, PS = d.panel?.size ?? 22, PL = 1.3, prow = d.panel?.rows ?? 6
+  const SB = 34, CMD = 34, bottom = box.y + box.h - CMD
+  const py = P ? bottom - SB - (prow * PS * PL + 30) : bottom
+  const CS = o.size ?? d.size ?? 26, CL = d.lh ?? 1.5, step = CS * CL, rows = Math.max(1, Math.floor((py - SB - top - 16) / step))
+  const src = st.files[st.active] ?? []
+  const focus = o.focus ?? st.focusLine ?? d.focus ?? 1
+  const first = o.first ?? (focus > rows - 2 ? Math.max(1, Math.min(focus - Math.floor(rows * .6), src.length - rows + 2)) : 1)
+  const sv = st.saving && now >= st.saving.at ? st.saving : null
+  const typing = now - st.lastKey < .6 && !(sv && sv.at >= st.lastKey) // Esc comes before :w
+  const termTyping = P && !P.running && !!P.input
+  const mode = typing ? 'INSERT' : termTyping ? 'TERMINAL' : 'NORMAL'
+  const lit = new Set(o.lit ?? [])
+  for (let r = 0; r < rows; r++) {
+    const n = first + r, yy = top + 8 + (r + .5) * step
+    if (n > src.length) { S.text(key + ':tilde' + r, box.x + 24, yy, '~', { size: CS, mono: true, fill: L.keyword, op: .6 }); continue }
+    const here = st.caret && st.caret.line === n
+    if (here && typing || o.current === n) S.rect(key + ':cur', box.x, yy - step / 2, box.w, step, { fill: L.current, r: 0 })
+    else if (lit.has(n)) S.rect(key + ':lit' + n, box.x, yy - step / 2, box.w, step, { fill: L.lit, r: 0 })
+    S.text(key + ':n' + n, box.x + 62, yy, String(n), { size: CS * .8, mono: true, anchor: 'end', fill: here ? L.literal : L.faint })
+    monoLine(c, key + ':l' + n, box.x + 86, yy, syntax(src[n - 1], L), { size: CS })
+    if (here && (typing || o.caret) && (typing || Math.floor(c.t / .53) % 2 === 0)) {
+      const x = box.x + 86 + st.caret.col * CS * .6
+      if (typing) S.rect(key + ':caret', x, yy - CS * .6, 2.5, CS * 1.2, { fill: L.ink, r: 0 })
+      else S.rect(key + ':caret', x - CS * .6, yy - CS * .6, CS * .58, CS * 1.2, { fill: L.ink, r: 0, op: .75 })
+    }
+  }
+  // a status line along the bottom of a split: the mode in a block, a name, and what sits on the right
+  const status = (k, y, active, label, name, right) => {
+    S.rect(key + k, box.x + 1, y, box.w - 2, SB, { fill: active ? L.bar2 : L.bar, r: 0 })
+    let x = box.x + 1
+    if (label) {
+      const w = label.length * 16 * .6 + 28
+      S.rect(key + k + ':mode', x, y, w, SB, { fill: mode === 'INSERT' ? L.literal : mode === 'TERMINAL' ? L.keyword : L.accent, r: 0 })
+      S.text(key + k + ':modet', x + 14, y + SB / 2, label, { size: 16, mono: true, fill: L.wall })
+      x += w
+    }
+    S.text(key + k + ':name', x + 16, y + SB / 2, name, { size: 17, mono: true, fill: active ? L.ink : L.dim })
+    if (right) S.text(key + k + ':right', box.x + box.w - 18, y + SB / 2, right, { size: 17, mono: true, anchor: 'end', fill: L.dim })
+  }
+  const caret = st.caret ?? { line: focus, col: 0 }
+  status(':status', py - SB, mode !== 'TERMINAL', mode !== 'TERMINAL' ? mode : '', st.active + (st.dirty[st.active] ? ' [+]' : ''), `${caret.line}:${caret.col + 1}`)
+  let panel = null, panelFind = () => null
+  if (P) {
+    const area = { x: box.x - 12, y: py - 14, w: box.w, h: bottom - SB - py }
+    panelFind = termRows(c, key + ':panel', L, area, P, { size: PS, lh: PL, rows: prow, input: !P.running && (P.input || st.panelActive) ? P.input : null, caret: !!P.input, t: c.t }).find
+    status(':pstatus', bottom - SB, mode === 'TERMINAL', mode === 'TERMINAL' ? mode : '', `term://${P.name || (P.title ?? 'TERMINAL').toLowerCase()}`, '')
+    panel = { x: box.x, y: py, w: box.w, h: bottom - py }
+  }
+  // the command line: -- INSERT --, the :w being typed, then what it wrote
+  const file = sv && (st.files[sv.file] ?? [])
+  const cmd = sv && now < sv.done ? { text: ':w', fill: L.ink }
+    : mode !== 'NORMAL' ? { text: `-- ${mode} --`, fill: L.dim }
+      : sv && now < sv.done + 2.5 ? { text: `"${sv.file}" ${file.length}L, ${file.reduce((n, l) => n + l.length + 1, 0)}B written`, fill: L.dim } : null
+  if (cmd) S.text(key + ':cmd', box.x + 18, bottom + CMD / 2, cmd.text, { size: 18, mono: true, fill: cmd.fill })
+  const lineY = n => top + 8 + (n - first + .5) * step, codeX = box.x + 86
   const locate = g => {
     if (!g || typeof g !== 'object') return null
     if (g.panel) return g.text ? panelFind(g.text) : null

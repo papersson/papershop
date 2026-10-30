@@ -62,7 +62,9 @@ share one desktop, each in its `frame` [x, y, w, h] as fractions of it; `grow` l
 the whole desktop when it is alone there. `arrive` names the cue a desktop appears at (before it, it
 is not on the desk). `title`, `size` (type size), `light` (a paper window), `tabsAlways` (show the
 tab strip with one tab). An editor has `files` (name to text, or a path from the video folder) and
-an optional terminal `panel` {title, name, rows, size, prompt}. Terminals and browsers have `tabs`
+an optional terminal `panel` {title, name, rows, size, prompt}, and `"style": "nvim"` draws it as
+Neovim (mode in a status line, `~` past the end, the panel as a terminal split, `:w` on a save) from
+the same actions. Terminals and browsers have `tabs`
 {id, title, prompt | url, page}.
 
 **Actions.** Each has `at` (a cue name, or a number in film seconds), optional `off` (seconds after

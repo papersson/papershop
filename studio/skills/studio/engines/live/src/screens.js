@@ -302,7 +302,8 @@ function apply(st, a, t) {
     st.lastKey = Math.max(st.lastKey, a.keys.filter(k => k <= t).at(-1) ?? -1e9)
     st.focusLine = st.caret.line
   } else if (kind === 'save') {
-    if (t >= a.t + CHORD) st.dirty = { ...st.dirty, [a.save === true ? st.active : a.save]: false }
+    st.saving = { file: a.save === true ? st.active : a.save, at: a.t, done: a.t + CHORD } // the Neovim look's command line
+    if (t >= a.t + CHORD) st.dirty = { ...st.dirty, [st.saving.file]: false }
   } else if (kind === 'open' && st.kind === 'editor') {
     if (!st.files[a.open]) throw new Error(`screens action ${a.i + 1}: no file ${a.open} on ${a.on}`)
     if (!st.open.includes(a.open)) st.open.push(a.open)
