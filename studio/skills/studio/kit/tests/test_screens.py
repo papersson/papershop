@@ -96,6 +96,22 @@ def test_state_replays_terminal_editor_browser_tabs_and_switches():
     assert r["sw"]["gap"] and 1.6 <= r["sw"]["t"] - .08
 
 
+def test_the_next_prompt_waits_for_the_last_line_of_output():
+    T = timeline(5.0)
+    r = node("const k=m.compile(S,T,S.runs);const a=k.actions[0];"
+             "const p=t=>{const P=m.state(k,t).desks.laptop.panel;return {lines:P.lines.length,running:!!P.running}};"
+             "return {enter:a.enter,done:a.done,between:p((a.enter+a.done)/2),after:p(a.done+.01)}", S=SPEC, T=T)
+    assert r["done"] > r["enter"]
+    assert r["between"] == {"lines": 1, "running": True}     # Enter pressed, output still to come: no prompt yet
+    assert r["after"] == {"lines": 2, "running": False}      # the output, then the prompt
+
+
+def test_a_tab_reached_by_a_click_makes_no_keyboard_chord():
+    spec = {**SPEC, "actions": [{"at": "tab", "on": "servers", "tab": "two", "chord": False, "new": {"title": "tea@two"}}]}
+    r = node("const k=m.compile(S,T,S.runs);const a=k.actions[0];return {snap:a.snapAt,t:a.t,sounds:a.sounds}", S=spec, T=timeline(5.0))
+    assert r["snap"] == r["t"] and r["sounds"] == []
+
+
 def test_sounds_sit_on_their_frames_relative_to_the_cue():
     T = timeline()
     r = node("const k=m.compile(S,T,S.runs);return {streams:m.streams(k),ls:k.actions.find(a=>a.kind==='type')}", S=SPEC, T=T)

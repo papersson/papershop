@@ -3,7 +3,7 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
-## A chapter check sees every chapter's cues (0.22.2)
+## A chapter check sees every chapter's cues; terminal prompt and tab click fixes (0.22.2)
 
 Found making the "customers couldn't pay" film. A screens film has one log for the whole film,
 and its actions are anchored on cues that each chapter owns. `studio check --chapter` built its
@@ -11,6 +11,13 @@ private timeline from that chapter's cue file alone, so compiling the log met ev
 cue as unknown and the check failed before drawing anything. The working copy
 now copies every chapter's cue file. One chapter's broken cues must still not stop another's work, so
 when they don't build, the check falls back to the chapter's own cues and prints why.
+
+Two screens fixes from the same film's review:
+
+- After Enter, a terminal drew its next prompt at once and slid the command's output in above it a
+  breath later, which no shell does. The prompt now waits for the output's last line.
+- A tab reached by clicking it played the keyboard chord on top of the click. A `tab` action takes
+  `chord: false` when a click at the same cue does it: it snaps at once and the click is its sound.
 
 ## Text drawn where it is laid out; off-screen desktops left out (0.22.1)
 

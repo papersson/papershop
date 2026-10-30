@@ -157,8 +157,9 @@ export function compile(spec, T, runs = {}) {
       x.done = x.land
       if (!s.ok) problems.push({ i, kind, t: s.t, why: `the switch to ${on} can't find a gap between sentences within ${SNAP} s of ${a.at}` })
     } else if (kind === 'tab') {
-      x.snapAt = at + CHORD
-      x.sounds.push([at, 'key'], [at + CHORD, 'key'])
+      // reached by the keyboard chord, or (chord: false) by a click action at the same moment, which sounds
+      x.snapAt = a.chord === false ? at : at + CHORD
+      if (a.chord !== false) x.sounds.push([at, 'key'], [at + CHORD, 'key'])
       x.done = x.snapAt
     } else if (kind === 'type' || kind === 'edit') {
       const text = kind === 'type' ? String(a.type) : String(a.edit.text ?? '')
@@ -267,7 +268,9 @@ function apply(st, a, t) {
       target.lines.push({ prompt: target.prompt, text: String(a.type), cmd: true })
       for (const l of a.output) if (t >= l.at) target.lines.push(l)
       target.input = ''
-      target.running = a.returns === false // a server or tail -f keeps the prompt away until cleared
+      // the next prompt waits for the command's last line, as a shell's does; a server or tail -f keeps it
+      // away until cleared
+      target.running = a.returns === false || t < a.done
     } else { target.input = typed; target.running = false }
     if (a.tab !== undefined && st.kind === 'terminal') st.active = tabIndex(st, a.tab, a)
   } else if (kind === 'type' && st.kind === 'browser') {
