@@ -30,7 +30,7 @@ export function balanced(text, chars) {
 }
 
 // ── The definition card ─────────────────────────────────────────────────────────────────────────
-const CARD_IN = .7, CARD_OUT = .5
+const CARD_IN = .7, CARD_OUT = .7
 /** The variants defCard draws; each names a core idea the same way every time it is used. */
 export const CARD_VARIANTS = ['blur', 'side', 'lower', 'spotlight', 'type']
 
@@ -65,7 +65,8 @@ function soften(c, soft, H) {
  * built for it take over, while the voice says the definition. t0: when it starts (in a pause, or on
  * the defining sentence's first word); t1: when it leaves (after the breath).
  *
- *   variant 'blur'       the scene blurs and dims; the card is a centred column over it (episode 1)
+ *   variant 'blur'       the scene blurs and dims to a faint impression (a light page would otherwise
+ *                        wash to grey and stay half readable); the card is a centred column over it
  *   variant 'side'       the scene stays sharp and dims; the card is a panel over the right third
  *   variant 'lower'      the scene stays; the term and definition sit in a strip above the captions
  *   variant 'spotlight'  everything dims but `focus` [x, y, w, h] (screen px); the card sits beside it
@@ -78,17 +79,20 @@ export function defCard(c, key, { term, def, tools = '', toolsLabel = 'Built for
   const t = c.t, S = c.S, L = look, H = c.H, I = 'ui'
   const live = t >= t0 - .01 && t <= t1 + CARD_OUT
   const inP = live ? clamp((t - t0) / CARD_IN) : 0, outP = live ? clamp((t - t1) / CARD_OUT) : 0
-  const soft = live ? ease.inOut(inP) * (1 - ease.inOut(outP)) : 0
+  // on the way out the card's parts leave first, then the scene comes back: the two never dissolve
+  // through each other (a half-gone card over a half-sharp scene reads as a muddy double exposure)
+  const gone = ease.inOut(clamp(outP / .45)), lift = ease.inOut(clamp((outP - .35) / .65))
+  const soft = live ? ease.inOut(inP) * (1 - lift) : 0
   if (variant === 'blur') soften(c, soft, H)
   if (soft <= 0) return null
   const part = k => {
     const e = ease.out(clamp((t - t0 - .18 - k * .14) / .55))
-    return { op: e * (1 - ease.inOut(outP)), dy: (1 - e) * 18 - ease.inOut(outP) * 10 }
+    return { op: e * (1 - gone), dy: (1 - e) * 18 - gone * 10 }
   }
   const toolText = tools ? toolsLabel + tools : ''
   if (variant === 'blur' || variant === 'type') {
     const COL = 960, x0 = Math.round(c.W / 2 - COL / 2), SC = 1.45, dH = diagram && diagramH ? diagramH * SC : 0
-    S.rect(key + ':dim', 0, 0, c.W, H, { fill: L.wall, r: 0, op: soft * (variant === 'type' ? 1 : .7), layer: I })
+    S.rect(key + ':dim', 0, 0, c.W, H, { fill: L.wall, r: 0, op: soft * (variant === 'type' ? 1 : .86), layer: I })
     const defLines = balanced(def, 50), toolLines = toolText ? wrap(toolText, 70) : []
     const h = 76 + 26 + defLines.length * 50 + (dH ? 44 + dH : 0) + (toolLines.length ? 40 + toolLines.length * 32 : 0)
     let y = Math.round(H / 2 - h / 2)
@@ -97,11 +101,11 @@ export function defCard(c, key, { term, def, tools = '', toolsLabel = 'Built for
     if (variant === 'type') { // the term typed in the film's mono, a key every 70 ms, then the rest arrives
       const n = Math.max(0, Math.min(term.length, Math.floor((t - t0 - .1) / .07) + 1))
       shown = term.slice(0, n)
-      S.text(key + ':term', x0, y + 52, shown, { size: 76, weight: 500, mono: true, fill: L.ink, op: 1 - ease.inOut(outP), layer: I, box: key + ' card' })
-      if (n < term.length || Math.floor(t / .53) % 2 === 0) S.rect(key + ':caret', x0 + shown.length * 76 * .6 + 4, y + 52 - 40, 5, 80, { fill: L.accent, r: 0, op: 1 - ease.inOut(outP), layer: I })
+      S.text(key + ':term', x0, y + 52, shown, { size: 76, weight: 500, mono: true, fill: L.ink, op: 1 - gone, layer: I, box: key + ' card' })
+      if (n < term.length || Math.floor(t / .53) % 2 === 0) S.rect(key + ':caret', x0 + shown.length * 76 * .6 + 4, y + 52 - 40, 5, 80, { fill: L.accent, r: 0, op: 1 - gone, layer: I })
     } else S.text(key + ':term', x0, y + 52 + p0.dy, term, { size: 68, weight: 600, fill: L.ink, op: p0.op, layer: I, box: key + ' card' })
     const typedDone = variant === 'type' ? t0 + .1 + term.length * .07 : t0
-    const later = k => variant === 'type' ? (() => { const e = ease.out(clamp((t - typedDone - .1 - k * .14) / .5)); return { op: e * (1 - ease.inOut(outP)), dy: (1 - e) * 14 } })() : part(k)
+    const later = k => variant === 'type' ? (() => { const e = ease.out(clamp((t - typedDone - .1 - k * .14) / .5)); return { op: e * (1 - gone), dy: (1 - e) * 14 } })() : part(k)
     y += 102
     const p1 = later(1)
     defLines.forEach((l, k) => S.text(key + ':def' + k, x0, y + 36 + k * 50 + p1.dy, l, { size: 36, fill: L.ink, op: p1.op * .94, layer: I }))
@@ -116,7 +120,7 @@ export function defCard(c, key, { term, def, tools = '', toolsLabel = 'Built for
     return { x: x0, y: Math.round(H / 2 - h / 2), w: COL, h, op: soft }
   }
   if (variant === 'side') {
-    const w = Math.round(c.W * .36), slide = (1 - ease.out(inP)) * 60 + ease.inOut(outP) * 40, x = c.W - w + slide
+    const w = Math.round(c.W * .36), slide = (1 - ease.out(inP)) * 60 + gone * 40, x = c.W - w + slide
     S.rect(key + ':dim', 0, 0, c.W - w, H, { fill: L.wall, r: 0, op: soft * .45, layer: I })
     S.rect(key + ':panel', x, 0, w, H, { fill: L.wall, r: 0, op: soft * .96, layer: I })
     const x0 = x + 64, defLines = balanced(def, 30), toolLines = toolText ? wrap(toolText, 38) : []

@@ -3,6 +3,21 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A locked camera on the screens, and cards that leave cleanly (0.24.0)
+
+Patrik found the wide-events film's macro transitions sloppy: the frame kept slowly zooming and
+panning, and around 1:50 it stayed half on the chat beside the terminal for twenty seconds.
+
+- `screensCamera` keys are arrivals. The camera glided across the whole gap between two keys, so keys
+  a minute apart were a minute of drift; it now holds the frame and moves in the last 1.6 s (`MOVE`).
+  Ease `'glide'` keeps the old slow move where one is meant.
+- A key on another desktop than the one shown after a switch frames the shown desktop whole. A
+  chapter that keyed the chat at its start and the terminal a minute later left the camera easing
+  back towards the chat after the switch.
+- Definition cards leave in two steps: the card's parts go first, then the scene sharpens. Both at
+  once made a half-gone card over a half-sharp scene, a muddy double exposure. The blur variant dims
+  the scene further (0.86), so a light page under it is a faint impression rather than a grey wash.
+
 ## Real servers for observability films; deleting, pasting and multi-line commands on the screens (0.23.0)
 
 Made rebuilding the wide-events film on OpenTelemetry and ClickHouse, after Patrik asked for industry

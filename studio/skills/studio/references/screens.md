@@ -107,6 +107,11 @@ export default function draw(c) {
 `screensCamera` keys are [clip seconds, target, ease?]; a target is `'whole'` (the desktop shown
 then), `'all'` (the pull-back), `{on, region: [x0, y0, x1, y1]}` in that desktop's pixels,
 `{window, pad}` or a plain `{x, y, z}`. It never shows wallpaper outside a slide or a pull-back.
+A key is where the camera arrives: the frame holds still until 1.6 s before it (`MOVE`, the `move`
+option), then moves, so keys far apart never become a slow drift (ease `'glide'` asks for the whole
+gap). A key on another desktop than the one shown after a switch frames the shown one whole. Give
+each window one home framing (usually `'whole'`) and leave it only for a deliberate push in on what
+the voice names, back at a beat; never follow the caret or scrolling output.
 A browser page is `page(c, box, tab, ctx)`, drawn in world pixels inside `box`; it returns
 `{targets: {name: [x, y, w, h]}}` so clicks, drags, points and marks know where to go. `tab.clicked`,
 `tab.selected` and `tab.since` say what has happened on it. `drawScreens` returns each window's box
