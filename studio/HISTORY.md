@@ -3,6 +3,25 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Real servers for observability films; deleting, pasting and multi-line commands on the screens (0.23.0)
+
+Made rebuilding the wide-events film on OpenTelemetry and ClickHouse, after Patrik asked for industry
+practice instead of a CSV file and DuckDB on one machine.
+
+- The papershop flake has an `observability` package: ClickHouse, Postgres 17, Prometheus with promtool,
+  Grafana Loki with logcli, and the OpenTelemetry Collector (contrib). On x86_64 Linux ClickHouse is
+  the official static build, pinned by checksum, because the nixpkgs build aborts at start on the
+  cloud's kernel ("Cannot allocate ThreadStack"). `script/bootstrap --observability` links it,
+  `script/doctor` says whether it is there and `script/receipt` prints the versions. A film runs the
+  servers itself (the wide-events film's commands/stack.py), every one on 127.0.0.1 and in UTC.
+- An editor `edit` can `delete` `count` lines at once, as a selection deleted with one key. Taking a
+  logger out of a file was a run of replaces before.
+- `paste: true` on `type` or `edit` lands the whole text at once with a Cmd-V chord, and is left out of
+  the typing-rate check. A 450-character SQL view takes 35 s at the autotype ceiling; the viewer reads a
+  statement while the narrator explains it rather than watching it typed, and points name its parts.
+- A terminal command can span several lines (a newline in `type`): the later lines follow the tab's
+  continuation prompt `cont` (ClickHouse's `:-] `), and the wrap check measures each line on its own.
+
 ## The prompt comes back when the command is done (0.22.2)
 
 Found reviewing the log collector film: after Enter on a foreground command with captured output, the

@@ -9,16 +9,19 @@
 #   script/bootstrap            # uv, ffmpeg, sox, sops and age, the studio kit (audio extra + dev), the worklog CLI
 #   script/bootstrap --kokoro   # also local narration: torch and Kokoro, several GB, weights from huggingface.co
 #   script/bootstrap --studio   # also studio's browser, live engine and sound kit (`studio doctor --fetch`)
+#   script/bootstrap --observability  # also the servers the wide-events film runs (ClickHouse, Postgres,
+#                                     # Prometheus, Loki, the OpenTelemetry Collector); needs Nix, about 1.5 GB
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 kit="$root/studio/skills/studio/kit"
 cd "$root"   # uv reads uv.toml from here
-kokoro=0 studio=0
+kokoro=0 studio=0 observability=0
 for arg in "$@"; do
   case "$arg" in
     --kokoro) kokoro=1 ;;
     --studio) studio=1 ;;
-    *) echo "usage: script/bootstrap [--kokoro] [--studio]" >&2; exit 2 ;;
+    --observability) observability=1 ;;
+    *) echo "usage: script/bootstrap [--kokoro] [--studio] [--observability]" >&2; exit 2 ;;
   esac
 done
 say() { echo "bootstrap: $*"; }
@@ -114,6 +117,12 @@ if [ "$studio" = 1 ]; then
     (cd "$root/studio/skills/studio/engines/live" && node node_modules/playwright-core/cli.js install-deps chromium-headless-shell >/dev/null)
   fi
   "${studio[@]}" doctor
+fi
+if [ "$observability" = 1 ]; then
+  command -v nix >/dev/null || { say "--observability needs Nix (https://nixos.org/download)"; exit 1; }
+  # A link in .cache/tools keeps the servers from being garbage-collected and lets the film find them.
+  nix --extra-experimental-features 'nix-command flakes' build --out-link "$tools/observability" "$root#observability"
+  say "observability servers in .cache/tools/observability"
 fi
 touch "$root/.cache/bootstrapped"   # bin/studio bootstraps a cloud session whose hook did not run
 say "done"

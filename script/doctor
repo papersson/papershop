@@ -32,6 +32,8 @@ if [ -e "${browsers[0]}" ] || [ -n "${STUDIO_BROWSER:-}" ] || [ -d "/Application
 else
   missing+=("headless browser: studio stills and renders | script/bootstrap --studio")
 fi
+[ -x "$root/.cache/tools/observability/bin/clickhouse" ] && ok+=("observability servers") ||
+  missing+=("observability servers: the wide-events film | script/bootstrap --observability (needs Nix)")
 have worklog && ok+=("worklog CLI") || missing+=("worklog CLI: the worklog skill | script/bootstrap")
 
 skills=0

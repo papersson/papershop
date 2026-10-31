@@ -205,18 +205,18 @@ export const terminalCols = (w, size) => Math.floor((w - 2 * 36) / (size * .6))
 function termRows(c, key, look, box, src, { size, lh, rows, input, caret, t }) {
   const L = look, step = size * lh, cols = terminalCols(box.w, size)
   const out = []
+  // a command typed over several lines (Enter inside a SQL statement) shows each line after the
+  // prompt, the later ones after the tab's continuation prompt `cont`, as a SQL client does
+  const command = (text, prompt, cont) => String(text).split('\n').forEach((part, j) => {
+    const p = j ? cont ?? '' : prompt ?? ''
+    wrapLine(p + part, cols).lines.forEach((piece, k) =>
+      out.push(k === 0 ? [{ text: piece.slice(0, p.length), fill: L.accent }, { text: piece.slice(p.length), fill: L.ink }] : [{ text: piece, fill: L.ink }]))
+  })
   for (const l of src.lines) {
-    const text = (l.cmd ? (l.prompt ?? '') : '') + l.text
-    const { lines } = wrapLine(text, cols)
-    lines.forEach((piece, k) => {
-      if (l.cmd && k === 0) out.push([{ text: piece.slice(0, (l.prompt ?? '').length), fill: L.accent }, { text: piece.slice((l.prompt ?? '').length), fill: L.ink }])
-      else out.push([{ text: piece, fill: l.fill ?? (l.err ? L.problem : l.cmd ? L.ink : L.ink) }])
-    })
+    if (l.cmd) { command(l.text, l.prompt, l.cont); continue }
+    for (const piece of wrapLine(l.text, cols).lines) out.push([{ text: piece, fill: l.fill ?? (l.err ? L.problem : L.ink) }])
   }
-  if (input !== null) {
-    const { lines } = wrapLine(src.prompt + input, cols)
-    lines.forEach((piece, k) => out.push(k === 0 ? [{ text: piece.slice(0, src.prompt.length), fill: L.accent }, { text: piece.slice(src.prompt.length), fill: L.ink }] : [{ text: piece, fill: L.ink }]))
-  }
+  if (input !== null) command(input, src.prompt, src.cont)
   const shown = out.slice(-rows), x0 = box.x + 36, rowY = r => box.y + 24 + (r + .5) * step
   shown.forEach((parts, r) => monoLine(c, key + ':r' + r, x0, rowY(r), parts, { size }))
   if (input !== null && caret) {

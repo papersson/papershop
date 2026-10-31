@@ -48,10 +48,11 @@ for (const d of k.desktops) {
     : d.kind === 'editor' && d.panel ? { size: d.panel.size ?? 22, frac: (d.frame ?? [0, 0, 1, 1])[2] } : null
   if (!term) continue
   const cols = terminalCols(term.frac * (width - 2 * INSET) - (term.frac < 1 ? GAP / 2 : 0), term.size)
-  const prompt = id => (d.tabs ?? []).find(t => t.id === id)?.prompt ?? d.tabs?.[0]?.prompt ?? d.panel?.prompt ?? '$ '
+  const opened = Object.fromEntries(k.actions.filter(a => a.on === d.id && a.new).map(a => [a.tab, a.new]))
+  const tab = id => (d.tabs ?? []).find(t => t.id === id) ?? opened[id] ?? d.tabs?.[0] ?? d.panel ?? {}
   for (const a of k.actions.filter(a => a.on === d.id)) {
     const texts = []
-    if (a.kind === 'type') texts.push(prompt(a.tab) + a.type)
+    if (a.kind === 'type') String(a.type).split('\n').forEach((part, j) => texts.push((j ? tab(a.tab).cont ?? '' : tab(a.tab).prompt ?? '$ ') + part))
     for (const l of a.output ?? []) texts.push(l.text)
     for (const text of texts) if (wrapLine(text, cols).midToken) wraps.push({ i: a.i, on: d.id, t: a.t, cols, text })
   }

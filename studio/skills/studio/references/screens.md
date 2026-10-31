@@ -62,19 +62,20 @@ share one desktop, each in its `frame` [x, y, w, h] as fractions of it; `grow` l
 the whole desktop when it is alone there. `arrive` names the cue a desktop appears at (before it, it
 is not on the desk). `title`, `size` (type size), `light` (a paper window), `tabsAlways` (show the
 tab strip with one tab). An editor has `files` (name to text, or a path from the video folder) and
-an optional terminal `panel` {title, name, rows, size, prompt}. Terminals and browsers have `tabs`
-{id, title, prompt | url, page}.
+an optional terminal `panel` {title, name, rows, size, prompt, cont}. Terminals and browsers have `tabs`
+{id, title, prompt | url, page}; `cont` is a terminal's continuation prompt, shown before each later line
+of a command typed over several lines (a newline in `type`), as a SQL client shows `:-] `.
 
 **Actions.** Each has `at` (a cue name, or a number in film seconds), optional `off` (seconds after
 the cue) and one verb:
 
 | verb | on | what it does |
 |---|---|---|
-| `type` | window | types the text at the prompt (or the editor's panel), Enter, then `run` (a captured run's output) or `output` (lines); the prompt comes back once the last output line is in (at once for a command ending in `&`, or with `returns: true`); `returns: false` for a server or `tail -f`: the prompt stays away until `clear`; `enter: false` types without Enter; `speed`, `lead`, `pause`, `breath`, `stream` tune the rhythm |
-| `edit` | editor | {file, line, text, mode}: `insert` (default) a new line below `line` with `indent` spaces, `replace` the line keeping its first `keep` characters, or `append` to it |
+| `type` | window | types the text at the prompt (or the editor's panel), Enter, then `run` (a captured run's output) or `output` (lines); the prompt comes back once the last output line is in (at once for a command ending in `&`, or with `returns: true`); `returns: false` for a server or `tail -f`: the prompt stays away until `clear`; `enter: false` types without Enter; `paste: true` lands the whole text at once (Cmd-V), for a long statement the viewer reads rather than watches typed; `speed`, `lead`, `pause`, `breath`, `stream` tune the rhythm |
+| `edit` | editor | {file, line, text, mode}: `insert` (default) a new line below `line` with `indent` spaces, `replace` the line keeping its first `keep` characters, `append` to it, or `delete` `count` lines (default 1) from `line` at once, as a selection deleted with one key; `paste: true` (on the action) lands the text at once |
 | `save` | editor | Cmd-S: the dirty dot clears |
 | `open` | editor, browser | a file (editor; optional `line`), or {url, page, title} (browser) |
-| `tab` | terminal, browser | snaps to tab `tab`; `new` {title, prompt or url, page} opens it first |
+| `tab` | terminal, browser | snaps to tab `tab`; `new` {title, prompt, cont or url, page} opens it first |
 | `switch` | (a desktop) | slides to that desktop; `snap: false` keeps it on the cue exactly (and fails the check if that is under a word) |
 | `click` | browser | the pointer travels to page target `click` and presses; `page`, `url` change the page |
 | `drag` | browser | presses on `drag` and drags `from` → `to` (fractions of the target) over `dur`; the selection is the tab's |

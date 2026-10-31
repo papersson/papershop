@@ -39,6 +39,12 @@ if [ -f "$secrets" ] && sops decrypt --extract '["RCLONE_CONFIG_R2_SECRET_ACCESS
 else media=absent; fi
 echo "media bucket keys: $media"
 echo "secrets readable by: $(awk 'NF == 2 { print $1 }' "$root/secrets/recipients" 2>/dev/null | paste -sd' ' -)"
+obs="$root/.cache/tools/observability/bin"
+if [ -x "$obs/clickhouse" ]; then
+  echo "observability: clickhouse $(first "$obs/clickhouse" client --version | version), postgres $(first "$obs/postgres" --version | version), prometheus $(first "$obs/prometheus" --version | version), loki $(first "$obs/loki" -version | version), otelcol-contrib $(first "$obs/otelcol-contrib" --version | version)"
+else
+  echo "observability: absent"
+fi
 echo "pin kokoro weights: $(sed -n 's/^KOKORO_REVISION = "\(.\{12\}\).*/\1/p' "$kit/src/studio_kit/narration.py")"
 
 if [ "${1:-}" = --tools ]; then
