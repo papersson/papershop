@@ -93,33 +93,61 @@ export function windowBox(c, scr, s, id) {
 
 // ── Camera ──────────────────────────────────────────────────────────────────────────────────────
 function resolveKey(c, scr, s, key, plateAtT) {
-  if (key === 'whole' || key?.whole) return whole(c, scr, key?.whole ?? plateAtT)
+  if (key === 'whole' || key?.whole) { const p = key?.whole ?? plateAtT; return { ...whole(c, scr, p), plate: p } }
   if (key === 'all' || key?.all) {
     const ps = s.present.length ? s.present : scr.compiled.plates
     const k0 = Math.min(...ps.map(p => plateIndex(scr, p))), k1 = Math.max(...ps.map(p => plateIndex(scr, p)))
-    return c.frameOn([plateX(c, k0), 0, plateX(c, k1) + c.W, c.H], { margin: key?.margin ?? 60, min: .1 })
+    return { ...c.frameOn([plateX(c, k0), 0, plateX(c, k1) + c.W, c.H], { margin: key?.margin ?? 60, min: .1 }), plate: null }
   }
-  if (key?.region) return onPlate(c, scr, key.on ?? plateAtT, key.region, key)
+  if (key?.region) { const p = key.on ?? plateAtT; return { ...onPlate(c, scr, p, key.region, key), plate: p } }
   if (key?.window) {
-    const b = windowBox(c, scr, s, key.window), pad = key.pad ?? 0
-    return onPlate(c, scr, scr.compiled.plateOf[key.window], [b.x - pad, b.y - pad, b.x + b.w + pad, b.y + b.h + pad], key)
+    const b = windowBox(c, scr, s, key.window), pad = key.pad ?? 0, p = scr.compiled.plateOf[key.window]
+    return { ...onPlate(c, scr, p, [b.x - pad, b.y - pad, b.x + b.w + pad, b.y + b.h + pad], key), plate: p }
   }
-  return key
+  // a plain {x, y, z}: on the desktop under its centre, unless it is a pull-back (z below 1)
+  const k = Math.floor(key.x / (c.W + GAP))
+  return { ...key, plate: key.z >= 1 && k >= 0 && k < scr.compiled.plates.length ? scr.compiled.plates[k] : null }
+}
+
+/** How long a camera move takes, in seconds: before it the frame holds (a key's ease 'glide' moves the whole gap). */
+export const MOVE = 1.6
+
+/**
+ * The keys a frame at t follows: a key set on the other side of a switch, on a desktop other than the
+ * one shown at t, frames the whole of the shown one instead (the switch already took the viewer there;
+ * a key that pans to another desktop with no switch between stays), and a gap longer than `move` holds
+ * the previous framing until `move` before the next key, so the frame is locked between moves and
+ * never drifts.
+ */
+function lockedKeys(c, scr, ks, plate, plateAt, move) {
+  const stale = (kt, v) => v.plate && v.plate !== plate && plateAt(kt) !== plate
+  const here = ks.map(([kt, v, e]) => [kt, stale(kt, v) ? whole(c, scr, plate) : v, e])
+  const out = []
+  here.forEach(([kt, v, e], i) => {
+    const glide = e === 'glide', ease_ = glide ? 'inOut' : e
+    if (i && !glide && kt - here[i - 1][0] > move) out.push([kt - move, out[out.length - 1][1]])
+    out.push([kt, v, ease_])
+  })
+  return out
 }
 
 /**
  * Point the camera for this frame. keys: [clip seconds, target, ease?] where a target is 'whole' (the
  * desktop shown then), 'all' (every desktop present: the pull-back), {on, region: [x0, y0, x1, y1]},
  * {window: id, pad}, or a plain {x, y, z}. With no keys the camera holds the whole current desktop.
- * Around every switch it eases out to the whole desktop, slides rigidly across with ease out, and
- * eases back in to the keys: out, across, in. The viewer always sees the whole plate move.
+ * A key is where the camera arrives: the frame holds still until `move` seconds before it (MOVE),
+ * then moves (ease 'glide' instead moves across the whole gap, for a deliberate slow push). A key on
+ * a desktop other than the one shown frames the shown one whole. Around every switch it eases out
+ * to the whole desktop, slides rigidly across with ease out, and eases back in to the keys: out,
+ * across, in. The viewer always sees the whole plate move.
  */
-export function screensCamera(c, scr, s, keys = [], { out = .35, inn = .4 } = {}) {
+export function screensCamera(c, scr, s, keys = [], { out = .35, inn = .4, move = MOVE } = {}) {
   const sw = scr.switches.map(x => ({ ...x, t: x.t - s.f0 }))
   const plateAt = t => { let p = scr.compiled.start; for (const x of sw) if (t >= x.t) p = x.to; return p }
+  const resolved = keys.map(([kt, target, e]) => [kt, resolveKey(c, scr, s, target, plateAt(kt)), e])
   const user = t => {
     if (!keys.length) return whole(c, scr, plateAt(t))
-    const ks = keys.map(([kt, target, e]) => [kt, resolveKey(c, scr, s, target, plateAt(kt)), e])
+    const ks = lockedKeys(c, scr, resolved, plateAt(t), plateAt, move)
     const k = cameraAt(t, ks.map(([kt, v, e]) => [kt, { x: v.x, y: v.y, zoom: v.z }, e]))
     return { x: k.x, y: k.y, z: k.zoom }
   }
@@ -205,18 +233,18 @@ export const terminalCols = (w, size) => Math.floor((w - 2 * 36) / (size * .6))
 function termRows(c, key, look, box, src, { size, lh, rows, input, caret, t }) {
   const L = look, step = size * lh, cols = terminalCols(box.w, size)
   const out = []
+  // a command typed over several lines (Enter inside a SQL statement) shows each line after the
+  // prompt, the later ones after the tab's continuation prompt `cont`, as a SQL client does
+  const command = (text, prompt, cont) => String(text).split('\n').forEach((part, j) => {
+    const p = j ? cont ?? '' : prompt ?? ''
+    wrapLine(p + part, cols).lines.forEach((piece, k) =>
+      out.push(k === 0 ? [{ text: piece.slice(0, p.length), fill: L.accent }, { text: piece.slice(p.length), fill: L.ink }] : [{ text: piece, fill: L.ink }]))
+  })
   for (const l of src.lines) {
-    const text = (l.cmd ? (l.prompt ?? '') : '') + l.text
-    const { lines } = wrapLine(text, cols)
-    lines.forEach((piece, k) => {
-      if (l.cmd && k === 0) out.push([{ text: piece.slice(0, (l.prompt ?? '').length), fill: L.accent }, { text: piece.slice((l.prompt ?? '').length), fill: L.ink }])
-      else out.push([{ text: piece, fill: l.fill ?? (l.err ? L.problem : l.cmd ? L.ink : L.ink) }])
-    })
+    if (l.cmd) { command(l.text, l.prompt, l.cont); continue }
+    for (const piece of wrapLine(l.text, cols).lines) out.push([{ text: piece, fill: l.fill ?? (l.err ? L.problem : L.ink) }])
   }
-  if (input !== null) {
-    const { lines } = wrapLine(src.prompt + input, cols)
-    lines.forEach((piece, k) => out.push(k === 0 ? [{ text: piece.slice(0, src.prompt.length), fill: L.accent }, { text: piece.slice(src.prompt.length), fill: L.ink }] : [{ text: piece, fill: L.ink }]))
-  }
+  if (input !== null) command(input, src.prompt, src.cont)
   const shown = out.slice(-rows), x0 = box.x + 36, rowY = r => box.y + 24 + (r + .5) * step
   shown.forEach((parts, r) => monoLine(c, key + ':r' + r, x0, rowY(r), parts, { size }))
   if (input !== null && caret) {

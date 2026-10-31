@@ -3,6 +3,49 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A locked camera on the screens, and cards that leave cleanly (0.24.0)
+
+Patrik found the wide-events film's macro transitions sloppy: the frame kept slowly zooming and
+panning, and around 1:50 it stayed half on the chat beside the terminal for twenty seconds.
+
+- `screensCamera` keys are arrivals. The camera glided across the whole gap between two keys, so keys
+  a minute apart were a minute of drift; it now holds the frame and moves in the last 1.6 s (`MOVE`).
+  Ease `'glide'` keeps the old slow move where one is meant.
+- A key on another desktop than the one shown after a switch frames the shown desktop whole. A
+  chapter that keyed the chat at its start and the terminal a minute later left the camera easing
+  back towards the chat after the switch.
+- Definition cards leave in two steps: the card's parts go first, then the scene sharpens. Both at
+  once made a half-gone card over a half-sharp scene, a muddy double exposure. The blur variant dims
+  the scene further (0.86), so a light page under it is a faint impression rather than a grey wash.
+
+## Real servers for observability films; deleting, pasting and multi-line commands on the screens (0.23.0)
+
+Made rebuilding the wide-events film on OpenTelemetry and ClickHouse, after Patrik asked for industry
+practice instead of a CSV file and DuckDB on one machine.
+
+- The papershop flake has an `observability` package: ClickHouse, Postgres 17, Prometheus with promtool,
+  Grafana Loki with logcli, and the OpenTelemetry Collector (contrib). On x86_64 Linux ClickHouse is
+  the official static build, pinned by checksum, because the nixpkgs build aborts at start on the
+  cloud's kernel ("Cannot allocate ThreadStack"). `script/bootstrap --observability` links it,
+  `script/doctor` says whether it is there and `script/receipt` prints the versions. A film runs the
+  servers itself (the wide-events film's commands/stack.py), every one on 127.0.0.1 and in UTC.
+- An editor `edit` can `delete` `count` lines at once, as a selection deleted with one key. Taking a
+  logger out of a file was a run of replaces before.
+- `paste: true` on `type` or `edit` lands the whole text at once with a Cmd-V chord, and is left out of
+  the typing-rate check. A 450-character SQL view takes 35 s at the autotype ceiling; the viewer reads a
+  statement while the narrator explains it rather than watching it typed, and points name its parts.
+- A terminal command can span several lines (a newline in `type`): the later lines follow the tab's
+  continuation prompt `cont` (ClickHouse's `:-] `), and the wrap check measures each line on its own.
+
+## The prompt comes back when the command is done (0.22.2)
+
+Found reviewing the log collector film: after Enter on a foreground command with captured output, the
+screens layer showed the prompt and caret at once, so a slow command (a search that takes 3.4 s) looked
+finished while the viewer waited. A shell gives the prompt back when the command finishes, so the line now
+stays running from Enter until the last output line has appeared. A command ending in `&` returns at
+once, as before, and `returns: true` forces that. A test also pins 0.22.1's text fix: coloured pieces of
+a line under a camera zoom end where one string of the same text ends.
+
 ## Text drawn where it is laid out; off-screen desktops left out (0.22.1)
 
 Two fixes found making the logger film.

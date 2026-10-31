@@ -31,6 +31,34 @@
           # sops and age for script/secrets and script/doctor, outside the studio shell; bootstrap
           # links them at .cache/tools/secrets.
           secrets = pkgs.symlinkJoin { name = "papershop-secrets"; paths = [ pkgs.sops pkgs.age ]; };
+          # nixpkgs' ClickHouse aborts at start on the cloud machines' kernel ("Cannot allocate
+          # ThreadStack"); ClickHouse's own static build of the same version runs there, so x86_64
+          # Linux takes that, pinned by checksum, and other systems take nixpkgs'.
+          clickhouse-static =
+            if system == "x86_64-linux" then
+              pkgs.stdenvNoCC.mkDerivation rec {
+                pname = "clickhouse-static";
+                version = "26.5.1.882";
+                src = pkgs.fetchurl {
+                  url = "https://packages.clickhouse.com/tgz/stable/clickhouse-common-static-${version}-amd64.tgz";
+                  hash = "sha256-2T4On29oTwsjO4LL35bozJQotXRHxfTtK31yNoyXTmY=";
+                };
+                dontFixup = true;
+                installPhase = ''
+                  mkdir -p $out/bin
+                  cp usr/bin/clickhouse $out/bin/clickhouse
+                  for tool in server client local; do ln -s clickhouse $out/bin/clickhouse-$tool; done
+                '';
+              }
+            else pkgs.clickhouse;
+          # The servers the wide-events film runs for real (films/observability-wide-events in
+          # studio-journey): the shop's spans go through the OpenTelemetry Collector into ClickHouse,
+          # orders live in Postgres, and Prometheus and Loki are the older stores it compares them with.
+          # Opt-in (script/bootstrap --observability); about 1.5 GB from the Nix cache.
+          observability = pkgs.symlinkJoin {
+            name = "papershop-observability";
+            paths = with pkgs; [ clickhouse-static postgresql_17 prometheus prometheus.cli grafana-loki opentelemetry-collector-contrib ];
+          };
           default = worklog;
         });
 
