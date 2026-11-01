@@ -216,9 +216,20 @@ def rendered_clip(video, t, cid, fmt=None):
     """A clip video `studio cut` (or export) rendered for the current scenes, or None."""
     from . import keys
     for q in ("final", "draft"):
-        f = keys.clip_file(video, cid, q, keys.clip_key(video, t, cid, q, fmt=fmt), fmt)
-        if f.exists():
-            return f
+        ps = keys.parts(video, t, cid, q, fmt=fmt)
+        files = [keys.clip_file(video, p["id"], q, p["key"], fmt) for p in ps]
+        if not all(f.exists() for f in files):
+            continue
+        if len(files) == 1:
+            return files[0]
+        # A clip rendered as its body and its join: the two joined once, losslessly, and kept.
+        whole = files[0].with_name(files[0].stem + "-" + ps[1]["key"] + "-whole.mp4")
+        if not whole.exists():
+            lst = whole.with_suffix(".txt")
+            lst.write_text("".join(f"file '{f.resolve()}'\n" for f in files))
+            proc.ffmpeg("-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(whole))
+            lst.unlink()
+        return whole
     return None
 
 

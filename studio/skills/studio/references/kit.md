@@ -170,6 +170,7 @@ mapping in `video.json.legend` and keep it consistent in every chapter.
 | `c.asset(file)` | An asset URL that works on the desk and in the renderer. |
 | `c.header`, `c.view` | Reserved header height and the usable `[x, y, w, h]` below it. |
 | `c.camAt(keys)`, `c.frameOn(region, options)` | A time-based camera and a region fitted into the view. |
+| `c.focus`, `c.shots`, `c.recall`, `c.scene`, `export const join` | Film grammar (`grammar.md`). |
 | `c.sentences`, `c.chapters`, `c.title`, `c.index` | Context from the shared timeline. |
 
 `c.camAt([[t0, {x, y, z}], [t1, c.frameOn([x0, y0, x1, y1]), 'heavy']])` moves between keyed
@@ -178,15 +179,13 @@ camera; `over` and `ui` stay fixed. An optional `scenes/overlay.js` draws over a
 is owned by the main session.
 
 `c.kit` supplies `C` theme colours, `ease`, `lerp`, `clamp`, `keyed`, `stagger`, `pulse`, `spring`,
-`track`, `countUp`, `follow`, `settle`, `wobble` and `rng(seed)`. `keyed(t, keys)` interpolates
-numbers or arrays. `follow(t, fn, lag, stiffness, damping)` trails a time-based source;
-`settle(t, contact, amplitude, frequency, decay)` adds a decaying physical settle. Named eases include `out`, `in`, `inOut`, `smooth`, `back`, `heavy`,
+`track`, `countUp`, `follow`, `settle`, `wobble` and `rng(seed)`. `keyed` interpolates
+numbers or arrays, `follow` trails a time-based source and `settle` adds a decaying physical settle. Named eases include `out`, `in`, `inOut`, `smooth`, `back`, `heavy`,
 `float` and `snap`. `studio glossary [--term WORD]` connects motion words to helpers and examples.
 
 Import live helpers through `@studio/`, such as `@studio/kit.js`. Import three.js through `three`
 or `three/addons/...`. Absolute `/engine/` imports break the desk
-and renderer. See `templates/live/scenes/example-chapter.js` and
-`engines/live/src/` for complete primitive signatures.
+and renderer. Full signatures: `templates/live/scenes/example-chapter.js`, `engines/live/src/`.
 
 ## Depth, light and plates
 

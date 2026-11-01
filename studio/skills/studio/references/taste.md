@@ -139,9 +139,9 @@ answering it, the switch and the resulting change, the contact and its consequen
 anticipation, a contact on a named cue and a settle. When sound is permitted, time it from that cue;
 a recorded effect lands on its transient peak.
 
-Point on the word, act in the pauses. When the narrator names one of several things on screen,
-underline it and dim the rest, whole as the word is said (`screens.md`, "Pointing and outcome
-marks"); a state change (a tick, a cross, a switch) lands in the pause after the sentence.
+Point on the word, act in the pauses. When the narrator names one of several things, dim the rest
+as the word is said (`c.focus`; a screens `point`); a state change lands in the pause after the
+sentence. Film grammar is in `grammar.md`.
 
 Default to no sound effects. Sound makes an object real (Ben Burtt): it belongs to things with
 a body that are touched. Permit recorded keys for performed typing, clicks, a window opening, or

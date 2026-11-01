@@ -13,6 +13,7 @@ chapters that wait on it, and the beat grid counts only for chapters whose code 
 import functools
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 
@@ -233,7 +234,62 @@ def scene_reads_beats(video, clip_id, clip_ids):
     return any(_BEATS.search(f.read_text(errors="replace")) for f in scene_files(video, clip_id, clip_ids))
 
 
-def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
+RECALL = re.compile(r"""\b(?:recall|scene)\(\s*['"]([\w-]+)['"]""")
+HARD = re.compile(r"""export\s+const\s+join\s*=\s*['"]hard['"]""")
+# A chapter join is drawn in the outgoing chapter's quiet tail (the live player's joinSpan, same numbers).
+JOIN_MAX, JOIN_MIN, JOIN_CLEAR = 0.6, 0.2, 0.1
+
+
+def recalled(video, clip_id, clip_ids):
+    """Other chapters a live clip draws with c.recall or c.scene: their keys go into its key."""
+    out = set()
+    for f in scene_files(video, clip_id, clip_ids):
+        out |= {m for m in RECALL.findall(f.read_text(errors="replace")) if m in clip_ids}
+    return sorted(out - {clip_id})
+
+
+def join_frame(video, timeline, clip_id):
+    """The first frame of a live clip's join into the next chapter, or None when the cut is hard:
+    no next live scene, the next scene says `export const join = 'hard'`, or too little quiet after
+    this chapter's last word."""
+    order = [c["id"] for c in timeline["tracks"]["scene"]]
+    i = order.index(clip_id)
+    if i + 1 >= len(order) or not has_scene(video, clip_id, "live") or not has_scene(video, order[i + 1], "live"):
+        return None
+    nxt = Path(video) / "scenes" / f"{order[i + 1]}.js"
+    if nxt.exists() and HARD.search(nxt.read_text(errors="replace")):
+        return None
+    c = tl.clip(timeline, clip_id)
+    first, count = tl.frames(timeline, clip_id)
+    fps = timeline["fps"]
+    last = max([0.0] + [n["end"] - c["start"] for n in timeline["tracks"]["narration"] if n["clip"] == clip_id])
+    span = min(JOIN_MAX, count / fps - last - JOIN_CLEAR)
+    if span < JOIN_MIN:
+        return None
+    # One frame early: a frame before the join draws exactly what the body would, so the split is safe.
+    return max(1, math.floor((count / fps - span) * fps) - 1)
+
+
+def parts(video, timeline, clip_id, quality, engine=None, fmt=None):
+    """The rendered pieces of a clip: [{id, clip, range (seconds) or None, frames, key}]. A clip with a
+    join renders as its body and its join, so an edit to the next chapter re-renders only the join."""
+    key = clip_key(video, timeline, clip_id, quality, engine, fmt)
+    first, count = tl.frames(timeline, clip_id)
+    jf = join_frame(video, timeline, clip_id) if (engine or _engine_of(video)) == "live" else None
+    if jf is None:
+        return [{"id": clip_id, "clip": clip_id, "range": None, "frames": count, "key": key}]
+    fps = timeline["fps"]
+    order = [c["id"] for c in timeline["tracks"]["scene"]]
+    nxt = order[order.index(clip_id) + 1]
+    h = hashlib.sha1(f"{key}|{jf}".encode())
+    body = h.hexdigest()[:16]
+    h.update(f"join|{clip_key(video, timeline, nxt, quality, engine, fmt, alone=True)}".encode())
+    return [{"id": clip_id, "clip": clip_id, "range": (0, (jf - 1) / fps), "frames": jf, "key": body},
+            {"id": f"{clip_id}~join", "clip": clip_id, "range": (jf / fps, (count - 1) / fps), "frames": count - jf,
+             "key": h.hexdigest()[:16]}]
+
+
+def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None, alone=False):
     engine = engine or _engine_of(video)
     video = Path(video)
     clip_ids = {c["id"] for c in timeline["tracks"]["scene"]}
@@ -295,6 +351,10 @@ def clip_key(video, timeline, clip_id, quality, engine=None, fmt=None):
     # it keeps its keys.
     if engine == "live":
         part |= {k: settings.raw(video)[k] for k in ("legend", "motion") if settings.raw(video).get(k)}
+        if not alone and has_scene(video, clip_id, engine):
+            # Recalled chapters, keyed alone, so a key never chains through every later chapter.
+            part["draws"] = {o: clip_key(video, timeline, o, quality, engine, fmt, alone=True)
+                             for o in recalled(video, clip_id, clip_ids)}
     h.update(json.dumps(part, sort_keys=True).encode())
     return h.hexdigest()[:16]
 

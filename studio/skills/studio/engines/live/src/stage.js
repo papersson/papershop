@@ -33,6 +33,7 @@ export class Stage {
     this.ui = this.make('g', svg)
     this.nodes = new Map()        // key -> {node, layer, attrs: Set}
     this.order = []               // keys in this frame's drawing order
+    this.prefix = ''              // prepended to every key while a nested scene draws (nest)
   }
 
   make(tag, parent) {
@@ -44,10 +45,13 @@ export class Stage {
   begin() {
     this.order = []
     this.drawn = new Set()
+    this.focusing = null
+    for (const g of [this.layers.back, this.camera, this.layers.over]) g.removeAttribute('opacity')   // a join fades them
     this.cam(this.width / 2, this.height / 2, 1)
   }
 
   end() {
+    this.finish()
     for (const [key, rec] of this.nodes) rec.node.style.display = this.drawn.has(key) ? '' : 'none'
     // Stack the drawn nodes in this frame's order, layer by layer.
     for (const key of this.order) {
@@ -58,7 +62,14 @@ export class Stage {
 
   /** Point the camera at (x, y) with zoom z: a push-in is z rising, a pan is (x, y) moving. */
   cam(x, y, z) {
+    if (this.nested) {
+      // A nested scene's camera moves only its own group (nest), never the frame's.
+      const tx = this.width / 2 - x * z, ty = this.height / 2 - y * z
+      this.nested.setAttribute('transform', `translate(${tx} ${ty}) scale(${z})`)
+      return
+    }
     this.moved = z !== 1 || x !== this.width / 2 || y !== this.height / 2
+    this.z = z
     const tx = this.width / 2 - x * z, ty = this.height / 2 - y * z
     this.camera.setAttribute('transform', `translate(${tx} ${ty}) scale(${z})`)
   }
@@ -70,6 +81,7 @@ export class Stage {
    * the legend check reads with its colours; any drawing call takes it as `means`.
    */
   el(key, tag, attrs = {}, layer = 'main') {
+    key = this.prefix + key
     const parent = this.scope ?? (layer === 'ui' ? this.ui : this.layers[layer] ?? this.layers.main)
     let rec = this.nodes.get(key)
     if (!rec || rec.tag !== tag) {
@@ -105,6 +117,56 @@ export class Stage {
     return node
   }
 
+  /**
+   * The finishing pass, by name, over what the scene drew under the camera:
+   * - focus (this.focusing = {weights: Map(name -> 0..1), amount, dim, blur}): every node whose name
+   *   doesn't mention a focused name softens and dims by `amount`. A node's name is its box name and
+   *   its key, read as words, so focusing "payment" keeps the box named payment and its label
+   *   "name-payment"; a focus of several words needs all of them.
+   * - keep (text drawn with {keep: true}): the text keeps its size on screen whatever the zoom.
+   * Attributes set here are recorded on the node, so the next frame removes them like any other.
+   */
+  finish() {
+    const f = this.focusing, z = this.z ?? 1
+    const words = s => String(s ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+    const focus = f && f.amount > 0.001 ? [...f.weights].map(([n, w]) => [words(n), w]) : null
+    if (!focus && z === 1) return
+    const soft = focus ? this.blur('studio-focus-soft', (f.blur ?? 4) * f.amount) : undefined
+    for (const key of this.order) {
+      const rec = this.nodes.get(key), node = rec.node
+      if (node.tagName === 'g' || !this.camera.contains(node)) continue
+      const set = (name, v) => { node.setAttribute(name, v); rec.attrs.add(name) }
+      if (node.getAttribute('data-keep') && z !== 1) {
+        const x = node.getAttribute('x'), y = node.getAttribute('y')
+        set('transform', `translate(${x} ${y}) scale(${1 / z}) translate(${-x} ${-y})`)
+      }
+      if (!focus) continue
+      const own = new Set([...words(node.getAttribute('data-box')), ...words(key)])
+      const keep = Math.max(0, ...focus.map(([ws, w]) => (ws.every(x => own.has(x)) ? w : 0)))
+      const k = f.amount * (1 - keep)
+      if (k <= 0.001) continue
+      set('opacity', Number(node.getAttribute('opacity') ?? 1) * (1 - k * (f.dim ?? 0.7)))
+      // A blur filter on a straight line (a zero-height box) would erase it, so lines only dim.
+      if (soft && !node.getAttribute('filter') && !['line', 'path', 'polyline'].includes(node.tagName)) set('filter', soft)
+    }
+  }
+
+  /**
+   * Draw another scene inside this frame: everything `draw` makes goes into one group (with
+   * `attrs`, such as opacity or a transform) on `layer`, its keys prefixed with `prefix` so they
+   * never collide with this scene's, and its camera moves only that group. A chapter join draws
+   * the outgoing chapter this way, and a callback an earlier chapter's frame.
+   */
+  nest(prefix, attrs, draw, layer = 'main') {
+    const saved = [this.prefix, this.scope, this.nested]
+    const outer = this.el(prefix + ':nest', 'g', { ...attrs, 'data-nest': 1 }, layer)
+    this.scope = outer
+    this.nested = this.el(prefix + ':cam', 'g', { transform: 'translate(0 0)' })
+    this.prefix = saved[0] + prefix + '/'
+    try { draw() } finally { [this.prefix, this.scope, this.nested] = saved }
+    return outer
+  }
+
   rect(key, x, y, w, h, o = {}) {
     return this.el(key, 'rect', {
       x, y, width: Math.max(0, w), height: Math.max(0, h), rx: o.r ?? 10,
@@ -126,7 +188,7 @@ export class Stage {
       'font-size': o.size ?? 32, 'font-weight': o.weight ?? 500,
       'text-anchor': o.anchor ?? 'start', 'dominant-baseline': 'middle',
       'font-family': o.mono ? 'var(--mono)' : 'var(--sans)', 'letter-spacing': o.ls,
-      transform: o.transform, box: o.box ?? key, means: o.means, 'data-kind': 'text',
+      transform: o.transform, box: o.box ?? key, means: o.means, 'data-kind': 'text', 'data-keep': o.keep ? 1 : undefined,
     }, o.layer)
   }
 
@@ -222,6 +284,7 @@ export class Stage {
       let opacity = 1
       for (let p = node; p && p !== this.svg; p = p.parentElement) opacity *= Number(p.getAttribute('opacity') ?? 1)
       if (!name || opacity <= 0.001 || !node.textContent && node.tagName === 'text') continue
+      if (node.closest('[data-nest]')) continue   // another chapter's drawing: its own chapter checks it
       const r = node.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) continue
       // camera: drawn under a camera that has moved (not the ui layer), whose crop is the inframe check's, not bounds'
