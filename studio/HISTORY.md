@@ -3,6 +3,22 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Captions are a file, never burned in (0.28.0)
+
+The director's call: burned-in subtitles compete with the picture in an explainer, whose picture is
+the explanation, and a band reserved for them took a sixth of every frame. So the live engine no
+longer draws captions or the band at all, and there is no option to bring them back: the stage is
+the whole frame (`c.H` is 1080 at 1080p, not 920), and a `band` left in an older `layout.json` is
+ignored with a warning at each timeline build. The band and contrast checks went with the band;
+bounds now also fails an element past the frame's bottom edge.
+
+Captions are still chunked from the narration, once, at 42 characters a line, and ship as a WebVTT
+file: `studio publish` writes `out/captions.vtt` beside the master and gives the page a captions
+track behind a CC button, off by default; `studio export` writes one beside each format;
+`studio captions VIDEO` writes the file alone, for a film published before. The desk's CC button
+shows the same chunks over the picture, off at first. A film rendered before this keeps its band
+until it is rendered again.
+
 ## Film grammar: focus, shots, chapter joins and callbacks (0.27.0)
 
 Found by asking what every film does, from film and editing craft rather than our own films, and

@@ -3,8 +3,11 @@
 Renders a final-quality cut unless the latest cut already is one (only chapters whose key changed
 re-render), links it as out/master.mp4 (1080p), encodes out/web.mp4 to fit the Artifact tool's
 per-file limit (15 MiB: 1080p for short videos, 720p or 540p for long ones, see web_settings), grabs
-the poster frame named in video.json, and writes out/page/: index.html, video.mp4 and poster.jpg. The page is the video, its chapters and a feedback button
-that saves the moment to the artifact's database (collection "feedback"):
+the poster frame named in video.json, writes the caption file out/captions.vtt beside the master
+(captions.py: captions are never burned into the picture), and writes out/page/: index.html,
+video.mp4, poster.jpg and captions.vtt. The page is the video, its chapters, a CC button that turns
+the captions track on (it starts off) and a feedback button that saves the moment to the artifact's
+database (collection "feedback"):
 """
 import html
 import json
@@ -181,8 +184,14 @@ def build(video, skip_gate=False):
     shutil.copyfile(out / "web.mp4", page / "video.mp4")
     proc.ffmpeg("-ss", f"{poster_time(t, cfg.get('poster')):.2f}", "-i", src,
                 "-frames:v", "1", "-vf", "scale=1280:-2", "-q:v", "4", page / "poster.jpg")
+    from . import captions
+    vtt = captions.write(t, out / "captions.vtt")
+    captions.write(t, page / "captions.vtt")
+    if vtt:
+        print(f"captions: {vtt} (a separate file, off until the viewer turns them on)")
     from .assets import page_credits
-    (page / "index.html").write_text(page_html(t, cfg, rec["cut"], page_credits(video)), encoding="utf-8")
+    (page / "index.html").write_text(page_html(t, cfg, rec["cut"], page_credits(video), captions=vtt is not None),
+                                     encoding="utf-8")
     size = (page / "video.mp4").stat().st_size / 1e6
     print(f"cut {rec['cut']} (final) → {page}/index.html, video {size:.1f} MB")
     (out / "colophon.md").write_text(colophon(video, master))
@@ -231,8 +240,10 @@ def chapters_html(t):
     return "\n".join(out)
 
 
-def page_html(t, cfg, cut, credits=()):
-    """The page; `credits` are lines under the chapters beside the voice's (library sounds' packs)."""
+def page_html(t, cfg, cut, credits=(), captions=False):
+    """The page; `credits` are lines under the chapters beside the voice's (library sounds' packs).
+    With `captions`, the video gets captions.vtt as a captions track, not shown until the CC button
+    turns it on."""
     title = cfg.get("title", "Video")
     sentences = json.dumps([[round(s["start"], 2), s["id"], s["caption"]] for s in t["tracks"]["narration"]])
     chapters = json.dumps([[c["id"], c["title"]] for c in t["tracks"]["scene"]])
@@ -247,6 +258,10 @@ def page_html(t, cfg, cut, credits=()):
              '<span class="gap"></span><button type="button" class="btn" id="minus">&minus;1 s</button>'
              '<button type="button" class="btn" id="plus">+1 s</button></div>')
     js = ascii_script(JS)
+    # no `default` on the track: it loads hidden, and only the CC button shows it
+    track = '\n    <track kind="captions" src="captions.vtt" srclang="en" label="English">' if captions else ""
+    cc = ('\n    <button id="cc" class="btn" type="button" aria-pressed="false" aria-label="Captions" '
+          'title="Captions (C)">CC</button>') if captions else ""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
@@ -257,10 +272,10 @@ def page_html(t, cfg, cut, credits=()):
 <body><div class="wrap">
   <header><h1>{html.escape(title)}</h1><span class="len">{mmss(t['duration'])}</span></header>
   <div class="player"><video id="v" preload="metadata" poster="poster.jpg" playsinline>
-    <source src="video.mp4" type="video/mp4"></video></div>
+    <source src="video.mp4" type="video/mp4">{track}</video></div>
   <div class="controls"><button id="play" class="btn" type="button">Play</button>
     <input id="seek" type="range" min="0" max="{t['duration']:.2f}" step="0.05" value="0" aria-label="Position">
-    <span id="clock" class="len">0:00 / {mmss(t['duration'])}</span>
+    <span id="clock" class="len">0:00 / {mmss(t['duration'])}</span>{cc}
     <button id="full" class="btn" type="button">Full screen</button></div>
   <nav class="chapters" aria-label="Chapters">{chapters_html(t)}</nav>
   {credit}
@@ -295,8 +310,9 @@ h1{font-weight:600;font-size:clamp(22px,3vw,30px);line-height:1.15;margin:0;text
 .len{font:500 13px "IBM Plex Mono",ui-monospace,monospace;color:var(--muted);font-variant-numeric:tabular-nums}
 .player{background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-width:100%}
 video{display:block;width:100%;height:100%;cursor:pointer}
-/* Controls sit below the picture: native ones would cover the burned-in captions whenever the
-   video is paused, which is exactly when a note is written. */
+/* Controls sit below the picture: native ones would cover it, and the captions, whenever the video
+   is paused, which is exactly when a note is written. */
+video::cue{font-family:"IBM Plex Sans",system-ui,sans-serif;background:rgba(8,10,12,.78);color:#fff}
 .controls{display:flex;align-items:center;gap:12px}
 .controls input{flex:1;accent-color:var(--ice);min-width:0}
 @media (max-width:520px){#full{display:none}}
@@ -353,6 +369,11 @@ seek.addEventListener('input',()=>{v.currentTime=+seek.value;});
 v.addEventListener('play',()=>{play.textContent='Pause';});v.addEventListener('pause',()=>{play.textContent='Play';});
 v.addEventListener('timeupdate',()=>{seek.value=v.currentTime;clock.textContent=mmss(v.currentTime)+' / '+mmss(+seek.max);});
 document.addEventListener('keydown',e=>{if(e.key===' '&&!/TEXTAREA|INPUT|BUTTON/.test(document.activeElement.tagName)){e.preventDefault();toggle();}});
+const cc=document.getElementById('cc');
+if(cc&&v.textTracks.length){const track=v.textTracks[0];track.mode='hidden';
+  const setCC=on=>{track.mode=on?'showing':'hidden';cc.setAttribute('aria-pressed',on);};
+  cc.addEventListener('click',()=>setCC(track.mode!=='showing'));
+  document.addEventListener('keydown',e=>{if((e.key==='c'||e.key==='C')&&!e.metaKey&&!e.ctrlKey&&!/TEXTAREA|INPUT/.test(document.activeElement.tagName)){e.preventDefault();setCC(track.mode!=='showing');}});}
 function mmss(t){t=Math.max(0,t);return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');}
 function sentenceAt(t){let k=-1;SENTENCES.forEach((s,i)=>{if(s[0]<=t)k=i;});return k;}
 function chapterAt(t){let k=0;chs.forEach((c,i)=>{if(+c.dataset.t<=t)k=i;});return k;}

@@ -68,7 +68,7 @@ function soften(c, soft, H) {
  *   variant 'blur'       the scene blurs and dims to a faint impression (a light page would otherwise
  *                        wash to grey and stay half readable); the card is a centred column over it
  *   variant 'side'       the scene stays sharp and dims; the card is a panel over the right third
- *   variant 'lower'      the scene stays; the term and definition sit in a strip above the captions
+ *   variant 'lower'      the scene stays; the term and definition sit in a strip along the bottom
  *   variant 'spotlight'  everything dims but `focus` [x, y, w, h] (screen px); the card sits beside it
  *   variant 'type'       the scene gives way to the wall; the term is typed large, the definition under it
  *

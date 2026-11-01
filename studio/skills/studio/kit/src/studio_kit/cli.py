@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 
-LAYERS = ["all", "no-captions", "no-band", "background"]
+LAYERS = ["all", "background"]
 
 
 # --- handlers that are only a few lines --------------------------------------------------------
@@ -246,7 +246,7 @@ COMMANDS = {
         W("video"), A("--dry-run", action="store_true", help="only print what would be removed"),
         A("--videos", action="store_true", help="also remove eligible unprotected old draft videos"),
     ], "clean:main"),
-    "check": ("length, determinism, bounds, band and contrast checks", [
+    "check": ("length, determinism, bounds and the other picture checks", [
         W("video"), A("--chapter", help="check one chapter in its private work folder"), A("--samples", type=int, default=3, help="moments per clip"),
         A("--only", help="comma-separated checks, including script (no browser required)"),
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
@@ -279,7 +279,8 @@ COMMANDS = {
     "status": ("set the builder's status line on the desk (no text clears it)", [
         V("video"), A("text", nargs="*"), A("--busy", action="store_true", help="show it as work in progress"),
     ], "page:main_status"),
-    "publish": ("final cut, web encode, poster and the page in out/page/", [W("video"), A("--by", help="record who said ship it; use after the user’s decision")], "publish:main"),
+    "captions": ("the caption file, out/captions.vtt, from the timeline (never burned into the picture)", [W("video")], "captions:main"),
+    "publish": ("final cut, web encode, poster, caption file and the page in out/page/", [W("video"), A("--by", help="record who said ship it; use after the user’s decision")], "publish:main"),
 }
 
 

@@ -45,12 +45,10 @@ def test_provenance_finds_assets_scenes_use_without_a_row(tmp_path):
 
 
 def stage(a, b, d=2):
-    """Two boxes landing at a and b seconds; a dot blinking on the stage (ambient) and a bar blinking in
-    the caption band (not the stage) all along."""
+    """Two boxes landing at a and b seconds; a dot blinking on the stage (ambient) all along."""
     box = "drawbox=y=100:w=400:h=300:color=white:t=fill"
     return (f"color=c=black:s=1920x1080:r=30:d={d},{box}:x=100:enable='gte(t,{a})',{box}:x=900:enable='gte(t,{b})',"
-            "drawbox=x=50:y=700:w=12:h=12:color=white:t=fill:enable='lt(mod(t,0.2),0.1)',"
-            "drawbox=x=0:y=950:w=1920:h=100:color=white:t=fill:enable='lt(mod(t,0.2),0.1)'")
+            "drawbox=x=50:y=700:w=12:h=12:color=white:t=fill:enable='lt(mod(t,0.2),0.1)'")
 
 
 class StageEngine:
@@ -155,7 +153,7 @@ LAY = {"width": 1920, "height": 1080, "band": {"height": 160}}
 def old_signal(path, fps, first, count, seek=True):
     """The pacing signal as the kit measured it before frame_signal shared its decoder, written out
     whole: the reference the pacing check and the motion review must still match."""
-    step, crop = max(1, round(fps / 10)), 92
+    step, crop = max(1, round(fps / 10)), 108
     seek = ["-ss", f"{max(0.0, (first - 0.5) / fps):.4f}", "-t", f"{count / fps:.4f}"] if seek else []
     raw = subprocess.run(["ffmpeg", "-v", "error", *seek, "-i", str(path), "-vf",
                           f"fps={fps / step:g},scale=192:108,crop=192:{crop}:0:0,format=gray", "-f", "rawvideo", "-"],
@@ -197,7 +195,7 @@ def gray_clip(path, frames, w=384, h=216, fps=30):
 
 
 def picture(w=384, h=216):
-    """90 frames above the caption band: a box easing right over frames 10-20 (fastest into 15), a cut
+    """90 frames: a box easing right over frames 10-20 (fastest into 15), a cut
     to a grey stage at 45, and a panel over half the stage fading in over frames 60-65."""
     def frame(bg, boxes):
         rows = [bytearray([bg]) * w for _ in range(h)]

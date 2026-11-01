@@ -14,7 +14,7 @@ from . import timeline as tl
 from .env import engine_dir, resolve_browser
 
 ENGINES = ("live",)
-LAYERS = ("all", "no-captions", "no-band", "background")
+LAYERS = ("all", "background")
 LOOK_ENGINES = ("live",)      # the engines that draw a look sheet
 # What each engine needs and gives (declared, so a missing capability is reported, never faked):
 # needs_browser/needs_listener: launches Chromium / binds a local port; boxes: pixel boxes of named elements;
@@ -123,7 +123,7 @@ class Engine:
         return self._call("render", *args)
 
     def boxes_at(self, requests):
-        """Boxes for many frames in one browser session: [{clip, t}] -> [{clip, t, band, boxes}]."""
+        """Boxes for many frames in one browser session: [{clip, t}] -> [{clip, t, boxes}]."""
         self._plates(requests)
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump(requests, f)
@@ -133,16 +133,16 @@ class Engine:
             Path(f.name).unlink(missing_ok=True)
 
     def boxes(self, clip, t):
-        """Pixel boxes of every labelled element at clip time t, and the caption band's position."""
+        """Pixel boxes of every labelled element at clip time t."""
         self._plates([{"clip": clip, "t": t}])
         return self._call("boxes", "--clip", clip, "--t", t)
 
-    def look(self, outdir, caption=()):
-        """The look sheet: one still per page (look-<n>.png in outdir), the band showing `caption`
-        (lines); {pages: [{page, title, out}]}. Live only."""
+    def look(self, outdir):
+        """The look sheet: one still per page (look-<n>.png in outdir); {pages: [{page, title, out}]}.
+        Live only."""
         if self.name not in LOOK_ENGINES:
             raise EngineError(f"the look sheet is drawn by the {' and '.join(LOOK_ENGINES)} engines, not {self.name}")
-        return self._call("look", "--out", outdir, "--caption", json.dumps(list(caption)))
+        return self._call("look", "--out", outdir)
 
     def duration(self, clip):
         return self._call("duration", "--clip", clip)

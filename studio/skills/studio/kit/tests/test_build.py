@@ -354,13 +354,17 @@ def test_a_cut_builds_the_timeline_first(tmp_path):
     assert read(tmp_path / "cuts" / f"cut{rec['cut']}" / "timeline.json")["cues"] == {"logo": 2.0}
 
 
-def test_the_build_wraps_captions_at_each_formats_width_in_layout_json(tmp_path):
+def test_the_build_wraps_captions_once_and_says_an_old_band_is_ignored(tmp_path, capsys):
     v = explainer(tmp_path)
-    (v / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "formats": {"9:16": {"band": {"height": 340, "chars": 20}}}}))
+    (v / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "band": {"height": 160, "style": "opaque"}}))
     narration.narrate(v, estimate=True)
     for c in tl.load(v)["tracks"]["captions"]:
         text = " ".join(c["lines"])
-        assert c["lines"] == tl.wrap(text, 42) and c["wrapped"]["9:16"] == tl.wrap(text, 20)
+        assert c["lines"] == tl.wrap(text, 42) and "wrapped" not in c
+    assert "layout.json reserves a caption band" in capsys.readouterr().out
+    (v / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT))
+    tl.build(v)
+    assert "caption band" not in capsys.readouterr().out
 
 
 def test_the_desk_clocks_an_estimate_silently(tmp_path):
@@ -375,20 +379,6 @@ def test_the_desk_clocks_an_estimate_silently(tmp_path):
     narrated(v)
     heard = page.state(v)["live"]["audio"]            # the whole mix, else the narration alone
     assert heard == "audio/narration.mp3" or heard.startswith(".cache/sound/") and (v / heard).is_file()
-
-
-def test_check_rebuilds_an_old_timeline_first(tmp_path):
-    """A timeline built before captions were wrapped per format stopped `check --format` with the
-    rebuild message."""
-    from studio_kit import check
-    v = explainer(tmp_path)
-    narration.narrate(v, estimate=True)
-    old = tl.load(v)
-    for c in old["tracks"]["captions"]:
-        c.pop("wrapped", None)
-    (v / "timeline.json").write_text(json.dumps(old))
-    check.main(SimpleNamespace(video=v, samples=1, only="script", format="9:16", all=False))
-    assert all("9:16" in c["wrapped"] for c in tl.load(v)["tracks"]["captions"])
 
 
 def test_an_estimated_video_is_not_finished_published_or_exported_without_its_voice(tmp_path, monkeypatch):
@@ -440,7 +430,7 @@ def test_the_builders_captions_stay_as_written_and_the_kit_chunks_the_rest(tmp_p
     narration.narrate(v, estimate=True)
     kit = tl.load(v)["tracks"]["captions"]
     locked = {**kit[1], "lines": ["Kept exactly", "as the builder wrote it"]}
-    custom = {"start": kit[3]["start"], "end": kit[3]["end"], "text": "A caption of the builder's own, wrapped per format"}
+    custom = {"start": kit[3]["start"], "end": kit[3]["end"], "text": "A caption of the builder's own, wrapped once"}
     (v / "captions.json").write_text(json.dumps([custom, locked]))
     narrated(v)
     heard = [{"w": w, "start": s["start"] + 0.05 + 0.1 * i, "end": s["start"] + 0.05 + 0.1 * i + 0.08}
@@ -451,12 +441,12 @@ def test_the_builders_captions_stay_as_written_and_the_kit_chunks_the_rest(tmp_p
     assert "captions.json" in t["sources"] and "audio/words.json" in t["sources"]
     caps = t["tracks"]["captions"]
     mine = next(c for c in caps if c["lines"] == locked["lines"])     # its lines, at its words' new times
-    assert mine["wrapped"] == locked["wrapped"] and mine["anchor"] == locked["anchor"]
+    assert mine["anchor"] == locked["anchor"] and "wrapped" not in mine
     said = next(s for s in t["tracks"]["narration"] if s["id"] == locked["anchor"]["sentence"])
     assert mine["start"] == said["words"][0]["start"] != locked["start"]
     fixed = next(c for c in caps if c.get("text") == custom["text"])
     assert (fixed["start"], fixed["end"]) == (custom["start"], custom["end"])
-    assert fixed["lines"] == tl.wrap(custom["text"], 42) and fixed["wrapped"]["9:16"] == tl.wrap(custom["text"], 26)
+    assert fixed["lines"] == tl.wrap(custom["text"], 42)
     assert all(a["end"] <= b["start"] for a, b in zip(caps, caps[1:]))
     assert "fixed in time" not in capsys.readouterr().out
 
@@ -510,22 +500,22 @@ def test_a_blank_chunk_hides_the_kits_captions_and_bad_chunks_stop_the_build(tmp
     assert [c["lines"] for c in tl.build(v)["tracks"]["captions"]] == [[]]
     for bad in ([{"start": 2, "end": 1, "text": "x"}], [{"start": 0, "end": 1}], [{"start": 0, "end": 1, "lines": "x"}],
                 [{"start": 0, "end": 2, "text": "a"}, {"start": 1, "end": 3, "text": "b"}],
-                [{"anchor": {"sentence": 3}, "text": "x"}], [{"anchor": {"sentence": "s1_01", "words": [2, 1]}, "text": "x"}],
-                [{"start": 0, "end": 1, "text": "x", "wrapped": "x"}], [{"start": 0, "end": 1, "text": "x", "wrapped": {"4:5": ["x"]}}],
-                [{"start": 0, "end": 1, "text": "x", "wrapped": {"9:16": "x"}}]):
+                [{"anchor": {"sentence": 3}, "text": "x"}], [{"anchor": {"sentence": "s1_01", "words": [2, 1]}, "text": "x"}]):
         (v / "captions.json").write_text(json.dumps(bad))
         with pytest.raises(SystemExit, match="captions.json"):
             tl.build(v)
 
 
-def test_a_builders_caption_too_long_for_a_format_is_reported(tmp_path, capsys):
+def test_a_builders_caption_too_long_is_reported_and_old_per_format_lines_are_dropped(tmp_path, capsys):
     v = explainer(tmp_path)
     narration.narrate(v, estimate=True)
     capsys.readouterr()
-    text = "A caption of the builder's own that fits a wide band, not a phone's"
-    (v / "captions.json").write_text(json.dumps([{"start": 0.0, "end": 1.0, "text": text}]))
-    tl.build(v)
-    assert "more than 2 lines in 9:16, 1:1" in capsys.readouterr().out
+    text = "A caption of the builder's own that runs on far too long for two lines of forty-two characters"
+    (v / "captions.json").write_text(json.dumps([{"start": 0.0, "end": 1.0, "text": text},
+                                                 {"start": 1.0, "end": 2.0, "text": "Old.", "wrapped": {"9:16": ["Old."]}}]))
+    t = tl.build(v)
+    assert "takes more than 2 lines" in capsys.readouterr().out
+    assert all("wrapped" not in c for c in t["tracks"]["captions"])
 
 
 def test_anchored_cues_resolve_on_the_frame_grid_and_follow_their_words(tmp_path):

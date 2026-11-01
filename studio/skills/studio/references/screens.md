@@ -150,7 +150,7 @@ default, and judged by ear in a cut. The template is `templates/live/scenes/exam
 - `defCard(c, key, {term, def, tools, t0, t1, diagram, diagramH, variant, focus})`: the definition
   card, when a core term first matters. `variant` is one of `CARD_VARIANTS`: `blur` (the default and
   episode 1's: the scene blurs behind a centred card), `side` (a panel over the right third, scene sharp),
-  `lower` (a strip above the captions), `spotlight` (all dims but `focus`) or `type` (the term typed
+  `lower` (a strip along the bottom), `spotlight` (all dims but `focus`) or `type` (the term typed
   large on the wall). Start it in a pause or on the defining sentence's first word.
 - `progressStrip(c, stages, current)` and `checklist(c, items, ticks)`: where the film is.
 - `productFrame(c, key, box, {product, title, recon})` with `timeSeries`, `table`, `waterfall`,

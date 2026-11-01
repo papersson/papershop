@@ -97,7 +97,7 @@ const unit = a => { const n = Math.hypot(...a); return a.map(v => v / n) }
 
 /**
  * The camera for a shot on a canvas `size` [W, H], centred in `view` [x, y, w, h] (the stage below the
- * header and above the caption band): column-major view and projection matrices (as WebGL and
+ * header): column-major view and projection matrices (as WebGL and
  * three.js take them), the camera's world matrix, its position and its near and far planes. `span`
  * fills half the view's height; the principal point moves from the canvas's centre to the view's.
  * @param {Shot} shot @param {[number, number]} size @param {number[]} [view] @param {{depth?: number}} [o]

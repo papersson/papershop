@@ -6,11 +6,11 @@
 // these, from scenes/look.js (templates/live/scenes/example-look.js). A video that declares a colour
 // legend (video.json legend) gets a page of it after the built-in ones.
 //
-// A page draws one still from its context, as a scene does at t = 0: S, W, H (the stage above the
-// band), unit, header, view, kit, C, legend (meaning -> CSS colour) and declared (video.json's legend).
+// A page draws one still from its context, as a scene does at t = 0: S, W, H (the stage, the whole
+// frame), unit, header, view, kit, C, legend (meaning -> CSS colour) and declared (video.json's legend).
 
 const ROLES = [
-  ['bg', 'background'], ['band', 'caption band'], ['bg2', 'panel, close-up'], ['tray', 'box fill'],
+  ['bg', 'background'], ['bg2', 'panel, close-up'], ['tray', 'box fill'],
   ['edge', 'box outline'], ['line', 'guide line'], ['ink', 'text'], ['dim', 'idle arrow, secondary text'],
   ['faint', 'guide text'], ['cold', 'the thing explained, selection'], ['hot', 'cost, a number to watch'],
   ['bad', 'failure'], ['good', 'success'], ['warm', 'warm highlight'], ['log', 'log entry'], ['key', 'key'],

@@ -95,15 +95,3 @@ export function clipTimes(T, clip, start) {
     },
   }
 }
-
-/**
- * A caption chunk's lines in a layout's format: the kit wraps them for every format (`lines` are
- * the 16:9 ones, `wrapped` the rest), never the engine, so a format without them is an error.
- * @param {{lines: string[], wrapped?: Record<string, string[]>}} chunk @param {{format?: string}} layout @returns {string[]}
- */
-export function captionLines(chunk, layout) {
-  const fmt = layout.format ?? '16:9'
-  const lines = fmt === '16:9' ? chunk.lines : chunk.wrapped?.[fmt]
-  if (!lines) throw new Error(`timeline.json has no ${fmt} caption lines; \`studio timeline VIDEO\` rebuilds it`)
-  return lines
-}

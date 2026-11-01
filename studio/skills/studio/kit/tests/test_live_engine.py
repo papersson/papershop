@@ -66,8 +66,7 @@ def test_stills_boxes_and_durations(tmp_path):
     assert e.durations(["s1", "s2"]) == {"s1": 60, "s2": 45}
     frames = e.boxes_at([{"clip": "s1", "t": 1.5}, {"clip": "s2", "t": 0.5}])
     names = {b["name"] for b in frames[0]["boxes"]}
-    assert {"title", "card", "caption"} <= names
-    assert frames[0]["band"] == {"y": 920, "h": 160}
+    assert {"title", "card"} <= names and "caption" not in names and "band" not in frames[0]
     text = [b for b in frames[0]["boxes"] if b["name"] == "title"][0]
     assert text["kind"] == "text" and text["h"] > 40
     assert "board tag" in {b["name"] for b in frames[1]["boxes"]}
@@ -96,7 +95,7 @@ def test_a_scene_error_names_the_clip_and_time(tmp_path):
 
 
 @needs_engine
-def test_the_kit_has_the_shared_keyed_track_and_a_format_shows_its_own_caption_lines(tmp_path):
+def test_the_kit_has_the_shared_keyed_track(tmp_path):
     t = live_video(tmp_path, """
 export default function draw(c) {
   c.S.rect('mover', c.kit.track(c.t, [[0, 100], [0.2, 700]]), 100, 50, 50, { fill: '#fff', box: 'mover' })
@@ -104,14 +103,6 @@ export default function draw(c) {
 """)
     (f,) = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.5}])
     assert next(b for b in f["boxes"] if b["name"] == "mover")["x"] == pytest.approx(700, abs=1)
-    t["tracks"]["captions"][0]["wrapped"]["9:16"] = ["Keys", "and values."]
-    (tmp_path / "timeline.json").write_text(json.dumps(t))
-    (f,) = Engine(tmp_path, fmt="9:16").boxes_at([{"clip": "s1", "t": 1.0}])
-    assert len([b for b in f["boxes"] if b["name"] == "caption"]) == 2
-    del t["tracks"]["captions"][0]["wrapped"]
-    (tmp_path / "timeline.json").write_text(json.dumps(t))
-    with pytest.raises(EngineError, match="no 9:16 caption lines"):
-        Engine(tmp_path, fmt="9:16").still("s1", 1.0, tmp_path / "x.png")
 
 
 @needs_engine
@@ -155,18 +146,15 @@ export default function draw(c) {
 
 @needs_engine
 def test_a_moving_camera_leaves_the_background_and_the_overlays_where_they_are(tmp_path):
-    """The background sat inside the camera group, so a pan left a seam one shade off in the band (the
-    band pixel check failed); the 'over' layer moved with the camera too, so an overlay's title went
-    off the top. Both stay put now; the scene under them moves."""
-    from studio_kit import check
+    """The background sat inside the camera group, so a pan left a seam one shade off at the frame's
+    bottom; the 'over' layer moved with the camera too, so an overlay's title went off the top. Both
+    stay put now; the scene under them moves."""
     live_video(tmp_path, PAN_AND_OVERLAY)
     e = Engine(tmp_path)
     rest, f = e.boxes_at([{"clip": "s1", "t": 0.0}, {"clip": "s1", "t": 1.45}])
     named = lambda frame, n: next(b for b in frame["boxes"] if b["name"] == n)
     assert named(f, "title card")["camera"] is False and named(f, "title card")["y"] == pytest.approx(named(rest, "title card")["y"])
     assert named(f, "box")["camera"] is True and named(f, "box")["y"] != pytest.approx(named(rest, "box")["y"])
-    rows = [r for r in check.band_pixels_check(tmp_path, samples=1, engine=e, clips={"s1"}) if r["check"] == "band"]
-    assert rows and all(r["ok"] for r in rows), rows
 
 
 @needs_engine
@@ -397,13 +385,20 @@ export default function draw(c) {
 
 
 @needs_engine
-def test_a_layout_without_a_band_draws_no_captions(tmp_path):
-    # Captions are burned in, and the only way to leave them out is a band of height 0; the game-dev
-    # video set it to 1 instead, because 0 still drew the caption text across the frame's bottom edge.
-    live_video(tmp_path)
-    (tmp_path / "layout.json").write_text(json.dumps({"width": 1920, "height": 1080, "fps": 30, "band": {"height": 0}}))
+def test_the_engine_never_draws_captions_even_with_an_old_band(tmp_path):
+    # Captions are never burned in: a layout.json from before, with a band reserved for them, draws
+    # no band and no caption, and the scene's stage is the whole frame.
+    live_video(tmp_path, """
+export default function draw(c) {
+  c.S.rect('floor', 0, c.H - 40, c.W, 40, { fill: '#8FD3FF', box: 'floor' })
+}
+""")
+    (tmp_path / "layout.json").write_text(json.dumps({"width": 1920, "height": 1080, "fps": 30, "band": {"height": 160}}))
     frame = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.5}])[0]
-    assert "caption" not in {b["name"] for b in frame["boxes"]} and "title" in {b["name"] for b in frame["boxes"]}
+    names = {b["name"] for b in frame["boxes"]}
+    assert "caption" not in names and "band" not in names
+    floor = next(b for b in frame["boxes"] if b["name"] == "floor")
+    assert floor["y"] + floor["h"] == pytest.approx(1080, abs=1)
 
 
 LIT = """

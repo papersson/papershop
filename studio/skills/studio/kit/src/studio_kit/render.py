@@ -260,8 +260,8 @@ def clip_files_fresh(video, timeline, quality, fmt=None):
 
 def export_formats(video, formats, quality="final", lufs=-16.0, name=None):
     """The whole video in each format, final quality by default, into out/export/, its sound finished
-    to `lufs`. Every format comes from the same timeline and scenes; each has its own stage and
-    caption band."""
+    to `lufs`. Every format comes from the same timeline and scenes; each has its own stage. The
+    captions go beside each video as a WebVTT file of the same name (captions.py), never into it."""
     video = Path(video).resolve()
     timeline = tl.build(video)
     audio.finish(video, lufs, timeline=timeline)
@@ -275,7 +275,10 @@ def export_formats(video, formats, quality="final", lufs=-16.0, name=None):
         files, _ = render_clips(video, timeline, Engine(video, fmt=fmt), quality, fmt)
         target = out / f"{slug}_{fmt.replace(':', 'x')}.mp4"
         composite(video, timeline, files, target)
-        made.append({"format": fmt, "file": str(target), "size": [lay["width"], lay["height"]]})
+        from . import captions
+        vtt = captions.write(timeline, target.with_suffix(".vtt"))
+        made.append({"format": fmt, "file": str(target), "size": [lay["width"], lay["height"]],
+                     "captions": str(vtt) if vtt else None})
     return made
 
 

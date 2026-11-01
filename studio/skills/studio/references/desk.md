@@ -8,13 +8,13 @@ The default view plays the real narration with boards, then live scenes as chapt
 reel remains playable before any scene exists. Selecting a saved version keeps its picture and
 sentence timings stable. A/B switches versions at the same timecode and shows what changed.
 Space and J/K/L control playback, comma/period step frames, A adds a note even while playing,
-C toggles captions, and I/O or Shift-drag selects a range. The timeline holds story beats,
+C toggles captions (off at first), and I/O or Shift-drag selects a range. The timeline holds story beats,
 picture thumbnails, the measured voice waveform, sound events and notes. `studio open VIDEO [CUT]` opens and protects a
 saved playable movie when the user wants the MP4.
 
 A note records its version and playhead, range, story beat, chapter lane or whole-film scope.
 Notes save as they are written; there is no round to send. Narration, picture and both are useful kinds. Keep
-controls below the picture so paused captions stay visible. The notes are stored in
+controls below the picture so they never cover it while paused. The notes are stored in
 `review/notes.jsonl`, and `review/status.json` supplies the status line.
 
 Run `studio wait VIDEO --chapter s1` between chapter actions (omit the chapter for the main builder).

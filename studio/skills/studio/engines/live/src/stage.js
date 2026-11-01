@@ -24,7 +24,7 @@ export class Stage {
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
     // Layers, back to front: back (behind the camera, which never moves it), then bg, main and fx
     // inside the camera, then over (overlays: a ladder, a clock, a title card, the header's contents)
-    // and ui (the band), which the camera doesn't move either. The page paints the background, so a
+    // and ui, which the camera doesn't move either. The page paints the background, so a
     // push-in leaves no seam and the 3D stage's canvas can show under the SVG.
     this.layers = { back: this.make('g', svg) }
     this.camera = this.make('g', svg)

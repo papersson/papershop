@@ -10,8 +10,8 @@ from test_render import make_video
 
 def test_contrast_ratio_matches_wcag_endpoints():
     assert round(check.contrast_ratio((0, 0, 0), (255, 255, 255)), 1) == 21.0
-    assert check.contrast_ratio((0xE6, 0xEB, 0xF0), (10, 13, 17)) > check.MIN_CONTRAST
-    assert check.contrast_ratio((0x8C, 0x97, 0xA4), (0x60, 0x68, 0x74)) < check.MIN_CONTRAST
+    assert round(check.contrast_ratio((0xE6, 0xEB, 0xF0), (10, 13, 17)), 1) > 4.5
+    assert check.contrast_ratio((0x8C, 0x97, 0xA4), (0x60, 0x68, 0x74)) < 4.5
 
 
 def test_sample_times_spread_over_each_clip(tmp_path):
@@ -30,45 +30,28 @@ class FakeEngine:
         return [{**r, **self.frames} for r in requests]
 
 
-LAYOUT = {"width": 1920, "height": 1080, "band": {"height": 160}}
+LAYOUT = {"width": 1920, "height": 1080}
 
 
 def boxes(tmp_path, items):
-    return LAYOUT, [{"clip": "s1", "t": 1.0, "band": {"y": 920, "h": 160}, "boxes": items}]
+    return LAYOUT, [{"clip": "s1", "t": 1.0, "boxes": items}]
 
 
-def test_band_guard_flags_an_element_that_reaches_the_band(tmp_path):
-    ok = check.band_guard(tmp_path, boxes=boxes(tmp_path, [{"name": "label", "x": 100, "y": 800, "w": 200, "h": 30}]))
-    bad = check.band_guard(tmp_path, boxes=boxes(tmp_path, [{"name": "label", "x": 100, "y": 900, "w": 200, "h": 40}]))
-    assert ok[0]["ok"] and not bad[0]["ok"] and "'label'" in bad[0]["detail"]
-
-
-def test_the_band_hides_what_a_moved_camera_pushes_under_it(tmp_path):
-    """A deliberate push-in failed band ('panel' reaches y=943) though the opaque band hides it; a box
-    with no camera still fails, and so does a camera's under a frosted band, which shows it."""
-    pushed = {"name": "retry code", "x": 100, "y": 600, "w": 900, "h": 343, "camera": True}
-    stray = {"name": "label", "x": 1200, "y": 900, "w": 200, "h": 40}
-    rows = check.band_guard(tmp_path, boxes=boxes(tmp_path, [pushed, stray]))
-    assert rows[0]["detail"] == "'label' reaches y=940 (band starts at 920)"
-    frosted = {**LAYOUT, "band": {"height": 160, "style": "frosted"}}
-    assert "'retry code'" in check.band_guard(tmp_path, boxes=(frosted, boxes(tmp_path, [pushed])[1]))[0]["detail"]
-    # the band's pixels: the pushed box's (and its edge's) are left out, a pixel beyond them is counted
-    W, h = 1920, 160
-    bare = bytearray(W * h * 3)
-    scene = bytearray(bare)
-    for x in range(98, 1004):
-        scene[(10 * W + x) * 3] = 255           # row 10 of the band (y=930): under the box, edges included
-    assert check.scene_in_band(bytes(scene), bytes(bare), LAYOUT) == 906
-    assert check.scene_in_band(bytes(scene), bytes(bare), LAYOUT, [pushed]) == 0
-    scene[(10 * W + 1500) * 3] = 255
-    assert check.scene_in_band(bytes(scene), bytes(bare), LAYOUT, [pushed]) == 1
-
-
-def test_bounds_flags_elements_off_the_frame_and_wide_captions(tmp_path):
+def test_bounds_flags_elements_off_the_frame_on_every_side(tmp_path):
+    """The stage is the whole frame (no caption band): an element past the bottom edge leaves it too."""
     rows = check.bounds(tmp_path, boxes=boxes(tmp_path, [
         {"name": "runaway", "x": 1900, "y": 100, "w": 100, "h": 20},
-        {"name": "caption", "x": 40, "y": 950, "w": 1840, "h": 40}]))
-    assert not rows[0]["ok"] and "runaway" in rows[0]["detail"] and "margins" in rows[0]["detail"]
+        {"name": "sunk", "x": 100, "y": 1060, "w": 200, "h": 40},
+        {"name": "low label", "x": 100, "y": 1000, "w": 200, "h": 40}]))
+    assert not rows[0]["ok"] and "'runaway'" in rows[0]["detail"] and "'sunk'" in rows[0]["detail"]
+    assert "low label" not in rows[0]["detail"]
+
+
+def test_no_check_is_about_captions_in_the_picture():
+    """Captions are never burned in, so the band and contrast checks are gone with the band."""
+    assert check.CHECKS == ("length", "determinism", "bounds")
+    assert not {"band", "contrast"} & set(check.PER_CLIP)
+    assert not any(hasattr(check, f) for f in ("band_guard", "band_pixels_check", "hidden_by_band"))
 
 
 def test_tile_joins_images_into_one_sheet(tmp_path):
@@ -132,7 +115,6 @@ def test_overlap_flags_text_on_text_but_not_text_on_a_shape():
         {"name": "label a", "kind": "text", "x": 100, "y": 100, "w": 200, "h": 40},
         {"name": "label b", "kind": "text", "x": 150, "y": 110, "w": 200, "h": 40},
         {"name": "card", "kind": "", "x": 90, "y": 90, "w": 400, "h": 200},
-        {"name": "caption", "kind": "text", "x": 100, "y": 100, "w": 200, "h": 40},
         {"name": "far", "kind": "text", "x": 900, "y": 100, "w": 100, "h": 40}]}]
     rows = check.overlap(None, engine=object(), boxes=({}, frames))
     assert not rows[0]["ok"] and rows[0]["detail"] == "'label a' and 'label b' overlap"
@@ -156,10 +138,10 @@ def test_inframe_warns_when_a_narrated_element_leaves_the_visible_stage(tmp_path
                                                 box("node cache", -900, 400, opacity=0)]))  # faded out
     assert ok == [{"check": "inframe", "clip": "s1", "t": 1.35, "ok": True, "detail": ""}]
     bad = check.in_frame(tmp_path, boxes=frame([box("node server", 1800, 400), box("client", 100, 80),
-                                                 box("node cache", 300, 880), box("node client", 3000, 400)]))
+                                                 box("node cache", 300, 1040), box("node client", 3000, 400)]))
     assert bad[0]["ok"] and bad[0]["severity"] == "warning"
     assert "'node server' (right)" in bad[0]["detail"] and "'client' (header)" in bad[0]["detail"]
-    assert "'node cache' (band)" in bad[0]["detail"] and "'node client' (out of frame)" in bad[0]["detail"]
+    assert "'node cache' (bottom)" in bad[0]["detail"] and "'node client' (out of frame)" in bad[0]["detail"]
     assert check.in_frame(tmp_path, boxes=(lay, [{"clip": "s2", "t": 0.5, "boxes": [box("node server", 3000, 0)]}])) == []
 
 
@@ -174,7 +156,7 @@ def test_a_label_is_narrated_when_its_words_are_said_together():
 
 
 def test_bounds_leaves_elements_under_a_moved_camera_alone(tmp_path):
-    lay = {"width": 1920, "height": 1080, "band": {"height": 160}}
+    lay = {"width": 1920, "height": 1080}
     box = lambda name, x, **k: {"name": name, "kind": "", "x": x, "y": 100, "w": 300, "h": 100, **k}
     frames = [{"clip": "s1", "t": 1.0, "boxes": [box("cropped", 1800, camera=True), box("gone", 2500, camera=True)]},
               {"clip": "s1", "t": 2.0, "boxes": [box("placed off", 1800)]}]
@@ -199,7 +181,7 @@ def test_inframe_flags_a_narrated_element_pushed_off_the_top_past_the_header(tmp
 
 
 def test_bounds_leaves_a_shape_with_no_name_of_its_own_alone(tmp_path):
-    lay = {"width": 1920, "height": 1080, "band": {"height": 160}}
+    lay = {"width": 1920, "height": 1080}
     frames = [{"clip": "s1", "t": 1.0, "boxes": [{"name": "rect", "kind": "", "x": 1800, "y": 100, "w": 300, "h": 100, "named": False},
                                                  {"name": "node db", "kind": "", "x": 1800, "y": 300, "w": 300, "h": 100}]}]
     rows = check.bounds(tmp_path, engine=object(), boxes=(lay, frames))
@@ -237,21 +219,3 @@ def test_occluded_warns_when_a_narrated_3d_element_is_hidden_at_a_sample_or_an_e
     seen = [box("head 2", 0.45)]
     assert all("severity" not in r for r in check.occluded(tmp_path, engine=Live(seen), boxes=(LAYOUT, [{**sample[1][0], "boxes": seen}])))
     assert [r["t"] for r in check.occluded(tmp_path, engine=FakeEngine({}), boxes=sample)] == [1.35]   # no event boxes off live
-
-
-def test_a_layout_without_a_caption_band_skips_the_band_pixels(tmp_path):
-    # A video with no band (height 0) made ffmpeg crop a zero-height strip, and check --all crashed.
-    make_video(tmp_path)
-    bandless = {**LAYOUT, "band": {"height": 0}}
-
-    class NoStills:
-        def layout(self):
-            return bandless
-
-        def stills(self, requests):
-            raise AssertionError("no band, so no band pixels to read")
-
-    assert check.band_pixels_check(tmp_path, engine=NoStills()) == []
-    assert not tl.has_band(bandless) and tl.has_band(LAYOUT) and tl.band_top(LAYOUT) == 920
-    item = {"name": "label", "x": 100, "y": 1000, "w": 200, "h": 40}
-    assert check.band_guard(tmp_path, boxes=(bandless, boxes(tmp_path, [item])[1]))[0]["ok"]

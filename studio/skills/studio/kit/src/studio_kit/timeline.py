@@ -32,9 +32,8 @@ and the rest layer on:
                                          An anchor may also carry "weight": 1 | 2 | 3, how much the
                                          argument hangs on the event (taste.md), and "hitstop":
                                          frames (2 to 6) the contact holds; neither moves its time
-  captions.json        the builder       caption chunks whose words are kept: [{text} or {lines,
-                                         wrapped?}] (other formats wrapped from them), each either
-                                         anchored, {anchor: {sentence, words?, text?}}, so it follows its
+  captions.json        the builder       caption chunks whose words are kept: [{text} or {lines}],
+                                         each either anchored, {anchor: {sentence, words?, text?}}, so it follows its
                                          words when the narration moves (a chunk copied from timeline.json
                                          is: that is how one is locked), or fixed at {start, end}, which
                                          warns once the narration changes. The kit chunks only the words
@@ -43,26 +42,26 @@ and the rest layer on:
   audio/sfx.json       studio sfx        the effect cues; adds audio/sfx.wav to tracks.audio, which
                                          each mix renders against this timeline (audio.sources)
   audio/beats.json     studio beats      the beat grid, as "beats"
-  layout.json          studio new        each format's caption line width (band.chars, and its own
-                                         "formats"); every video has one, so it isn't in sources
+  layout.json          studio new        the frame and its formats; every video has one, so it isn't
+                                         in sources
 
 timeline.json
   fps, duration, timing, voice, sources (the files it was built from)
   tracks.scene      [{id, engine, title, start, end}]           one generated clip per chapter
   tracks.narration  [{id, clip, text, caption, paragraph, start, end, words: [{w, start, end}]}]
-  tracks.captions   [{start, end, lines, wrapped, anchor?}]       chunked from the narration, and
-                                                                  captions.json's: lines are the 16:9
-                                                                  lines, wrapped {format: lines} every
-                                                                  other format's (caption_lines), anchor
-                                                                  {sentence, words: [i, j], text} the
-                                                                  words a chunk shows
+  tracks.captions   [{start, end, lines, anchor?}]                chunked from the narration, and
+                                                                  captions.json's; anchor {sentence,
+                                                                  words: [i, j], text} the words a
+                                                                  chunk shows. Never drawn on the
+                                                                  picture: they become the sidecar
+                                                                  caption file (captions.py)
   tracks.audio      [{file, start, role, gain?, in?, out?, fade?}]  role: narration | sfx | music | footage
   tracks.footage    [{id, file, in, out, start, end}]             footage videos only
   cues              {name: seconds}                               every cue resolved and on the frame grid
   beats             {bpm, beats, downbeats, hits}
 
-Captions are wrapped here only, for every format a video can be exported in: an engine shows the
-lines stored for its layout's format, and fails on a format the timeline has none for.
+Captions are never burned into the picture. They are chunked and wrapped here, once, and exported
+beside the video as a WebVTT file (captions.py) that a player shows only when the viewer turns it on.
 
 Every cue, a plain number included, is moved onto the frame it falls on (frame_time, half up as
 the engines' frameOf), so a move and an effect timed from one cue start on the same frame. Engines
@@ -92,10 +91,7 @@ WORD_SLACK = 0.2        # seconds a word may sit outside its sentence's narratio
 NO_BREAK_AFTER = {"the", "a", "an", "of", "to", "and", "or", "in", "on", "for", "with"}
 PAUSES = (",", ";", ":", "—")    # a word ending in one is where a long sentence splits best
 
-DEFAULT_LAYOUT = {
-    "width": 1920, "height": 1080, "fps": 30,
-    "band": {"height": 160, "style": "opaque"},
-}
+DEFAULT_LAYOUT = {"width": 1920, "height": 1080, "fps": 30}
 
 
 def _norm(w):
@@ -161,37 +157,30 @@ def load(video):
     return json.loads((Path(video) / "timeline.json").read_text())
 
 
-# Formats a video can be exported in. Each has its own stage (the frame above the caption band), so
-# scenes lay out against the stage's size rather than fixed pixels; reframe type and UI per format,
-# don't crop a 16:9 render to vertical.
+# Formats a video can be exported in. Each has its own stage (the whole frame), so scenes lay out
+# against the stage's size rather than fixed pixels; reframe type and UI per format, don't crop a
+# 16:9 render to vertical.
 FORMATS = {
-    "16:9": {"width": 1920, "height": 1080, "band": {"height": 160}},
-    "9:16": {"width": 1080, "height": 1920, "band": {"height": 340, "font": 54, "chars": 26}},
-    "1:1": {"width": 1080, "height": 1080, "band": {"height": 200, "font": 44, "chars": 34}},
+    "16:9": {"width": 1920, "height": 1080},
+    "9:16": {"width": 1080, "height": 1920},
+    "1:1": {"width": 1080, "height": 1080},
 }
 
 
 def layout(video, fmt=None):
-    """layout.json, with a format's size and band applied: fmt is a key of FORMATS (or of the file's
-    own "formats" overrides)."""
+    """layout.json, with a format's size applied: fmt is a key of FORMATS (or of the file's own
+    "formats" overrides). A "band" an older layout.json reserved for burned-in captions is dropped:
+    the stage is the whole frame."""
     p = Path(video) / "layout.json"
     base = json.loads(p.read_text()) if p.exists() else dict(DEFAULT_LAYOUT)
+    base.pop("band", None)
     if not fmt or fmt == "16:9":
         return base
     over = {**FORMATS.get(fmt, {}), **base.get("formats", {}).get(fmt, {})}
     if not over:
         raise SystemExit(f"unknown format {fmt!r}; known: {', '.join(FORMATS)}")
-    return {**base, **over, "band": {**base["band"], **over.get("band", {})}, "format": fmt}
-
-
-def has_band(lay):
-    """Whether the layout reserves a caption band (a height of 0 is a video without one)."""
-    return lay["band"].get("height", 0) > 0
-
-
-def band_top(lay):
-    """The y where the caption band starts: the frame's height when there is no band."""
-    return lay["height"] - lay["band"].get("height", 0)
+    over.pop("band", None)
+    return {**base, **over, "format": fmt}
 
 
 def layout_file(video, fmt):
@@ -515,35 +504,13 @@ def wrap(text, width=LINE_CHARS):
     return []
 
 
-def caption_widths(video=None):
-    """Characters per caption line in each format a video can be exported in (FORMATS and
-    layout.json's own "formats"), read from the layout the engine gets for it: {format: chars}.
-    Without a video, the FORMATS defaults."""
-    if video is None:
-        return {f: v["band"].get("chars", LINE_CHARS) for f, v in FORMATS.items()}
-    fmts = dict.fromkeys([*FORMATS, *layout(video).get("formats", {})])
-    return {f: layout(video, f)["band"].get("chars", LINE_CHARS) for f in fmts}
-
-
-def caption_lines(chunk, fmt=None):
-    """A caption chunk's lines in a format; raises for a format the timeline wasn't wrapped for."""
-    if not fmt or fmt == "16:9":
-        return chunk["lines"]
-    if fmt not in chunk.get("wrapped", {}):
-        raise SystemExit(f"timeline.json has no {fmt} caption lines (built before they were kept, or for "
-                         "another layout.json); `studio timeline VIDEO` rebuilds it")
-    return chunk["wrapped"][fmt]
-
-
-def split_phrases(text, widths=None):
-    """A sentence in pieces that each wrap to at most MAX_LINES lines at every width (by default the
-    formats' caption_widths): the chunks are shared by every format, so the narrowest decides. A
+def split_phrases(text, width=LINE_CHARS):
+    """A sentence in pieces that each wrap to at most MAX_LINES lines of `width` characters. A
     long piece splits after a pause near its middle, else at the word boundary nearest it, and not
     after a word in NO_BREAK_AFTER nor leaving a lone word when another cut will do. Pieces are
     whole words in order, so they map onto the sentence's word timings."""
-    widths = list(widths or caption_widths().values())
     words = text.split()
-    if len(words) < 2 or all(len(wrap(text, w)) <= MAX_LINES for w in widths):
+    if len(words) < 2 or len(wrap(text, width)) <= MAX_LINES:
         return [text.strip()]
     half = len(" ".join(words)) / 2
 
@@ -552,12 +519,12 @@ def split_phrases(text, widths=None):
         bad = last.lower() in NO_BREAK_AFTER or min(k, len(words) - k) < 2
         return bad, abs(at - half) - (half / 2 if last.endswith(PAUSES) else 0)
     k = min(range(1, len(words)), key=cost)
-    return split_phrases(" ".join(words[:k]), widths) + split_phrases(" ".join(words[k:]), widths)
+    return split_phrases(" ".join(words[:k]), width) + split_phrases(" ".join(words[k:]), width)
 
 
-def chunk_captions(narration, fps=30, widths=None, kept=(), warn=print):
+def chunk_captions(narration, fps=30, width=LINE_CHARS, kept=(), warn=print):
     """One caption per sentence, or per phrase for long sentences, timed from word timings when
-    present and from character counts otherwise, and wrapped at `widths` (caption_widths). Each
+    present and from character counts otherwise, and wrapped at `width` characters a line. Each
     chunk names the words it shows: "anchor": {sentence, words: [first, past the last], text}.
 
     The builder's chunks `kept` (captions.json) keep their lines. One with an anchor (a chunk copied
@@ -565,8 +532,7 @@ def chunk_captions(narration, fps=30, widths=None, kept=(), warn=print):
     would time them, and the kit chunks the rest of the sentence around it. One without stays at
     its times and replaces every phrase it overlaps. An anchor whose words are gone is dropped,
     with a warning, and the kit captions those words again."""
-    widths = widths or caption_widths()
-    own = [_kept(c, widths, warn) for c in kept]
+    own = [_kept(c, width, warn) for c in kept]
     loose = sorted((c for c in own if "anchor" not in c), key=lambda c: c["start"])
     for a, b in zip(loose, loose[1:]):
         if b["start"] < a["end"]:
@@ -600,10 +566,9 @@ def chunk_captions(narration, fps=30, widths=None, kept=(), warn=print):
                 warn(f"warn: captions.json: two chunks anchor on the same words of {s['id']}; the later is dropped")
                 continue
             p = at
-            for piece in split_phrases(" ".join(words[at:i]), widths.values()) if i > at else []:
+            for piece in split_phrases(" ".join(words[at:i]), width) if i > at else []:
                 q = p + len(piece.split())
-                add({"lines": wrap(piece, widths["16:9"]),
-                     "wrapped": {f: wrap(piece, w) for f, w in widths.items() if f != "16:9"}}, p, q)
+                add({"lines": wrap(piece, width)}, p, q)
                 p = q
             if c is not None:
                 add(c, i, j)
@@ -618,26 +583,24 @@ def chunk_captions(narration, fps=30, widths=None, kept=(), warn=print):
     return chunks
 
 
-def _kept(c, widths, warn=print):
-    """A captions.json chunk as the timeline holds one: the lines it gives kept, the rest wrapped."""
+def _kept(c, width=LINE_CHARS, warn=print):
+    """A captions.json chunk as the timeline holds one: the lines it gives kept, else its text
+    wrapped. A "wrapped" key (per-format lines, from when captions were burned in) is dropped."""
     raw, c = c, c if isinstance(c, dict) else {}
     num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool)
     strs = lambda x: isinstance(x, list) and all(isinstance(y, str) for y in x)
-    lines, text, anchor, given = c.get("lines"), c.get("text"), c.get("anchor"), c.get("wrapped", {})
+    lines, text, anchor = c.get("lines"), c.get("text"), c.get("anchor")
     if lines is not None:
         text = " ".join(lines) if strs(lines) else None
-    others = [f for f in widths if f != "16:9"]
     if not (isinstance(text, str) and (_anchored(anchor) if anchor is not None else
-                                       num(c.get("start")) and num(c.get("end")) and c["end"] > c["start"])
-            and isinstance(given, dict) and all(f in others and strs(v) for f, v in given.items())):
+                                       num(c.get("start")) and num(c.get("end")) and c["end"] > c["start"])):
         raise SystemExit(f"captions.json: {raw} needs text or lines, and an anchor {{sentence, words?: [first, past "
-                         f"the last], text?}} or a start before its end; wrapped, if given, maps {', '.join(others)} to lines")
-    out = {**c, "lines": lines if lines is not None else wrap(text, widths["16:9"]),
-           "wrapped": {f: given[f] if f in given else wrap(text, widths[f]) for f in others}}
-    over = [f for f in widths if len(caption_lines(out, f)) > MAX_LINES]
-    if over:
-        warn(f"warn: captions.json: {text[:40]!r} takes more than {MAX_LINES} lines in {', '.join(over)}; the band "
-             "holds two, so shorten it or give those lines")
+                         "the last], text?}} or a start before its end")
+    out = {k: v for k, v in c.items() if k != "wrapped"}
+    out["lines"] = lines if lines is not None else wrap(text, width)
+    if len(out["lines"]) > MAX_LINES:
+        warn(f"warn: captions.json: {text[:40]!r} takes more than {MAX_LINES} lines; a caption holds two, "
+             "so shorten it or give its lines")
     return out
 
 
@@ -885,12 +848,16 @@ def build(video, quiet=False):
             if missing:      # a warning, not a stop: `studio sfx` builds before it replaces the effects
                 say(f"warn: audio/sfx.json: no time for {', '.join(map(repr, missing))} in this timeline; "
                     "the next cut stops on it until `studio sfx VIDEO CUES` replaces the effects")
-        # chunked last, from the final narration (its words included), at this video's line widths
+        # chunked last, from the final narration (its words included)
         kept = _read(video / "captions.json")
         if kept is not None:
             used.append("captions.json")
             _warn_unanchored(video, kept)
-        t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], caption_widths(video), kept or ())
+        t["tracks"]["captions"] = chunk_captions(t["tracks"]["narration"], t["fps"], kept=kept or ())
+        band = (_read(video / "layout.json") or {}).get("band")
+        if isinstance(band, dict) and band.get("height", 0) > 0:
+            say("warn: layout.json reserves a caption band; captions are never burned in now, so the band is "
+                "ignored and scenes get the whole frame. Delete \"band\" from layout.json")
         t["sources"] = used
         if edited is not None:      # printed even when quiet: the next build would find nothing to say
             parts = [k for k in sorted(set(edited) | set(t)) if k != "tracks" and edited.get(k) != t.get(k)]

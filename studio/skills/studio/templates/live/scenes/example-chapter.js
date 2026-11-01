@@ -1,7 +1,7 @@
 // A live chapter: copy this to scenes/<clip>.js (s1.js for chapter s1) and it replaces the
 // chapter's board in every cut and on the desk. Everything derives from c.t, so any frame draws
-// alone; sentence times come from the timeline. Coordinates are pixels on the stage above the
-// caption band (c.W × c.H); c.unit is c.H / 8, the other engines' stage unit.
+// alone; sentence times come from the timeline. Coordinates are pixels on the stage, the whole
+// frame (c.W × c.H); c.unit is c.H / 8, the other engines' stage unit.
 //
 // Cue on what the voice says: c.phrase('02', 'the whole state') is when those words are spoken,
 // and survives edits elsewhere in the sentence. c.at('02') / c.end('02') are a sentence's ends.

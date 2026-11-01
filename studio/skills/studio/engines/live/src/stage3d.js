@@ -151,7 +151,7 @@ export class Stage3D {
 
   /**
    * Point a view's camera: a shot {target, az, el, span, fov} (shared/camera3d.js). The main view
-   * covers the canvas and centres its shot in the stage below the header and above the band; another
+   * covers the canvas and centres its shot in the stage below the header; another
    * view (`view: 'name'`, with `rect` [x, y, w, h] in pixels) is a panel of its own, for drawing two
    * things side by side without one camera stretching both (a look sheet's items). Returns the shot.
    */

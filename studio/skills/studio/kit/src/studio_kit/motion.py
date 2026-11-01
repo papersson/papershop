@@ -10,8 +10,7 @@
   flash     no more than FLASH_MAX general flashes in any second (WCAG 2.2 SC 2.3.1, approximately)
             (pacing_signal, moves)
 
-Picture motion is measured one way: a rendered stage decoded grey at PACING_SIZE, the caption band
-cropped off (_gray), and the change from each frame to the next (_diffs). The pacing check and the
+Picture motion is measured one way: a rendered stage decoded grey at PACING_SIZE (_gray), and the change from each frame to the next (_diffs). The pacing check and the
 motion review sample it PACING_FPS a second (pacing_signal, file_signal); audio-check reads it frame by
 frame (frame_signal), in the words a sound marks: where motion starts and ends, its peak, a cut.
 """
@@ -234,7 +233,7 @@ def rendered_clip(video, t, cid, fmt=None):
 
 
 def _gray(args, crop, resample=""):
-    """Raw grey frames at PACING_SIZE, the caption band cropped off, from an ffmpeg input. Every decoded
+    """Raw grey frames at PACING_SIZE, the top `crop` rows, from an ffmpeg input. Every decoded
     frame once, in order (passthrough): the raw muxer's default frame-rate mode duplicated the first
     frame after a seek in two seek positions out of three, so a window read one frame late."""
     w, h = PACING_SIZE
@@ -250,8 +249,8 @@ def _seek(first, fps):
 
 
 def _crop(lay):
-    """Rows of a PACING_SIZE frame above the caption band, even."""
-    return int(PACING_SIZE[1] * tl.band_top(lay) / lay["height"]) // 2 * 2
+    """Rows of a PACING_SIZE frame that hold the stage (all of them: the stage is the whole frame), even."""
+    return PACING_SIZE[1] // 2 * 2
 
 
 def _diffs(frames, crop):
@@ -286,7 +285,7 @@ def file_signal(path, t, lay, first, count):
 
 
 def pacing_signal(video, engine=None, clips=None, stills=True):
-    """{clip: [(time, change, link, share)] or None}: each clip's stage (the caption band cropped off)
+    """{clip: [(time, change, link, share)] or None}: each clip's stage
     sampled at PACING_FPS, and the change from each sample to the next (_diffs), at the time between
     them (clip seconds). The frames come from the clip's rendered video when a cut has one
     for the current scenes (decoding costs about 0.2 s a clip); otherwise, with stills, the engine

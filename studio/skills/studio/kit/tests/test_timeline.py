@@ -25,7 +25,7 @@ LONG = ("If a payment was charged and the reply was lost on its way back to the 
 
 
 def test_long_sentence_splits_at_punctuation_near_the_middle():
-    pieces = tl.split_phrases(LONG, [42])
+    pieces = tl.split_phrases(LONG, 42)
     assert len(pieces) == 2 and pieces[0].endswith("client,")
     assert all(len(p) <= tl.LINE_CHARS * tl.MAX_LINES for p in pieces)
 
@@ -45,19 +45,19 @@ def test_a_line_never_ends_on_a_short_word_or_stands_alone_when_it_can_be_helped
 
 def test_a_word_longer_than_the_line_gets_a_line_of_its_own():
     word = "idempotency-key-with-a-long-name"
-    assert tl.wrap(word, 26) == [word] and tl.split_phrases(word, [26]) == [word]
+    assert tl.wrap(word, 26) == [word] and tl.split_phrases(word, 26) == [word]
     assert tl.wrap(f"Send the {word} again", 26) == ["Send the", word, "again"]
 
 
-@pytest.mark.parametrize("fmt,width", [("16:9", 42), ("9:16", 26), ("1:1", 34)])
 @pytest.mark.parametrize("text", [LONG, "Did it go?", "A retry can charge twice.",
                                   "After a few seconds with no reply the client gives up and marks the payment as a timeout",
                                   "So the client waits, and waits, and then it sends the very same request again with a fresh connection."])
-def test_every_chunk_fits_two_balanced_lines_in_every_format(fmt, text, width):
-    chunks = tl.chunk_captions([sentence(text, 0.0, 8.0)])
+def test_every_chunk_fits_two_balanced_lines(text):
+    chunks, width = tl.chunk_captions([sentence(text, 0.0, 8.0)]), tl.LINE_CHARS
     assert " ".join(" ".join(c["lines"]) for c in chunks) == text
     for c in chunks:
-        lines = tl.caption_lines(c, fmt)
+        lines = c["lines"]
+        assert "wrapped" not in c
         assert 1 <= len(lines) <= tl.MAX_LINES and all(len(l) <= width for l in lines)
         assert all(l.split()[-1].lower() not in tl.NO_BREAK_AFTER for l in lines)       # the chunk's last line too
         if len(lines) == 2:
@@ -69,7 +69,7 @@ def test_phrases_map_onto_word_timings_in_order():
     words = [{"w": w, "start": i * 0.3, "end": i * 0.3 + 0.25} for i, w in enumerate(LONG.split())]
     s = {**sentence(LONG, 0.0, len(words) * 0.3), "words": words}
     chunks = tl.chunk_captions([s])
-    assert len(chunks) > 2
+    assert len(chunks) >= 2
     at = 0
     for c in chunks:
         assert c["start"] == round(words[at]["start"], 3)
@@ -213,21 +213,16 @@ def test_word_i_means_the_same_caption_word_in_a_scene_and_in_a_cue(tmp_path):
     assert tl.event_time(t, {"sentence": "s3_02", "word": 3}) == pytest.approx(3.2)
 
 
-def test_captions_are_wrapped_for_every_format_and_lines_stay_the_16_9_ones():
+def test_captions_are_wrapped_once_and_an_old_band_in_layout_json_is_dropped(tmp_path):
+    """Captions are a sidecar file now, wrapped once at LINE_CHARS; the per-format lines that burned-in
+    captions needed are gone, and so is the band a layout.json reserved for them."""
     text = "After a few seconds the client gives up on it"
     (c,) = tl.chunk_captions([sentence(text, 0.0, 4.0)])
-    assert c["lines"] == tl.wrap(text, 42)
-    assert set(c["wrapped"]) == {"9:16", "1:1"}
-    assert c["wrapped"]["9:16"] == tl.wrap(text, 26) and c["wrapped"]["1:1"] == tl.wrap(text, 34)
-    assert tl.caption_lines(c, "9:16") == c["wrapped"]["9:16"] and tl.caption_lines(c) == c["lines"]
-    with pytest.raises(SystemExit, match="4:5"):
-        tl.caption_lines(c, "4:5")
-
-
-def test_line_widths_come_from_the_layout_each_format_renders(tmp_path):
-    (tmp_path / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "band": {"height": 160, "style": "opaque", "chars": 50},
-                                                      "formats": {"4:5": {"width": 1080, "height": 1350, "band": {"height": 260, "chars": 30}}}}))
-    assert tl.caption_widths(tmp_path) == {"16:9": 50, "9:16": 26, "1:1": 34, "4:5": 30}
+    assert c["lines"] == tl.wrap(text, 42) and "wrapped" not in c
+    (tmp_path / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "band": {"height": 160, "style": "opaque"},
+                                                      "formats": {"4:5": {"width": 1080, "height": 1350, "band": {"height": 260}}}}))
+    assert "band" not in tl.layout(tmp_path) and "band" not in tl.layout(tmp_path, "4:5") and "band" not in tl.layout(tmp_path, "9:16")
+    assert tl.layout(tmp_path, "9:16")["height"] == 1920 and "band" not in tl.DEFAULT_LAYOUT
 
 
 def test_event_time_reads_aligned_words_and_parts_of_words():
