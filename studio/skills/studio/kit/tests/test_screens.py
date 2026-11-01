@@ -96,6 +96,23 @@ def test_state_replays_terminal_editor_browser_tabs_and_switches():
     assert r["sw"]["gap"] and 1.6 <= r["sw"]["t"] - .08
 
 
+def test_the_prompt_comes_back_only_when_a_foreground_command_is_done():
+    """A shell gives the prompt back when the command finishes: between Enter and the last line of its
+    captured output the line is running (no prompt, no caret). A command sent to the background with `&`
+    returns at once, as before."""
+    T = timeline(5.0)
+    bg = json.loads(json.dumps(SPEC))
+    bg["actions"][0] = {"at": "type-ls", "on": "laptop", "type": "python shop.py &", "output": ["[1] 4242"]}
+    probe = ("const k=m.compile(S,T,S.runs);const a=k.actions.find(x=>x.kind==='type');"
+             "const p=t=>{const st=m.state(k,t).desks.laptop.panel;return {running:!!st.running,input:st.input,lines:st.lines.map(l=>l.text)}};"
+             "return {typing:p(a.enter-.01),waiting:p((a.enter+a.output[0].at)/2),done:p(a.output.at(-1).at+.01)}")
+    fg, back = node(probe, S=SPEC, T=T), node(probe, S=bg, T=T)
+    assert not fg["typing"]["running"] and fg["typing"]["input"] == "ls"
+    assert fg["waiting"]["running"] and fg["waiting"]["lines"] == ["ls"]          # Enter, nothing back yet: no prompt
+    assert not fg["done"]["running"] and fg["done"]["lines"] == ["ls", "shop.log  shop.py"]
+    assert not back["waiting"]["running"] and back["waiting"]["input"] == ""     # `&`: the prompt at once
+
+
 def test_sounds_sit_on_their_frames_relative_to_the_cue():
     T = timeline()
     r = node("const k=m.compile(S,T,S.runs);return {streams:m.streams(k),ls:k.actions.find(a=>a.kind==='type')}", S=SPEC, T=T)
@@ -241,3 +258,28 @@ def test_a_point_underlines_its_target_on_the_word_and_a_mark_sits_after_it(tmp_
     assert tick["x"] > button["x"] + button["w"] and abs(tick["y"] + tick["h"] / 2 - (button["y"] + button["h"] / 2)) < 12
     before = {b["name"] for b in Engine(tmp_path).boxes("s1", .1)["boxes"]["boxes"]}
     assert "scr:laptop:point:underline" not in before
+
+
+MONO = """
+import { monoLine, syntax } from '@studio/screens-draw.js'
+export default function draw(c) {
+  const line = 'record["server"] = batch["server"]'
+  c.camAt([[0, { x: 600, y: 300, z: 1.436 }]])
+  monoLine(c, 'pieces', 200, 200, syntax(line), { size: 26 })
+  c.S.text('whole', 200, 300, line, { size: 26, mono: true })
+}
+"""
+
+
+@needs_engine
+def test_coloured_pieces_of_a_line_sit_where_one_string_puts_its_letters_at_any_zoom(tmp_path):
+    """monoLine places each piece at its column × 0.6 em, the font's own advance; the browser must lay the
+    letters out at that advance under the camera's zoom too (unhinted), or pieces gap or overlap."""
+    write_video(tmp_path, scene=MONO)
+    boxes = {b["name"]: b for b in Engine(tmp_path).boxes("s1", 0.5)["boxes"]["boxes"]}
+    pieces = sorted((b for n, b in boxes.items() if n.startswith("pieces:")), key=lambda b: b["x"])
+    whole = boxes["whole"]
+    assert len(pieces) == 5
+    assert abs(pieces[-1]["x"] + pieces[-1]["w"] - (whole["x"] + whole["w"])) < .5
+    assert abs(whole["w"] - len('record["server"] = batch["server"]') * 26 * .6 * 1.436) < .5
+

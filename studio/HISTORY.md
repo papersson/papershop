@@ -3,6 +3,15 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## The prompt comes back when the command is done (0.22.2)
+
+Found reviewing the log collector film: after Enter on a foreground command with captured output, the
+screens layer showed the prompt and caret at once, so a slow command (a search that takes 3.4 s) looked
+finished while the viewer waited. A shell gives the prompt back when the command finishes, so the line now
+stays running from Enter until the last output line has appeared. A command ending in `&` returns at
+once, as before, and `returns: true` forces that. A test also pins 0.22.1's text fix: coloured pieces of
+a line under a camera zoom end where one string of the same text ends.
+
 ## Text drawn where it is laid out; off-screen desktops left out (0.22.1)
 
 Two fixes found making the logger film.

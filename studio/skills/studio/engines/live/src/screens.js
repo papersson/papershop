@@ -267,7 +267,11 @@ function apply(st, a, t) {
       target.lines.push({ prompt: target.prompt, text: String(a.type), cmd: true })
       for (const l of a.output) if (t >= l.at) target.lines.push(l)
       target.input = ''
-      target.running = a.returns === false // a server or tail -f keeps the prompt away until cleared
+      // A shell gives the prompt back when the command is done: a foreground command holds it away
+      // until its last output line is in, one sent to the background (`… &`) returns at once, and a
+      // server or tail -f (`returns: false`) keeps it away until cleared.
+      const background = /&\s*$/.test(String(a.type)) || a.returns === true
+      target.running = a.returns === false || (!background && a.output.length > 0 && t < a.output.at(-1).at)
     } else { target.input = typed; target.running = false }
     if (a.tab !== undefined && st.kind === 'terminal') st.active = tabIndex(st, a.tab, a)
   } else if (kind === 'type' && st.kind === 'browser') {
