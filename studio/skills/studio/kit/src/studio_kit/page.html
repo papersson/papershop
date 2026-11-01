@@ -34,7 +34,7 @@ header{height:56px;border-bottom:1px solid var(--line);display:flex;align-items:
 .screen{aspect-ratio:16/9;position:relative;width:100%;max-height:100%;background:#0d1014;box-shadow:0 8px 26px var(--shadow);overflow:hidden}
 #video,#live{width:100%;height:100%;border:0;position:absolute;inset:0;object-fit:contain}
 #live{display:none;pointer-events:none;color-scheme:dark;transform:translateZ(0)}
-.caption-mask{position:absolute;bottom:0;left:0;right:0;height:14.82%;background:#0d1014;display:none}
+.caption-line{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);max-width:84%;width:max-content;text-align:center;white-space:pre-line;pointer-events:none;display:none;background:rgba(8,10,12,.78);color:#fff;font:500 clamp(12px,2.1vw,24px)/1.35 "IBM Plex Sans",system-ui,sans-serif;padding:.18em .6em;border-radius:4px}
 #compareLabel{position:absolute;top:10px;left:12px;background:#111b;color:#fff;padding:3px 8px;font-size:12px;display:none}
 .transport{height:46px;display:flex;align-items:center;gap:9px;flex-shrink:0}
 .transport button{min-width:34px}
@@ -118,7 +118,7 @@ kbd{font:10px 'IBM Plex Mono',monospace;color:var(--muted)}
 </style></head><body>
 <header><span class="brand">STUDIO</span><h1 id="title">Review desk</h1><div class="spacer"></div><select id="version" aria-label="Version"></select><button id="compare" aria-pressed="false" title="Compare at the same timecode (B)">A / B</button><select id="compareVersion" aria-label="Comparison version" hidden></select><button id="theme" aria-label="Toggle light theme">Light</button></header>
 <div id="statusbar"><span id="alive"></span><span id="status">Opening the film</span><span id="eta"></span><span class="spacer"></span><span id="connection"></span><span id="replayTag">Recorded build &middot; 10&times;</span><button id="replay">Replay build</button><button id="stopBuild">Stop build</button></div>
-<div class="workspace"><main class="viewer"><div class="screen-wrap"><div class="screen" id="screen"><video id="video" preload="auto" playsinline></video><iframe id="live" title="Live film"></iframe><div class="caption-mask" id="captionMask"></div><div id="compareLabel"></div></div></div><div class="transport"><button id="back" aria-label="Previous frame" title="Previous frame (,)">&#9666;</button><button id="play" aria-label="Play" title="Play / pause (Space)">&#9654;</button><button id="forward" aria-label="Next frame" title="Next frame (.)">&#9656;</button><span id="time" class="mono">0:00 / 0:00</span><select id="speed" aria-label="Playback speed"><option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option><option value="1.5">1.5&times;</option><option value="2">2&times;</option></select><button id="captions" aria-pressed="true" title="Captions (C)">CC</button><div class="spacer"></div><button id="annotate" title="Note at playhead (A)">+ Note</button></div><div id="message" role="status"></div></main>
+<div class="workspace"><main class="viewer"><div class="screen-wrap"><div class="screen" id="screen"><video id="video" preload="auto" playsinline></video><iframe id="live" title="Live film"></iframe><div class="caption-line" id="captionLine"></div><div id="compareLabel"></div></div></div><div class="transport"><button id="back" aria-label="Previous frame" title="Previous frame (,)">&#9666;</button><button id="play" aria-label="Play" title="Play / pause (Space)">&#9654;</button><button id="forward" aria-label="Next frame" title="Next frame (.)">&#9656;</button><span id="time" class="mono">0:00 / 0:00</span><select id="speed" aria-label="Playback speed"><option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option><option value="1.5">1.5&times;</option><option value="2">2&times;</option></select><button id="captions" aria-pressed="false" title="Captions (C): the caption file, shown over the picture">CC</button><div class="spacer"></div><button id="annotate" title="Note at playhead (A)">+ Note</button></div><div id="message" role="status"></div></main>
 <aside><div class="heading"><h2 id="inspectorTitle">Notes</h2><div class="spacer"></div><span id="noteCount" class="muted"></span><button id="closeRaw" hidden>Notes</button></div><div id="changes"></div><div id="editor" hidden><div class="formrow"><select id="scope" aria-label="Note scope"><option value="playhead">At playhead</option><option value="range">Time range</option><option value="beat">Story beat</option><option value="video">Whole video</option><option value="lane">Chapter agent</option></select><select id="kind" aria-label="Note kind"><option value="picture">Picture</option><option value="narration">Voice</option><option value="both">Both</option></select></div><div class="formrow" id="rangeFields"><input id="noteStart" aria-label="Range start" type="number" step="0.033"><span>to</span><input id="noteEnd" aria-label="Range end" type="number" step="0.033"></div><div id="anchor"></div><textarea id="noteText" aria-label="Note" placeholder="What should change?"></textarea><div id="delivery" role="status"></div><button id="closeNote">Done</button></div><div id="notes"></div><pre id="raw" hidden></pre></aside>
 <section class="timeline" id="timeline"><div class="tl-head"><span class="title">THE FILM</span><span>Shift + drag for a range</span><div class="spacer"></div><button id="tick" aria-pressed="false">Arrival sound off</button></div><div class="track"><div class="track-label">Time</div><div class="rail" id="ruler"></div></div><div class="track"><div class="track-label">Story beats</div><div class="rail" id="beats" style="height:27px"></div></div><div class="track"><div class="track-label">Picture</div><div class="rail" id="pictures"></div></div><div class="track"><div class="track-label">Voice</div><div class="rail"><canvas id="voice"></canvas></div></div><div class="track"><div class="track-label">Sound</div><div class="rail" id="sound"></div></div><div class="track"><div class="track-label">Notes &amp; checks</div><div class="rail" id="marks"></div></div><div id="lanes"></div><div id="selection"></div><div id="playhead"></div></section></div>
 <footer><span><kbd>J K L</kbd> shuttle</span><span><kbd>Space</kbd> play</span><span><kbd>, .</kbd> frame</span><span><kbd>A</kbd> note</span><span><kbd>B</kbd> compare</span><span><kbd>I O</kbd> range</span><span id="footerVersion" class="spacer"></span><span>Notes are delivered as you write</span></footer><div id="hoverPreview"><iframe title="Chapter preview"></iframe></div>
@@ -127,7 +127,7 @@ kbd{font:10px 'IBM Plex Mono',monospace;color:var(--muted)}
 const $ = s => document.querySelector(s), el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
     e.className = cls; if (text != null)
     e.textContent = text; return e; };
-let S = null, selected = null, liveMode = false, api = null, at = 0, playing = false, reverse = false, rate = 1, cc = true, lastClock = 0, drawBusy = false, drawStamp = -1, readyPulse = null, eventSource = null;
+let S = null, selected = null, liveMode = false, api = null, at = 0, playing = false, reverse = false, rate = 1, cc = false, lastClock = 0, drawBusy = false, drawStamp = -1, readyPulse = null, eventSource = null;
 let compareOn = false, compareBase = null, replay = null, build = null, range = null, editor = null, saveTimer = null, saveChain = Promise.resolve(), tickOn = false, laneSignature = '', dataSignature = '', refreshChain = Promise.resolve();
 const video = $('#video');
 const fmt = t => { t = Math.max(0, t || 0); return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); }, pct = t => 100 * (t || 0) / Math.max(1, S?.duration || 1), esc = s => String(s ?? '').replace(/[&<>"']/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[x]));
@@ -190,7 +190,7 @@ async function media() { video.pause(); liveMode = Boolean(S.live) || Boolean(re
     if (src)
         await new Promise(resolve => { if (video.readyState >= 1)
             return resolve(); video.addEventListener('loadedmetadata', resolve, { once: true }); setTimeout(resolve, 2500); });
-} seek(at); video.playbackRate = rate; $('#captionMask').style.display = !cc && !liveMode ? 'block' : 'none'; if (playing)
+} seek(at); video.playbackRate = rate; showCaption(); if (playing)
     await play(true); drawStamp = -1; }
 async function load(changeMedia = true) { const next = await get('/api/state' + (selected ? '?cut=' + selected : '')); S = next; $('#title').textContent = S.title; document.title = (S.cut ? 'v' + S.cut.cut + ' | ' : '') + S.title + ' - Studio'; const options = '<option value="">Latest live</option>' + [...S.cuts].reverse().map(n => '<option value="' + n + '">Version ' + n + '</option>').join(''); $('#version').innerHTML = options; $('#version').value = selected || ''; const old = $('#compareVersion').value; $('#compareVersion').innerHTML = [...S.cuts].reverse().map(n => '<option value="' + n + '">Compare v' + n + '</option>').join(''); $('#compareVersion').value = old || S.cuts.filter(n => n < (S.cut?.cut || Infinity)).at(-1) || S.latest; $('#footerVersion').textContent = (selected ? 'Saved version ' + selected : 'Latest live') + ' / ' + S.fps + ' fps'; $('#changes').innerHTML = (S.cut?.changelog?.length ? '<h2>What changed</h2><ul>' + S.cut.changelog.map(c => '<li>' + esc(c.change) + '</li>').join('') + '</ul>' : ''); renderNotes(); renderTimeline(); if (!replay)
     renderBuild(S.build); if (changeMedia)
@@ -303,7 +303,7 @@ function livePictures(b) {
         document.querySelectorAll('#pictures iframe').forEach(f => { const a = f.contentWindow?.studio; if (!a)
             return; const c = S.chapters.find(c => c.id === f.parentElement.dataset.clip); a.setAvailable?.(b.lanes.filter(l => l.landed).map(l => l.id)); const stamp = b.lanes.find(l => l.id === c.id)?.scene?.id || 'board'; if (f.dataset.stamp !== stamp) {
             f.dataset.stamp = stamp;
-            a.reload().then(() => a.drawAt(c.start + Math.min(3, (c.end - c.start) / 2), 'no-captions'));
+            a.reload().then(() => a.drawAt(c.start + Math.min(3, (c.end - c.start) / 2), 'all'));
         } });
 }
 let previewClock = 0, previewAt = 0, previewAPI = null;
@@ -313,7 +313,7 @@ async function preview(e, t) { previewAt = t; previewClock = performance.now(); 
     return;
 } previewAPI = f.contentWindow?.studio; if (previewAPI) {
     previewAPI.setAvailable?.(replay ? build.lanes.filter(l => l.landed).map(l => l.id) : null);
-    previewAPI.drawAt(Math.min(S.duration - .04, previewAt + (performance.now() - previewClock) / 1000 % 3), 'no-captions');
+    previewAPI.drawAt(Math.min(S.duration - .04, previewAt + (performance.now() - previewClock) / 1000 % 3), 'all');
 } }, 80); }
 function hidePreview() { $('#hoverPreview').style.display = 'none'; }
 async function startReplay() { if (replay) {
@@ -355,10 +355,10 @@ function animate(now) { const dt = Math.min(.1, (now - lastClock) / 1000) || 0; 
     if (at >= S?.duration || reverse && at <= 0)
         play(false);
     updateTime();
-} const f = Math.round(at * (S?.fps || 30)); if (liveMode && api && !drawBusy && f !== drawStamp) {
+} showCaption(); const f = Math.round(at * (S?.fps || 30)); if (liveMode && api && !drawBusy && f !== drawStamp) {
     drawBusy = true;
     drawStamp = f;
-    Promise.resolve(api.drawAt(at, cc ? 'all' : 'no-captions')).then(r => { if (r?.error)
+    Promise.resolve(api.drawAt(at, 'all')).then(r => { if (r?.error)
         notify(r.error); }).finally(() => drawBusy = false);
 } requestAnimationFrame(animate); }
 $('#play').onclick = () => play();
@@ -366,7 +366,12 @@ $('#back').onclick = () => frame(-1);
 $('#forward').onclick = () => frame(1);
 $('#annotate').onclick = () => openNote();
 $('#speed').onchange = e => { rate = +e.target.value; video.playbackRate = rate; };
-$('#captions').onclick = () => { cc = !cc; $('#captions').setAttribute('aria-pressed', cc); $('#captionMask').style.display = !cc && !liveMode ? 'block' : 'none'; drawStamp = -1; };
+// Captions are the caption file's chunks (timeline tracks.captions), shown over the picture while CC
+// is on, as a player shows a caption track: the film itself never has them burned in.
+var captionShown = null;
+function showCaption() { const c = cc ? (S?.captions || []).find(x => x.start <= at && at < x.end) || null : null; if (c === captionShown)
+    return; captionShown = c; const el = $('#captionLine'); el.textContent = c ? c.lines.join('\n') : ''; el.style.display = c ? 'block' : 'none'; }
+$('#captions').onclick = () => { cc = !cc; $('#captions').setAttribute('aria-pressed', cc); captionShown = undefined; showCaption(); };
 $('#theme').onclick = () => { const light = document.documentElement.classList.toggle('light'); localStorage.setItem('studio-theme', light ? 'light' : 'dark'); $('#theme').textContent = light ? 'Dark' : 'Light'; drawStamp = -1; paintWave(); };
 if (localStorage.getItem('studio-theme') === 'light') {
     $('#theme').click();

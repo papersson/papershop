@@ -14,13 +14,13 @@
 //                    centred in the view; flatShot() is the top-down shot that matches the 2D stage, and
 //                    frameOn3(points, {az, el, fov}) a shot that fits world points (shared/camera3d.js)
 //   t, dur           time in the clip and the clip's length
-//   W, H, unit       the stage above the caption band, in pixels; unit = H / 8 (the other engines' unit)
+//   W, H, unit       the stage (the whole frame), in pixels; unit = H / 8 (the other engines' unit)
 //   header, view     the strip at the stage's top that framing keeps clear (layout.json header.height,
 //                    0 by default), and the stage below it as [x, y, w, h]
 //   camAt(keys, e)   point the camera along keys [time, {x, y, z}, ease?] at t, each key's point centred
 //                    in the view; returns {x, y, z}. frameOn([x0, y0, x1, y1]) is a key that fits a region
 //   at(id, off)      start of a sentence ("03" means "<clip>_03"); end(id, off) its end
-//   word(id, i, off) caption word i, as a cue's {word: i}; phrase(id, text, off) when the voice says that phrase
+//   word(id, i, off) word i of the sentence, as a cue's {word: i}; phrase(id, text, off) when the voice says that phrase
 //   cue(name, off)   a timeline cue; P(t0, d, ease) progress of a movement; kit: the helpers
 //   legend           the video's colour legend (video.json legend) as meaning -> CSS colour: draw a
 //                    meaning with {stroke: c.legend.request, means: 'request'} and the legend check sees it
@@ -28,21 +28,21 @@
 //                    when reduced (templates/live/scenes/example-feel.js)
 //   clip, index, chapters, timeline, layout, asset(file)
 //   plate(o)         draw the chapter's plate behind everything (video.json plates: Blender renders it,
-//                    the kit's plates.py), filling the stage above the band; plate.at(name) is a projected
+//                    the kit's plates.py), filling the stage; plate.at(name) is a projected
 //                    object's point on the stage, [x, y], to put a label on; null when it is behind the camera
 
 import { Stage } from './stage.js'
 import { Stage3D } from './stage3d.js'
 import * as kit from './kit.js'
 import { PAGES, LEGEND_PAGE } from './look.js'
-import { captionLines, clipTimes, frameOf } from '../../shared/timing.js'
+import { clipTimes, frameOf } from '../../shared/timing.js'
 import { flatShot, frameOn3, shotAt } from '../../shared/camera3d.js'
 
 // Film grammar defaults (references/kit.md, "Joins, shots, focus and callbacks").
 const SHOT_MOVE = 1.1          // seconds a shot change takes
 const FOCUS_IN = 0.35, FOCUS_OUT = 0.5
 const JOIN_MAX = 0.6, JOIN_MIN = 0.2, JOIN_CLEAR = 0.1   // a join's length, and the quiet it leaves after the last word
-const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
+const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30 }
 
 async function json(url, fallback) {
   const r = await fetch(url, { cache: 'no-store' })
@@ -123,8 +123,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     '700 20px "IBM Plex Sans"', '400 20px "IBM Plex Mono"', '500 20px "IBM Plex Mono"'].map(f => document.fonts.load(f)))
 
   const stage = new Stage(svg, { width: L.width, height: L.height })
-  const bandTop = () => L.height - L.band.height
-  const viewOf = () => [0, L.header?.height ?? 0, L.width, bandTop() - (L.header?.height ?? 0)]
+  const viewOf = () => [0, L.header?.height ?? 0, L.width, L.height - (L.header?.height ?? 0)]
   // The 3D stage is made on first use, so a video that draws nothing in 3D never makes a WebGL context.
   let stage3d = null
   const G = () => {
@@ -143,7 +142,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
 
   /** What scenes and look pages share: the stage, its size, the header and the camera helpers, at clip time t. */
   function frameContext(t) {
-    const H = bandTop(), header = L.header?.height ?? 0
+    const H = L.height, header = L.header?.height ?? 0
     return {
       S: stage, t, W: L.width, H, unit: H / 8, kit, header, view: viewOf(), layout: L,
       legend: colours, motion,
@@ -169,7 +168,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     return { c, first, frames: frameOf(c.end, T.fps) - first }
   }
 
-  /** c.plate for a clip at frame f: draws the plate's frame behind the camera, above the band. */
+  /** c.plate for a clip at frame f: draws the plate's frame behind the camera, filling the stage. */
   function plateOf(clip, f) {
     const draw = (o = {}) => {
       const p = plates[clip]
@@ -182,13 +181,13 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
         if (decoded.size > 240) decoded.delete(decoded.keys().next().value)
       }
       pending.push(decoded.get(href))
-      stage.el('plate', 'image', { href, x: 0, y: 0, width: L.width, height: bandTop(), preserveAspectRatio: 'none',
+      stage.el('plate', 'image', { href, x: 0, y: 0, width: L.width, height: L.height, preserveAspectRatio: 'none',
         opacity: o.opacity ?? 1, box: o.box }, 'back')
     }
     draw.at = name => {
       const p = plates[clip], pt = (platePoints[clip] ?? {})[f]?.[name]
       if (!p || !pt) return null
-      return pt[2] ? [pt[0] * L.width / p.width, pt[1] * bandTop() / p.height] : null
+      return pt[2] ? [pt[0] * L.width / p.width, pt[1] * L.height / p.height] : null
     }
     return draw
   }
@@ -219,7 +218,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     if (depth > 1) throw new Error(`scene ${other}: scenes nest at most two deep`)
     const { frames } = clipRange(other)
     const t = at === 'end' ? (frames - 1) / T.fps : Math.max(0, Math.min((frames - 1) / T.fps, at))
-    const H = bandTop()
+    const H = L.height
     const transform = into ? `translate(${into[0]} ${into[1]}) scale(${into[2] / L.width} ${into[3] / H})` : undefined
     const saved = asked, focusing = stage.focusing
     asked = { focus: [], shots: null }
@@ -334,24 +333,9 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     }
   }
 
-  /** The caption band and the caption chunk spoken at absolute time `at` , or the `given`
-   * lines. A band of height 0 is a video without captions: nothing is drawn. */
-  function band(at, withCaptions, given) {
-    if (!(L.band.height > 0)) return
-    const top = bandTop(), font = L.band.font ?? 38
-    stage.rect('band', 0, top, L.width, L.band.height, { fill: 'var(--band)', r: 0, layer: 'ui' })
-    const chunk = withCaptions && !given ? T.tracks.captions.find(x => x.start <= at && at < x.end) : null
-    const lines = given ?? (chunk ? captionLines(chunk, L) : [])
-    const lh = font * 1.3, y0 = top + L.band.height / 2 - (lines.length * lh) / 2 + lh / 2
-    lines.forEach((line, i) => stage.el(`caption${i}`, 'text', {
-      x: L.width / 2, y: y0 + i * lh, text: line, fill: 'var(--ink)', 'font-size': font, 'font-weight': 400,
-      'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-family': 'var(--sans)', box: 'caption', 'data-kind': 'caption',
-    }, 'ui'))
-  }
-
   /**
    * Draw frame `f` of a clip (0-based within the clip) with the given layers:
-   * all | no-captions (band, no caption text) | no-band (the scene alone) | background.
+   * all (the scene) | background (the bare background).
    * Returns {error} when the scene throws: the CLI reports it as an engine error.
    */
   let available = null // desk replay: boards remain until an actual scene-save event
@@ -375,7 +359,6 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
       } catch (e) {
         error = `${clip} at ${t.toFixed(3)} s: ${e && e.stack ? e.stack : e}`
       }
-      if (layers !== 'no-band') band((first + frame) / T.fps, layers === 'all')
     }
     try {
       end()
@@ -481,8 +464,8 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     return [...builtIn().map(p => p.title), ...(own ? own.pages ?? ["the video's own elements"] : [])]
   }
 
-  /** Draw look-sheet page n (0-based) with the band showing `caption` (lines); {error} when it throws. */
-  function look(n, caption = [], titles = []) {
+  /** Draw look-sheet page n (0-based); {error} when it throws. */
+  function look(n, titles = []) {
     begin()
     const pages = builtIn()
     const c = { ...frameContext(0), dur: 0, C: kit.C, page: n - pages.length, declared: legend }
@@ -493,8 +476,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     } catch (e) {
       error = `look page ${n + 1}: ${e && e.stack ? e.stack : e}`
     }
-    band(0, true, caption)
-    // The page's name, in the band's corner: on the stage it would sit where a scene's header goes.
+    // The page's name, in the bottom corner: at the top it would sit where a scene's header goes.
     stage.text('look:tag', L.width - 24, L.height - 26, `LOOK ${n + 1}/${titles.length || n + 1}  ${titles[n] ?? ''}`.trim(),
       { size: 18, fill: 'var(--faint)', anchor: 'end', weight: 600, box: 'look tag', layer: 'ui' })
     try {
@@ -509,7 +491,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
   return {
     draw, drawAt, lookPages, look,
     setAvailable: clips => { available = clips == null ? null : new Set(clips) },
-    boxes: () => ({ band: { y: bandTop(), h: L.band.height }, boxes: [...stage.boxes(), ...(stage3d?.boxes() ?? [])] }),
+    boxes: () => ({ boxes: [...stage.boxes(), ...(stage3d?.boxes() ?? [])] }),
     /** The WebGL renderer this page uses (doctor prints it); makes the 3D stage if no scene has. */
     gl: () => G().info(),
     info: () => ({ fps: T.fps, width: L.width, height: L.height, duration: T.duration,

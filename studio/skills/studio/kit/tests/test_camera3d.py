@@ -47,7 +47,7 @@ def test_a_bad_key_fails_before_any_frame(tmp_path, keys, error):
 
 
 def test_the_target_lands_in_the_middle_of_the_view_at_any_angle(tmp_path):
-    # a 1920 x 1080 canvas whose view is the stage above a 160 px band: the view's middle is (960, 460)
+    # a 1920 x 1080 canvas whose view is its top 920 px: the view's middle is (960, 460)
     out = run(tmp_path, "[[0, 90, 1], [-30, 20, 40], [120, 5, 10]].map(([az, el, fov]) => {"
                         " const cam = c3.camera({target: [5, 7, -3], az, el, span: 460, fov}, [1920, 1080], [0, 0, 1920, 920]);"
                         " return c3.project(cam, [5, 7, -3]) })")

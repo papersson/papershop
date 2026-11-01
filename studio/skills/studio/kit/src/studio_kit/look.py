@@ -2,7 +2,7 @@
 
 Every visual element the scenes will use, in each of its states, rendered by the video's own engine
 in its theme and layout: boxes (idle, lit, failed), arrows (idle, active, muted), the token's glyph
-states, cards, highlights, labels at each type size, the caption band with a sample caption, and the
+states, cards, highlights, labels at each type size, and the
 theme's colours with their roles,
 and the video's colour legend (video.json legend, which `studio check` holds the scenes to) when it
 declares one.
@@ -23,7 +23,6 @@ from pathlib import Path
 from . import timeline as tl
 from .engine import LOOK_ENGINES, Engine
 
-SAMPLE = "Captions go in the band, at most two lines."     # two lines or fewer at every format's width
 OWN = ("look.js",)
 
 
@@ -80,12 +79,11 @@ def make(video, fmt=None, engine=None):
                          f"{' and '.join(LOOK_ENGINES)} (video.json engine)")
     if not (video / "timeline.json").exists():
         raise SystemExit("look-sheet needs timeline.json: narrate first (`studio narrate VIDEO`, or --estimate)")
-    lay = engine.layout()
     out = sheet_dir(video, fmt)
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("look-*.png"):
         old.unlink()
-    r = engine.look(out, tl.wrap(SAMPLE, lay["band"].get("chars", tl.LINE_CHARS)))
+    r = engine.look(out)
     own = own_file(video)
     rec = {"engine": engine.name, "format": fmt or "16:9", "made": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "key": key(video, engine.name, fmt), "own": str(own.relative_to(video)) if own else None,

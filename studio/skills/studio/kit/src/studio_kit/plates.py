@@ -4,7 +4,7 @@ A hard-drive film rendered in Blender outside the studio needed about fifty scri
 desk, cut records, review bundles, a publish), and its labels, drawn in Blender, were out of every
 check's reach. So Blender draws only the plate, the picture behind a chapter, and the chapter stays
 a live scene: it draws the plate as its background (`c.plate()`), puts its labels on the points the
-plate reports (`c.plate.at('head')`), and keeps the caption band, the checks, the desk, the reviews
+plate reports (`c.plate.at('head')`), and keeps the checks, the desk, the reviews
 and publish. Use it for physical, realistic hero shots (references/taste.md); diagrams, code
 and most chapters stay flat or on the 3D stage.
 
@@ -16,8 +16,8 @@ video.json names the chapters that have one:
                     "draft": {"samples": 16}, "final": {"samples": 64}}}
 
 (or "renderer": "command" with "command": [argv…, "{request}"], for a renderer of your own that
-reads the same request and writes the same files). Frames are rendered at the stage's size above
-the caption band, half that for a draft, into .cache/plates/<clip>-<quality>-<key>/: f00012.png per
+reads the same request and writes the same files). Frames are rendered at the stage's size (the
+whole frame), half that for a draft, into .cache/plates/<clip>-<quality>-<key>/: f00012.png per
 frame and frames.jsonl (a line per frame: its render seconds and the projected points). The key
 hashes the script, its inputs, the profile, the size and the clip's cues, so an edit renders again
 and nothing else does. Rendering goes in batches, so a stopped render resumes where it stopped, and
@@ -64,11 +64,11 @@ def profile(spec, quality):
 
 
 def size(video, spec, quality):
-    """(width, height) a plate's frames render at: the stage above the band, scaled by the profile."""
+    """(width, height) a plate's frames render at: the stage (the whole frame), scaled by the profile."""
     lay = tl.layout(video)
     k = profile(spec, quality)["scale"]
     even = lambda n: max(2, int(round(n * k / 2)) * 2)          # noqa: E731
-    return even(lay["width"]), even(tl.band_top(lay))
+    return even(lay["width"]), even(lay["height"])
 
 
 def _files(video, spec):

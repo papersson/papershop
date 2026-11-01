@@ -105,8 +105,10 @@ Listening still supplies judgments those measurements cannot make.
 
 ## The picture has room to explain
 
-Captions occupy a reserved band because covering the subject makes the explanation harder to
-read. They are chunked from the narration with phrase breaks and a minimum reading time. Stage
+Captions are never burned into the picture: on screen they compete with the diagrams the film is
+made of, and a reserved band for them takes a sixth of the frame. They ship as a separate WebVTT
+file, chunked from the narration with phrase breaks and a minimum reading time, and every player
+keeps them off until the viewer turns them on. The scene gets the whole frame. Stage
 labels identify things. A clean map and large close-ups keep detail from accumulating indefinitely.
 One colour retains one meaning, and outer contours carry more weight than internal dividers.
 
@@ -126,12 +128,12 @@ One renderer now supplies both the desk and the movie; there is no separate scen
 ## Checks catch specific bugs
 
 Length checks caught disagreement between Python and JavaScript at half-frame boundaries.
-Determinism checks catch state that depends on earlier frames. Bounds, band, contrast and
+Determinism checks catch state that depends on earlier frames. Bounds and
 legibility checks catch clipped or unreadable elements. In-frame and occlusion warnings expose
 narrated objects that the picture hides. Colour-legend checks catch meanings that change colour.
 Motion and flash checks inspect rendered frames. Pacing warns on both crowded moves and stage
 intervals over three seconds without visible new content, including opening and tail. It removes
-only the actual marked prediction interval, crops captions away and discounts ambient motion.
+only the actual marked prediction interval and discounts ambient motion.
 Small readable label arrivals count. Pixel changes cannot prove semantic novelty: ornamental
 movement is not a valid fix, and the existing review still judges reading demand. Asset provenance and code-view checks preserve
 source relationships. Some checks are heuristic warnings; the story explains whether a hold or

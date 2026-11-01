@@ -40,23 +40,19 @@ def segments(timeline, stills):
     return out
 
 
-def stage_digest(still, stage_fraction):
-    """A hash of the still above the caption band: captions change every sentence, so hashing the
-    whole frame would never find the same picture twice."""
-    r = proc.ffmpeg("-i", still, "-vf", f"crop=iw:trunc(ih*{stage_fraction:.4f}/2)*2:0:0", "-f", "md5", "-",
-                    capture_output=True, text=True)
+def stage_digest(still):
+    """A hash of the still's pixels, so the same picture shown twice is found."""
+    r = proc.ffmpeg("-i", still, "-f", "md5", "-", capture_output=True, text=True)
     return r.stdout.strip()
 
 
 def pacing(video, timeline, cut_dir, stills, segs, boards=False):
     """The numbers worth reading before animating."""
     cfg = settings.load(video)
-    lay = tl.layout(video)
-    stage = tl.band_top(lay) / lay["height"]
     digest = {}
     for s in stills:
         p = cut_dir / s["file"]
-        digest[s["file"]] = stage_digest(p, stage) if p.exists() else s["file"]
+        digest[s["file"]] = stage_digest(p) if p.exists() else s["file"]
     runs, current, length = [], None, 0.0
     t = 0.0
     start = 0.0

@@ -172,8 +172,7 @@ repeating the narration, footnotes, banners, subtitles under headings and decora
 A small consistent chapter name can orient the viewer. Put qualifications into the spoken
 explanation; tiny disclaimers cannot repair a misleading picture.
 
-Keep actual subtitles in their reserved band. The band makes speech accessible without covering
-the subject. Keep labels comfortably readable at the playback size; 18 px at 1080p is a floor,
+Never burn subtitles in; captions are a separate file (`kit.md`). Keep labels comfortably readable at the playback size; 18 px at 1080p is a floor,
 and a 540p preview often needs much larger type. Break long code lines or widen the editor before
 shrinking its text. Keep status text outside plots, where its position could be mistaken for data.
 

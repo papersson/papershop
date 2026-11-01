@@ -38,7 +38,7 @@ engine is live. Existing videos keep the kit they were made with.
 | `audio/timings.json`, `audio/words.json` | Synthesized sentence timing and recognized word alignment. |
 | `cues/<clip>.json` | One chapter's named events. An existing `cues.json` is also read. |
 | `scenes/<clip>.js`, `data/<clip>/` | One live chapter's picture and its data. |
-| `layout.json`, `video.json` | Frame, caption band, engine, legend and optional plates. |
+| `layout.json`, `video.json` | Frame, engine, legend and optional plates. |
 | `boards/boards.json` | Rough picture layouts held to narration in the reel. |
 | `audio/sfx.json`, `audio/tracks.json` | Effects and additional audio tracks, owned by the main session. |
 | `timeline.json` | The generated shared timeline; direct edits are replaced on build. |
@@ -110,10 +110,11 @@ keys can identify dependencies. Inline holds create `reveal:s1_01` cues at their
 source cue files are absolute; scene helpers return clip-local times.
 
 Captions come from narration words, broken at phrase boundaries into up to two lines of about
-42 characters, held at least 1.2 seconds. `layout.json.band` reserves their space, 160 px at 1080p
-by default. A zero-height band removes it. `captions.json` can preserve edited chunks using
+42 characters, held at least 1.2 seconds. `captions.json` can preserve edited chunks using
 `anchor: {sentence, words: [first, last], text}`; fixed start/end chunks warn after narration changes.
-Keep scene content above the band. Export formats wrap their own caption lines from the same words.
+
+Captions are never burned in. They ship as `out/captions.vtt` (publish, `studio captions VIDEO`),
+a track players keep off.
 
 ## Boards and the reel
 
@@ -139,7 +140,7 @@ sentences. The schema and renderer live in `boards.py` and the engines' board mo
 
 Write `scenes/s1.js` with `export default function draw(c)`. Every frame depends only on time;
 use seeded randomness and direct time evaluation. The SVG stage uses pixels, with origin at
-the top left, x right and y down. `c.W` and `c.H` exclude the caption band; `c.unit` is `H / 8`.
+the top left, x right and y down. `c.W` and `c.H` are the whole frame; `c.unit` is `H / 8`.
 Boards and code components use eight-unit, centre-origin coordinates with y up.
 
 ```js
@@ -308,12 +309,13 @@ that pronunciation or balance sounds right. A missing listening pass never block
 | `notes VIDEO`, `wait VIDEO`, `status VIDEO TEXT` | The note loop described in `desk.md`. |
 | `still VIDEO CLIP T --out PNG`, `boxes VIDEO CLIP T` | A clip-local frame and its named-element bounds. |
 | `duration VIDEO CLIP`, `render VIDEO CLIP --out MP4` | Engine frame count and a silent chapter render. |
-| `check VIDEO [--all] [--only CHECKS] [--format FORMAT]` | Length, determinism, bounds, band, contrast, legibility, overlaps, pacing and other diagnostics. |
+| `check VIDEO [--all] [--only CHECKS] [--format FORMAT]` | Length, determinism, bounds, legibility, overlaps, pacing and other diagnostics. |
 | `sheets VIDEO OUTDIR [--strip CLIP T] [--windows FILE]` | Contact sheets, strips and label crops from a cut. |
 | `look-sheet VIDEO` | Optional element and state sheets in the video's own engine. |
 | `capture URL VIDEO`, `asset add|library|restore|list VIDEO` | Images and sound assets with provenance; `list --credits` prints credits. |
 | `stage VIDEO NAME`, `stage VIDEO --report` | Timing marks and elapsed time; `waiting` separates user wait. |
-| `publish VIDEO --by NAME` | The shipping decision, final master, web copy, poster, page and colophon. |
+| `publish VIDEO --by NAME` | The shipping decision, final master, caption file, web copy, poster, page and colophon. |
+| `captions VIDEO` | The caption file `out/captions.vtt` from the timeline, without rendering. |
 | `export VIDEO --formats 16:9,9:16,1:1` | Reframed formats on the same timeline with separate layout checks and caches. |
 | `clean VIDEO --dry-run`, `clean VIDEO [--videos]` | Expendable caches and previews; deleting eligible old movies is explicit. |
 | `commit VIDEO MESSAGE` | A source checkpoint that respects signing and preserves unrelated staged work. |

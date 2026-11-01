@@ -63,17 +63,16 @@ def test_a_plate_renders_once_resumes_and_is_part_of_its_clips_key(tmp_path):
 
 @needs_engine
 def test_a_live_chapter_draws_its_plate_and_labels_its_projected_points(tmp_path):
-    """The plate fills the stage above the band, behind the scene; the label sits on the point the
-    renderer projected; the band, the boxes and the checks are the live engine's as ever."""
+    """The plate fills the stage (the whole frame), behind the scene; the label sits on the point the
+    renderer projected; the boxes and the checks are the live engine's as ever."""
     plated(tmp_path)
     e = Engine(tmp_path)
     e.stills([{"clip": "s1", "t": 1.0, "out": tmp_path / "a.png"}])
     from PIL import Image
     im = Image.open(tmp_path / "a.png").convert("RGB")
-    assert im.getpixel((960, 300)) == (200, 40, 40) and im.getpixel((960, 1050)) != (200, 40, 40)   # under the band: the band
+    assert im.getpixel((960, 300)) == (200, 40, 40) and im.getpixel((960, 1050)) == (200, 40, 40)   # no band: the plate to the bottom
     box = {b["name"]: b for b in e.boxes("s1", 1.0)["boxes"]["boxes"]}["label head"]
-    band_top = tl.band_top(tl.layout(tmp_path))
-    assert abs(box["x"] - (1920 * 0.25 + 20)) < 4 and abs(box["y"] + box["h"] / 2 - band_top / 2) < 6
+    assert abs(box["x"] - (1920 * 0.25 + 20)) < 4 and abs(box["y"] + box["h"] / 2 - 1080 / 2) < 6
     assert json.loads((tmp_path / ".cache" / "plates" / "index.json").read_text())["s1"]["quality"] == "draft"
 
 

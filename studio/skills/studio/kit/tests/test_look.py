@@ -12,10 +12,10 @@ class FakeEngine:
         self.video, self.name, self.calls = video, name, []
 
     def layout(self):
-        return {"width": 1920, "height": 1080, "band": {"height": 160, "chars": 26}}
+        return {"width": 1920, "height": 1080}
 
-    def look(self, out, caption):
-        self.calls.append(list(caption))
+    def look(self, out):
+        self.calls.append(out)
         pages = []
         for i, title in enumerate(["colour and type", "elements and states"]):
             f = out / f"look-{i + 1}.png"
@@ -35,7 +35,7 @@ def test_the_sheet_is_recorded_for_the_review_bundles_and_goes_stale_with_its_so
     (tmp_path / "out" / "look" / "look-9.png").write_bytes(b"old")
     e = FakeEngine(tmp_path)
     rec = look.make(tmp_path, engine=e)
-    assert e.calls == [["Captions go in the band,", "at most two lines."]]        # wrapped at the layout's width
+    assert len(e.calls) == 1                                  # no sample caption: captions are never in the picture
     assert [p["file"] for p in rec["pages"]] == ["out/look/look-1.png", "out/look/look-2.png"]
     assert not (tmp_path / "out" / "look" / "look-9.png").exists() and rec["own"] is None
     assert json.loads((tmp_path / "out" / "look" / "look.json").read_text())["key"] == rec["key"]
@@ -71,7 +71,7 @@ def test_the_sheet_goes_stale_when_a_file_its_look_imports_or_the_layout_changes
     look.make(tmp_path, engine=FakeEngine(tmp_path))
     (tmp_path / "scenes" / "s1.js").write_text("// a chapter edit the sheet doesn't draw\n")
     assert look.latest(tmp_path)["stale"] is False
-    (tmp_path / "layout.json").write_text(json.dumps({"width": 1280, "height": 720, "fps": 30, "band": {"height": 100}}))
+    (tmp_path / "layout.json").write_text(json.dumps({"width": 1280, "height": 720, "fps": 30}))
     assert look.latest(tmp_path)["stale"] is True
 
 

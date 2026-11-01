@@ -11,12 +11,12 @@ def test_layout_applies_a_format_over_the_video_layout(tmp_path):
     make_video(tmp_path)
     (tmp_path / "layout.json").write_text(json.dumps(tl.DEFAULT_LAYOUT))
     v = tl.layout(tmp_path, "9:16")
-    assert (v["width"], v["height"]) == (1080, 1920) and v["band"]["height"] == 340 and v["band"]["style"] == "opaque"
+    assert (v["width"], v["height"]) == (1080, 1920) and "band" not in v
     assert tl.layout(tmp_path, "16:9") == tl.DEFAULT_LAYOUT and tl.layout(tmp_path) == tl.DEFAULT_LAYOUT
 
 
 def test_a_video_can_override_a_format_and_unknown_formats_are_refused(tmp_path):
-    (tmp_path / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "formats": {"4:5": {"width": 1080, "height": 1350, "band": {"height": 240}}}}))
+    (tmp_path / "layout.json").write_text(json.dumps({**tl.DEFAULT_LAYOUT, "formats": {"4:5": {"width": 1080, "height": 1350}}}))
     assert tl.layout(tmp_path, "4:5")["height"] == 1350
     with pytest.raises(SystemExit, match="unknown format"):
         tl.layout(tmp_path, "21:9")

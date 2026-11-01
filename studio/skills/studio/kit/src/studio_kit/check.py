@@ -2,16 +2,11 @@
 
   length       each clip's frame count, as the engine computes it, equals the timeline's
   determinism  sample frames rendered twice in separate engine calls have the same hash
-  bounds       every named element lies inside the frame, and captions inside the caption band
-  band         no scene element enters the caption band: at sampled times the scene alone (layers
-               no-band) and the bare background are compared over the band's pixels, and every
-               named element's box is checked against the band. Under a camera that has moved, what
-               an opaque band covers is the camera's crop, as the frame edge is bounds' (see hidden_by_band)
-  contrast     the brightest pixel under the caption band, against the caption colour, is at least 4.5:1
+  bounds       every named element lies inside the frame
   overlap      no two text elements cover each other (more than 30% of the smaller one's box) at a sample
   inframe      the element being narrated stays in frame (in_frame): at each sentence's sample, a named
                element whose label the sentence or its screen note says lies inside the visible stage,
-               below the layout's header and above the band. A warning: the match is by name
+               below the layout's header. A warning: the match is by name
   occluded     the element being narrated can be seen (occluded): a named 3D element the sentence says, at
                its check samples and at each event of the beat sheet, shows at least 30% of its pixels
                (the live engine's boxes report each 3D element's visible share). A warning, as inframe
@@ -36,7 +31,7 @@
 
 Sample times are spread across each clip's sentences, `--samples` per clip (moments.check_samples).
 
-Incremental by default: the per-chapter checks (length, determinism, bounds, band, contrast,
+Incremental by default: the per-chapter checks (length, determinism, bounds,
 legible, overlap, pacing, flash, inframe, occluded) re-run only for chapters whose clip key changed since they last passed
 there; a pass is remembered per chapter, check and format in .cache/check/ (a warning is a pass; a
 pacing check skipped for want of a rendered clip runs again once a cut renders one). A warning is
@@ -59,14 +54,11 @@ from . import settings
 from . import timeline as tl
 from .engine import Engine
 
-CAPTION_COLOUR = (0xE6, 0xEB, 0xF0)      # theme.ts INK
-MIN_CONTRAST = 4.5
-SIDE_MARGIN = 80                         # px kept free either side of a caption line
 SLACK = 1.0                              # px of tolerance on box edges
 
 
 RENDERED = ("pacing", "flash")      # per-chapter checks that read the cut's rendered clips
-PER_CLIP = ("length", "determinism", "bounds", "band", "contrast", "legible", "overlap", "pacing", "flash", "inframe", "occluded")
+PER_CLIP = ("length", "determinism", "bounds", "legible", "overlap", "pacing", "flash", "inframe", "occluded")
 OVERLAP = 0.3                            # share of the smaller text box another text box may cover
 
 
@@ -141,7 +133,7 @@ def _boxes(video, per_clip, engine, clips=None):
 
 
 def bounds(video, samples=3, engine=None, boxes=None):
-    """Captions inside the band and its margins, and every other named element inside the frame. An
+    """Every named element inside the frame. An
     element under a camera that has moved (a push-in, a pan: the engine marks its box "camera") may be
     cropped or left out of the shot: that is the camera's doing, and in_frame checks the narrated one.
     So may a 3D element its view crops (the engine marks its box "clipped").
@@ -149,17 +141,13 @@ def bounds(video, samples=3, engine=None, boxes=None):
     fail, as the live engine reports no unnamed shape at all; a box a clip cuts is reported cut."""
     engine = engine or Engine(video)
     lay, frames = boxes or _boxes(video, samples, engine)
-    W, H, band = lay["width"], lay["height"], tl.band_top(lay)
+    W, H = lay["width"], lay["height"]
     rows = []
     for f in frames:
         bad = []
         for b in f["boxes"]:
-            if b["name"] == "caption":
-                if b["x"] < SIDE_MARGIN - SLACK or b["x"] + b["w"] > W - SIDE_MARGIN + SLACK:
-                    bad.append(f"caption line {b['w']:.0f} px wide leaves the {SIDE_MARGIN} px margins")
-                if b["y"] < band - SLACK or b["y"] + b["h"] > H + SLACK:
-                    bad.append("caption outside the band")
-            elif not b.get("camera") and not b.get("clipped") and b.get("named", True) and (b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK):
+            out = b["x"] < -SLACK or b["y"] < -SLACK or b["x"] + b["w"] > W + SLACK or b["y"] + b["h"] > H + SLACK
+            if out and not b.get("camera") and not b.get("clipped") and b.get("named", True):
                 bad.append(f"{b['name']!r} leaves the frame")
         rows.append({"check": "bounds", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad)})
     return rows
@@ -167,12 +155,12 @@ def bounds(video, samples=3, engine=None, boxes=None):
 
 def overlap(video, samples=3, engine=None, boxes=None):
     """Two different text elements on top of each other: one label hides the other. Text inside a
-    shape is fine (only text boxes are compared); captions are left to the band checks."""
+    shape is fine (only text boxes are compared)."""
     engine = engine or Engine(video)
     _, frames = boxes or _boxes(video, samples, engine)
     rows = []
     for f in frames:
-        texts = [b for b in f["boxes"] if b.get("kind") == "text" and b["name"] != "caption" and b["w"] > 2 and b["h"] > 2]
+        texts = [b for b in f["boxes"] if b.get("kind") == "text" and b["w"] > 2 and b["h"] > 2]
         bad = []
         for i, a in enumerate(texts):
             for b in texts[i + 1:]:
@@ -190,7 +178,7 @@ def overlap(video, samples=3, engine=None, boxes=None):
 # few names are kinds alone and never a label. An element named after its key (live text) rarely
 # matches a sentence, which is why the check is a warning.
 KINDS = ("board box ", "board text ", "box ", "node ", "layer ", "panel ", "close-up ", "term ", "variable ", "column ")
-NOT_LABELS = {"rect", "card", "token", "ghost", "minimap", "caption", "close-up", "background", "band", "title", "panel",
+NOT_LABELS = {"rect", "card", "token", "ghost", "minimap", "close-up", "background", "title", "panel",
               "code", "terminal", "table", "json", "look tag", "board tag", "board note", "board dot"}
 SMALL_WORDS = {"a", "an", "the", "of", "to", "in", "on", "is", "it", "and", "or", "at", "by", "for"}
 
@@ -241,13 +229,13 @@ class Narration:
 def in_frame(video, samples=3, engine=None, boxes=None):
     """At each sentence's check sample, every shown element the sentence (or its screen note in
     boards/notes.json) names lies inside the visible stage: inside the frame (the camera's view, as
-    boxes are measured after it), below the layout's header and above the caption band, and not cut by
+    boxes are measured after it), below the layout's header, and not cut by
     its 3D view ("clipped"). An element wholly inside the header strip is header content and is left
     alone. A warning, not a failure."""
     engine = engine or Engine(video)
     t = tl.load(video)
     lay, frames = boxes or _boxes(video, samples, engine)
-    W, band, header = lay["width"], tl.band_top(lay), (lay.get("header") or {}).get("height", 0)
+    W, H, header = lay["width"], lay["height"], (lay.get("header") or {}).get("height", 0)
     said = Narration(video, t, samples)
     rows = []
     for f in frames:
@@ -263,10 +251,10 @@ def in_frame(video, samples=3, engine=None, boxes=None):
             if header and y0 >= -SLACK and y1 <= header + SLACK:      # within the header strip, not pushed off the top
                 continue
             where = [side for side, out in (("left", x0 < -SLACK), ("right", x1 > W + SLACK),
-                                            ("top" if not header else "header", y0 < header - SLACK), ("band", y1 > band + SLACK)) if out]
+                                            ("top" if not header else "header", y0 < header - SLACK), ("bottom", y1 > H + SLACK)) if out]
             if b.get("clipped") and not where:
                 where = ["cut by its view"]
-            if x1 <= 0 or x0 >= W or y1 <= header or y0 >= band:
+            if x1 <= 0 or x0 >= W or y1 <= header or y0 >= H:
                 where = ["out of frame"]
             if where:
                 bad.setdefault(b["name"], f"{b['name']!r} ({' and '.join(where)})")
@@ -310,39 +298,6 @@ def occluded(video, samples=3, engine=None, boxes=None, clips=None):
     return rows
 
 
-CAMERA_EDGE = 4        # px round a camera box whose pixels are still its own (its stroke, antialiasing)
-
-
-def hidden_by_band(b, lay):
-    """Whether the band may cover box `b`: it is under a camera that has moved (a push-in, a pan) and
-    the band is opaque. The camera crops the scene at the band as at the frame's edges, and the band
-    hides what it crops, so nothing shows through or reads as a caption; in_frame still warns when
-    the element being narrated is pushed under it. A frosted band shows what is under it: no box is
-    hidden there."""
-    return bool(b.get("camera")) and lay["band"].get("style", "opaque") == "opaque"
-
-
-def band_guard(video, samples=3, engine=None, boxes=None):
-    """Named scene elements must end above the band, unless the band hides them (hidden_by_band)."""
-    engine = engine or Engine(video)
-    lay, frames = boxes or _boxes(video, samples, engine)
-    band = tl.band_top(lay)
-    rows = []
-    for f in frames:
-        bad = [f"{b['name']!r} reaches y={b['y'] + b['h']:.0f} (band starts at {band})"
-               for b in f["boxes"] if b["name"] != "caption" and b["y"] + b["h"] > band + SLACK and b["y"] < band + lay["band"]["height"]
-               and not hidden_by_band(b, lay)]
-        rows.append({"check": "band", "clip": f["clip"], "t": f["t"], "ok": not bad, "detail": "; ".join(bad)})
-    return rows
-
-
-def _band_pixels(png, lay):
-    """Raw RGB bytes of the caption band region of an image, through ffmpeg."""
-    h = lay["band"]["height"]
-    return proc.ffmpeg("-i", png, "-vf", f"crop={lay['width']}:{h}:0:{lay['height'] - h}",
-                       "-f", "rawvideo", "-pix_fmt", "rgb24", "-", capture_output=True).stdout
-
-
 def luminance(rgb):
     def lin(c):
         c /= 255
@@ -352,72 +307,12 @@ def luminance(rgb):
 
 
 def contrast_ratio(a, b):
+    """WCAG contrast between two sRGB colours (the theme's tests read it)."""
     la, lb = sorted((luminance(a), luminance(b)), reverse=True)
     return (la + 0.05) / (lb + 0.05)
 
 
-def brightest(pixels):
-    best = (0, 0, 0)
-    seen = set()
-    for i in range(0, len(pixels), 3):
-        px = (pixels[i], pixels[i + 1], pixels[i + 2])
-        if px not in seen:
-            seen.add(px)
-            if luminance(px) > luminance(best):
-                best = px
-    return best
-
-
-def scene_in_band(scene, bare, lay, hidden=()):
-    """How many band pixels differ between the scene alone and the bare background, leaving out those
-    inside a box in `hidden` (boxes the band hides, with CAMERA_EDGE round them)."""
-    W, top, e = lay["width"], tl.band_top(lay), CAMERA_EDGE
-    n = 0
-    for i in range(0, min(len(scene), len(bare)), 3):
-        if scene[i:i + 3] != bare[i:i + 3]:
-            x, y = (i // 3) % W, (i // 3) // W + top
-            n += not any(b["x"] - e <= x < b["x"] + b["w"] + e and b["y"] - e <= y < b["y"] + b["h"] + e for b in hidden)
-    return n
-
-
-def band_pixels_check(video, samples=3, engine=None, clips=None, boxes=None):
-    """The scene alone against the bare background, over the band's pixels: any difference is
-    scene content in the band, except inside a box the band hides (hidden_by_band). Then the caption
-    contrast against what is under the band. A layout without a band has neither."""
-    engine = engine or Engine(video)
-    t, lay = tl.load(video), engine.layout()
-    times = sample_times(t, samples, clips)
-    rows = []
-    if not times or not tl.has_band(lay):
-        return rows
-    hidden = {}
-
-    def hidden_at(r):           # the boxes are measured only once some sample has scene in the band
-        if not hidden:
-            hidden.update({(f["clip"], round(f["t"], 3)): [b for b in f["boxes"] if hidden_by_band(b, lay)]
-                           for f in (boxes or _boxes(video, samples, engine, clips))[1]})
-        return hidden.get((r["clip"], round(r["t"], 3)), ())
-    with tempfile.TemporaryDirectory() as tmp:
-        reqs = []
-        for i, r in enumerate(times):
-            for layer in ("no-band", "background", "no-captions"):
-                reqs.append({**r, "layers": layer, "out": str(Path(tmp) / f"{i}-{layer}.png")})
-        engine.stills(reqs)
-        for i, r in enumerate(times):
-            scene = _band_pixels(Path(tmp) / f"{i}-no-band.png", lay)
-            bare = _band_pixels(Path(tmp) / f"{i}-background.png", lay)
-            diff = scene_in_band(scene, bare, lay)
-            diff = diff and scene_in_band(scene, bare, lay, hidden_at(r))
-            rows.append({"check": "band", "clip": r["clip"], "t": r["t"], "ok": diff == 0,
-                         "detail": "" if diff == 0 else f"{diff} pixels of scene content in the band"})
-            under = brightest(_band_pixels(Path(tmp) / f"{i}-no-captions.png", lay))
-            ratio = contrast_ratio(CAPTION_COLOUR, under)
-            rows.append({"check": "contrast", "clip": r["clip"], "t": r["t"], "ok": ratio >= MIN_CONTRAST,
-                         "detail": f"{ratio:.1f}:1 against the brightest pixel {under}"})
-    return rows
-
-
-CHECKS = ("length", "determinism", "bounds", "band", "contrast")
+CHECKS = ("length", "determinism", "bounds")
 MORE = ("legible (text at least 18 px tall), overlap (no text on top of other text), pacing (crowding and dead time), flash (at most three flashes a second), "
         "inframe (the narrated element stays in frame), occluded (a narrated 3D element is not hidden), legend (one colour, one meaning; with video.json legend), "
         "provenance (assets used are recorded), dead and loop (motion)")
@@ -545,7 +440,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, cha
     if "determinism" in only:
         rows += determinism(video, samples, engine, clips)
     boxes = None
-    if only & {"bounds", "band", "legible", "overlap", "inframe", "occluded"}:
+    if only & {"bounds", "legible", "overlap", "inframe", "occluded"}:
         boxes = _boxes(video, samples, engine, clips)
         if "inframe" in only:
             rows += in_frame(video, samples, engine, boxes)
@@ -558,14 +453,9 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, cha
             rows += motion.legible(video, samples, engine, boxes)
         if "bounds" in only:
             rows += bounds(video, samples, engine, boxes)
-        if "band" in only:
-            rows += band_guard(video, samples, engine, boxes)
     if "legend" in only:      # video-wide: the other chapters' elements come from its cache
         from . import legend
         rows += legend.check(video, samples, engine, boxes, clips, fmt, keys)
-    if only & {"band", "contrast"}:
-        pix = band_pixels_check(video, samples, engine, clips, boxes)
-        rows += [r for r in pix if r["check"] in only]
     if "pacing" in only:
         from . import motion
         rows += motion.pacing(video, engine, pacing_clips, stills=not default)

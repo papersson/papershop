@@ -9,7 +9,7 @@
 //   node cli.mjs boxes    --video DIR --clip ID --t SEC
 //   node cli.mjs boxesAt  --video DIR --requests JSON
 //   node cli.mjs duration --video DIR --clip ID
-//   node cli.mjs look     --video DIR --out DIR [--caption JSON]   the look sheet: look-<n>.png per page, with its boxes
+//   node cli.mjs look     --video DIR --out DIR   the look sheet: look-<n>.png per page, with its boxes
 //   node cli.mjs gl       --video DIR       the browser and the WebGL renderer the 3D stage gets (doctor prints it)
 //
 // Every operation takes --gl cpu|gpu (video.json gl, passed by the kit): WebGL on SwiftShader, Chrome's
@@ -33,7 +33,7 @@ const QUALITY = { draft: { scale: 0.5, crf: 26 }, final: { scale: 1, crf: 18 } }
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
   '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp' }
-const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
+const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30 }
 // Chrome's flags per WebGL backend. --enable-unsafe-swiftshader keeps the CPU renderer Chrome has been
 // retiring as an automatic fallback; on macOS the GPU is Metal through ANGLE.
 const GL = {
@@ -153,7 +153,7 @@ async function boxesAt(video, requests) {
     for (const r of requests) {
       await drawn(page, r.clip, frameIn(t, r.clip, r.t))
       const b = await page.evaluate(() => window.studio.boxes())
-      out.push({ clip: r.clip, t: Number(r.t), band: b.band, boxes: b.boxes })
+      out.push({ clip: r.clip, t: Number(r.t), boxes: b.boxes })
     }
     return out
   })
@@ -184,14 +184,13 @@ async function render(video, clip, out, quality, range) {
   return { clip, out, quality: quality ?? 'draft', frames: b - a + 1, seconds: (Date.now() - started) / 1000 }
 }
 
-async function look(video, outDir, caption) {
-  const lines = caption ? JSON.parse(caption) : []
+async function look(video, outDir) {
   const pages = await withPage(video, async page => {
     const titles = await page.evaluate(() => window.studio.lookPages())
     const done = []
     mkdirSync(outDir, { recursive: true })
     for (let i = 0; i < titles.length; i++) {
-      const r = await page.evaluate(([n, l, all]) => window.studio.look(n, l, all), [i, lines, titles])
+      const r = await page.evaluate(([n, all]) => window.studio.look(n, all), [i, titles])
       if (r.error) throw new Error(`look sheet error in ${r.error}`)
       const out = path.join(outDir, `look-${i + 1}.png`)
       writeFileSync(out, await page.screenshot({ type: 'png' }))
@@ -214,11 +213,11 @@ const ops = {
   render: () => render(opt.video, opt.clip, opt.out, opt.quality, opt.range),
   boxes: async () => {
     const { frames } = await boxesAt(opt.video, [{ clip: opt.clip, t: opt.t }])
-    return { clip: opt.clip, t: Number(opt.t), boxes: { band: frames[0].band, boxes: frames[0].boxes } }
+    return { clip: opt.clip, t: Number(opt.t), boxes: { boxes: frames[0].boxes } }
   },
   boxesAt: () => boxesAt(opt.video, JSON.parse(readFileSync(opt.requests, 'utf8'))),
   duration: async () => duration(opt.video, opt.clip),
-  look: () => look(opt.video, path.resolve(opt.out), opt.caption),
+  look: () => look(opt.video, path.resolve(opt.out)),
   gl: () => withPage(opt.video, async (page, browser) => ({ backend: opt.gl ?? 'cpu', browser: browser.version(), ...await page.evaluate(() => window.studio.gl()) })),
 }
 if (!ops[op]) {
