@@ -77,7 +77,7 @@ the cue) and one verb:
 | `edit` | editor | {file, line, text, mode}: `insert` (default) a new line below `line` with `indent` spaces, `replace` the line keeping its first `keep` characters, `append` to it, or `delete` `count` lines (default 1) from `line` at once, as a selection deleted with one key; `paste: true` (on the action) lands the text at once |
 | `save` | editor | Cmd-S: the dirty dot clears |
 | `open` | editor, browser | a file (editor; optional `line`), or {url, page, title} (browser) |
-| `tab` | terminal, browser | snaps to tab `tab`; `new` {title, prompt, cont or url, page} opens it first |
+| `tab` | terminal, browser | snaps to tab `tab`; `new` {title, prompt, cont or url, page} opens it first; `chord: false` when a click on the tab at the same cue does it (no keyboard chord, the click sounds) |
 | `switch` | (a desktop) | slides to that desktop; `snap: false` keeps it on the cue exactly (and fails the check if that is under a word) |
 | `click` | browser | the pointer travels to page target `click` and presses; `page`, `url` change the page |
 | `drag` | browser | presses on `drag` and drags `from` → `to` (fractions of the target) over `dur`; the selection is the tab's |

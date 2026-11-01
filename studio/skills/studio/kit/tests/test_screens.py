@@ -123,6 +123,12 @@ def test_the_prompt_comes_back_only_when_a_foreground_command_is_done():
     assert not back["waiting"]["running"] and back["waiting"]["input"] == ""     # `&`: the prompt at once
 
 
+def test_a_tab_reached_by_a_click_makes_no_keyboard_chord():
+    spec = {**SPEC, "actions": [{"at": "tab", "on": "servers", "tab": "two", "chord": False, "new": {"title": "tea@two"}}]}
+    r = node("const k=m.compile(S,T,S.runs);const a=k.actions[0];return {snap:a.snapAt,t:a.t,sounds:a.sounds}", S=spec, T=timeline(5.0))
+    assert r["snap"] == r["t"] and r["sounds"] == []
+
+
 def test_sounds_sit_on_their_frames_relative_to_the_cue():
     T = timeline()
     r = node("const k=m.compile(S,T,S.runs);return {streams:m.streams(k),ls:k.actions.find(a=>a.kind==='type')}", S=SPEC, T=T)

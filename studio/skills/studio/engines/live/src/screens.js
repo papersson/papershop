@@ -157,8 +157,9 @@ export function compile(spec, T, runs = {}) {
       x.done = x.land
       if (!s.ok) problems.push({ i, kind, t: s.t, why: `the switch to ${on} can't find a gap between sentences within ${SNAP} s of ${a.at}` })
     } else if (kind === 'tab') {
-      x.snapAt = at + CHORD
-      x.sounds.push([at, 'key'], [at + CHORD, 'key'])
+      // reached by the keyboard chord, or (chord: false) by a click action at the same moment, which sounds
+      x.snapAt = a.chord === false ? at : at + CHORD
+      if (a.chord !== false) x.sounds.push([at, 'key'], [at + CHORD, 'key'])
       x.done = x.snapAt
     } else if (kind === 'type' || kind === 'edit') {
       const text = kind === 'type' ? String(a.type) : String(a.edit.text ?? '')

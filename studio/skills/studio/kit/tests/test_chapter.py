@@ -39,7 +39,7 @@ def test_chapter_workspaces_build_independently_and_leave_sources_untouched(tmp_
     before = {p: p.read_bytes() for p in v.rglob('*') if p.is_file()}
     def work(clip):
         with chapter.working_copy(v, clip) as (path, t):
-            assert set(t['cues']) == ({'one'} if clip == 's1' else {'two'})
+            assert set(t['cues']) == {'one', 'two'}
             (path / 'video.json').write_text('{}')
             return str(path)
     with ThreadPoolExecutor(2) as pool:
@@ -48,6 +48,18 @@ def test_chapter_workspaces_build_independently_and_leave_sources_untouched(tmp_
     assert all(p.read_bytes() == data for p, data in before.items())
     with pytest.raises(SystemExit, match='invalid chapter'):
         chapter.validate(v, '../s1')
+
+
+def test_a_chapter_builds_against_its_own_cues_when_another_chapters_are_broken(tmp_path, capsys):
+    v = video(tmp_path)
+    (v / "cues/s1.json").write_text('{"one": 1}')
+    (v / "cues/s2.json").write_text('{"two": 1}')  # before s2 starts: s2's to fix, not s1's
+    with chapter.working_copy(v, 's1') as (path, t):
+        assert set(t['cues']) == {'one'}
+    assert "s1: checked without other chapters' cues" in capsys.readouterr().out
+    with pytest.raises(SystemExit, match='outside chapter'):
+        with chapter.working_copy(v, 's2'):
+            pass
 
 
 def test_check_limits_engine_requests_to_one_chapter(tmp_path, monkeypatch):
