@@ -49,7 +49,8 @@ def make(video, chapter, cut=None):
     prompt = (f'Review chapter {chapter} of cut {n} once. Read manifest.json, the saved script, and {ROOT / "references/taste.md"}. '
               'Inspect the frame images and motion sheets together. Play the chapter and listen at its hero moments when a player is available. '
               'Check frame occupancy, readable labels, one meaning per colour, introduce then settle then explain, event contact and sound, '
-              'pacing and continuity. State any evidence you could not inspect. Return concrete findings for the user to accept or dismiss. '
+              'pacing and continuity. Check that each technical term is used the way the field\'s real tools use it, or that the narration names the simplification, '
+              'and that the system\'s whole path is stated plainly somewhere. State any evidence you could not inspect. Return concrete findings for the user to accept or dismiss. '
               'Do not edit the video. Write findings.json using absolute video seconds and this shape:\n\n'
               + json.dumps({'cut': n, 'chapter': chapter, 'findings': [{'t': tl.clip(t, chapter)['start'],
                   'kind': 'picture', 'note': 'Describe the observed issue and a specific proposed change.'}]}, indent=2)

@@ -6,8 +6,13 @@ from . import review, reviews
 from .env import ROOT
 
 ROLES = {
-    "expert": "Check the claims, causal explanations and examples. Identify uncertain claims and the evidence needed to settle them.",
-    "viewer": "Read at the viewer's stated level. Identify unexplained prerequisites, excess ideas, confusing terms and places to predict a toy example.",
+    "expert": "Check the claims, causal explanations and examples. Identify uncertain claims and the evidence needed to settle them. "
+              "Check every technical term against how the field's real tools and documentation use it. Where the story gives a term a different "
+              "or broader meaning, for example one program doing work that real systems split across several, quote it, name the tools that use it "
+              "differently, and propose either the standard term or a sentence that names the simplification.",
+    "viewer": "Read at the viewer's stated level. Identify unexplained prerequisites, excess ideas, confusing terms and places to predict a toy example. "
+              "When the subject is a system of parts, say whether you could state its whole path after reading: what produces what, where it travels "
+              "and what reads it. Quote the sentence that states it, or say that none does.",
     "editor": "Check canonical lecture order, useful insights, hero moments, numerical density, omissions and content-sized holds. A governing question and protagonist are optional. Point out scope that obscures the explanation. "
               f"Hear the narration against {ROOT / 'references/script.md'}: quote sentences where attention drops, the camera is narrated, a claim is defended or no question is open, and say whether the ending answers the opening.",
 }

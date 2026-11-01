@@ -10,7 +10,8 @@ leave the viewer without a usable model. Put the desired level into the brief as
 Teach the subject in terms the viewer can use elsewhere. Use canonical names and relate nearby
 terms when their distinction matters. Explain the primitive before manipulating it: show a key
 and its value, a record, a request or a pixel. Familiarity with a specific project is a poor
-substitute for understanding the field. Define each core term when it first matters, and
+substitute for understanding the field. Define each core term when it first matters, as the field's
+tools use it or with the simplification said, and
 introduce each tool by the problem that created it. Say things literally.
 
 Default to a standard lecture in the subject's natural textbook order: why it exists, what it

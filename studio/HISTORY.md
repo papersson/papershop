@@ -3,6 +3,19 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Terms checked against the field, and the panel before the shoot (0.26.0)
+
+Found after the log collector film was approved. It called one program that receives, stores and
+searches a "collector"; in real tools a collector only receives, processes and forwards. Every term
+had been defined, and every review asked whether terms were explained, none whether they were used
+the way the field uses them. The film also explained each part without ever stating the whole path,
+and its story panel, whose expert would have read the claims, was skipped.
+
+The brief now lists each technical term with how real tools use it and a sentence naming any
+simplification, plus one sentence for the system's whole path. The panel's expert checks terms
+against the field's tools, its viewer says whether the whole path can be stated, and chapter
+reviewers check both. `studio shoot` refuses to start until `studio panel` has run.
+
 ## A chapter check sees every chapter's cues; a tab reached by a click has no chord (0.25.1)
 
 Found making the "customers couldn't pay" film. A screens film has one log for the whole film,

@@ -35,3 +35,10 @@ def test_unavailable_panel_reading_is_visible_and_does_not_gate(tmp_path):
     assert panel.make(tmp_path, runner).name == 'panel-2.md'
 
 
+
+
+def test_expert_checks_terms_against_the_field_and_viewer_asks_for_the_whole_path():
+    """The log collector film called one program that receives, stores and searches a collector;
+    real collectors only receive and forward, and nobody asked."""
+    assert 'real tools' in panel.ROLES['expert'] and 'simplification' in panel.ROLES['expert']
+    assert 'whole path' in panel.ROLES['viewer']

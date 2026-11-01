@@ -10,7 +10,7 @@ not a second production plan. Save the panel and its brief in `research/elicit.m
 can see whose judgement shaped the video. These are model-derived principles, not consultations
 with those people. Elicit does no research; verify its factual uncertainties during the story step.
 
-Precedence is simple: the user's own words in the request win over both. `taste.md` wins wherever
+The user's own words in the request win over both. `taste.md` wins wherever
 it disagrees with the elicit brief, because the user's taste is the one thing the model cannot
 know; elicit draws on what the model knows in general.
 
@@ -24,17 +24,14 @@ If elicit is absent from the available skills, use this short method; never ask 
 - Save this panel and raw material in `research/elicit.md`, labelled fallback, then write the brief.
 
 Convert the raw material into a one-page story brief: ideas in textbook order, one example, the
-hero moments and explicit omissions. Three or four ideas is guidance, not a cap; limit numerical
-and caveat density, not useful breadth. Elicit reaches for more; this conversion cuts scope and never craft.
+hero moments and explicit omissions. Elicit reaches for more; this conversion cuts scope and never craft.
 Keep the action, framing, sound and breathing room that make each retained moment work. For each
 chapter, save just its described hero moment and relevant panel principles with their reasons in
 `research/story/<clip>.md`. `studio shoot` includes that excerpt in its chapter job, never the whole
 elicit brief. Show the short story draft quickly, with picture and sound beside each idea.
 
 Create a video with `studio new NAME`. Write the one-page brief in `research/brief.md` in language
-the user would use. Keep a small example and the natural lecture order: why it exists, what it is, how it works,
-the cases that break it, what it costs and where it is used. A short hook is optional; a single
-governing question and a protagonist are optional tools when the subject naturally warrants them. Set `video.json.target_minutes`
+the user would use, keeping the small example and lecture order from `taste.md`. Set `video.json.target_minutes`
 when there is an agreed length so the reel can compare its runtime with it. Level and tone are
 sentences in the brief. An explicit request for comedy also calls for `taste/comic.md`.
 
@@ -63,6 +60,9 @@ Our hero moments are:
   while the voice adds [why, cost or failure]; after the payoff, hold still and silent for [1.5–3 s].
 
 Permitted sound events: [exact touches and named cues, or none]. Abstract operations stay silent.
+
+Our terms are [each term as the field's real tools use it, and the tools checked]; the narration names
+any simplification. Our whole path, said once: [what produces what, where it travels, what reads it].
 
 We leave out [details], because [reason]. We need to verify [specific claims or uncertainties].
 
@@ -107,11 +107,14 @@ pictures. Boards are coarse; revise crowded sections and unjustified empty time 
 holds to reach the target duration. Start `studio desk VIDEO`,
 give the user its local address and show the reel within minutes of the first draft.
 
-Run `studio panel VIDEO` once during this story session. Expert, viewer and editor each read the
+Fill the terms line from real tools' documentation before the panel: a clear definition the
+field uses differently still misleads.
+
+Run `studio panel VIDEO` once during this story session; `studio shoot` refuses to start without it. Expert, viewer and editor each read the
 brief and the script if present, in parallel and in an empty working folder. They ask about factual
 claims, prerequisites and the shape of the explanation. Their findings are saved together as
 `research/reviews/panel-<n>.md`. Bring the useful questions and missing readings to the user.
-An empty reviewer folder limits context leakage; it is not a filesystem sandbox. A model viewer's
+A model viewer's
 reaction is a diagnostic, and the real user's response settles the level and pace.
 
 Revise the brief, beats, script and boards together from the user's response. Run the reel again
