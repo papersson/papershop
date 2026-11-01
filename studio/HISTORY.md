@@ -3,6 +3,17 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A Neovim style for the screens editor (0.25.0)
+
+Patrik asked about drawing the editor as Neovim instead of VS Code. VS Code stays the default: most
+programmers watching use it or something like it, and Vim's modes are noise in a film that isn't about
+Vim. He compared the two in stills and liked the Neovim one, so it is a per-film choice.
+
+- `"style": "nvim"` on an editor desktop draws the same actions as Neovim: no tab strip unless several
+  files are open, `~` past the end of the file, the mode in a status line (INSERT while typing, NORMAL
+  after, TERMINAL in the panel), the terminal panel as a split with its own status line, and on a save
+  `:w` in the command line, then the file written. Scripts need no other change.
+
 ## A locked camera on the screens, and cards that leave cleanly (0.24.0)
 
 Patrik found the wide-events film's macro transitions sloppy: the frame kept slowly zooming and
