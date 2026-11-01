@@ -3,7 +3,7 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
-## A chapter check sees every chapter's cues; a tab reached by a click has no chord (0.24.1)
+## A chapter check sees every chapter's cues; a tab reached by a click has no chord (0.25.1)
 
 Found making the "customers couldn't pay" film. A screens film has one log for the whole film,
 and its actions are anchored on cues that each chapter owns. `studio check --chapter` built its
@@ -14,6 +14,17 @@ build, the check falls back to the chapter's own cues and prints why.
 
 A tab reached by clicking it also played the keyboard chord on top of the click. A `tab` action takes
 `chord: false` when a click at the same cue does it: it snaps at once and the click is its sound.
+
+## A Neovim style for the screens editor (0.25.0)
+
+Patrik asked about drawing the editor as Neovim instead of VS Code. VS Code stays the default: most
+programmers watching use it or something like it, and Vim's modes are noise in a film that isn't about
+Vim. He compared the two in stills and liked the Neovim one, so it is a per-film choice.
+
+- `"style": "nvim"` on an editor desktop draws the same actions as Neovim: no tab strip unless several
+  files are open, `~` past the end of the file, the mode in a status line (INSERT while typing, NORMAL
+  after, TERMINAL in the panel), the terminal panel as a split with its own status line, and on a save
+  `:w` in the command line, then the file written. Scripts need no other change.
 
 ## A locked camera on the screens, and cards that leave cleanly (0.24.0)
 

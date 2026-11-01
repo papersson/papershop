@@ -321,3 +321,18 @@ def test_coloured_pieces_of_a_line_sit_where_one_string_puts_its_letters_at_any_
     assert abs(pieces[-1]["x"] + pieces[-1]["w"] - (whole["x"] + whole["w"])) < .5
     assert abs(whole["w"] - len('record["server"] = batch["server"]') * 26 * .6 * 1.436) < .5
 
+
+@needs_engine
+def test_the_neovim_style_draws_modes_a_status_line_and_the_save_on_the_same_log(tmp_path):
+    spec = json.loads(json.dumps(SPEC))
+    spec["desktops"][0]["style"] = "nvim"
+    write_video(tmp_path, spec)
+    eng = Engine(tmp_path)
+    at = lambda t: {b["name"] for b in eng.boxes("s1", t)["boxes"]["boxes"]}
+    typing, saving, after = at(.6), at(1.6), at(1.8)
+    assert {"scr:laptop:status:modet", "scr:laptop:cmd", "scr:laptop:pstatus:name", "scr:laptop:tilde4"} <= typing
+    assert "scr:laptop:tilde3" not in typing and "scr:laptop:n4" in typing  # ~ starts after the last line
+    assert "scr:laptop:cmd" in saving and "scr:laptop:cmd" in after         # :w, then what it wrote
+    assert not any(n.startswith("scr:laptop:tabs") for n in typing)         # one file open: no tab strip
+    write_video(tmp_path, SPEC)
+    assert not any(b["name"].startswith("scr:laptop:status") for b in Engine(tmp_path).boxes("s1", .6)["boxes"]["boxes"])  # default unchanged
