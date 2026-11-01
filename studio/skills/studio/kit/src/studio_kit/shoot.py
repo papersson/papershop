@@ -12,6 +12,9 @@ def prepare(video):
     brief = video / 'research' / 'brief.md'
     if not brief.is_file():
         raise SystemExit(f'Write the agreed story to {brief} before preparing the shoot.')
+    if not list((video / 'research' / 'reviews').glob('panel-*.md')):
+        raise SystemExit(f'Run `studio panel {video}` and bring its findings to the user before the story locks; '
+                         'the shoot starts from a story the panel has read.')
     narration.narrate(video)
     timeline = tl.build(video)
     chapters = {c.id: c for c in script.read(video)}

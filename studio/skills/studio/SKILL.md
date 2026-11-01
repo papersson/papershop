@@ -32,7 +32,7 @@ narration and screen notes. Write and revise the narration to `references/script
 
 Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start
 `studio desk VIDEO` and give the user its address within minutes of the first draft. Run
-`studio panel VIDEO` once: expert, viewer and editor read the brief and script in parallel.
+`studio panel VIDEO` once: expert, viewer and editor read the brief and script in parallel; `studio shoot` needs it.
 Bring their findings and uncertainties to the user alongside the reel. Revise the story together.
 
 **Decision 1 is story lock.** Record the user's agreement in the brief. Existing authorization

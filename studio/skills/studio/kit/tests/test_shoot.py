@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from studio_kit import narration, shoot
 from test_narration import SCRIPT
 
@@ -19,6 +21,8 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
                    {'clip': 's2', 't': 1, 'role': 'closing', 'file': 'research/style-frames/close.png'}]}))
     (tmp_path / 'research/sound.json').write_text(json.dumps({'s1': [{'cue': 's1-press', 'event': 'finger presses a switch'}]}))
     (tmp_path / 'research/elicit.md').write_text('The long raw brief is not a chapter job.')
+    (tmp_path / 'research/reviews').mkdir()
+    (tmp_path / 'research/reviews/panel-1.md').write_text('# Story fact panel')
     (tmp_path / 'SCRIPT.md').write_text(SCRIPT.replace('Then the network goes quiet.', 'Then the network goes quiet. [breath 2]'))
     calls = []
     original = narration.narrate
@@ -51,3 +55,10 @@ def test_shoot_briefs_follow_real_timings_and_preserve_chapter_work(tmp_path, mo
     assert again[0]['brief'] != jobs[0]['brief']  # old launches cannot claim the new shoot
     assert json.loads(cue.read_text()) == {'s1-hit': 1}
     assert (tmp_path / 'data/s1/value.json').read_text() == '[42]'
+
+
+def test_shoot_refuses_a_story_the_panel_has_not_read(tmp_path):
+    (tmp_path / 'research').mkdir()
+    (tmp_path / 'research/brief.md').write_text('A collector receives, stores and searches.')
+    with pytest.raises(SystemExit, match='studio panel'):
+        shoot.prepare(tmp_path)
