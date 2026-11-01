@@ -163,8 +163,15 @@ export function compile(spec, T, runs = {}) {
     } else if (kind === 'type' || kind === 'edit') {
       const text = kind === 'type' ? String(a.type) : String(a.edit.text ?? '')
       const lead = a.lead ?? 0
-      x.keys = keyTimes(text, `${seed}:${i}:${text}`, { speed: a.speed ?? 1, maxKeys: spec.maxKeys ?? MAX_KEYS }).map(k => +(at + lead + k).toFixed(4))
-      ;[...text].forEach((ch, k) => x.sounds.push([x.keys[k], ch === ' ' ? 'space' : ch === '\n' ? 'enter' : 'key']))
+      if (a.paste) {
+        // a paste (Cmd-V): the whole text lands at once, a chord's two keys
+        x.keys = [...text].map(() => +(at + lead + CHORD).toFixed(4))
+        x.sounds.push([+(at + lead).toFixed(4), 'key'], [+(at + lead + CHORD).toFixed(4), 'key'])
+      } else {
+        x.keys = keyTimes(text, `${seed}:${i}:${text}`, { speed: a.speed ?? 1, maxKeys: spec.maxKeys ?? MAX_KEYS }).map(k => +(at + lead + k).toFixed(4))
+        ;[...text].forEach((ch, k) => x.sounds.push([x.keys[k], ch === ' ' ? 'space' : ch === '\n' ? 'enter' : 'key']))
+      }
+      if (kind === 'edit' && a.edit.mode === 'delete') x.sounds.push([at, 'key'])
       const last = x.keys.at(-1) ?? at
       x.enter = kind === 'type' && a.enter !== false && desk.kind !== 'browser' || a.enter === true ? +(last + (a.pause ?? .22)).toFixed(4) : null
       if (x.enter !== null) x.sounds.push([x.enter, 'enter'])
@@ -226,14 +233,14 @@ function typedAt(keys, text, t) {
 function fresh(d) {
   if (d.kind === 'terminal') return {
     kind: 'terminal', active: 0, split: null,
-    tabs: (d.tabs ?? [{ id: 'main' }]).map(tb => ({ id: tb.id, title: tb.title ?? tb.id, prompt: tb.prompt ?? '$ ', lines: (tb.lines ?? []).map(l => typeof l === 'string' ? { text: l } : l), input: '' })),
+    tabs: (d.tabs ?? [{ id: 'main' }]).map(tb => ({ id: tb.id, title: tb.title ?? tb.id, prompt: tb.prompt ?? '$ ', cont: tb.cont ?? '', lines: (tb.lines ?? []).map(l => typeof l === 'string' ? { text: l } : l), input: '' })),
   }
   if (d.kind === 'editor') {
     const files = Object.fromEntries(Object.entries(d.files ?? {}).map(([name, text]) => [name, lines(text)]))
     return {
       kind: 'editor', open: [d.open ?? Object.keys(files)[0]].filter(Boolean), active: d.open ?? Object.keys(files)[0], files,
       dirty: {}, caret: null, typing: false, lastKey: -1e9,
-      panel: d.panel ? { title: d.panel.title ?? 'TERMINAL', name: d.panel.name ?? '', prompt: d.panel.prompt ?? '$ ', lines: (d.panel.lines ?? []).map(l => typeof l === 'string' ? { text: l } : l), input: '' } : null,
+      panel: d.panel ? { title: d.panel.title ?? 'TERMINAL', name: d.panel.name ?? '', prompt: d.panel.prompt ?? '$ ', cont: d.panel.cont ?? '', lines: (d.panel.lines ?? []).map(l => typeof l === 'string' ? { text: l } : l), input: '' } : null,
     }
   }
   if (d.kind === 'browser') return {
@@ -264,7 +271,7 @@ function apply(st, a, t) {
     const target = termTarget(st, a), typed = typedAt(a.keys, String(a.type), t)
     if (st.kind === 'editor') st.panelActive = t
     if (a.enter !== null && t >= a.enter) {
-      target.lines.push({ prompt: target.prompt, text: String(a.type), cmd: true })
+      target.lines.push({ prompt: target.prompt, cont: target.cont, text: String(a.type), cmd: true })
       for (const l of a.output) if (t >= l.at) target.lines.push(l)
       target.input = ''
       // A shell gives the prompt back when the command is done: a foreground command holds it away
@@ -288,7 +295,10 @@ function apply(st, a, t) {
     st.active = file
     const buf = [...st.files[file]], typed = typedAt(a.keys, String(e.text ?? ''), t), parts = typed.split('\n')
     const n = e.line ?? buf.length // 1-based line the edit is at
-    if (e.mode === 'replace') {
+    if (e.mode === 'delete') { // select `count` lines from line n and delete them: one keystroke, at the action's time
+      buf.splice(n - 1, e.count ?? 1)
+      st.caret = { line: Math.max(1, Math.min(n, buf.length)), col: 0 }
+    } else if (e.mode === 'replace') {
       const keep = e.keep ?? 0 // characters of the old line kept before the typed text
       const old = buf[n - 1] ?? ''
       buf.splice(n - 1, 1, ...[old.slice(0, keep) + parts[0], ...parts.slice(1)])
@@ -302,7 +312,7 @@ function apply(st, a, t) {
       buf.splice(n, 0, ...parts.map(p => ind + p))
       st.caret = { line: n + parts.length, col: ind.length + parts.at(-1).length }
     }
-    if (a.keys.length && t >= a.keys[0]) { st.files[file] = buf; st.dirty = { ...st.dirty, [file]: true } }
+    if (a.keys.length ? t >= a.keys[0] : e.mode === 'delete' && t >= a.t) { st.files[file] = buf; st.dirty = { ...st.dirty, [file]: true } }
     st.lastKey = Math.max(st.lastKey, a.keys.filter(k => k <= t).at(-1) ?? -1e9)
     st.focusLine = st.caret.line
   } else if (kind === 'save') {
@@ -318,7 +328,7 @@ function apply(st, a, t) {
   } else if (kind === 'tab') {
     if (t < a.snapAt) return
     if (a.new) {
-      const tb = st.kind === 'terminal' ? { id: a.tab, title: a.new.title ?? a.tab, prompt: a.new.prompt ?? '$ ', lines: (a.new.lines ?? []).map(l => typeof l === 'string' ? { text: l } : l), input: '' }
+      const tb = st.kind === 'terminal' ? { id: a.tab, title: a.new.title ?? a.tab, prompt: a.new.prompt ?? '$ ', cont: a.new.cont ?? '', lines: (a.new.lines ?? []).map(l => typeof l === 'string' ? { text: l } : l), input: '' }
         : { id: a.tab, title: a.new.title ?? a.tab, url: a.new.url ?? '', page: a.new.page ?? a.tab, fields: {}, since: a.snapAt, clicked: [] }
       if (!st.tabs.some(x => x.id === a.tab)) st.tabs.push(tb)
     }
@@ -439,6 +449,6 @@ export function moments(screens) {
 
 /** Typing faster than the rhythm allows, per action: [{i, rate}] (keys a second over its span). */
 export function rates(screens) {
-  return screens.actions.filter(a => a.keys.length > 2).map(a => ({ i: a.i, on: a.on, t: a.t,
+  return screens.actions.filter(a => a.keys.length > 2 && !a.paste).map(a => ({ i: a.i, on: a.on, t: a.t,
     rate: (a.keys.length - 1) / (a.keys.at(-1) - a.keys[0]) }))
 }

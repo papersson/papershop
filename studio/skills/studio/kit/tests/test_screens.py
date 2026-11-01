@@ -96,6 +96,16 @@ def test_state_replays_terminal_editor_browser_tabs_and_switches():
     assert r["sw"]["gap"] and 1.6 <= r["sw"]["t"] - .08
 
 
+def test_an_edit_deletes_lines_at_once_with_one_key():
+    spec = json.loads(json.dumps(SPEC))
+    spec["actions"][1] = {"at": "edit", "on": "laptop", "edit": {"file": "shop.py", "line": 2, "mode": "delete", "count": 2}}
+    r = node("const k=m.compile(S,T,S.runs);const f=t=>m.state(k,t).desks.laptop.files['shop.py'];"
+             "return {before:f(.35),after:f(.45),sounds:k.actions[1].sounds}", S=spec, T=timeline(5.0))
+    assert r["before"] == ["def reserve(cart):", "    for sku in cart:", "        stock.take(sku)"]
+    assert r["after"] == ["def reserve(cart):"]
+    assert len(r["sounds"]) == 1 and r["sounds"][0][1] == "key"
+
+
 def test_the_prompt_comes_back_only_when_a_foreground_command_is_done():
     """A shell gives the prompt back when the command finishes: between Enter and the last line of its
     captured output the line is running (no prompt, no caret). A command sent to the background with `&`
@@ -192,6 +202,28 @@ def test_the_check_fails_a_switch_on_a_word_and_stale_sounds_and_warns_a_mid_tok
     assert any("switch to laptop" in d for d in fails)
     assert any("run `studio screens VIDEO`" in d for d in fails)
     assert any("inside a token" in r["detail"] for r in rows if r.get("severity") == "warning")
+
+
+def test_a_command_typed_over_several_lines_keeps_its_continuation_prompt_and_wraps_line_by_line(tmp_path, monkeypatch):
+    spec = json.loads(json.dumps(SPEC))
+    spec["actions"].append({"at": "tab", "on": "servers", "tab": "sql", "new": {"title": "sql", "prompt": ":) ", "cont": ":-] "}})
+    spec["actions"].append({"at": "late", "on": "servers", "type": "x" * 40 + "\n" + "y" * 40, "output": ["Ok."]})
+    T = write_video(tmp_path, spec)
+    k = node("const k=m.compile(S,T,S.runs);return k.actions.at(-1).keys.length", S=spec, T=T)
+    assert k == 81                                                   # the Enter inside is typed too
+    monkeypatch.setattr(tl, "load", lambda video: T)
+    rows = screens.check(tmp_path)
+    assert not any("inside a token" in r["detail"] for r in rows)   # each line fits; joined, it would not
+
+
+def test_a_paste_lands_its_text_at_once_with_one_chord_and_is_not_a_typing_rate():
+    spec = json.loads(json.dumps(SPEC))
+    spec["actions"].append({"at": "late", "on": "servers", "type": "SELECT 1;\nSELECT 2;", "paste": True, "output": ["1"]})
+    T = timeline()
+    r = node("const k=m.compile(S,T,S.runs),a=k.actions.at(-1);"
+             "return {keys:[...new Set(a.keys)].length,sounds:a.sounds.filter(x=>x[1]==='key').length,"
+             "rated:m.rates(k).some(x=>x.i===a.i),enter:a.enter>a.keys[0]}", S=spec, T=T)
+    assert r == {"keys": 1, "sounds": 2, "rated": False, "enter": True}
 
 
 def test_a_chapter_on_the_screens_rerenders_when_the_log_its_files_or_its_cues_change(tmp_path):
