@@ -38,6 +38,10 @@ import { PAGES, LEGEND_PAGE } from './look.js'
 import { captionLines, clipTimes, frameOf } from '../../shared/timing.js'
 import { flatShot, frameOn3, shotAt } from '../../shared/camera3d.js'
 
+// Film grammar defaults (references/kit.md, "Joins, shots, focus and callbacks").
+const SHOT_MOVE = 1.1          // seconds a shot change takes
+const FOCUS_IN = 0.35, FOCUS_OUT = 0.5
+const JOIN_MAX = 0.6, JOIN_MIN = 0.2, JOIN_CLEAR = 0.1   // a join's length, and the quiet it leaves after the last word
 const DEFAULT_LAYOUT = { width: 1920, height: 1080, fps: 30, band: { height: 160, style: 'opaque' } }
 
 async function json(url, fallback) {
@@ -79,7 +83,7 @@ async function exists(url) {
 
 export async function boot({ svg, canvas, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
-  let T, L, scenes, overlay, boards, notes, legend, colours, motion, plates, platePoints, version = 0
+  let T, L, scenes, joins, overlay, boards, notes, legend, colours, motion, plates, platePoints, version = 0
   // Images a frame draws (a plate) are decoded before the frame counts as drawn, so a still never
   // catches a plate half loaded: draw() returns a promise while any is pending.
   const decoded = new Map()
@@ -103,9 +107,14 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
         .map(line => JSON.parse(line)).map(e => [e.frame, e.points])) : {}
     }
     scenes = {}
+    joins = {}
     for (const c of T.tracks.scene) {
       const url = `${base}scenes/${c.id}.js?v=${version}`
-      if (await exists(`${base}scenes/${c.id}.js`)) scenes[c.id] = (await importScene(`${c.id}.js`, url)).default
+      if (await exists(`${base}scenes/${c.id}.js`)) {
+        const mod = await importScene(`${c.id}.js`, url)
+        scenes[c.id] = mod.default
+        if (mod.join !== undefined) joins[c.id] = mod.join
+      }
     }
     overlay = (await exists(`${base}scenes/overlay.js`)) ? (await importScene('overlay.js', `${base}scenes/overlay.js?v=${version}`)).default : null
   }
@@ -192,6 +201,94 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
       clip, index: T.tracks.scene.indexOf(c), title: c.title, chapters: T.tracks.scene, timeline: T,
       at, end, word, phrase, cue, sentences,
       P: (t0, d, e) => kit.prog(t, t0, d, e),
+      focus: (names, from, o = {}) => asked.focus.push({ names: [].concat(names), from, ...o, sentences }),
+      shots: (keys, o = {}) => { asked.shots = { keys, ...o } },
+      scene: (other, at, o = {}) => nestScene(other, at, o),
+      recall: (other, at = 'end', o = {}) => nestScene(other, at, { layer: 'over', ...o }),
+    }
+  }
+
+  // What a scene asked of this frame (`asked`), resolved after it has drawn: focus calls and shots.
+  let asked = { focus: [], shots: null }
+  let depth = 0
+
+  /** Draw chapter `other` at its time `at` (seconds, or 'end') inside this frame: fitted into `into`
+   * [x, y, w, h] when given (a callback's inset), at opacity `op`. */
+  function nestScene(other, at, { into, op = 1, layer = 'main', key } = {}) {
+    if (!scenes[other]) throw new Error(`no scene ${other} to draw`)
+    if (depth > 1) throw new Error(`scene ${other}: scenes nest at most two deep`)
+    const { frames } = clipRange(other)
+    const t = at === 'end' ? (frames - 1) / T.fps : Math.max(0, Math.min((frames - 1) / T.fps, at))
+    const H = bandTop()
+    const transform = into ? `translate(${into[0]} ${into[1]}) scale(${into[2] / L.width} ${into[3] / H})` : undefined
+    const saved = asked, focusing = stage.focusing
+    asked = { focus: [], shots: null }
+    depth += 1
+    try {
+      return stage.nest(key ?? `${other}@${t.toFixed(3)}`, { opacity: op, transform }, () => {
+        const c = context(other, t)
+        scenes[other](c)
+        resolveFrame(c)
+      }, layer)
+    } finally { depth -= 1; asked = saved; stage.focusing = focusing }
+  }
+
+  /** Box [x0, y0, x1, y1] round every node drawn this frame whose name mentions `name`, in world pixels. */
+  function boxOf(name) {
+    const want = String(name).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+    const inv = stage.camera.getCTM()?.inverse()
+    let box = null
+    for (const key of stage.order) {
+      const { node } = stage.nodes.get(key)
+      if (node.tagName === 'g' || !stage.camera.contains(node)) continue
+      const own = new Set(String(node.getAttribute('data-box') ?? '').toLowerCase().split(/[^a-z0-9]+/))
+      if (!want.every(w => own.has(w))) continue
+      const b = node.getBBox(), m = inv && node.getCTM() ? inv.multiply(node.getCTM()) : null
+      for (const [x, y] of [[b.x, b.y], [b.x + b.width, b.y + b.height], [b.x, b.y + b.height], [b.x + b.width, b.y]]) {
+        const p = m ? { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f } : { x, y }
+        box = box ? [Math.min(box[0], p.x), Math.min(box[1], p.y), Math.max(box[2], p.x), Math.max(box[3], p.y)] : [p.x, p.y, p.x, p.y]
+      }
+    }
+    if (!box) throw new Error(`nothing named ${JSON.stringify(name)} is drawn for the camera to frame`)
+    return box
+  }
+
+  /** Focus and shots, now that the scene has drawn (shots frame named boxes as drawn). */
+  function resolveFrame(c) {
+    const { t } = c
+    if (asked.shots) {
+      const { keys, move = SHOT_MOVE, margin = 80 } = asked.shots
+      const wide = { x: L.width / 2, y: (c.header + c.H) / 2, z: 1 }
+      const shotOf = (spec, back) => spec === 'wide' ? wide : spec === 'back' ? back
+        : Array.isArray(spec) && spec[0] === 'close' ? c.frameOn(boxOf(spec[1]), { margin, ...(spec[2] ?? {}) })
+        : spec
+      const ks = []
+      let before = wide, current = wide
+      for (const [kt, spec, e] of keys) {
+        const next = shotOf(spec, before)
+        if (!(Array.isArray(spec) && spec[0] === 'close')) before = next
+        if (!ks.length) ks.push([kt, next])
+        else ks.push([kt, current], [kt + move, next, e ?? 'inOut'])
+        current = next
+      }
+      c.camAt(ks)
+    }
+    if (asked.focus.length) {
+      // The newest focus that has started takes over; each lifts at the end of its sentence (or `until`).
+      const weights = new Map()
+      let amount = 0, dim, blur
+      const started = asked.focus.filter(f => t >= f.from - FOCUS_IN).sort((a, b) => a.from - b.from)
+      started.forEach((f, i) => {
+        const s = f.sentences.find(x => x.start <= f.from + 0.01 && f.from <= x.end + 0.6)
+        const until = f.until ?? (s ? s.end + 0.3 : f.from + 2.5)
+        const on = kit.prog(t, f.from - FOCUS_IN, FOCUS_IN) * (1 - kit.prog(t, until, FOCUS_OUT))
+        const next = started[i + 1]
+        const handed = next ? kit.prog(t, next.from - FOCUS_IN, FOCUS_IN) : 0
+        for (const n of f.names) weights.set(n, Math.max(weights.get(n) ?? 0, on * (1 - handed)))
+        amount = Math.max(amount, on)
+        dim = f.dim ?? dim; blur = f.blur ?? blur
+      })
+      if (amount > 0) stage.focusing = { weights, amount, dim, blur }
     }
   }
 
@@ -267,9 +364,13 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     let error = null
     if (layers !== 'background') {
       const c = context(clip, t)
+      asked = { focus: [], shots: null }
       try {
-        if (scenes[clip] && (!available || available.has(clip))) scenes[clip](c)
-        else board(c)
+        if (scenes[clip] && (!available || available.has(clip))) {
+          scenes[clip](c)
+          resolveFrame(c)
+          joinOut(clip, c)
+        } else board(c)
         if (overlay) overlay(c)
       } catch (e) {
         error = `${clip} at ${t.toFixed(3)} s: ${e && e.stack ? e.stack : e}`
@@ -285,6 +386,79 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     if (error) return { error }
     const done = { clip, frame, t }
     return pending.length ? Promise.all(pending).then(() => done, e => ({ error: `${clip} at ${t.toFixed(3)} s: ${e.message}` })) : done
+  }
+
+  /**
+   * The join into the next chapter, drawn in this chapter's quiet tail (the cut itself stays a cut
+   * between two rendered clips, so each clip still renders alone). The incoming chapter says how
+   * it wants to be joined with `export const join`:
+   *   'dissolve' (the default)  the next chapter's first frame fades in over this one's last moments
+   *   {match: 'name'}           a match cut: this chapter's camera carries the named thing to where
+   *                             the next chapter first draws it, while the dissolve runs
+   *   'hard'                    no join: a straight cut
+   * A join only uses the silence after this chapter's last word; with less than JOIN_MIN of it, the
+   * cut is hard.
+   */
+  function joinSpan(clip) {
+    const i = T.tracks.scene.findIndex(x => x.id === clip), next = T.tracks.scene[i + 1]
+    if (!next || !scenes[next.id] || (available && !available.has(next.id))) return null
+    const how = joins[next.id] ?? 'dissolve'
+    if (how === 'hard') return null
+    const { c: cl, frames } = clipRange(clip)
+    const dur = frames / T.fps
+    const last = Math.max(0, ...T.tracks.narration.filter(n => n.clip === clip).map(n => n.end - cl.start))
+    const span = Math.min(JOIN_MAX, dur - last - JOIN_CLEAR)
+    if (span < JOIN_MIN) return null
+    return { next: next.id, how, from: dur - span, span, dur }
+  }
+
+  function joinOut(clip, c) {
+    const j = joinSpan(clip)
+    if (!j || c.t < j.from) return
+    // Reaches 1 on the clip's last frame, so the next clip's first frame continues it exactly.
+    const k = kit.ease.inOut(Math.min(1, (c.t - j.from) / Math.max(1 / T.fps, j.span - 1 / T.fps)))
+    if (j.how && typeof j.how === 'object' && j.how.match) {
+      // Where the thing is now (world) and where the next chapter first shows it (its own world, at
+      // its own camera); move this chapter's camera so the first lands on the second.
+      const here = boxOf(j.how.match)
+      const there = measureIn(j.next, j.how.match)
+      const cam = currentCam()
+      const sx = (there[2] - there[0]) / Math.max(1, here[2] - here[0])
+      const zEnd = cam.z * sx
+      // Screen position of `here`'s centre must become `there`'s centre on screen.
+      const hc = [(here[0] + here[2]) / 2, (here[1] + here[3]) / 2], tc = [(there[0] + there[2]) / 2, (there[1] + there[3]) / 2]
+      const W = L.width, Hh = L.height
+      const end = { x: hc[0] - (tc[0] - W / 2) / zEnd, y: hc[1] - (tc[1] - Hh / 2) / zEnd, z: zEnd }
+      const z = cam.z * (zEnd / cam.z) ** k
+      stage.cam(cam.x + (end.x - cam.x) * k, cam.y + (end.y - cam.y) * k, z)
+    }
+    // A dissolve: this chapter fades as the next one's first frame comes up over it.
+    for (const g of [stage.layers.back, stage.camera, stage.layers.over]) g.setAttribute('opacity', 1 - k)
+    nestScene(j.next, 0, { op: k, layer: 'ui', key: `join:${j.next}` })
+  }
+
+  /** The camera the scene left this frame: centre and zoom, read back from the camera group. */
+  function currentCam() {
+    const m = stage.camera.transform.baseVal.consolidate()?.matrix
+    const z = m ? m.a : 1, tx = m ? m.e : 0, ty = m ? m.f : 0
+    return { x: (L.width / 2 - tx) / z, y: (L.height / 2 - ty) / z, z }
+  }
+
+  /** Where chapter `other` first draws `name`, on screen: drawn hidden, measured, then removed. */
+  function measureIn(other, name) {
+    const g = nestScene(other, 0, { op: 0, layer: 'ui', key: `measure:${other}` })
+    const want = String(name).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+    let box = null
+    for (const n of g.querySelectorAll('[data-box]')) {
+      const own = new Set(n.getAttribute('data-box').toLowerCase().split(/[^a-z0-9]+/))
+      if (!want.every(w => own.has(w)) || n.tagName === 'g') continue
+      const r = n.getBoundingClientRect(), o = stage.svg.getBoundingClientRect()
+      const sx = L.width / o.width, sy = L.height / o.height
+      const b = [(r.left - o.left) * sx, (r.top - o.top) * sy, (r.right - o.left) * sx, (r.bottom - o.top) * sy]
+      box = box ? [Math.min(box[0], b[0]), Math.min(box[1], b[1]), Math.max(box[2], b[2]), Math.max(box[3], b[3])] : b
+    }
+    if (!box) throw new Error(`join: the next chapter ${other} draws nothing named ${JSON.stringify(name)} on its first frame`)
+    return box
   }
 
   /** Draw the frame at absolute time `at` (the desk's live playback). */

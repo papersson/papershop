@@ -20,3 +20,10 @@ def pytest_sessionstart(session):
     if problems:
         pytest.exit("studio's tests can't run here: " + "; ".join(problems) +
                     ". Run them with script/test, which takes the flake's tools, or install them.", returncode=4)
+
+
+def hard_join(video, clip="s2"):
+    """Make the join into `clip` a straight cut, so the chapter before it renders as one piece."""
+    f = video / "scenes" / f"{clip}.js"
+    if f.exists():
+        f.write_text(f.read_text() + "\nexport const join = 'hard'\n")

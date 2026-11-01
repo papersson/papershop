@@ -1,6 +1,8 @@
 import json
 import subprocess
 
+from conftest import hard_join
+
 from studio_kit import assets, check, keys, motion, render
 from test_render import make_video
 
@@ -103,6 +105,7 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
+    hard_join(tmp_path)   # each clip renders in one piece, as these fake renders assume
     for cid, (a, b) in {"s1": (0.5, 0.8), "s2": (0.5, 1.2)}.items():
         f = cache / f"{cid}-draft-{keys.clip_key(tmp_path, t, cid, 'draft')}.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(a, b), "-pix_fmt", "yuv420p", str(f)], check=True)
@@ -113,7 +116,7 @@ def test_pacing_reads_the_cuts_clips_and_warns_at_a_short_hold(tmp_path):
     assert warn["severity"] == "warning" and warn["ok"] and warn["t"] == 0.5
     assert warn["detail"].startswith("0.2 s hold between the move at 0.4-0.5 s and the one at 0.7 s")
     assert "2 significant moves; no short-gap diagnostic" in ok["detail"]
-    (tmp_path / "scenes" / "s2.js").write_text("// s2, edited: its rendered clip is stale\n")
+    (tmp_path / "scenes" / "s2.js").write_text("// s2, edited: its rendered clip is stale\nexport const join = 'hard'\n")
     assert [r.get("skipped") for r in motion.pacing(tmp_path, eng, stills=False)] == [None, True]
 
 
@@ -176,6 +179,7 @@ def test_the_pacing_check_and_the_motion_review_measure_what_they_did(tmp_path):
     (tmp_path / "video.json").write_text(json.dumps({"engine": "live"}))
     cache = tmp_path / ".cache" / "clips"
     cache.mkdir(parents=True)
+    hard_join(tmp_path)   # s1 renders in one piece, as these fake renders assume
     f = cache / f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", stage(0.5, 0.8, 4), "-pix_fmt", "yuv420p", str(f)], check=True)
     for first, count in ((0, 60), (7, 60), (31, 80)):
@@ -351,6 +355,7 @@ def test_dead_time_uses_rendered_stage_without_changing_captions(tmp_path):
     (tmp_path / 'timeline.json').write_text(json.dumps(t))
     cache = tmp_path / '.cache/clips'
     cache.mkdir(parents=True)
+    hard_join(tmp_path)   # s1 renders in one piece, as these fake renders assume
     f = cache / f"s1-draft-{keys.clip_key(tmp_path, t, 's1', 'draft')}.mp4"
     subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', stage(0, 0, d=5), '-pix_fmt', 'yuv420p', str(f)], check=True)
     rows = motion.pacing(tmp_path, StageEngine({}), stills=False)

@@ -1,6 +1,8 @@
 """The revision loop's caches: the voice check and the label crops only redo what changed."""
 import json
 import subprocess
+
+from conftest import hard_join
 import sys
 import types
 from argparse import Namespace
@@ -141,6 +143,7 @@ def test_a_cut_makes_only_the_rendered_clip_checks_due(tmp_path):
     them on s1 alone, not every other check of that chapter again."""
     from studio_kit import check, keys, render
     t = make_video(tmp_path)
+    hard_join(tmp_path)   # s1 renders in one piece, as the fake render below assumes
     eng = CheckEngine(tmp_path)
     rows = check.run(tmp_path, samples=1, engine=eng, everything=False)
     assert all(r.get("skipped") for r in rows if r["check"] in check.RENDERED)

@@ -25,13 +25,17 @@ from .engine import Engine
 STILL_SCALE = 0.25          # 480×270 stills on the page
 
 
+def pieces(video, timeline, quality, fmt=None):
+    """Every rendered piece in order (keys.parts): a clip, or a clip's body and its join."""
+    return [p for c in timeline["tracks"]["scene"] for p in keys.parts(video, timeline, c["id"], quality, c.get("engine"), fmt)]
+
+
 def plan(video, timeline, quality, fmt=None):
-    """[(clip id, key, cached file or None)] for every clip in order."""
+    """[(piece id, key, cached file or None)] for every rendered piece in order."""
     rows = []
-    for c in timeline["tracks"]["scene"]:
-        key = keys.clip_key(video, timeline, c["id"], quality, c.get("engine"), fmt)
-        f = keys.clip_file(video, c["id"], quality, key, fmt)
-        rows.append((c["id"], key, f if f.exists() else None))
+    for p in pieces(video, timeline, quality, fmt):
+        f = keys.clip_file(video, p["id"], quality, p["key"], fmt)
+        rows.append((p["id"], p["key"], f if f.exists() else None))
     return rows
 
 
@@ -207,7 +211,7 @@ def estimate(video, timeline, quality, clips):
                 used.append(n)
     if not rates:
         return None
-    frames = sum(tl.frames(timeline, c)[1] for c in clips)
+    frames = sum(c["frames"] if isinstance(c, dict) else tl.frames(timeline, c)[1] for c in clips)
     per = statistics.median(rates)
     return {"frames": frames, "per_frame": round(per, 3), "seconds": round(frames * per, 1), "from": sorted(set(used))}
 
@@ -220,28 +224,30 @@ def render_clips(video, timeline, engine, quality="draft", fmt=None):
     """Render the clips whose cached video is missing (or stale) in `fmt`; returns ([files], [records]).
     Before rendering, it says how long that should take (estimate)."""
     files, records = [], []
-    rows = plan(video, timeline, quality, fmt)
-    todo = [cid for cid, _, cached in rows if cached is None]
+    ps = pieces(video, timeline, quality, fmt)
+    rows = [(p, keys.clip_file(video, p["id"], quality, p["key"], fmt)) for p in ps]
+    todo = [p for p, f in rows if not f.exists()]
     if todo:
         est = estimate(video, timeline, quality, todo)
-        frames = sum(tl.frames(timeline, c)[1] for c in todo)
+        frames = sum(p["frames"] for p in todo)
         log(f"render: {len(todo)} clip(s), {frames} frames at {quality}; " + (
             f"about {_minutes(est['seconds'])} ({est['per_frame']:.2f} s a frame in cut {', '.join(map(str, est['from'][-3:]))})"
             if est else "no earlier render at this quality to estimate from"))
-    for cid, key, cached in rows:
-        f = keys.clip_file(video, cid, quality, key, fmt)
+    for p, f in rows:
+        cid, key = p["id"], p["key"]
         f.parent.mkdir(parents=True, exist_ok=True)
         started = time.monotonic()
-        if not f.exists():
+        fresh = not f.exists()
+        if fresh:
             for old in f.parent.glob(f.name.replace(key, "*")):
                 old.unlink()
             log(f"render {cid} ({quality}): changed")
-            r = engine.render(cid, f, quality)
+            r = engine.render(p["clip"], f, quality, p["range"]) if p["range"] else engine.render(p["clip"], f, quality)
             log(f"  {r.get('frames', '?')} frames in {r.get('seconds', 0):.0f} s")
         else:
             log(f"render {cid} ({quality}): unchanged, cached")
-        records.append({"id": cid, "key": key, "rendered": cached is None, "seconds": round(time.monotonic() - started, 1),
-                        "frames": tl.frames(timeline, cid)[1]})
+        records.append({"id": cid, "key": key, "rendered": fresh, "seconds": round(time.monotonic() - started, 1),
+                        "frames": p["frames"]})
         files.append(f)
     return files, records
 

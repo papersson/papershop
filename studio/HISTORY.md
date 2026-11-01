@@ -3,6 +3,23 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Film grammar: focus, shots, chapter joins and callbacks (0.27.0)
+
+Found by asking what every film does, from film and editing craft rather than our own films, and
+showing each move before and after on one picture. Dimming everything but the named thing existed
+three times (the definition card's spotlight, the screens point, a hand-built veil in nine films),
+wide/close/back existed only inside screens, and chapters met in a hard cut because each renders
+alone, so no chapter could see the one before it.
+
+The live engine now does four moves by name (`references/grammar.md`): `c.focus` (rack focus on
+what the voice names), `c.shots` (wide, close on a named thing, back; `keep: true` labels hold their
+size), chapter joins (a dissolve in the quiet after the last word by default; `export const join`
+of `{match: name}` for a match cut or `'hard'`), and `c.recall` (an earlier chapter's own frame).
+Underneath: the stage can draw one scene inside another, a finishing pass treats nodes by name,
+a join renders as its own short piece so editing a chapter re-renders only its own clip and the
+join into it, and a recalled chapter is part of the recalling chapter's key. Room tone was tried
+and dropped: the director couldn't hear it.
+
 ## Terms checked against the field, and the panel before the shoot (0.26.0)
 
 Found after the log collector film was approved. It called one program that receives, stores and
