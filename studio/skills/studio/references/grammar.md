@@ -25,6 +25,7 @@ label `name-payment`.
   re-renders only its own clip and the join into it.
 - **Callbacks.** `c.recall('s2', 'end', { into: [x, y, w, h] })` draws chapter s2's own frame
   (at a clip time, or `'end'`) fitted into a box on the overlay layer. Without `into`, it fills the
-  stage. The payoff shows the setup exactly as it was, because it is the same drawing.
+  stage. The payoff shows the setup exactly as it was, because it is the same drawing. Which setups return,
+  and where, is planned in the beat table's `Sets up or returns` column (script.md, "Bring things back").
   `c.scene(id, t, {layer, op})` is the general form. A recalled chapter is part of the recalling
   chapter's cache key, and the checks measure each chapter's drawing in its own chapter only.

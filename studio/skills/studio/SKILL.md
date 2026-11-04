@@ -27,7 +27,7 @@ Three or four ideas is guidance, not a cap; breadth is welcome when each idea ha
 
 First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
 Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
-Convert the panel and brief into `research/brief.md`: the viewer, story order (historical route for origins films), ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Name key points and section ends. Write `SCRIPT.md` with a beat table including breaths,
+Convert the panel and brief into `research/brief.md`: the viewer, story order (historical route for origins films), ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Name key points, section ends and returns. Write `SCRIPT.md` with a beat table including breaths,
 narration and screen notes. Write and revise the narration to `references/script.md`, and read it aloud before anyone else hears it. Draw rough boards that make the picture and its scale visible.
 
 Run `studio reel VIDEO` for boards held to the real narration and its pacing report. Start

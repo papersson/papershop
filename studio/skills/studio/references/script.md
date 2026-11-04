@@ -115,11 +115,60 @@ disclaimers ("this is not a claim that") and defensive pairs ("this relocates co
 does not abolish it") belong in `## Evidence`, where they protect accuracy without costing
 attention. In the narration, keep a limit only when the viewer would otherwise believe something
 false, and state it as a fact about the world: "It can't conjure a signal in a tunnel." One per
-idea at most.
+idea at most. This rule is about caveats and hedges. Bringing an idea back on purpose, at a seam,
+is a different thing; see "Bring things back" below.
 
 **End on the opening, changed** (Stanton). The last paragraph returns to the first image or
 question, and it means something new now. Don't announce a lesson ("The lesson is visible:");
 let the callback carry it, then breathe.
+
+## Bring things back
+
+A narrated film can't be skimmed back. Whatever the film doesn't bring back is gone for the
+viewer who drifted for ten seconds, and every viewer does (Patrick Winston calls the cure *verbal
+punctuation*). So plan returns in the brief and the beat table, not in the edit. A good return
+does a job the first mention couldn't: it puts the viewer back on the line of the story, reloads
+a fact the next scene needs, or shows an earlier moment meaning more. A return that only repeats
+is padding, and viewers learn to skip it.
+
+- **Name each stop.** When a stop ends, say its short name once, in an ordinary sentence: "That's
+  DNS. It turns the clinic's name into an address." Every later return uses the same name.
+- **Echo after a stop.** Cut back briefly to the film's main picture and change the one part this
+  stop explained. One sentence, or none.
+- **Recap once, at the act break.** In a film longer than about six minutes, return to the
+  overview near the middle. Name only the stops the second half builds on, each with its reason,
+  and end on what is still missing. Keep it under 25 seconds.
+- **Ask before you show.** A recap may hold one real question with one answer the viewer already
+  has, then `[predict 2]`, then the answer on screen. Recalling something helps memory more than
+  seeing it again (Roediger and Karpicke, 2006; Szpunar, Khan and Schacter, 2013, with quizzes
+  between parts of a recorded lecture). A spoken question is a weaker version of their quizzes,
+  so make it count.
+- **Reuse the exact picture.** Bring a setup back with `c.recall` ([grammar.md](grammar.md)) so the
+  payoff shows it as it was. A redrawn version is a weaker cue.
+- **Pay off what you plant.** Every setup in the beat table comes back at least once, and every
+  callback points to a setup the viewer actually noticed. The strongest return puts the old
+  picture beside the new one and shows the one thing that changed.
+- **In a series, carry the thread.** Open with a short "last time" that holds only what this film
+  needs, in the previous film's own pictures. End on the question the next film answers.
+- **Don't bring back what the viewer already has.** Not what they saw in the last half minute, and
+  not what they knew before the film started. Repeating it costs attention for nothing (John
+  Sweller's redundancy effect), and it's what makes recaps feel like padding.
+
+Write returns in the same plain sentences as the rest of the script. Recaps are where scripts
+drift into fragments and slogans; say it the way a clear teacher would.
+
+> So, to recap: we've seen how computers connect, how packets work, how TCP/IP and DNS work, and
+> what a client and a server are.
+
+> Let's take stock. Computers can send each other messages. The messages travel in packets, so
+> one broken line doesn't lose everything. And DNS lets any computer find another by name. What's
+> still missing is a shared way to ask for a document.
+
+The list of topics becomes the chain the second half needs, each step with its reason, ending on
+the gap the next stop fills. A poetic version ("Machines that talk. In packets, because lines
+fail.") does the same job worse. The user's words (2026-11-04): returns should be “a pretty core
+"feature" in our videos”, and the stylised versions “sound too poetic/tacky … still use simple
+and clear language”.
 
 ## The moments a viewer remembers
 
@@ -148,7 +197,8 @@ works in this one, it's earned. Cut on sight:
   will matter later"), and a rhetorical question in every paragraph. `/prose:prose` lists more;
   use its review mode on a draft.
 - Lecture tics: definitions before need, "rather than" on every other line, recitations of dates,
-  versions and credits, and summaries of what was just shown.
+  versions and credits, and summaries of what was just shown. (A planned recap at a seam is
+  different; see "Bring things back".)
 
 ## Before and after, from our own scripts
 
@@ -208,4 +258,5 @@ holds. Afterwards, check:
 - Does each core idea name the wrong intuition before breaking it?
 - Is any line describing what's on screen, narrating the camera, or defending a claim?
 - Does the ending answer the opening?
+- Does every setup come back, and could a viewer who drifted rejoin near the middle?
 - Is there one line you'd repeat to a friend? If not, the script is correct but forgettable.
