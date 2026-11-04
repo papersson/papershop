@@ -282,8 +282,8 @@ schema. Use gain 0 as the starting point for typing streams; their grain levels 
 Generated typing effects retain their `source` tag when other effects are replaced.
 
 The mix bus sums narration, effects and other tracks with shared room, presence and
-ducking. `audio/tracks.json` accepts `{file, start, gain, in, out, role}`; use music only when the
-user asks; the mix levels it. `studio beats VIDEO TRACK` records a beat grid for a supplied track. `audio.py` holds the mix contract. A finish applies one fixed gain to the whole mix, with a
+ducking. `audio/tracks.json` accepts `{file, start, gain, in, out, role}`; music comes from the
+palette (music.py; `"music": false` drops it). `studio beats VIDEO TRACK` records a beat grid for a supplied track. `audio.py` holds the mix contract. A finish applies one fixed gain to the whole mix, with a
 true-peak limiter, preserving quiet pauses. `studio audio VIDEO` defaults to −16 LUFS and
 −1.5 dBTP; `--lufs -14` suits a requested social export.
 

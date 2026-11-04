@@ -58,7 +58,8 @@ def create(name, directory=None, title=None, source=None, duration=None, engine=
         (video / folder).mkdir(exist_ok=True)
     (video / "audio" / "sfx.json").write_text("[]\n")
     cfg = {"title": title or default_title(name), "version": "v1", "destination": "private-page",
-           "engine": engine, "poster": None, "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"]}
+           "engine": engine, "poster": None, "git": {"sign": None}, "keep_cuts": settings.DEFAULTS["keep_cuts"],
+           "music": True}
     if source:
         cfg["source"] = source_record(source)
     if duration:
