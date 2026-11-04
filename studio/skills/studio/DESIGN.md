@@ -98,7 +98,7 @@ reveals and bucket operations stay silent, even when a physical metaphor depicts
 jobs carry exact allowed events by chapter; the main session retains control of the mix.
 Recorded CC0 material sounds, key recordings and typed-code streams remain available.
 Typing replays actual file versions and uses the same keystroke events for picture and sound.
-The mix bus supplies shared room, presence and ducking. A fixed whole-track loudness gain and
+The mix bus supplies shared room, presence, the music's level and its slow duck. A fixed whole-track loudness gain and
 true-peak limiter preserve quiet pauses; dynamic normalization once lifted room noise between
 sentences. Audio checks measure sync, audible effects, masking, pause space and loudness.
 Listening still supplies judgments those measurements cannot make.

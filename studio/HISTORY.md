@@ -3,6 +3,24 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Music sits low and steady, like computing explainers' (0.29.0)
+
+The director heard the old music mix as "too prominent" and "changes too much depending on if there
+is narration or not": a bed 8 to 9 dB under the voice that ducked under each sentence and came back
+in each pause. So we measured 13 explainers with the voice and music split apart (UVR MDX-NET
+vocal separation, three one-minute samples each). 3Blue1Brown, Primer, Reducible, Veritasium and
+Sebastian Lague keep their music 29 to 37 dB under the voice's loud moments and lift it 0 to 3 dB
+when the voice stops; Kurzgesagt and Branch Education are the loud exceptions. Clips mixed that way
+were "much better".
+
+The mix now does it: each music entry is levelled 23 LU under the narration (`sound.level`, on by
+default; `gain` trims from there), and the duck is a slow 1.3:1 settle (2 s attack, 5 s release) that
+takes about 3.5 dB off under speech and gives back about 1.5 dB in the pauses, so nothing swells
+when the voice stops. On a shipped Kokoro narration that puts a steady track 31 dB under the voice
+and 29.5 dB under it in the pauses. audio-check's `ducking` row, which wanted at least 6 dB of
+duck, is now `music`: it warns when the music comes within 20 dB of the voice or lifts more than
+3 dB in the pauses. MIX_VERSION 2 re-mixes anything mixed before. No film used music yet.
+
 ## Captions are a file, never burned in (0.28.0)
 
 The director's call: burned-in subtitles compete with the picture in an explainer, whose picture is

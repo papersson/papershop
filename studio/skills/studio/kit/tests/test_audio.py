@@ -232,12 +232,21 @@ def processed(tmp_path, sound=None):
     return v, t, speaking, pause
 
 
-def test_music_ducks_under_speech_and_comes_back_in_the_pauses(tmp_path):
-    v, t, speaking, pause = processed(tmp_path, {"room": 0})
+def test_music_settles_a_little_under_speech_and_does_not_swell_in_the_pauses(tmp_path):
+    v, t, speaking, pause = processed(tmp_path, {"room": 0, "level": False})
     low_speaking, low_pause = levels(audio.stem(v, t, "music"), speaking, pause, 100, 600)
     dry = levels(v / "bed.wav", speaking, pause, 100, 600)
-    assert 6 < (low_pause - dry[1]) - (low_speaking - dry[0]) < 13       # about 9 dB under speech
-    assert abs(low_pause - dry[1]) < 1.0                                 # and back in the pauses
+    assert 1.5 < dry[0] - low_speaking < 6                               # a few dB down while it speaks
+    assert abs((low_pause - dry[1]) - (low_speaking - dry[0])) < 2.0     # and no swell into a short pause
+
+
+def test_music_is_levelled_under_the_narration(tmp_path):
+    v, t, _, _ = processed(tmp_path, {"room": 0, "duck": False, "presence": False})
+    narration = audio.measure(v / "audio" / "narration.wav")[0]
+    got = audio.measure(audio.stem(v, t, "music"))[0]
+    assert abs(got - (narration - audio.MUSIC_UNDER)) < 0.5
+    t["tracks"]["audio"][1]["gain"] = -3                                 # the entry's gain trims from there
+    assert abs(audio.measure(audio.stem(v, t, "music"))[0] - (narration - audio.MUSIC_UNDER - 3)) < 0.5
 
 
 def test_effects_lose_presence_only_while_the_narration_speaks(tmp_path):
@@ -266,7 +275,7 @@ def test_the_processing_applies_only_where_its_roles_are(tmp_path, monkeypatch):
     assert not any(k in g for g in graphs for k in ("sidechaincompress", "aecho", "bandpass"))
     tone(v / "bed.wav", db=-20, freq=440)
     music = {"duration": 6.0, "tracks": {"audio": [{"file": "bed.wav", "start": 0.0, "role": "music"}]}}
-    assert audio.processing(v, audio.sources(v, music)) == {"room": 1.0, "presence": False, "duck": False}  # no voice, no key
+    assert audio.processing(v, audio.sources(v, music)) == {"room": 1.0, "presence": False, "duck": False, "level": False}  # no voice, no key
     graphs.clear()
     audio.mix(v, music, tmp_path / "c.wav")
     assert "aecho" in graphs[-1] and "sidechaincompress" not in graphs[-1]
@@ -293,13 +302,13 @@ def test_the_sound_settings_enter_the_mix_and_its_stamp(tmp_path, monkeypatch):
     on = audio.inputs(t, files, audio.processing(v, files))
     (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": False, "duck": False}}))
     p = audio.processing(v, files)
-    assert p == {"room": 0.0, "presence": True, "duck": False} and audio.inputs(t, files, p) != on
+    assert p == {"room": 0.0, "presence": True, "duck": False, "level": True} and audio.inputs(t, files, p) != on
     _, g = audio.graph(files, 10.0, p, gain=0.0)
     assert "aecho" not in g and g.count("sidechaincompress") == 2        # presence on the music and the effects
     (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 0.5}}))
     _, g = audio.graph(files, 10.0, audio.processing(v, files), gain=0.0)
     assert audio.room(0.5) in g and "0.0600" in audio.room(0.5)
-    for bad in ({"room": 3}, {"room": "big"}, {"duck": "yes"}, {"reverb": 1}):
+    for bad in ({"room": 3}, {"room": "big"}, {"duck": "yes"}, {"level": 1}, {"reverb": 1}):
         (v / "video.json").write_text(json.dumps({"title": "x", "sound": bad}))
         with pytest.raises(SystemExit, match="video.json sound"):
             audio.processing(v, files)
@@ -318,7 +327,7 @@ def test_music_and_effects_go_on_after_a_narration_shorter_than_the_video(tmp_pa
     sf = pytest.importorskip("soundfile")
     v = tmp_path / "v"
     (v / "audio").mkdir(parents=True)
-    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 0}}))
+    (v / "video.json").write_text(json.dumps({"title": "x", "sound": {"room": 0, "level": False}}))
     speech(v / "audio" / "narration.wav", seconds=6)
     noise = (np.random.default_rng(0).standard_normal(8 * 48_000) * 0.05).astype(np.float32)
     sf.write(v / "n.wav", noise, 48_000, subtype="FLOAT")
@@ -332,7 +341,8 @@ def test_music_and_effects_go_on_after_a_narration_shorter_than_the_video(tmp_pa
         y = sf.read(f, always_2d=True)[0][:, 0]
         assert np.abs(y[int(7.9 * 48_000):]).max() > 0.01, role                 # still sounding at the end
         got, dry = levels(f, late, late, 1000, 4000)[0], levels(v / "n.wav", late, late, 1000, 4000)[0]
-        assert abs(got - dry) < 0.5, role                                        # the band intact once the voice is done
+        assert abs(got - dry) < (0.5 if role == "sfx" else 3.5), role         # the band back once the voice is done
+                                                                                 # (the music's duck lets go over 5 s)
     # a narration entry cut short with `out` is the same case
     t["tracks"]["audio"][0].update({"in": 0.0, "out": 3.0})
     y = sf.read(audio.stem(v, t, "music"), always_2d=True)[0][:, 0]

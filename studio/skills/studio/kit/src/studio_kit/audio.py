@@ -30,9 +30,16 @@ ffmpeg filters, and none of it on the narration, which stays dry:
             compressed with the narration as its key is added back, so while the narration is silent
             the two cancel and an effect in a pause keeps its whole presence. A static EQ dip would
             also thin every effect in its pause, which is where effects belong.
-  duck      music ducks under speech, 8 to 9 dB, with a sidechain compressor keyed by the
-            narration (20 ms attack, so a word's first syllable is clear; 500 ms release, so the bed
-            does not pump between words; a 2:1 ratio, so it moves little with the voice's level).
+  level     each music entry is set to MUSIC_UNDER LU under the narration's loudness (its `gain`
+            trims from there), so a track sits where computing explainers keep theirs whatever level
+            it was mastered at. Measured on 3Blue1Brown, Primer, Reducible, Veritasium and Sebastian
+            Lague (voice and music split apart): their music sits 29 to 37 dB under the voice and
+            rises 0 to 3 dB when it stops. A louder bed that ducked and swelled with every sentence
+            was what the learner heard as "too prominent" and "changes too much".
+  duck      music settles about 3.5 dB while the narration speaks and lifts about 1.5 dB of that
+            in the pauses, with a sidechain compressor keyed by the narration: a 1.3:1 ratio, a 2 s
+            attack and a 5 s release, so it glides over sentences instead of following them, and a
+            pause never swells. The music is already there when the voice stops.
   room      effects and music share one small room: a few early reflections (aecho taps from 11 to
             79 ms, decaying, added to the dry signal), so they sound like one place and not like
             files pasted over the voice. `room` scales the reflections; 0 or false turns it off.
@@ -113,7 +120,8 @@ def inputs(timeline, files, processing=None):
     and the sub-buses' processing when there is any (a narration alone stamps as it always did)."""
     h = hashlib.sha1(json.dumps([timeline["tracks"]["audio"], timeline["duration"]], sort_keys=True).encode())
     if processing:
-        h.update(json.dumps({**processing, "mix": MIX_VERSION}, sort_keys=True).encode())
+        level = {"music_under": MUSIC_UNDER} if processing.get("level") else {}
+        h.update(json.dumps({**processing, "mix": MIX_VERSION, **level}, sort_keys=True).encode())
     for _, f in files:
         st = f.stat()
         h.update(f"{f.name}:{st.st_size}:{st.st_mtime_ns}".encode())
@@ -140,8 +148,8 @@ def revision(video, timeline=None):
 ROLE_CHAIN = {"narration": [], "sfx": [], "music": [], "footage": []}
 
 
-def chain(e):
-    """The filters one entry goes through before the bus."""
+def chain(e, level=0.0):
+    """The filters one entry goes through before the bus; `level` is added to its gain."""
     out = []
     if e.get("in") is not None or e.get("out") is not None:
         out.append(f"atrim=start={e.get('in', 0)}" + (f":end={e['out']}" if e.get("out") is not None else ""))
@@ -151,8 +159,9 @@ def chain(e):
         out.append(f"afade=t=in:d={e['fade']}")
         out.append(f"afade=t=out:st={max(0, d - e['fade']):.3f}:d={e['fade']}")
     out += ROLE_CHAIN.get(tl.audio_role(e), [])
-    if e.get("gain"):
-        out.append(f"volume={e['gain']}dB")
+    gain = round(e.get("gain", 0) + level, 2)
+    if gain:
+        out.append(f"volume={gain}dB")
     if e.get("start"):
         ms = round(e["start"] * 1000)
         out.append(f"adelay={ms}|{ms}")
@@ -161,30 +170,36 @@ def chain(e):
 
 # --- stage 3: the bus -----------------------------------------------------------------------------
 
-SOUND = {"room": 1.0, "duck": True, "presence": True}
-MIX_VERSION = 1          # raise when the processing below changes what a mix sounds like
+SOUND = {"room": 1.0, "duck": True, "presence": True, "level": True}
+MIX_VERSION = 2          # raise when the processing below changes what a mix sounds like
 KEY_LUFS = -20.0
 FORMAT = f"aformat=sample_fmts=fltp:sample_rates={RATE}"
-# Measured with steady tones under a recorded voice brought to KEY_LUFS: while it speaks the music
-# drops 8 to 9 dB (within about 1.5 dB from word to word) and the presence band about 3 dB more;
-# both are back within about 0.7 s of the sentence's end.
+# Measured with steady tones under a recorded voice brought to KEY_LUFS: the presence band dips
+# about 3 dB while it speaks and is back within about 0.7 s of the sentence's end. The duck, measured
+# on a music track under 78 s of a shipped Kokoro narration: 3.7 dB down under speech, 2.3 dB in
+# the pauses, never more than 2.5 dB of change in a tenth of a second.
 PRESENCE_BAND = "bandpass=f=2000:width_type=o:w=2"      # 1-4 kHz, 0 dB at its centre
 PRESENCE = "threshold=0.07:ratio=2:attack=10:release=300:knee=2.8"
-DUCK = "threshold=0.02:ratio=2:attack=20:release=500:knee=2.8"
+DUCK = "threshold=0.02:ratio=1.3:attack=2000:release=5000:knee=2.8"
+# LU the music sits under the narration before the duck. Measured on 78 s of a shipped Kokoro
+# narration with a steady track: 26 LU under it overall, 31 dB under the voice's loud moments and
+# 29.5 in its pauses, where the clips the director approved sat (taste.md, Music).
+MUSIC_UNDER = 23.0
 # Delays apart from any common multiple, so the reflections don't add up into a comb on one pitch.
 ROOM_TAPS = ((11.3, 0.12), (17.9, 0.10), (23.7, 0.085), (31.1, 0.07), (43.9, 0.055), (59.3, 0.04), (79.7, 0.03))
 
 
 def processing(video, files):
     """What the sub-buses do to this mix, from video.json "sound" over SOUND: {} when there are no
-    effects and no music; presence and duck only with a narration to key them, duck only on music."""
+    effects and no music; presence and duck only with a narration to key them, duck and level only on
+    music."""
     roles = {tl.audio_role(e) for e, _ in files}
     if not roles & {"sfx", "music"}:
         return {}
     cfg = settings.load(video).get("sound") or {}
     unknown = set(cfg) - set(SOUND)
     if unknown:
-        raise SystemExit(f"video.json sound: unknown {', '.join(sorted(unknown))} (room, duck, presence)")
+        raise SystemExit(f"video.json sound: unknown {', '.join(sorted(unknown))} (room, duck, presence, level)")
     cfg = {**SOUND, **cfg}
     room = cfg["room"]
     if room is True:
@@ -193,11 +208,13 @@ def processing(video, files):
         room = 0.0
     if not isinstance(room, (int, float)) or not 0 <= room <= 2:
         raise SystemExit(f"video.json sound.room must be a scale from 0 (off) to 2, or true/false (got {cfg['room']!r})")
-    for k in ("duck", "presence"):
+    for k in ("duck", "presence", "level"):
         if not isinstance(cfg[k], bool):
             raise SystemExit(f"video.json sound.{k} must be true or false (got {cfg[k]!r})")
     key = "narration" in roles
-    return {"room": float(room), "presence": cfg["presence"] and key, "duck": cfg["duck"] and key and "music" in roles}
+    music = key and "music" in roles
+    return {"room": float(room), "presence": cfg["presence"] and key, "duck": cfg["duck"] and music,
+            "level": cfg["level"] and music}
 
 
 def key_gain(files):
@@ -206,15 +223,25 @@ def key_gain(files):
     return round(KEY_LUFS - (measure(f)[0] + e.get("gain", 0)), 2)
 
 
+def music_levels(files):
+    """{music file: dB} that brings each music entry to MUSIC_UNDER LU under the narration (its first
+    entry, with its gain), measured on the whole files, before the entry's own gain."""
+    e, f = next((e, f) for e, f in files if tl.audio_role(e) == "narration")
+    target = measure(f)[0] + e.get("gain", 0) - MUSIC_UNDER
+    return {str(f): round(target - measure(f)[0], 2) for e, f in files if tl.audio_role(e) == "music"}
+
+
 def room(scale):
     """The shared room: early reflections added to the dry signal, scaled."""
     return f"aecho=1:1:{'|'.join(str(d) for d, _ in ROOM_TAPS)}:{'|'.join(f'{g * scale:.4f}' for _, g in ROOM_TAPS)}"
 
 
-def graph(files, dur, p, solo=None, gain=None):
+def graph(files, dur, p, solo=None, gain=None, levels=None):
     """The filter graph from the chains to [m]: per-role sub-buses, processed by `p` (processing),
     summed; with `solo`, only that role's sub-bus, processed as in the whole mix (a stem). `gain`:
-    key_gain, when a sidechain needs it. Returns (the files it reads, the graph)."""
+    key_gain, when a sidechain needs it; `levels`: music_levels, when p levels the music. Returns (the
+    files it reads, the graph)."""
+    levels = levels or {}
     roles = [r for r in tl.ROLES if any(tl.audio_role(e) == r for e, _ in files)]
     out = [solo] if solo else roles
     keys = {r: [k for k in ("presence", "duck") if p.get(k) and (r == "music" or k == "presence")]
@@ -228,7 +255,7 @@ def graph(files, dur, p, solo=None, gain=None):
         if not idx:
             continue
         for i in idx:
-            filters.append(f"[{i}:a]{','.join(chain(used[i][0])) or 'anull'}[a{i}]")
+            filters.append(f"[{i}:a]{','.join(chain(used[i][0], levels.get(str(used[i][1]), 0.0))) or 'anull'}[a{i}]")
         joined = "".join(f"[a{i}]" for i in idx)
         filters.append(f"{joined}{f'amix=inputs={len(idx)}:normalize=0:duration=longest,' if len(idx) > 1 else ''}{FORMAT},"
                        f"apad=whole_dur={dur:.3f}[{r}]")
@@ -290,7 +317,8 @@ def mix(video, timeline, out, files=None, solo=None):
         proc.ffmpeg(*cmd, "-filter_complex", ";".join(filters), "-map", "[m]", *codec, out)
         return
     needs_key = p.get("presence") or p.get("duck")
-    used, g = graph(files, dur, p, solo, key_gain(files) if needs_key else None)
+    used, g = graph(files, dur, p, solo, key_gain(files) if needs_key else None,
+                    music_levels(files) if p.get("level") and solo in (None, "music") else None)
     cmd = [x for _, f in used for x in ("-i", str(f))]
     proc.ffmpeg(*cmd, "-filter_complex", g, "-map", "[m]", *codec, out)
 

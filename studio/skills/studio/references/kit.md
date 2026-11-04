@@ -281,18 +281,18 @@ recorded key grains provide texture, with accents for Enter and run. `streams.py
 schema. Use gain 0 as the starting point for typing streams; their grain levels are calibrated.
 Generated typing effects retain their `source` tag when other effects are replaced.
 
-The mix bus combines narration, effects and additional tracks, with shared room, presence and
+The mix bus sums narration, effects and other tracks with shared room, presence and
 ducking. `audio/tracks.json` accepts `{file, start, gain, in, out, role}`; use music only when the
-user asks. `studio beats VIDEO TRACK` records a beat grid for a supplied track. `audio.py` holds the mix contract. A finish applies one fixed gain to the whole mix, with a
+user asks; the mix levels it. `studio beats VIDEO TRACK` records a beat grid for a supplied track. `audio.py` holds the mix contract. A finish applies one fixed gain to the whole mix, with a
 true-peak limiter, preserving quiet pauses. `studio audio VIDEO` defaults to −16 LUFS and
-−1.5 dBTP; `--lufs -14` is available for a requested social export.
+−1.5 dBTP; `--lufs -14` suits a requested social export.
 
 `studio audio-check VIDEO [--cut N]` measures sync, transient-to-picture timing, audibility,
-loud effects, ducking, masking, pauses and loudness. It writes `out/audio-check.json`, a sound
-sheet and listening timecodes, prioritizing hero events. It compares the actual saved cut with
-its current source keys. Typed streams also check every key's picture frame against its sound event,
-then correlate the recorded attacks with the saved cut audio. Masked keys remain explicitly unverified.
-Inspect warnings and listen where possible; measurements do not establish
+loud effects, music level, masking, pauses and loudness. It writes `out/audio-check.json`, a sound
+sheet and listening timecodes, heroes first. It compares the saved cut with
+its source keys. Typed streams also check each key's frame against its sound,
+then correlate recorded attacks with the cut audio. Masked keys stay unverified.
+Inspect warnings and listen; measurements do not establish
 that pronunciation or balance sounds right. A missing listening pass never blocks a cut.
 
 ## Commands for the loop
