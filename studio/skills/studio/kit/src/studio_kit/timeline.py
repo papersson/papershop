@@ -838,6 +838,12 @@ def build(video, quiet=False):
         if sfx:
             t["tracks"]["audio"].append(dict(SFX))
             used.append("audio/sfx.json")
+        if not any(e["role"] == "music" for e in t["tracks"]["audio"]):
+            from . import music
+            placed = music.entries(video, t, settings.load(video), say)
+            if placed:
+                t["tracks"]["audio"] += placed
+                used.append("assets/provenance.json")
         beats = _read(a / "beats.json")
         if beats is not None:
             t["beats"] = beats

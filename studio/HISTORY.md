@@ -3,6 +3,20 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## New films get music from a palette (0.31.0)
+
+Every explainer we measured had music under nearly all of it, so music is now the default for new
+films: `studio new` writes `"music": true`, and the timeline build gives a narrated film two or
+three tracks from the palette in STUDIO_HOME/music (studio-journey: nine steady Creative Commons
+Attribution tracks by Chris Zabriskie, Blue Dot Sessions and Kevin MacLeod, kept in the media
+bucket). The chapters split into runs of nearly equal length, each starting at a chapter, and the
+music changes there with a 3 s cross-over; each run takes the first unused track long enough for
+it, from a place in the palette the film's name picks, so films differ and a film's music never
+changes between builds. `"music": [ids]` names the tracks, `false` drops them, and music placed by
+hand in audio/tracks.json wins. The tracks are copied into assets/music/ with provenance rows,
+which the page and `asset list --credits` credit; a track the film stops using goes, with its row.
+Films made before keep no music unless their video.json asks. `studio doctor` lists the palette.
+
 ## Films bring things back on purpose (0.30.0)
 
 A narrated film can't be skimmed back, so a viewer who drifts loses whatever the film doesn't

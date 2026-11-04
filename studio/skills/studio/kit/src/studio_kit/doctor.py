@@ -260,6 +260,17 @@ def check_library(video):
     return OK, "library sounds", f"{len(rows)} in assets/sounds, verified", ""
 
 
+def check_music():
+    """The music palette new films draw on (music.py): its list, and how many tracks are here; a
+    missing track is fetched from the media bucket when a film needs it."""
+    from . import music
+    tracks = music.palette()
+    if not tracks:
+        return WARN, "music palette", f"none at {music.home()}", "clone studio-journey as STUDIO_HOME (new films get no music without it)"
+    here = sum((music.home() / t["file"]).is_file() for t in tracks)
+    return OK, "music palette", f"{len(tracks)} tracks, {here} here (the rest come from the media bucket)", ""
+
+
 def check_sound_host(url):
     """A host the sound kit downloads from, with the sound kit's own remedy."""
     level, name, detail, fix = check_host(url)
@@ -286,6 +297,7 @@ def checks(net=False):
         check_browser(),
         check_launch(),
         check_webgl(),
+        check_music(),
     ]
     if net:
         from .soundkit import hosts

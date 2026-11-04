@@ -182,12 +182,24 @@ def license_name(spdx):
     return LICENSES.get(spdx, spdx)
 
 
+def music_rows(video):
+    """The palette tracks a video's music came from (music.py), in the order placed."""
+    return [r for r in read(video) if r["params"].get("music")]
+
+
 def credits(video):
-    """The CREDITS block for a video's page or description: one line per pack its sounds came from."""
-    packs = library_packs(video)
-    if not packs:
+    """The CREDITS block for a video's page or description: one line per pack its sounds came from,
+    and one per music track."""
+    packs, tracks = library_packs(video), music_rows(video)
+    if not packs and not tracks:
         return ""
-    lines = ["CREDITS", "Sound effects:"]
+    lines = ["CREDITS"]
+    if tracks:
+        lines.append("Music:")
+        lines += [f"  \"{r['params']['title']}\" by {r['params']['artist']}, {r['params']['license_name']} ({r['params']['license_url']}), "
+                  f"{r['params']['homepage']}" for r in tracks]
+    if packs:
+        lines.append("Sound effects:")
     for rows in packs.values():
         p, n = rows[0]["params"], len(rows)
         lines.append(f"  {p['title']} by {p['creator']}, {license_name(rows[0]['license'])}, {p['homepage']} "
@@ -196,12 +208,14 @@ def credits(video):
 
 
 def page_credits(video):
-    """The published page's credit lines for library sounds: one line, the packs by creator."""
+    """The published page's credit lines: the music tracks, then the library sounds' packs by creator."""
     by = {}
     for rows in library_packs(video).values():
         by.setdefault((rows[0]["params"]["creator"], license_name(rows[0]["license"])), []).append(rows[0]["params"]["title"])
-    return ["Sound effects: " + "; ".join(f"{', '.join(titles)} by {creator} ({lic})"
-                                          for (creator, lic), titles in by.items())] if by else []
+    music = [f"\"{r['params']['title']}\" by {r['params']['artist']} ({r['params']['license_name']})" for r in music_rows(video)]
+    return ((["Music: " + "; ".join(music)] if music else [])
+            + (["Sound effects: " + "; ".join(f"{', '.join(titles)} by {creator} ({lic})"
+                                              for (creator, lic), titles in by.items())] if by else []))
 
 
 def capture(video, url, name=None, size=(1440, 900), wait_ms=4000):
