@@ -154,7 +154,8 @@ director asks.
 The recorded sound kit stays. Keep permitted sounds below speech, with their transient on the
 pictured frame. Type in human bursts, with punctuation pauses and plausible corrections; vary
 key recordings without losing rhythm. Enter, save and run accents must correspond to performed
-keys or clicks. Do not add an accent merely because an output appeared. No music by default.
+keys or clicks. Do not add an accent merely because an output appeared. No music by default; music, when
+used, is wallpaper: steady, far under the voice, never swelling into a pause.
 
 Spend emphasis on meaning. Give the strongest event more space and a closer view when it reveals
 the stake. Let the world react only as the mechanism permits. A heavy physical contact can recoil

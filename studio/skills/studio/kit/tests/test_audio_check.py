@@ -50,8 +50,8 @@ def test_an_effect_in_a_pause_is_in_sync_and_passes_the_guard(tmp_path):
     assert len(sync) == 1 and abs(sync[0]["offset_frames"]) <= 1 and "severity" not in sync[0]      # the click at 5.0 s names no event
     assert rows_of(rows, "pauses") == [{"check": "pauses", "clip": "audio", "ok": True,
                                         "detail": "no effect over -24 dBFS under any of 12 spoken words"}]
-    duck = rows_of(rows, "ducking")[0]
-    assert duck["duck_db"] > audio_check.DUCK_MIN and "severity" not in duck
+    music = rows_of(rows, "music")[0]
+    assert music["under_voice_db"] < -audio_check.MUSIC_UNDER_MIN and "severity" not in music
     loud = rows_of(rows, "loudness")[0]
     assert abs(loud["lufs"] + 16) < 0.5 and loud["true_peak_dbtp"] <= -1.45
     assert rows_of(rows, "masking")[-1]["detail"].endswith("words clear by 10 dB in 1-4 kHz")
@@ -70,10 +70,10 @@ def test_a_loud_effect_on_a_word_fails_and_a_quiet_one_does_not(tmp_path, monkey
     assert report["thresholds"]["pause_peak_dbfs"] == -24.0 and any(not r["ok"] for r in report["rows"])
 
 
-def test_an_undocked_loud_bed_warns_on_ducking_and_masking(tmp_path):
-    v = narrated(tmp_path, bed_gain=6, sound={"duck": False, "presence": False})
+def test_a_loud_unlevelled_bed_warns_on_music_and_masking(tmp_path):
+    v = narrated(tmp_path, bed_gain=6, sound={"duck": False, "presence": False, "level": False})
     rows, _ = audio_check.run(v)
-    assert rows_of(rows, "ducking")[0]["severity"] == "warning"
+    assert rows_of(rows, "music")[0]["severity"] == "warning" and "too prominent" in rows_of(rows, "music")[0]["detail"]
     assert rows_of(rows, "masking")[-1]["severity"] == "warning" and len(rows_of(rows, "masking")) > 1
     assert all(r["ok"] for r in rows)
 
@@ -274,7 +274,7 @@ def test_each_effect_is_heard_or_warned(tmp_path, case, effect, bed, warns):
     an undocked pink-noise bed at full gain (lifts it under 1 dB), and 44 dB down (peaking near -60
     dBFS, 45 dB under the voice). The "sound layer" we studied passed the last one. (This stand-in voice
     is 7 dB louder than Kokoro's and the effects follow it, so the last two take 7 dB off their gains.)"""
-    v = narrated(tmp_path, [{"t": "hit", "type": "pop", **effect}], sound={"duck": False, "presence": False})
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop", **effect}], sound={"duck": False, "presence": False, "level": False})
     if bed is not None:
         noise_bed(v, bed)
     t = tl.load(v)

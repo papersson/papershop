@@ -172,7 +172,7 @@ COMMANDS = {
                                    'plays at its trim'),
     ], "sfx:main"),
     "sound-lab": ("a page to choose effects by listening: each type's synth candidates and kit recordings", [V("video")], "sfx:main_lab"),
-    "audio-check": ("measure the soundtrack: effect sync (a recording by its peak) and each tagged effect's picture, each effect heard and none too loud, ducking, masking, the pauses guard and loudness, into out/audio-check.json; draw the sound sheet (out/audio-sheet.png) and choose the timecodes to listen at", [
+    "audio-check": ("measure the soundtrack: effect sync (a recording by its peak) and each tagged effect's picture, each effect heard and none too loud, the music's level and lift, masking, the pauses guard and loudness, into out/audio-check.json; draw the sound sheet (out/audio-sheet.png) and choose the timecodes to listen at", [
         W("video"), A("--cut", type=int, help="the cut whose picture the sync rows look at (default: the latest rendered one)"),
     ], "audio_check:main"),
     "stage": ("record elapsed stage time (--report: the table)", [

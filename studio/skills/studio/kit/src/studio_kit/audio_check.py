@@ -34,8 +34,11 @@ named fxN, their place in audio/sfx.json (sfx.effect_id), in every row, sheet an
             loudness (sfx.narration_offset) and the kit's trims put every default recording where its
             synth voice is, so all of those pass at any narration level. Without a narration, the
             music is what audible and loud measure against; with neither, a row says so
-  ducking   music under speech against the music in the pauses (from 0.7 s after a sentence, once the
-            duck has let go, in pauses of at least 1 s), warning under DUCK_MIN dB
+  music     the music under speech against the voice there, warning when it comes within
+            MUSIC_UNDER_MIN dB (too prominent), and the music in the pauses against the music under
+            speech (from 0.7 s after a sentence, in pauses of at least 1 s), warning when it rises
+            more than MUSIC_LIFT_MAX dB (a swell into every pause, which reads as pumping). Computing
+            explainers keep it 29 to 37 dB under and lift it 0 to 3 dB (audio.py, level)
   reveal    before each reveal: cue (a prediction's answer), the effects and music in the REVEAL_SPAN s
             before it against the REVEAL_BEFORE s before that, warning when they dip less than
             REVEAL_DIP dB, so the answer lands into near-silence (taste.md); silence there passes
@@ -75,7 +78,8 @@ from . import audio, proc
 from . import timeline as tl
 
 SYNC_FRAMES = 1.0
-DUCK_MIN = 6.0           # dB the music drops under speech, at least
+MUSIC_UNDER_MIN = 20.0   # dB the music stays under the voice while it speaks, at least
+MUSIC_LIFT_MAX = 3.0     # dB the music may rise in the pauses, at most
 DUCK_RELEASE = 0.7       # seconds after a sentence before the pause is measured
 MASK_MARGIN = 10.0       # dB the effects and music stay under a word in its presence band
 PAUSE_PEAK = -24.0       # dBFS an effect may peak at under a word
@@ -491,27 +495,35 @@ def typing_sync(stems, video, timeline, movie=None):
     return rows
 
 
-# --- ducking and masking --------------------------------------------------------------------------
+# --- music and masking ----------------------------------------------------------------------------
 
-def ducking(stems, timeline):
+def music(stems, timeline):
+    """Rows: how far the music sits under the voice while it speaks, and how much it lifts in the pauses."""
     import numpy as np
     if "music" not in stems.roles:
         return []
     said = sorted((s["start"], s["end"]) for s in timeline["tracks"].get("narration", []))
-    if not said:
-        return [{"check": "ducking", "clip": "audio", "ok": True, "detail": "music with no narration: nothing to duck under"}]
+    if not said or "narration" not in stems.roles:
+        return [{"check": "music", "clip": "audio", "ok": True, "detail": "music with no narration: nothing to sit under"}]
     speech = np.concatenate([stems.span("music", a, b) for a, b in said])
+    voice = np.concatenate([stems.span("narration", a, b) for a, b in said])
+    under = _db(float(np.mean(speech ** 2))) - _db(float(np.mean(voice ** 2)))
+    row = {"check": "music", "clip": "audio", "ok": True, "under_voice_db": round(under, 1),
+           "detail": f"music {-under:.1f} dB under the voice"}
+    if under > -MUSIC_UNDER_MIN:
+        row["severity"] = "warning"
+        row["detail"] += f", within {MUSIC_UNDER_MIN:g} dB: too prominent (the track's gain, or video.json sound.level)"
     gaps = [(b + DUCK_RELEASE, n) for (_, b), (n, _) in zip(said, said[1:] + [(timeline["duration"], None)]) if n - b >= 1.0]
     rest = [stems.span("music", a, b) for a, b in gaps]
     if not rest:
-        return [{"check": "ducking", "clip": "audio", "ok": True, "detail": "no pause of 1 s or more to compare the music in"}]
-    under, free = _db(float(np.mean(speech ** 2))), _db(float(np.mean(np.concatenate(rest) ** 2)))
-    duck = free - under
-    row = {"check": "ducking", "clip": "audio", "ok": True, "duck_db": round(duck, 1),
-           "detail": f"music {under:.1f} dBFS under speech, {free:.1f} dBFS in the pauses: ducked {duck:.1f} dB"}
-    if duck < DUCK_MIN:
+        row["detail"] += "; no pause of 1 s or more to compare it in"
+        return [row]
+    lift = _db(float(np.mean(np.concatenate(rest) ** 2))) - _db(float(np.mean(speech ** 2)))
+    row["lift_db"] = round(lift, 1)
+    row["detail"] += f", lifting {lift:.1f} dB in the pauses"
+    if lift > MUSIC_LIFT_MAX:
         row["severity"] = "warning"
-        row["detail"] += f", under {DUCK_MIN:g} dB (video.json sound.duck, or the track's gain)"
+        row["detail"] += f", over {MUSIC_LIFT_MAX:g} dB: it swells into the pauses (video.json sound.duck)"
     return [row]
 
 
@@ -926,7 +938,7 @@ def run(video, cut=None):
     rows = (sync(stems, video, timeline, movie if movie and movie.exists() else None, shown, stale)
             + typing_sync(stems, video, timeline, movie if not stale else None)
             + audibility(stems, video, timeline)
-            + ducking(stems, timeline) + reveals(stems, timeline) + crossings(video, timeline)
+            + music(stems, timeline) + reveals(stems, timeline) + crossings(video, timeline)
             + ([] if estimate else masking(stems, timeline) + pauses(stems, timeline)) + loudness(video, record))
     return rows, n if movie else None
 
@@ -943,7 +955,8 @@ def main(args):
     out.parent.mkdir(parents=True, exist_ok=True)
     stamp = audio.revision(video, timeline)
     out.write_text(json.dumps({"cut": n, "soundtrack": stamp, "sounds": sound_files(video, stamp),
-                               "thresholds": {"sync_frames": SYNC_FRAMES, "duck_min_db": DUCK_MIN,
+                               "thresholds": {"sync_frames": SYNC_FRAMES, "music_under_min_db": MUSIC_UNDER_MIN,
+                                              "music_lift_max_db": MUSIC_LIFT_MAX,
                                               "mask_margin_db": MASK_MARGIN, "pause_peak_dbfs": PAUSE_PEAK,
                                               "audible_lift_db": AUDIBLE_LIFT, "audible_under_voice_db": AUDIBLE_UNDER,
                                               "loud_over_loudness_db": LOUD_OVER, "visual_frames": VISUAL_FRAMES},
