@@ -4,9 +4,9 @@ The agreed story is in [research/brief.md](research/brief.md).
 
 ## Beats
 
-| Chapter | Beat | Insight | Picture introduced | Action and sound | Breath | Voice adds | Exit state |
-|---|---|---|---|---|---|---|---|
-| s1 | s1-open | {{insight in textbook order}} | {{large subject}} | {{performed change; permitted touch sound or silence}} | {{key point: 2 s after s1_01; section end: 3 s + reset; or —}} | {{why it happens}} | {{what the viewer can predict}} |
+| Chapter | Beat | Insight | Picture introduced | Action and sound | Breath | Voice adds | Sets up or returns | Exit state |
+|---|---|---|---|---|---|---|---|---|
+| s1 | s1-open | {{insight in textbook order}} | {{large subject}} | {{performed change; permitted touch sound or silence}} | {{key point: 2 s after s1_01; section end: 3 s + reset; or —}} | {{why it happens}} | {{what this beat sets up for later, or which earlier beat it brings back; or —}} | {{what the viewer can predict}} |
 
 ## Script
 

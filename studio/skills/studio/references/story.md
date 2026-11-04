@@ -1,8 +1,7 @@
 # Develop the story
 
 Read `taste.md`. Start with the user's question and the viewer's assumed knowledge. Ask about
-unknowns that would change the explanation, such as the intended audience, length or a reference
-they want to match. Infer routine choices.
+unknowns that would change the explanation, such as audience, length or a reference.
 
 Before drafting anything, run `/elicit:elicit` with the user's request and what you know of the
 context as its arguments. Follow that skill yourself: its panel and rich brief are raw material,
@@ -54,6 +53,8 @@ Our shots vary through [close-up, overview, comparison and changing layout, with
 
 Our key points are [named ideas and the sentence after which each lands].
 Our section ends are [sentences, rest lengths and the reset before the next section].
+Our returns are [stop names; setups and where they return; the act-break recap; in a series,
+what we carry in and hand on].
 
 Our hero moments are:
 - In [chapter], [action] becomes [visible result]. We see [framing and motion], hear [permitted tactile event or silence],
@@ -79,12 +80,12 @@ primary sources. Keep source notes and reproducible helpers in `research/` and `
 inference and a deliberately simplified example.
 
 Write the beats before filling the narration. Use this table in `SCRIPT.md`, one row per story
-beat. Name key points and section ends in the `Breath` column; use `—` elsewhere. Include the
-chapter id so an agent can identify its part of the story.
+beat. Name key points and section ends in `Breath`, setups and returns in `Sets up or returns`,
+and `—` elsewhere; chapter ids tell agents their rows.
 
-| Chapter | Beat | Insight | Picture introduced | Action and sound | Breath | Voice adds | Exit state |
-|---|---|---|---|---|---|---|---|
-| s1 | s1-open | An input selects a colour. | One large pixel and its input. | The input changes with a key click. | Key point: 2 s after s1_01. | Explain how the input selects it. | The viewer can predict a second input. |
+| Chapter | Beat | Insight | Picture introduced | Action and sound | Breath | Voice adds | Sets up or returns | Exit state |
+|---|---|---|---|---|---|---|---|---|
+| s1 | s1-open | An input selects a colour. | One large pixel and its input. | The input changes with a key click. | Key point: 2 s after s1_01. | Explain how the input selects it. | Returns in s3. | The viewer can predict a second input. |
 
 Plan flowing action inside each idea, then stillness and silence when it lands: 1.5–3 s after
 key points and hero payoffs, 3–4 s between sections including a stage reset. Do not add a hold
@@ -123,7 +124,7 @@ claim. Let the user see disputed advice. The panel has one reading per role and 
 about whether production may continue.
 
 Ask for story lock when the user has seen the brief and reel and the open questions are clear.
-Record their agreement in the brief. Honor any authorization they already gave. Then make the style frames below before proceeding to `shoot.md`.
+Record their agreement in the brief. Then make the style frames below before proceeding to `shoot.md`.
 
 ## Style frames, before the shoot
 
@@ -144,7 +145,6 @@ continuity of forms; for physical subjects also judge light, material and depth.
 would a viewer who loves this reference find these beautiful, or would they look like a slide
 deck? If they look like a diagram tool, revise before shooting. Check the set for close-ups,
 overviews, comparisons and changing layouts; a polished single view is not a film. Record changes and the reason for accepting the frames; honor prior delegation.
-This is one preparation step within story, not another review panel or approval gate.
 
 Write `research/sound.json` as a chapter-to-event-list mapping, for example
 `{"s1": [], "s2": [{"cue": "s2-click", "event": "finger presses the run button"}]}`.

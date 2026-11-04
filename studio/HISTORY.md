@@ -3,6 +3,22 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Films bring things back on purpose (0.30.0)
+
+A narrated film can't be skimmed back, so a viewer who drifts loses whatever the film doesn't
+return to. Research for the Web Education prologue (Winston's verbal punctuation, Roediger and
+Karpicke 2006, Szpunar et al. 2013, TV recap editing, Burke's *Connections*, and Sweller's
+redundancy effect as the case against) showed that returns work when they reorient, reload a fact
+the next scene needs, or make an earlier moment mean more, and fail when they only repeat. The
+director asked for this to be a core part of every film, written in plain sentences.
+
+So the story step now plans returns: the brief names each stop and lists setups and where they
+come back, plus what a series film carries in and hands on; the beat table gains a `Sets up or
+returns` column, which chapter agents see with their own rows; and script.md has a section,
+"Bring things back", on stop names, echoes, one recap at the act break, a spoken recall question,
+callbacks through `c.recall`, and what not to repeat. "Say it once" now says it covers caveats,
+and the lecture-tic line says a planned recap at a seam is not a tic. No engine change.
+
 ## Music sits low and steady, like computing explainers' (0.29.0)
 
 The director heard the old music mix as "too prominent" and "changes too much depending on if there
