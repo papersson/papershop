@@ -3,6 +3,31 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## The director's style is the bar, not 3Blue1Brown (0.32.0)
+
+taste.md told every film to copy 3Blue1Brown for abstract subjects, and the director found the
+results generic: eight rounds of style tests (2026-11-04/05) showed that a new palette and type on
+the same frames didn't make a film his, and that some of the content itself was the problem. Two
+rules from his style sheet are settled and now replace "3Blue1Brown is the bar": computer windows
+(editor, terminal, browser) appear only when a programmer is at work, with what happens underneath
+drawn instead; and pictures stay as plain as the subject, never poetic (a moving river of light
+under a slow checkout was "too elegant/poetic for the subject matter"). 3Blue1Brown stays one
+reference among the study references. And because the director develops his taste by reacting
+to things he hasn't seen (the small workers and the river of checkouts were both loved), a film may
+try a new visual idea where a part would really gain from it (no quota), named in the brief and
+put to him for a verdict. Style frames, chapter reviews and shoot jobs now compare
+against those references and ask whether the frames follow the director's rules. The rest of the
+style sheet (a drawing hand, whether windows are the base) is still open and not in studio yet.
+
+His words: "none of them feel like me AND unique enough. Maybe because of the visual content as
+well being too generic?"; "I asssociate "windows" with e.g. programming and the type of work you do
+as a programmer, so maybe only use those for that specifically, i.e. when a programmer is actually
+typing something"; on the moving river, "It looks really nice, but we are definitely lacking in
+cohesion. The river is too elegant/poetic for the subject matter"; and "I really liked the rivers
+and workers... A lot of this studio and video generation with AI-work is about developing my
+taste", with "Just do it when and if it makes sense" against a quota. The rounds, stills and
+verdicts are in the style sheet, https://claude.ai/artifact/GEtCLD3YnkS3jLb1HiVxMw.
+
 ## New films get music from a palette (0.31.0)
 
 Every explainer we measured had music under nearly all of it, so music is now the default for new

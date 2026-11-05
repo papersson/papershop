@@ -115,7 +115,7 @@ One colour retains one meaning, and outer contours carry more weight than intern
 Part D's lit hash-table cabinet failed the user's taste. Its brief confused a rich physical
 illustration with good abstract explanation. The hard rule is restored: 3D only when “the viewer
 needs to see ___, and the flat diagram hides it.” Abstract subjects almost never pass. Their bar
-is 3Blue1Brown: a calm dark ground, meaningful palette, confident vector lines, beautiful moving
+was 3Blue1Brown (since 0.32.0 it is the director's own style; copying him looked generic): a calm dark ground, meaningful palette, confident vector lines, beautiful moving
 type, a large mechanism, continuous transformations and varied close-ups, overviews and comparisons.
 An exactly mapped physical metaphor can be drawn flat, never modelled and lit. No metaphor is required.
 

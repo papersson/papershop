@@ -103,7 +103,7 @@ Wait for the bundle paths, then dispatch one reviewer per chapter together using
 
 ```text
 Read BUNDLE/PROMPT.md and review the saved chapter once. Inspect its frame stills beside the accepted style frames and a reference of the same kind
-(3Blue1Brown for abstract subjects; Ciechanowski or Kurzgesagt for physical ones), and motion
+(a study reference for abstract subjects; Ciechanowski or Kurzgesagt for physical ones), and motion
 windows together. Judge continuity and shot variety across the chapter as well as individual beauty;
 a single static overview for minutes is a failure. Listen at hero moments when a player is available. Use the taste file.
 Write BUNDLE/findings.json in the documented shape. State any evidence you could not inspect.

@@ -39,7 +39,7 @@ Bring their findings and uncertainties to the user alongside the reel. Revise th
 counts. After lock, render three to five final-quality style frames in the real engine: opening,
 chapter heroes and closing. Follow the style-frame step in `story.md`, compare beside a reference
 of the same kind: the selected historical-journey reference for origins films, otherwise
-3Blue1Brown for abstract subjects, Ciechanowski or Kurzgesagt for physical ones.
+a study reference for abstract subjects (`taste.md`), Ciechanowski or Kurzgesagt for physical ones.
 Apply the hard 3D admission test in `taste.md` and record the judgment. Then shoot to those frames. This is
 preparation within the existing story decision, not another routine approval stop.
 

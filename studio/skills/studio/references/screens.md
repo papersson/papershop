@@ -1,7 +1,8 @@
 # Screens: desktops, editors, terminals and browsers
 
 Read this when a film shows people working at a computer: code typed in an editor, commands run in a
-terminal, a product page or dashboard in a browser. The grammar comes from observability episode 1,
+terminal, a product page or dashboard in a browser. Windows appear only while a programmer is at
+work; what happens underneath, with nobody at a screen, is drawn (`taste.md`). The grammar comes from observability episode 1,
 which built it by hand; the screens layer makes it the default for any screen film.
 
 ## The grammar
