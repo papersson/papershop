@@ -47,8 +47,9 @@ through [small toy example], using [few meaningful quantities].
 Our subject is [abstract or physical]. Our visual language is [2D craft or a justified spatial view].
 3D admission test: [the viewer needs to see ___, and the flat diagram hides it; or fails, use 2D].
 Any metaphor is [none, or an exact mapping with limits; abstract metaphors stay flat and illustrated].
-Our visual reference is [3Blue1Brown for abstract subjects; Ciechanowski or Kurzgesagt for physical
-ones], particularly [typography, lines, palette, composition, transformations or spatial relationships].
+Our visual references are [the director's style in taste.md plus study references for abstract
+subjects; Ciechanowski or Kurzgesagt for physical ones], particularly [typography, lines,
+palette, composition, transformations or spatial relationships]. New visual world: [none, or where and why].
 Our shots vary through [close-up, overview, comparison and changing layout, with reasons].
 
 Our key points are [named ideas and the sentence after which each lands].
@@ -139,11 +140,10 @@ Keep the PNGs and a short manifest at `research/style-frames/manifest.json`. Eac
 has `file` (video-relative PNG), `clip`, `t` (clip-local seconds) and `role`; also record `reference`,
 `judgment` and `accepted_by`. Keep borrowed reference stills and their URLs in `research/` for
 comparison only, never in the film. Arrange them side by side at comparable display sizes.
-Use references of the same kind: 3Blue1Brown stills for abstract subjects, Ciechanowski or
+Use references of the same kind: study references for abstract subjects, Ciechanowski or
 Kurzgesagt for physical ones. Judge typography, line weights, colour, composition and the planned
 continuity of forms; for physical subjects also judge light, material and depth. Ask honestly:
-would a viewer who loves this reference find these beautiful, or would they look like a slide
-deck? If they look like a diagram tool, revise before shooting. Check the set for close-ups,
+are these beautiful and in the director's style, or a slide deck or a copy of the reference? If they look like a diagram tool, revise before shooting. Check the set for close-ups,
 overviews, comparisons and changing layouts; a polished single view is not a film. Record changes and the reason for accepting the frames; honor prior delegation.
 
 Write `research/sound.json` as a chapter-to-event-list mapping, for example

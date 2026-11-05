@@ -87,10 +87,20 @@ and comparisons are clearer in a flat drawing than in a lit cabinet.
 
 ### Abstract subjects: 2D craft
 
-For data structures, algorithms, code, maths, protocols and systems, **3Blue1Brown is the bar**.
+For data structures, algorithms, code, maths, protocols and systems, the bar is **the director's
+own style** ([style sheet](https://claude.ai/artifact/GEtCLD3YnkS3jLb1HiVxMw); his words in
+HISTORY.md 0.32.0), not a copy of 3Blue1Brown, one study reference of several. Settled so far:
+
+- **Windows mean a programmer at work**: editor, terminal and browser only while someone types,
+  runs or reads. What happens underneath is drawn (diagram shapes are not windows).
+- **Pictures as plain as the subject**: no poetic imagery (a river of light) for a slow checkout.
+- **Creative freedom where it makes sense**: he finds his style by reacting to the new, so try a
+  new visual world where a part would gain from one. No quota; it still shows the mechanism.
+  Name it in the brief and ask his verdict.
+
 A finished illustration need not have depth or simulated materials. Aim for:
 
-- A dark, calm ground and a small designed palette, with one meaning per colour.
+- A calm ground and a small designed palette, with one meaning per colour.
 - Clean vector marks and confident line weights; never boxes-and-arrows clip art.
 - Beautiful type. Code, numbers and data are first-class graphics that move and transform.
 - A large, centred mechanism that fills the frame and is easy to inspect.
@@ -114,12 +124,8 @@ how the thing works; decorative geometry is not a substitute for the mechanism.
 
 ### Set the bar before the shoot
 
-Render three to five final-quality style frames in the video's real engine. Compare references
-of the same kind: 3Blue1Brown stills for abstract subjects, Ciechanowski or Kurzgesagt for physical
-ones. Keep references in research only, never in the film. For abstract work ask whether a viewer
-who loves 3Blue1Brown would find these beautiful or see a slide deck. Judge typography, line,
-palette, composition and planned transformations; for physical work also judge material, light
-and depth. Revise weak frames before shooting. Chapters must match the accepted frames and the
+Render three to five final-quality style frames in the real engine, compared beside references as
+`story.md` describes, and revise weak frames before shooting. Chapters must match the accepted frames and the
 finished film must also earn its camera and layout variety.
 
 Treat geometry and motion as claims. A copy leaves its source in place. A reference stays connected
@@ -230,25 +236,19 @@ and reaffirmed the sphere opening, Blender hard drive and tunnel game-feel pass.
 finished style frames before the shoot, welcome visual richness and textbook breadth, restrict
 sound to touch and size holds to new content. The earlier austerity and fixed holds over-corrected
 crowding; preserve one thing at a time, full sentences, canonical level and no barrage of numbers.
-Evidence: ~/drafts/studio-phase2/evidence/findings.md and the part D request; old film:
-~/drafts/studio-phase2/scratch-videos/hash-table-elicit/out/master.mp4.
+Evidence: ~/drafts/studio-phase2/evidence/findings.md.
 
 Part E, hash-table feedback (2026-10-25): “This is 3D...?! I really don't think this is a use case
-where we should use 3D”; the user sets “3Blue1Brown” as the bar for abstract subjects. The part D
-brief wrongly asked for a physical metaphor worth lighting. Restore the hard spatial admission
-test, use flat mathematical craft for abstractions and compare like with like before shooting.
-The cabinet film was a taste failure, not evidence that abstract subjects need richer materials.
-Evidence: ~/drafts/studio-phase2/STEP-D.md and the part E request; rejected film:
-~/drafts/studio-phase2/scratch-videos/hash-table-taste/out/master.mp4.
+where we should use 3D.” Hence the hard 3D admission test.
+Evidence: ~/drafts/studio-phase2/STEP-D.md.
 
 Part F, hash-table feedback (2026-10-25): “I think it looks really nice. But maybe doesn't breath
 enough, maybe too much visuals and stuff going on?”; “Maybe breath after each section and each
 important point, but otherwise feel free to move around visuals and animations etc?” Replace
 per-change holds with still, silent rests at named key points and longer section breaks with a
 stage reset. Let related motion flow between them and leave unrelated things still. Breathing
-depends on where rests fall, not how many tiny holds are inserted. Evidence: part F request and
-~/drafts/studio-phase2/STEP-F.md; source film:
-~/drafts/studio-phase2/scratch-videos/hash-table-2d/out/master.mp4.
+depends on where rests fall, not how many tiny holds are inserted. Evidence:
+~/drafts/studio-phase2/STEP-F.md.
 
 Origins-format feedback (2026-10-26): “Ours is too sterile, his is like a journey through time and space.” Use [origins.md](origins.md) for this format's story order, visual reference and review criteria. Evidence: films/gpu-time-journey/research/reference/SOURCES.md. On 2026-10-27 the user judged the prototype “much better”, then the three full journey films “Nice! I do like them.” These are whole-film reactions, not timestamp-specific approvals. Paths and verdict ids here are in the studio journey repo (verdicts/ID/record.json); production history: slate/ORIGINS-FORMAT.md.
 
