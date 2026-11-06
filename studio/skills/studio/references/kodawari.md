@@ -107,6 +107,23 @@ always go back. A shipped film keeps the kit it was made with.
 in the ledger and the style-frame manifest. Shoot only after the director picks the kodawari frame
 and can name a detail in it that also explains the subject.
 
+## Kodawari on an existing film
+
+The director can bring kodawari to a film that already exists ("let's apply kodawari together").
+The process is the same, with three differences.
+
+- **Work on a copy.** Copy the film's folder to a new name (for example `NAME-v2`), set
+  `"kodawari": true` in the copy's `video.json`, and change only the copy. A shipped film, its
+  master and its kit stay exactly as they are, so the director can compare and go back. The
+  0b remake was made this way.
+- **Keep what already works.** Narration, timing and story usually stay; the remake changes the
+  look, the cast and the world. Start the box from the director's notes on the existing film: what
+  they loved stays in the bible, and what felt generic is where the routes should go. When the
+  narration and timing don't change, reuse the existing narration and re-render only the picture.
+- **The film is its own generic frame.** For the blind comparison in step 6, use the existing
+  film's frame at the same moment as the generic version. It is the real thing the director
+  already knows, so the choice is honest.
+
 ## Delightful or tacky
 
 Delight is specificity the subject earns: a worker who hesitates because the database is slow,
