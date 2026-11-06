@@ -52,6 +52,9 @@ def portable(path, video):
     return str(path.relative_to(top)) if path.is_relative_to(top) else str(path)
 
 
+KODAWARI = ("research/kodawari/bible.md", "research/kodawari/ledger.md")
+
+
 def inherit(video, source, includes=()):
     """Copy selected portable source/evidence and relative module imports, never live links."""
     from .workspace import inside
@@ -83,6 +86,9 @@ def inherit(video, source, includes=()):
 
     for rel in includes:
         copy(Path(rel))
+    for rel in KODAWARI:  # a series' bible and its ledger travel with every episode
+        if (source / rel).is_file():
+            copy(Path(rel))
     for name in ("layout.json", "lexicon.json", "narration.json"):
         src = source / name
         if src.exists():

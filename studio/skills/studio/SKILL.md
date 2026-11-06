@@ -21,7 +21,10 @@ anything. If something is missing, use the setup guidance in `references/kit.md`
 Read `references/taste.md` and `references/story.md`. For an origins film, historical journey,
 or a request to explain a modern system through its history, also read
 [`references/origins.md`](references/origins.md). Its story order and reference selection take
-precedence over the lecture defaults below. Ask only what changes the story and cannot
+precedence over the lecture defaults below. When `video.json` has `"kodawari": true` or the
+user asks for a film that is unmistakably theirs, also read
+[`references/kodawari.md`](references/kodawari.md): an opt-in process for a series' own world,
+cast and look, ending in a bible the shoot obeys. Ask only what changes the story and cannot
 be inferred. Otherwise default to a canonical undergraduate lecture with one small example and few numbers.
 Three or four ideas is guidance, not a cap; breadth is welcome when each idea has room. Put the level and tone into ordinary sentences in the brief.
 
@@ -98,8 +101,8 @@ to inspect expendable caches. After recording or shipping, `studio media push VI
 `studio media pull VIDEO`. Keep the kit unchanged while making a video. Put reproducible
 helpers in `sims/` or the chapter's data folder and run them through `studio run`.
 
-After the video, append lasting lessons from the user's notes to the last section of
-`references/taste.md`. Preserve the note and its reason. Read `references/taste/comic.md` only
+After the video, fold lasting lessons from the user's notes into `references/taste.md` and log the
+note with its reason in `references/taste/notes.md`. Read `references/taste/comic.md` only
 when the user asks for comedy. For other kinds of video, use `references/by-hand.md`.
 
 The six working references are `taste.md`, `story.md`, `script.md`, `shoot.md`, `desk.md` and `kit.md`.

@@ -91,5 +91,5 @@ Report actual resolution, frame rate, duration and file paths.
 External uploading follows the user's requested destination.
 
 Mark `studio stage VIDEO waiting` while waiting for feedback and `finished` when done. Use
-`studio stage VIDEO --report` for elapsed time. Append lasting preferences from the user's notes
-to the final section of `taste.md`; keep individual corrections with the video.
+`studio stage VIDEO --report` for elapsed time. Fold lasting preferences from the user's notes
+into `taste.md` and log them in `taste/notes.md`; keep individual corrections with the video.

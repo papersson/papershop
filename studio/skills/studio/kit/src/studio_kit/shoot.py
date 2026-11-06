@@ -3,8 +3,20 @@ import json
 import shlex
 from pathlib import Path
 
-from . import agent_hook, chapter, narration, script, timeline as tl
+from . import agent_hook, chapter, narration, script, settings, timeline as tl
 from .env import ROOT
+
+
+def kodawari_bible(video):
+    """The bible of a film that opted in to kodawari (references/kodawari.md), else None. An opted-in
+    film without one cannot shoot: its chapters would fall back to the generic look."""
+    if not settings.raw(video).get('kodawari'):
+        return None
+    path = Path(video) / 'research' / 'kodawari' / 'bible.md'
+    if not path.is_file() or not path.read_text().strip():
+        raise SystemExit(f'{video} opted in to kodawari but has no research/kodawari/bible.md. Write the bible '
+                         f'({ROOT / "references/kodawari.md"}) and show its proof frame to the director before the shoot.')
+    return path.read_text().strip()
 
 
 def prepare(video):
@@ -15,6 +27,7 @@ def prepare(video):
     if not list((video / 'research' / 'reviews').glob('panel-*.md')):
         raise SystemExit(f'Run `studio panel {video}` and bring its findings to the user before the story locks; '
                          'the shoot starts from a story the panel has read.')
+    bible = kodawari_bible(video)
     narration.narrate(video)
     timeline = tl.build(video)
     chapters = {c.id: c for c in script.read(video)}
@@ -66,6 +79,10 @@ def prepare(video):
             lines += [f'- {f["role"]}, local {f["t"]} s: {video / f["file"]}' for f in frames]
         else:
             lines += ['No style frame recorded for this chapter. Report the missing look target to the main session.']
+        if bible:
+            lines += ['', '## Kodawari bible', '',
+                      'This film opted in to kodawari. The bible below is binding: its spine, palette, line, motion, cast, world and never-list override defaults. Report anything it does not cover to the main session.', '',
+                      bible]
         lines += ['', '## Permitted sound events', '',
                   'Only these tactile touches may have sound. Abstract operations, labels and reveals stay silent.',
                   json.dumps(sound.get(cid, []), ensure_ascii=False, indent=2),
