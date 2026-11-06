@@ -1,7 +1,8 @@
 """Read video.json over the rendering defaults.
 
 The file holds title, engine, destination, layout choices, source provenance, git.sign, keep_cuts,
-poster, target_minutes, duration or clips for silent scenes, legend, gl, motion, plates and sound.
+poster, target_minutes, duration or clips for silent scenes, legend, gl, motion, plates, sound and
+kodawari (true opts in to references/kodawari.md; the shoot then needs research/kodawari/bible.md).
 The brief holds the audience and the way the story should feel. Sound settings control the shared
 room, ducking, presence and music level processing; the narration settings stay in narration.json.
 """

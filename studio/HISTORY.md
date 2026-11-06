@@ -3,6 +3,26 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Kodawari, an opt-in process for a film that is unmistakably the director's (0.34.0)
+
+The director fell in love with a quality he couldn't name: you can tell the maker put heart,
+effort and thought into it, and you can tell at once who made it. He chose the word *kodawari*
+(a personal, almost stubborn devotion to getting the details right in your own way) and asked for
+a module for it, "for videos where we want this to happen. It shouldn't be the default, some
+videos are fine being more generic, because it takes time and effort to find the right vibe."
+`references/kodawari.md` turns what the Frida prologue went through by hand (four failed rounds of
+code-drawn characters, a routes map, personality one-liners turned into generated images, the
+living kit, the world redrawn in the cast's hand) into one process: decide whether the film
+deserves it, fill a box from the director and the subject, write a spine sentence, make routes
+that differ in kind, record reactions with reasons in a ledger, write a short bible, and prove it
+with a blind generic-versus-kodawari frame before shooting. `"kodawari": true` in video.json (or
+`studio new --kodawari`) opts in; the shoot then refuses to start without `research/kodawari/bible.md`
+and puts the bible in every chapter job; `studio new --from` carries the flag, bible and ledger to
+the next episode. Films without the flag are unchanged. To make room in the core reading (11,997
+of 12,000 words), the dated notes behind taste.md's rules moved to `references/taste/notes.md`;
+the rules they produced stay in taste.md. Brief:
+/mnt/project-files/elicit/kodawari-module-brief.md in the Web Education project.
+
 ## A light layer for pictures of scale (0.33.0)
 
 The director asked for "big" visuals, streams and networks, and liked all four test scenes: the

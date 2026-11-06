@@ -143,7 +143,8 @@ comparison only, never in the film. Arrange them side by side at comparable disp
 Use references of the same kind: study references for abstract subjects, Ciechanowski or
 Kurzgesagt for physical ones. Judge typography, line weights, colour, composition and the planned
 continuity of forms; for physical subjects also judge light, material and depth. Ask honestly:
-are these beautiful and in the director's style, or a slide deck or a copy of the reference? If they look like a diagram tool, revise before shooting. Check the set for close-ups,
+are these beautiful and in the director's style, or a slide deck or a copy of the reference? A
+kodawari film also judges them against its bible and runs the blind comparison in `kodawari.md`. If they look like a diagram tool, revise before shooting. Check the set for close-ups,
 overviews, comparisons and changing layouts; a polished single view is not a film. Record changes and the reason for accepting the frames; honor prior delegation.
 
 Write `research/sound.json` as a chapter-to-event-list mapping, for example

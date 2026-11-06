@@ -44,7 +44,7 @@ reasons: canonical level, a toy example, full explanatory sentences, a clean ove
 performed events and time to read what changed. Breaths fall after named key points and section
 endings; related motion flows within ideas. A long unchanged picture can drag just as adjacent
 introductions can crowd. No prediction quota
-forces a lecture to invent questions or pauses. Its final section keeps new lessons tied to actual viewer notes.
+forces a lecture to invent questions or pauses. Its notes log, `taste/notes.md`, keeps each lesson tied to the actual viewer note.
 The user's request supplies any departure needed for a particular video.
 
 ## One timeline keeps picture and sound together

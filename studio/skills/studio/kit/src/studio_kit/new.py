@@ -103,10 +103,14 @@ def main(args):
         copied = preferences.inherit(video, args.from_video, args.include)
         cfg = json.loads((video / "video.json").read_text())
         cfg["series_of"] = preferences.portable(args.from_video, video)
+        if source_cfg.get("kodawari"):
+            cfg["kodawari"] = True
         if not args.source and source_cfg.get("source"):
             cfg["source"] = source_cfg["source"]
         (video / "video.json").write_text(json.dumps(cfg, indent=1) + "\n")
         print("series files copied: " + (", ".join(copied) or "look and pronunciation only"))
+    if getattr(args, "kodawari", False):
+        settings.update(video, kodawari=True)
     if getattr(args, "brief", None):
         brief(video, args.brief)
     print(f"new video at {video}")

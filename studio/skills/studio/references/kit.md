@@ -25,7 +25,8 @@ that could not run; a missing renderer is not evidence that its frames passed.
 
 `studio new NAME [--dir PATH] [--title TITLE] [--source REPO]` creates the
 folder. `--duration SECONDS` creates a silent scene test. `--from VIDEO` inherits the look and
-lexicon for a series; repeat `--include RELATIVE_PATH` for explicit dependencies. The default
+lexicon for a series, and a kodawari film's flag, bible and ledger; repeat `--include RELATIVE_PATH`
+for explicit dependencies. `--kodawari` opts a new film in to `kodawari.md`. The default
 engine is live. Existing videos keep the kit they were made with.
 
 | Path | What belongs there |

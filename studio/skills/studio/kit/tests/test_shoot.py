@@ -62,3 +62,37 @@ def test_shoot_refuses_a_story_the_panel_has_not_read(tmp_path):
     (tmp_path / 'research/brief.md').write_text('A collector receives, stores and searches.')
     with pytest.raises(SystemExit, match='studio panel'):
         shoot.prepare(tmp_path)
+
+
+def test_a_kodawari_film_needs_its_bible_and_every_chapter_job_carries_it(tmp_path, monkeypatch):
+    monkeypatch.setenv('STUDIO_HOME', str(tmp_path / 'home'))
+    (tmp_path / 'video.json').write_text('{"engine":"live","kodawari":true}')
+    (tmp_path / 'research/reviews').mkdir(parents=True)
+    (tmp_path / 'research/brief.md').write_text('Story locked by the user.')
+    (tmp_path / 'research/reviews/panel-1.md').write_text('# Story fact panel')
+    (tmp_path / 'SCRIPT.md').write_text(SCRIPT)
+    with pytest.raises(SystemExit, match='research/kodawari/bible.md'):
+        shoot.prepare(tmp_path)
+    (tmp_path / 'research/kodawari').mkdir()
+    (tmp_path / 'research/kodawari/bible.md').write_text('Spine: a small, kind city of workers moving real traffic.\nNever: winking mascots.')
+    original = narration.narrate
+    monkeypatch.setattr(shoot.narration, 'narrate', lambda v: original(v, estimate=True))
+    jobs = shoot.prepare(tmp_path)
+    for job in jobs:
+        text = (tmp_path / f"research/shoot/{job['chapter']}.md").read_text()
+        assert '## Kodawari bible' in text and 'city of workers' in text and 'winking mascots' in text
+
+
+def test_a_film_without_kodawari_shoots_exactly_as_before(tmp_path, monkeypatch):
+    monkeypatch.setenv('STUDIO_HOME', str(tmp_path / 'home'))
+    (tmp_path / 'video.json').write_text('{"engine":"live"}')
+    (tmp_path / 'research/reviews').mkdir(parents=True)
+    (tmp_path / 'research/brief.md').write_text('Story locked by the user.')
+    (tmp_path / 'research/reviews/panel-1.md').write_text('# Story fact panel')
+    (tmp_path / 'research/kodawari').mkdir()
+    (tmp_path / 'research/kodawari/bible.md').write_text('A stray bible is ignored without the flag.')
+    (tmp_path / 'SCRIPT.md').write_text(SCRIPT)
+    original = narration.narrate
+    monkeypatch.setattr(shoot.narration, 'narrate', lambda v: original(v, estimate=True))
+    jobs = shoot.prepare(tmp_path)
+    assert all('Kodawari' not in (tmp_path / f"research/shoot/{j['chapter']}.md").read_text() for j in jobs)
