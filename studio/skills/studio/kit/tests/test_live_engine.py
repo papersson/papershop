@@ -432,3 +432,66 @@ def test_the_lit_look_casts_shadows_and_the_flat_look_stays_flat(tmp_path):
         y = int(b["y"] + 0.72 * b["h"])                # beside the block's foot, where the key light's shadow falls
         return img.getpixel((int(b["x"] - 150), y)) - img.getpixel((int(b["x"] - 10), y))
     assert floor_spread(*shots[True]) > 12 and abs(floor_spread(*shots[False])) <= 2
+
+
+LIGHT = """
+export default function draw(c) {
+  const { S, L, t, W, H } = c
+  if (t < 0.5) return                                          // no light yet: the canvas stays hidden
+  c.camAt([[0, { x: W / 2, y: H / 2, z: 1 }], [1, { x: W / 2 + 200, y: H / 2, z: 2 }]])
+  // a marker ring in SVG and a light at its centre, in the same world coordinates
+  S.circle('ring', W / 2 + 300, H / 2, 40, { stroke: '#8C97A4', sw: 2, box: 'ring' })
+  L.point(W / 2 + 300, H / 2, 6, 'warm')
+  for (let i = 0; i < 2000; i++) L.point(200 + (i % 50) * 6, 200 + Math.floor(i / 50) * 6, 1, 'cold', 0.5)
+  L.line(100, 900, 900, 900, 2, '#8FD3FF', 0.8)
+}
+"""
+
+
+@needs_engine
+@needs_3d
+def test_the_light_layer_follows_the_svg_camera_and_keeps_the_ground_exact(tmp_path):
+    """c.L draws through the camera the SVG ends the frame with, so a light lands where the SVG draws
+    the same world point; where there is no light the ground is exactly the theme's --bg, so a cut to an
+    SVG-only frame shows no seam; and a frame with no light hides the canvas."""
+    from PIL import Image
+    video_3d(tmp_path, LIGHT)
+    e = Engine(tmp_path)
+    e.stills([{"clip": "s1", "t": t, "out": tmp_path / f"{t}.png"} for t in (0.2, 1.5)])
+    ring = next(b for b in e.boxes("s1", 1.5)["boxes"]["boxes"] if b["name"] == "ring")
+    img = Image.open(tmp_path / "1.5.png").convert("RGB")
+    cx, cy = round(ring["x"] + ring["w"] / 2), round(ring["y"] + ring["h"] / 2)
+    assert ring["w"] == pytest.approx(164, abs=4)                 # the push-in doubled the ring
+    r, g, b = img.getpixel((cx, cy))
+    assert r > 150 and r > b + 30                                 # the warm light sits in the ring
+    assert img.getpixel((1900, 60)) == (0x0F, 0x13, 0x18)         # far from any light: the ground exactly
+    assert Image.open(tmp_path / "0.2.png").convert("RGB").getpixel((960, 540)) == (0x0F, 0x13, 0x18)
+
+
+@needs_engine
+@needs_3d
+def test_light_frames_are_the_same_in_any_order(tmp_path):
+    video_3d(tmp_path, LIGHT)
+    e = Engine(tmp_path)
+    times = [1.5, 0.75, 1.2, 0.2]
+    digests = []
+    for order in (times, times[::-1]):
+        batch = [{"clip": "s1", "t": t, "out": tmp_path / f"{len(digests)}-{t}.png"} for t in order]
+        e.stills(batch)
+        digests.append({r["t"]: hashlib.sha256(rgba(r["out"])).hexdigest() for r in batch})
+    assert digests[0] == digests[1]
+
+
+@needs_engine
+@needs_3d
+def test_the_template_light_chapter_draws_through_its_cue(tmp_path):
+    from PIL import Image
+    from studio_kit.env import ROOT
+    scene = (ROOT / "templates" / "live" / "scenes" / "example-light.js").read_text().replace("{{the click}}", "click")
+    video_3d(tmp_path, scene, seconds=6.0, cues={"click": 0.5})
+    e = Engine(tmp_path)
+    e.stills([{"clip": "s1", "t": t, "out": tmp_path / f"{t}.png"} for t in (0.2, 3.0)])
+    names = {b["name"] for b in e.boxes("s1", 3.0)["boxes"]["boxes"]}
+    assert {"server {{the shop}}", "server ads", "request count"} <= names
+    lit = sum(Image.open(tmp_path / "3.0.png").convert("L").histogram()[61:])
+    assert lit > 2000                                             # the fan of requests is drawn in light

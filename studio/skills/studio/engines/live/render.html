@@ -17,12 +17,14 @@
 <style>
 
 html, body { margin: 0; background: var(--bg); overflow: hidden; }
-/* The page paints the background; the 3D canvas (hidden unless a frame draws in 3D) sits under the SVG stage. */
-svg, canvas#gl { position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; }
+/* The page paints the background; the light canvas and the 3D canvas (each hidden unless a frame
+   draws on it) sit under the SVG stage, light lowest. */
+svg, canvas#gl, canvas#light { position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; }
 svg { display: block; }
-canvas#gl { display: none; }
+canvas#gl, canvas#light { display: none; }
 </style></head>
 <body>
+<canvas id="light"></canvas>
 <canvas id="gl"></canvas>
 <svg id="stage" xmlns="http://www.w3.org/2000/svg"><defs>
   <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
@@ -31,7 +33,7 @@ canvas#gl { display: none; }
 // Query: video=<base URL of the video folder>, layout=<URL of layout.json>. Exposes window.studio.
 import { boot } from './src/player.js'
 const q = new URLSearchParams(location.search)
-boot({ svg: document.getElementById('stage'), canvas: document.getElementById('gl'), video: q.get('video'), layout: q.get('layout') })
+boot({ svg: document.getElementById('stage'), canvas: document.getElementById('gl'), light: document.getElementById('light'), video: q.get('video'), layout: q.get('layout') })
   .then(api => { window.studio = api; window.studioReady = true; if (q.get('play')) parent.postMessage({ studioLive: 'ready' }, '*') })
   .catch(e => { window.studioError = String(e && e.stack ? e.stack : e); console.error(e) })
 </script>

@@ -10,6 +10,8 @@
 // The context `c` a scene gets, all times in clip seconds:
 //   S                the stage (rect, circle, text, line, path, strike, callout, blur, el, cam)
 //   G                the 3D stage under it (stage3d.js), made the first time a scene asks for it
+//   L                the light layer under both (light.js): tens of thousands of glowing points and
+//                    lines in the SVG's world coordinates, with bloom; made the first time a scene asks
 //   shot(keys, e)    point G's camera along 3D shot keys [time, {target, az, el, span, fov}, ease?] at t,
 //                    centred in the view; flatShot() is the top-down shot that matches the 2D stage, and
 //                    frameOn3(points, {az, el, fov}) a shot that fits world points (shared/camera3d.js)
@@ -33,6 +35,7 @@
 
 import { Stage } from './stage.js'
 import { Stage3D } from './stage3d.js'
+import { LightStage } from './light.js'
 import * as kit from './kit.js'
 import { PAGES, LEGEND_PAGE } from './look.js'
 import { clipTimes, frameOf } from '../../shared/timing.js'
@@ -81,7 +84,7 @@ async function exists(url) {
   return r.ok
 }
 
-export async function boot({ svg, canvas, video, layout: layoutUrl }) {
+export async function boot({ svg, canvas, light: lightCanvas, video, layout: layoutUrl }) {
   const base = video.endsWith('/') ? video : video + '/'
   let T, L, scenes, joins, overlay, boards, notes, legend, colours, motion, plates, platePoints, version = 0
   // Images a frame draws (a plate) are decoded before the frame counts as drawn, so a still never
@@ -130,14 +133,32 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     if (!stage3d) (stage3d = new Stage3D(canvas, { width: L.width, height: L.height })).begin(viewOf())
     return stage3d
   }
-  /** Every stage runs the same frame: begin before the scene draws, end after (end renders the 3D stage). */
+  // The light layer likewise, on its own canvas under the 3D one (a page without one gets it made).
+  let light = null
+  const Lt = () => {
+    if (!light) {
+      if (!lightCanvas) {
+        lightCanvas = document.createElement('canvas')
+        lightCanvas.id = 'light'
+        lightCanvas.style.cssText = 'position:absolute;left:0;top:0;width:100vw;height:100vh;display:none'
+        ;(canvas ?? svg).before(lightCanvas)
+      }
+      light = new LightStage(lightCanvas, stage, { width: L.width, height: L.height })
+      light.begin()
+    }
+    return light
+  }
+  /** Every stage runs the same frame: begin before the scene draws, end after (end renders the 3D stage
+   * and the light, which follows the cameras the SVG ended the frame with). */
   function begin() {
     stage.begin()
     stage3d?.begin(viewOf())
+    light?.begin()
   }
   function end() {
     stage3d?.end()
     stage.end()
+    light?.end()
   }
 
   /** What scenes and look pages share: the stage, its size, the header and the camera helpers, at clip time t. */
@@ -154,6 +175,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
       },
       frameOn: (region, o) => kit.frameOn(region, [L.width, H - header], o),
       get G() { return G() },
+      get L() { return Lt() },
       shot: (keys, e) => G().camera(shotAt(t, keys, e)),
       flatShot: (cam2d = { x: L.width / 2, y: (header + H) / 2, z: 1 }, o) => flatShot(cam2d, H - header, o),
       frameOn3: (points, o) => frameOn3(points, [L.width, L.height], viewOf(), o),
@@ -363,7 +385,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     try {
       end()
     } catch (e) {
-      error ??= `${clip} at ${t.toFixed(3)} s (3D): ${e && e.stack ? e.stack : e}`
+      error ??= `${clip} at ${t.toFixed(3)} s (3D or light): ${e && e.stack ? e.stack : e}`
       stage.end()
     }
     if (error) return { error }
@@ -482,7 +504,7 @@ export async function boot({ svg, canvas, video, layout: layoutUrl }) {
     try {
       end()
     } catch (e) {
-      error ??= `look page ${n + 1} (3D): ${e && e.stack ? e.stack : e}`
+      error ??= `look page ${n + 1} (3D or light): ${e && e.stack ? e.stack : e}`
       stage.end()
     }
     return error ? { error } : { page: n + 1 }
