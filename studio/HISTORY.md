@@ -3,6 +3,19 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A light layer for pictures of scale (0.33.0)
+
+The director asked for "big" visuals, streams and networks, and liked all four test scenes: the
+world's cables, a zoom from one home out to the planet, the dozens of requests behind one product
+page, and evening traffic flowing to 512 homes (https://claude.ai/artifact/PAFYdUYCq2EhtQF2JxtD17,
+"I like all of these!"). Each needs tens of thousands of glowing points, which SVG cannot draw at
+frame rate and the 3D stage's flat look is not made for, so the live engine gets `c.L`: a WebGL2
+canvas under the 3D one, drawing instanced points and lines that add up, with a soft bloom, a
+shoulder and a fixed dither. It follows the SVG's camera, so labels stay SVG text on their lights,
+and nested scenes and dissolves carry its light with them. It paints the ground itself and leaves
+it exactly `--bg` where there is no light, so cuts to SVG-only frames show no seam. Its guide is
+`references/light.md` (outside the core reading), with `templates/live/scenes/example-light.js`.
+
 ## The director's style is the bar, not 3Blue1Brown (0.32.0)
 
 taste.md told every film to copy 3Blue1Brown for abstract subjects, and the director found the

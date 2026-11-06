@@ -190,8 +190,8 @@ and renderer. Full signatures: `templates/live/scenes/example-chapter.js`, `engi
 
 ## Depth, light and plates
 
-Use these only after the hard 3D admission test in `taste.md`. Abstract subjects default to 2D;
-a physical metaphor does not justify a lit model.
+3D only after the admission test in `taste.md`; abstract subjects stay 2D, physical metaphors unlit.
+`c.L` draws glowing points and lines for scale: `references/light.md`.
 
 `c.G` draws keyed 3D objects below the SVG stage. `G.mesh(key, kind, params, options)` supports
 box, cylinder, tube, sphere, ring and extrude geometry. Options include `at`, `rot` in degrees,
