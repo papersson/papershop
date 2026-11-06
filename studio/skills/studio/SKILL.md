@@ -22,7 +22,7 @@ Read `references/taste.md` and `references/story.md`. For an origins film, histo
 or a request to explain a modern system through its history, also read
 [`references/origins.md`](references/origins.md). Its story order and reference selection take
 precedence over the lecture defaults below. When `video.json` has `"kodawari": true` or the
-user asks for a film that is unmistakably theirs, also read
+user asks for kodawari or a film that is unmistakably theirs (new or existing), also read
 [`references/kodawari.md`](references/kodawari.md): an opt-in process for a series' own world,
 cast and look, ending in a bible the shoot obeys. Ask only what changes the story and cannot
 be inferred. Otherwise default to a canonical undergraduate lecture with one small example and few numbers.

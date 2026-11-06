@@ -3,6 +3,14 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Kodawari on an existing film (0.34.1)
+
+The director asked whether he could take a film he already has and say "let's apply kodawari
+together". He can, and kodawari.md now says how: work on a copy so the shipped film and its kit
+stay as they are, keep the narration and timing that already work, and use the existing film's
+own frame as the generic side of the blind comparison. SKILL.md routes to kodawari.md when the
+user asks for kodawari by name, for a new or an existing film.
+
 ## Kodawari, an opt-in process for a film that is unmistakably the director's (0.34.0)
 
 The director fell in love with a quality he couldn't name: you can tell the maker put heart,
