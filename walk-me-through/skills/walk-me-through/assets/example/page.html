@@ -117,21 +117,21 @@ Walk.page({
     figBucket: chip('hash % 8', String(FIG.bucket), 'c', { shown: { x: 100, y: 500 }, atBucket: chipAt(FIG.bucket) }, [2]),
     figMiss: mark('no', 0, 2),
     figHit: mark('yes', 1, 2),
-    figValue: chip('count', '4', 'b', { inside: { x: entryX(1) + 96, y: rowY(5) - 26, o: 0 }, out: { x: 100, y: 610 } }, [2], 'inside'),
+    figValue: chip('count', '4', 'b', { inside: { x: entryX(1) + 96, y: rowY(5) - 26, o: 0 }, out: { x: 100, y: 500 } }, [2], 'inside'),
 
     pearKey: chip('key', 'pear', 'a', { shown: { x: 100, y: 170 } }, [3]),
     pearHash: chip('FNV-1a, 32 bits', PEAR.hash, null, { shown: { x: 100, y: 280 } }, [3]),
     pearBucket: chip('hash % 8', String(PEAR.bucket), 'c', { atBucket: chipAt(PEAR.bucket) }, [3]),
     pearMiss1: mark('no', 0, 3),
     pearMiss2: mark('no', 1, 3),
-    pearEnd: { piece: 'text', html: '<span class="end-mark">end</span>', ch: [3],
+    pearEnd: { piece: 'text', html: '<span class="end-mark"><span class="end-word">end</span></span>', ch: [3],
       states: { shown: { x: entryX(1) + 216, y: rowY(5) } } },
 
     tally: { piece: 'text', text: TALLY, size: 34, ch: [4], states: { shown: { x: 100, y: 470 } } },
 
     code: { piece: 'code', ch: [5], lines: [
       ['', 'def lookup(buckets, key):'],
-      ['5', '    h = 2166136261'],
+      ['', '    h = 2166136261'],
       ['4', '    for b in key.encode():'],
       ['5', '        h = (h ^ b) * 16777619 % 2**32'],
       ['6', '    bucket = buckets[h % 8]'],
@@ -139,7 +139,7 @@ Walk.page({
       ['9', '        if k == key:'],
       ['10', '            return v'],
       ['16', '    return None'],
-    ], states: { shown: { x: 330, y: 200 }, hash: { x: 330, y: 200, cls: ['lit:3-5'] },
+    ], states: { shown: { x: 330, y: 200 }, hash: { x: 330, y: 200, cls: ['lit:2-5'] },
                  walk: { x: 330, y: 200, cls: ['lit:6-8'] }, miss: { x: 330, y: 200, cls: ['lit:9'] } } },
   },
   clicks: [
@@ -156,17 +156,17 @@ Walk.page({
     { chapter: 2, caption: 'The lookup returns the count stored beside the key.', object: 'figValue', state: 'out', highlight: '.w-chip-value' },
 
     { chapter: 3, caption: 'Now look up `pear`, which was never stored.', object: 'pearKey', state: 'shown', highlight: '.w-chip-value' },
-    { chapter: 3, object: 'pearHash', state: 'shown', highlight: '.w-chip-value' },
+    { chapter: 3, caption: 'The same bytes and FNV-1a give `pear` its own hash.', object: 'pearHash', state: 'shown', highlight: '.w-chip-value' },
     { chapter: 3, caption: 'Its remainder is also 5, the same bucket as `fig`.', object: 'pearBucket', state: 'atBucket', highlight: '.w-chip-value' },
     { chapter: 3, caption: 'Same walk: compare each key in bucket 5.', object: 'pearMiss1', state: 'shown', highlight: '[data-entry="5.0"]' },
     { chapter: 3, object: 'pearMiss2', state: 'shown', highlight: '[data-entry="5.1"]' },
-    { chapter: 3, caption: 'The list ends, so `pear` is not in the table.', object: 'pearEnd', state: 'shown', highlight: '.end-mark' },
+    { chapter: 3, caption: 'The list ends, so `pear` is not in the table.', object: 'pearEnd', state: 'shown', highlight: '.end-word' },
 
     { chapter: 4, caption: 'Neither lookup touched the other seven buckets.', object: 'table', state: 'focus', highlight: '[data-bucket="5"]' },
     { chapter: 4, caption: "The work depends on one bucket's length, not the table's size.", object: 'tally', state: 'shown' },
 
     { chapter: 5, caption: 'Each margin number is the click that showed that line.', object: 'code', state: 'shown', highlight: false },
-    { chapter: 5, caption: 'Three lines turn the key into a bucket number.', object: 'code', state: 'hash', highlight: false },
+    { chapter: 5, caption: 'These lines turn the key into a bucket number.', object: 'code', state: 'hash', highlight: false },
     { chapter: 5, caption: 'The loop is the walk down one bucket.', object: 'code', state: 'walk', highlight: false },
     { chapter: 5, caption: 'Falling off the end of the loop means the key is missing.', object: 'code', state: 'miss', highlight: false },
   ],

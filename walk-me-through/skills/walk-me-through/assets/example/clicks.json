@@ -25,9 +25,9 @@
     {"chapter": 2, "change": "The remainder glides across to bucket 5", "object": "figBucket", "state": "atBucket"},
     {"chapter": 2, "change": "A cross appears beside mango, the first entry in bucket 5", "caption": "Bucket 5 holds two fruits, so compare the keys in order.", "object": "figMiss", "state": "shown"},
     {"chapter": 2, "change": "A tick appears beside fig, the second entry", "object": "figHit", "state": "shown"},
-    {"chapter": 2, "change": "Fig's count, 4, glides out of the table to the left", "caption": "The lookup returns the count stored beside the key.", "object": "figValue", "state": "out"},
+    {"chapter": 2, "change": "Fig's count, 4, glides out of the table into the empty slot at the left", "caption": "The lookup returns the count stored beside the key.", "object": "figValue", "state": "out"},
     {"chapter": 3, "change": "The key pear appears at the top left", "caption": "Now look up `pear`, which was never stored.", "object": "pearKey", "state": "shown"},
-    {"chapter": 3, "change": "Pear's 32-bit hash appears, 0xd01fc26d", "object": "pearHash", "state": "shown"},
+    {"chapter": 3, "change": "Pear's 32-bit hash appears, 0xd01fc26d", "caption": "The same bytes and FNV-1a give `pear` its own hash.", "object": "pearHash", "state": "shown"},
     {"chapter": 3, "change": "Pear's remainder, 5, appears beside bucket 5", "caption": "Its remainder is also 5, the same bucket as `fig`.", "object": "pearBucket", "state": "atBucket"},
     {"chapter": 3, "change": "A cross appears beside mango", "caption": "Same walk: compare each key in bucket 5.", "object": "pearMiss1", "state": "shown"},
     {"chapter": 3, "change": "A cross appears beside fig", "object": "pearMiss2", "state": "shown"},
@@ -35,7 +35,7 @@
     {"chapter": 4, "change": "Every bucket but 5 fades", "caption": "Neither lookup touched the other seven buckets.", "object": "table", "state": "focus"},
     {"chapter": 4, "change": "The count of comparisons appears, 2 of 7 keys", "caption": "The work depends on one bucket's length, not the table's size.", "object": "tally", "state": "shown"},
     {"chapter": 5, "change": "The lookup function appears with click numbers in its margin", "caption": "Each margin number is the click that showed that line.", "object": "code", "state": "shown"},
-    {"chapter": 5, "change": "The three lines that pick the bucket light", "caption": "Three lines turn the key into a bucket number.", "object": "code", "state": "hash"},
+    {"chapter": 5, "change": "The four lines that pick the bucket light", "caption": "These lines turn the key into a bucket number.", "object": "code", "state": "hash"},
     {"chapter": 5, "change": "The loop over the bucket lights", "caption": "The loop is the walk down one bucket.", "object": "code", "state": "walk"},
     {"chapter": 5, "change": "The last line, return None, lights", "caption": "Falling off the end of the loop means the key is missing.", "object": "code", "state": "miss"}
   ]
