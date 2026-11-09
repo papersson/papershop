@@ -13,7 +13,7 @@ export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
 cd "$root"
 
 suites=("$@")
-[ ${#suites[@]} -gt 0 ] || suites=(pins worklog present-your-work studio screenshot-pane)
+[ ${#suites[@]} -gt 0 ] || suites=(pins worklog present-your-work walk-me-through studio screenshot-pane)
 studio_env=()
 if [[ " ${suites[*]} " == *" studio "* ]] && [ -z "${STUDIO_ENV:-}" ] && command -v nix >/dev/null; then
   while IFS= read -r var; do studio_env+=("$var"); done < <(
@@ -27,7 +27,7 @@ run() {
   local log; log="$(mktemp)"
   local start=$SECONDS
   if "$@" >"$log" 2>&1; then
-    echo "pass  $name ($((SECONDS - start))s): $(grep -E '^(Ran |[0-9]+ passed)|passed|agree' "$log" | tail -1)"
+    echo "pass  $name ($((SECONDS - start))s): $(grep -E '^(Ran |[0-9]+ passed)|passed|agree|skipped=' "$log" | tail -1)"
   else
     echo "FAIL  $name ($((SECONDS - start))s)"; tail -30 "$log" | awk '{ print "      " $0 }'; failed+=("$name")
   fi
@@ -39,6 +39,8 @@ for suite in "${suites[@]}"; do
     pins) run pins script/check-pins ;;
     worklog) run worklog uv run --quiet --with "duckdb$(sed -n 's/.*"duckdb\([^"]*\)".*/\1/p' worklog/scripts/worklog.py | head -1)" python -m unittest discover -s worklog/tests ;;
     present-your-work) run present-your-work python3 present-your-work/skills/present-your-work/scripts/test_check_draft.py ;;
+    # Its browser checks skip, with the fix named, on a machine with no Chrome or Chromium.
+    walk-me-through) run walk-me-through python3 -I walk-me-through/skills/walk-me-through/scripts/test_walk.py ;;
     studio) run studio env ${studio_env[@]+"${studio_env[@]}"} uv run --quiet --frozen --extra audio --project studio/skills/studio/kit pytest -q studio/skills/studio/kit/tests ;;
     # The mod's tests import Claude Code's own `claude-code/testing` harness, which no package provides.
     screenshot-pane) echo "skip  screenshot-pane: runs only inside Claude Code's mod test harness" ;;

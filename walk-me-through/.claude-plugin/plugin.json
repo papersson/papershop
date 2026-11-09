@@ -1,0 +1,6 @@
+{
+  "name": "walk-me-through",
+  "version": "0.1.0",
+  "description": "Explain one mechanism as a local click-through HTML page: each click changes exactly one thing on a stage drawn from the real data, and one caption line of at most 12 words says what the change means when the picture cannot. It decides first whether a sentence would do, writes the page as a click list for the reader to approve, builds from it with a small dependency-free engine, and checks it three ways: a script that enforces the rules mechanically at three window sizes, screenshots finished and mid-motion, and a fresh reader who explains it back. Ships a worked hash-table example whose every number is computed.",
+  "author": { "name": "Patrik Persson" }
+}

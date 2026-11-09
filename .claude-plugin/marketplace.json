@@ -49,6 +49,12 @@
     {
       "name": "polish-ui",
       "source": "./polish-ui"
+    },
+    {
+      "name": "walk-me-through",
+      "source": "./walk-me-through",
+      "version": "0.1.0",
+      "description": "Explain one mechanism as a click-through HTML page: one change per click on a stage drawn from the real data, one short caption line, a click list approved before building, and a checker that enforces the rules."
     }
   ]
 }

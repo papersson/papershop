@@ -45,6 +45,9 @@ if [ -x "$obs/clickhouse" ]; then
 else
   echo "observability: absent"
 fi
+walk="$root/walk-me-through/skills/walk-me-through/scripts"
+walk_chrome="$(python3 -I -c 'import sys; sys.path.insert(0, sys.argv[1]); import walklib; print(walklib.find_chrome() or "")' "$walk" 2>/dev/null)"
+echo "browser (walk-me-through): ${walk_chrome:+$(first "$walk_chrome" --version | version) at }${walk_chrome:-absent}"
 echo "pin kokoro weights: $(sed -n 's/^KOKORO_REVISION = "\(.\{12\}\).*/\1/p' "$kit/src/studio_kit/narration.py")"
 
 if [ "${1:-}" = --tools ]; then

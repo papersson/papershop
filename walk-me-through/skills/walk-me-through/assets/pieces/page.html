@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The ready-made pieces</title>
+<link rel="stylesheet" href="walk.css">
+</head>
+<body>
+<script src="walk.js"></script>
+<script>
+// A tour of the ready-made pieces, each moving, with one made-up order followed throughout.
+const ORDER = { order: { id: 'A-1042', item: [{ sku: 'pen', qty: 2 }, { sku: 'ink', qty: 5 }], paid: true } };
+const PROTO = `order {
+  id: "A-1042"
+  item { sku: "pen" qty: 2 }
+  item { sku: "ink" qty: 5 }
+  paid: true
+}`;
+const card = { piece: 'card', title: 'order', fields: ['id', 'paid'], w: 460, labelWidth: 110, ch: [1],
+  states: { shown: { x: 820, y: 250 } } };
+const idIn = Walk.slot(card, 'shown', 'id'), paidIn = Walk.slot(card, 'shown', 'paid');
+const tree = (src, x, ch) => Object.assign({ piece: 'tree', ch: [ch], w: 460 }, src, { states: {
+  shown: { x, y: 170 },
+  item0: { x, y: 170, cls: ['at:order.item[0]'] },
+  item1: { x, y: 170, cls: ['at:order.item[1]'] },
+  qty: { x, y: 170, cls: ['at:order.item[1].qty'] },
+  lit: { x, y: 170, cls: ['at:order.item[1].qty', 'lit:order.item[1].qty'] },
+  boxed: { x, y: 170, cls: ['at:order.item[1].qty', 'lit:order.item[1].qty', 'box:order.paid'] },
+} });
+
+Walk.page({
+  title: 'The ready-made pieces',
+  chapters: ['A card holds named fields', 'A tree draws nested data', 'Protobuf text reads the same way', 'Code comes last'],
+  objects: {
+    card,
+    id: { piece: 'chip', label: 'id', value: 'A-1042', tone: 'a', ch: [1],
+      states: { made: { x: 160, y: 300 }, filed: { x: idIn.x, y: idIn.y - 22, s: 0.8, cls: ['no-label'] } } },
+    paid: { piece: 'text', text: 'paid', verdict: 'yes', ch: [1], states: { shown: { x: paidIn.x, y: paidIn.y + 6 } } },
+    json: tree({ data: ORDER }, 560, 2),
+    source: { piece: 'code', ch: [3], lines: PROTO.split('\n'), states: { shown: { x: 100, y: 200 } } },
+    proto: tree({ text: PROTO }, 820, 3),
+    code: { piece: 'code', ch: [4], lines: [
+      ['', 'order = Order()'],
+      ['3', 'order.id = "A-1042"'],
+      ['6', 'order.item.add(sku="pen", qty=2)'],
+      ['8', 'order.item.add(sku="ink", qty=5)'],
+      ['4', 'order.paid = True'],
+    ], states: { shown: { x: 340, y: 260 }, lit: { x: 340, y: 260, cls: ['lit:4'] } } },
+  },
+  clicks: [
+    { chapter: 1, caption: 'An example order, followed through every piece on this page.', object: 'card', state: 'shown', highlight: false },
+    { chapter: 1, caption: 'A `chip` is one value that can travel.', object: 'id', state: 'made', highlight: '.w-chip-value' },
+    { chapter: 1, object: 'id', state: 'filed', highlight: false },
+    { chapter: 1, caption: 'A `text` with a verdict shows yes or no.', object: 'paid', state: 'shown' },
+
+    { chapter: 2, caption: 'A `tree` draws nested data, one row per field.', object: 'json', state: 'shown', highlight: false },
+    { chapter: 2, caption: 'A marker walks the rows by path.', object: 'json', state: 'item0', highlight: '[data-path="order.item[0]"]' },
+    { chapter: 2, object: 'json', state: 'item1', highlight: '[data-path="order.item[1]"]' },
+    { chapter: 2, object: 'json', state: 'qty', highlight: '[data-path="order.item[1].qty"]' },
+    { chapter: 2, caption: 'Lighting a row marks the value that matters.', object: 'json', state: 'lit', highlight: false },
+    { chapter: 2, caption: 'A dashed box sets one row apart.', object: 'json', state: 'boxed', highlight: false },
+
+    { chapter: 3, caption: 'The same order written in protobuf text format.', object: 'source', state: 'shown', highlight: false },
+    { chapter: 3, caption: 'The `tree` piece reads that format too.', object: 'proto', state: 'shown', highlight: false },
+
+    { chapter: 4, caption: 'Each margin number is the click that showed that line.', object: 'code', state: 'shown', highlight: false },
+    { chapter: 4, caption: 'Lighting a line dims the rest.', object: 'code', state: 'lit', highlight: false },
+  ],
+});
+</script>
+</body>
+</html>
