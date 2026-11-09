@@ -4,8 +4,7 @@
     "prose@papershop": false,
     "studio@papershop": false,
     "present-your-work@papershop": false,
-    "elicit@papershop": false,
-    "walk-me-through@papershop": false
+    "elicit@papershop": false
   },
   "hooks": {
     "SessionStart": [
