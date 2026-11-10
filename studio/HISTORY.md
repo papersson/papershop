@@ -3,6 +3,24 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Music barely noticeable; an auditioned mouse click (0.34.2)
+
+Written on 2026-11-05 as 0.32.1 in the Mac checkout and never committed, so installed copies lacked the click and films could only be cut from that checkout; carried onto 0.34.1 for the move to cloud sessions.
+
+Patrik, after hearing the prologue films with music 31 LU under the narration: "the music bed can be much lower still, and it should be that by default. The music should just be barely noticeable." MUSIC_UNDER is now 39 LU (about 45 dB under the voice's loud moments), and audio-check warns when music comes within 36 dB.
+
+Patrik compared the two web films' `interface-click-001` with four alternatives and chose
+Pixeliota's computer-mouse recording (sample B): “B is the best one by far.” The exact auditioned
+WAV, distributed by Remotion under the original CC0 license, is pinned by size and SHA-256.
+It is now the kit's click default and the screens layer's mouse click. Skill guidance and examples
+name the same recording. Keep the press/release pair; contact and trim are measured for sync and
+level. Existing explicitly selected sounds and the legacy bare-type synth behavior stay stable.
+
+The web-film review also exposed a desk startup problem: awaiting a failed live renderer prevented
+saved-video transport updates from starting. The desk now starts its transport before awaiting the
+live renderer and follows media time events when a background tab suspends animation frames.
+Saved-cut playback and the displayed note timestamp were verified together in Chrome.
+
 ## Kodawari on an existing film (0.34.1)
 
 The director asked whether he could take a film he already has and say "let's apply kodawari

@@ -73,3 +73,24 @@ alluding to it”. The viewer is learning the field, so allusion left them witho
 Hence the definition rule in taste.md. Cut 7 added eleven definition cards, tools by their problem and a
 plain-sentence pass: “Really good video, I'm done.” Notes: research/reviews/notes-archive-v5.jsonl in
 the film's folder, observability-1-print-to-datadog-sentry.
+
+Mouse-click audition (2026-11-02), for the two web prologue films: the current
+`interface-click-001` sounded weird. Comparing five samples, Patrik chose Pixeliota’s
+computer-mouse recording (B): “B is the best one by far.” Use `kit:mouse-click-pixeliota`
+for performed mouse clicks, including the screens layer. Preserve its press/release pair.
+Choose recognizable recorded mouse actions by listening; measurements establish timing and
+level, not which recording sounds convincing.
+
+Web prologue feedback (2026-11-02): “I want her to understand why these ideas were needed”;
+“keep it focused on the problems rather than lots of historical details.” For these novice
+origins films, let a concrete pain motivate each solution, keep the human stories that advance
+that chain, and name the real concept plainly. The user challenged “But a connection needs more
+than a cable” because no cable had been introduced. Therefore audit each sentence's premise and
+referent against what the viewer already knows. They also asked to “pause the narration
+appropiately so it doesn't disturb the animation/motion” during the LOGIN attempt: give a
+performed sequence enough silence for its actions and consequences to register. “First film
+has burned in captions, don't like it” reaffirms the separate-caption rule above. The audience
+and high-level scope apply to this pair, not automatically to every Studio film. Evidence:
+the user's chat notes quoted here; corresponding production briefs:
+How a click reaches you (`films/web-0a-how-a-click-reaches-you/research/brief.md` in studio-journey)
+and Where is the page made? (`films/web-0b-where-is-the-page-made/research/brief.md` in studio-journey).

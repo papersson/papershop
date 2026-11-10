@@ -184,7 +184,7 @@ DUCK = "threshold=0.02:ratio=1.3:attack=2000:release=5000:knee=2.8"
 # LU the music sits under the narration before the duck. Measured on 78 s of a shipped Kokoro
 # narration with a steady track: 26 LU under it overall, 31 dB under the voice's loud moments and
 # 29.5 in its pauses, where the clips the director approved sat (taste.md, Music).
-MUSIC_UNDER = 23.0
+MUSIC_UNDER = 39.0
 # Delays apart from any common multiple, so the reflections don't add up into a comb on one pitch.
 ROOM_TAPS = ((11.3, 0.12), (17.9, 0.10), (23.7, 0.085), (31.1, 0.07), (43.9, 0.055), (59.3, 0.04), (79.7, 0.03))
 

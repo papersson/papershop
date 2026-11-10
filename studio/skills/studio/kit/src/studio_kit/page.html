@@ -362,6 +362,8 @@ function animate(now) { const dt = Math.min(.1, (now - lastClock) / 1000) || 0; 
         notify(r.error); }).finally(() => drawBusy = false);
 } requestAnimationFrame(animate); }
 $('#play').onclick = () => play();
+// Media events keep saved-cut timestamps current even when a background tab suspends animation frames.
+video.addEventListener('timeupdate', () => { if (!liveMode && !reverse) { at = video.currentTime; if (video.ended) playing = false; updateTime(); showCaption(); } });
 $('#back').onclick = () => frame(-1);
 $('#forward').onclick = () => frame(1);
 $('#annotate').onclick = () => openNote();
@@ -453,5 +455,6 @@ else if (k === 'o') {
 } });
 new ResizeObserver(() => { const wrap = $('.screen-wrap'), screen = $('#screen'); screen.style.width = Math.min(wrap.clientWidth, wrap.clientHeight * 16 / 9) + 'px'; drawStamp = -1; paintWave(); updateTime(); }).observe($('.screen-wrap'));
 window.desk = { get state() { return S; }, get build() { return build; }, get time() { return at; }, seek, play, openNote, refresh, pollBuild, get replay() { return replay; } };
-load(true).then(() => { connect(); setInterval(pollBuild, 500); requestAnimationFrame(animate); }).catch(e => notify(e.stack || e.message));
+// Start the desk before awaiting the optional live renderer, so saved cuts remain usable if it stalls.
+load(false).then(() => { connect(); setInterval(pollBuild, 500); requestAnimationFrame(animate); return media(); }).catch(e => notify(e.stack || e.message));
 </script></body></html>

@@ -261,11 +261,15 @@ A screen film keeps one log of its desktops, `data/screens.json`, drawn by `scre
 
 New videos start with an empty `audio/sfx.json`. Default to silence. Add only the exact tactile
 events listed in `research/sound.json`; never add sounds to abstract arrivals or reveals.
-Use `studio sound-lab VIDEO` to choose those permitted effects by listening in context. `studio sfx VIDEO FILE`
+For mouse clicks, use `kit:mouse-click-pixeliota` (Pixeliota’s CC0 computer-mouse recording,
+audition B selected by Patrik). It is the kit’s `click` default and the screens layer’s default;
+keep its press/release pair together. Use an explicit `sound` as below: a bare `type: "click"`
+retains the legacy synth voice. Use `studio sound-lab VIDEO` to audition other permitted effects
+in context; change the mouse recording only for a deliberate, auditioned choice. `studio sfx VIDEO FILE`
 accepts a JSON list of effects and stores them in `audio/sfx.json`:
 
 ```json
-[{"t": "s1-button-press", "type": "click", "sound": "kit:interface-click-001",
+[{"t": "s1-button-press", "type": "click", "sound": "kit:mouse-click-pixeliota",
   "gain": 0, "visual": "land"}]
 ```
 

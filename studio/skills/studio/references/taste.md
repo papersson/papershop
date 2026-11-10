@@ -162,7 +162,7 @@ The recorded sound kit stays. Keep permitted sounds below speech, with their tra
 pictured frame. Type in human bursts, with punctuation pauses and plausible corrections; vary
 key recordings without losing rhythm. Enter, save and run accents must correspond to performed
 keys or clicks. Do not add an accent merely because an output appeared. New films get palette
-music: wallpaper, steady, far under the voice, never swelling into a pause.
+music: wallpaper, barely noticeable, never swelling into a pause.
 
 Spend emphasis on meaning. Give the strongest event more space and a closer view when it reveals
 the stake. Let the world react only as the mechanism permits. A heavy physical contact can recoil
@@ -210,6 +210,10 @@ read-aloud revision method. Put intuition before notation and say parameter name
 Over a rich picture the voice can be lighter: explain why, cost and failure, without describing
 the visible action. End with the mechanism working and a useful consequence, then give its final
 key point a still, silent breath.
+
+Make every transition follow from something the viewer has already heard or seen. Before using
+"but", "more than" or another contrast, check that its premise has actually been established.
+Read adjacent sentences as a chain of ideas; smooth wording cannot repair a missing premise.
 
 Keep production, tools used to make the film, briefs and private context out of the narration.
 Subject-specific product names and code belong when the viewer needs them. This keeps the

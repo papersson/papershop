@@ -4,7 +4,7 @@ import hashlib
 import json
 import subprocess
 
-from studio_kit import screens
+from studio_kit import screens, sfx, soundkit
 from studio_kit import timeline as tl
 from studio_kit.engine import Engine
 from studio_kit.env import engine_dir
@@ -64,6 +64,19 @@ def test_typing_rhythm_is_seeded_and_never_reads_as_autotype():
              "rate:(fast.length-1)/(fast.at(-1)-fast[0]),max:m.MAX_KEYS}")
     assert r["same"] and r["differ"]
     assert r["rate"] <= r["max"] + 1e-6
+
+
+def test_screen_click_and_kit_default_resolve_to_the_auditioned_recording():
+    r = node("return m.streams(m.compile(spec,T,spec.runs),m.SOUNDS)", spec=SPEC, T=timeline())
+    click = next(s for s in r if s["stream"].endswith("-click"))
+    chosen = click["sounds"]["click"]["sound"]
+    pinned = sfx.pinned({"type": "click", "sound": "kit"})
+    assert chosen == pinned["sound"] == "kit:mouse-click-pixeliota"
+    entry = soundkit.sound(chosen.removeprefix("kit:"))
+    pack = soundkit.load()["packs"][entry["pack"]]
+    assert pack["kind"] == "file" and pack["license"] == "CC0-1.0"
+    assert entry["sha256"] == pack["sha256"]
+    assert 0 < entry["facts"]["contact"] < entry["facts"]["samples"]
 
 
 def test_a_switch_moves_into_the_gap_between_sentences_or_says_it_cannot():

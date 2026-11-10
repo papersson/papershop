@@ -242,7 +242,10 @@ def test_the_curated_kit_has_a_default_per_type_and_a_line_per_sound():
         if s["type"] == "key-take":         # a take of typing: the grains a typing stream cuts, not one effect
             continue
         assert -16 <= f["trim_db"] <= 9, s["id"]                       # Kenney's files are hot: most come down
-        assert f["events"] == 1 or s["type"].startswith("key-"), s["id"]    # a key has its press and its release
+        if s["id"] == "mouse-click-pixeliota":
+            assert f["events"] == 2, s["id"]  # the auditioned mouse's press and release are one gesture
+        else:
+            assert f["events"] == 1 or s["type"].startswith("key-"), s["id"]
         if m["packs"][s["pack"]].get("kind") != "file":
             assert s["member"].startswith("Audio/") and s["id"].split("-")[0] in ("impact", "interface", "ui", "rpg", "casino")
 

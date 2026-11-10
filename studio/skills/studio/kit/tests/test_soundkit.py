@@ -52,7 +52,8 @@ def test_the_committed_manifest_is_valid_cc0_and_pinned_by_digest():
     assert soundkit.problems(m) == [] and 3 <= len(m["packs"]) <= 10
     for p in m["packs"].values():
         assert p["license"] == "CC0-1.0" and p["url"].startswith(("https://kenney.nl/media/pages/assets/",
-                                                                   "https://cdn.freesound.org/previews/"))
+                                                                   "https://cdn.freesound.org/previews/",
+                                                                   "https://remotion.media/mouse-click.wav"))
         assert len(p["sha256"]) == 64 and p["bytes"] > 0 and "*.url" not in p["unpack"]
     assert {"key-take", "key-enter", "key-press"} <= set(soundkit.types(m))
 
