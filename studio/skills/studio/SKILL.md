@@ -60,7 +60,8 @@ program-window components as well as diagrams and 3D; screen films use
 `references/screens.md`.
 
 Build the performed hero moments to match the accepted style frames. Sound is absent unless a
-listed tactile event earns it; that picture and sound use the same named cue.
+listed tactile event earns it; that picture and sound use the same named cue. For mouse clicks,
+use the auditioned `kit:mouse-click-pixeliota` recording (see `references/kit.md`).
 Keep one voice and speed, readable subjects that fill the frame, and time for each idea to settle.
 
 As chapters land, apply their reported shared changes and sound plans. Run the voice check,

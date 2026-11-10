@@ -169,3 +169,7 @@ clicks that are performed, nothing on an abstraction; the outcome sounds only wh
 `studio check` runs the `screens` check whenever data/screens.json exists: a name the log doesn't
 declare, a switch with no gap, an action before its desktop arrives, or stale sounds fail; a line
 that has to wrap inside a token at its window's width, or typing over the autotype ceiling, warns.
+
+Mouse clicks default to `kit:mouse-click-pixeliota`, the same auditioned recording as the
+kit reference example. `sounds.click` in `data/screens.json` can override it when the user
+chooses another sound. Preserve the recording’s press/release pair.

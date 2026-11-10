@@ -4,7 +4,7 @@ CUES.json is a list of cues:
 
   {"t": 1.5 | "reveal" | {anchor},   when: seconds, a cue or beat name, or an anchor
    "type": "click",                  the category: a synth voice's name, or a type only the kit has
-   "sound": "kit:interface-click-001", optional: one specific sound, as provider:name (synth:NAME,
+   "sound": "kit:mouse-click-pixeliota", optional: one specific sound, as provider:name (synth:NAME,
                                      kit:ID), or "kit" for the type's default recording
    "gain": 0,                        dB, optional
    "params": {"freq": 1800},         optional: what a synth reads (freq, decay, length); a recording takes none

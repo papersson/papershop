@@ -78,7 +78,7 @@ from . import audio, proc
 from . import timeline as tl
 
 SYNC_FRAMES = 1.0
-MUSIC_UNDER_MIN = 20.0   # dB the music stays under the voice while it speaks, at least
+MUSIC_UNDER_MIN = 36.0   # dB the music stays under the voice while it speaks, at least
 MUSIC_LIFT_MAX = 3.0     # dB the music may rise in the pauses, at most
 DUCK_RELEASE = 0.7       # seconds after a sentence before the pause is measured
 MASK_MARGIN = 10.0       # dB the effects and music stay under a word in its presence band

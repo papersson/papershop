@@ -409,12 +409,12 @@ export function switches(screens) {
 
 // ── Sound ───────────────────────────────────────────────────────────────────────────────────────
 /**
- * The stream's sounds by kind: the kit's typing take, its Enter, and a trackpad click; and the two
+ * The stream's sounds by kind: the kit's typing take, its Enter, and the auditioned Pixeliota mouse click; and the two
  * outcome sounds, generated, that a log turns on with `outcomeSounds` (sfx.py's finished and failed).
  */
 export const SOUNDS = {
   key: 'grains:kit:keys-typing-cherry-blue', space: 'grains:kit:keys-typing-cherry-blue#low',
-  enter: { sound: 'kit:keys-enter-press', gain: -14 }, click: { sound: 'kit:ui-mouseclick1', gain: -12 },
+  enter: { sound: 'kit:keys-enter-press', gain: -14 }, click: { sound: 'kit:mouse-click-pixeliota', gain: -12 },
   finished: { sound: 'synth:finished', gain: -2 }, failed: { sound: 'synth:failed', gain: -4 },
 }
 
