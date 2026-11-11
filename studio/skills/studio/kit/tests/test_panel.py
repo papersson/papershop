@@ -42,3 +42,9 @@ def test_expert_checks_terms_against_the_field_and_viewer_asks_for_the_whole_pat
     real collectors only receive and forward, and nobody asked."""
     assert 'real tools' in panel.ROLES['expert'] and 'simplification' in panel.ROLES['expert']
     assert 'whole path' in panel.ROLES['viewer']
+
+
+def test_viewer_says_what_the_order_of_the_picture_would_wrongly_teach():
+    """The TCP film showed segments and acks one at a time and looked turn-based, twice; the director
+    caught both, and no reader had been asked."""
+    assert 'wrongly conclude' in panel.ROLES['viewer'] and 'take turns' in panel.ROLES['viewer']

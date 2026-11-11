@@ -43,10 +43,14 @@ the stage: clear it or pull back to a new composition before the next section st
 reset after the settled rest, so the point itself has a still picture and a silent voice.
 
 Everywhere else, motion may flow, overlap the narration and move the camera, as long as it shows
-what is being said right then. There is no mandatory hold after every small change. Keep **one
-new thing at a time** for genuinely new mechanisms; avoid unrelated movements competing for
-attention. Related transformations and reframing can develop one idea continuously. Keep
-performed code typing in speech pauses, with every key heard, then explain the completed line.
+what is being said right then. There is no mandatory hold after every small change. When a change
+is one the viewer must read (a new mechanism, or a state the explanation depends on), give them
+**one place to look**: one thing changes there while everything else holds still, dimmed if it
+competes. A change that causes another change somewhere else is a second beat, shown after the
+first has finished; the voice may carry on across it. Where real events overlap, show them one at
+a time first, then once more at their true pace, so the order of the telling is not taken for the
+order of the mechanism. Related transformations and reframing can develop one idea continuously.
+Keep performed code typing in speech pauses, with every key heard, then explain the completed line.
 
 The reason is rhythm: small holds after every change create one even pace without a real rest.
 Inside an idea the picture can move freely; when the idea lands, everything stops. A section

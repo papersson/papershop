@@ -479,6 +479,19 @@ def test_a_stale_cut_is_read_where_it_put_the_event_and_says_so(tmp_path):
     assert "the cut is older than the sources: it shows this cue at frame 60, the timeline has it at frame 75" in row["detail"]
 
 
+def test_a_cut_whose_chapters_have_joins_is_compared_piece_by_piece(tmp_path, monkeypatch):
+    """The TCP film's cuts record `s1` and `s1~join`; the stale check looked the join up as a chapter
+    and stopped audio-check with StopIteration, so nobody measured that film's key sounds."""
+    from studio_kit import render
+    v = narrated(tmp_path, [{"t": "hit", "type": "pop", "visual": "appear"}])
+    made = [{"id": "s1", "key": "body"}, {"id": "s1~join", "key": "join"}]
+    monkeypatch.setattr(render, "pieces", lambda *a, **k: [dict(p) for p in made])
+    rec = {"quality": "draft", "clips": [dict(p) for p in made]}
+    assert audio_check._stale(v, rec, 1) is None
+    made[1]["key"] = "the next chapter changed"
+    assert audio_check._stale(v, rec, 1) == "s1~join"
+
+
 def test_without_narration_the_effects_are_measured_against_the_music(tmp_path):
     """A thump at +20 dB in a music-only piece passed every row."""
     v = narrated(tmp_path, [{"t": "hit", "type": "thump", "gain": 20}], bed_gain=-12)

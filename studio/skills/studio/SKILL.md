@@ -29,6 +29,8 @@ be inferred. Otherwise default to a canonical undergraduate lecture with one sma
 Three or four ideas is guidance, not a cap; breadth is welcome when each idea has room. Put the level and tone into ordinary sentences in the brief.
 
 First run `/elicit:elicit` on the request and known context (or the short fallback in `story.md`).
+Known context includes every "never" in `taste.md` and in the director's style sheet. Before
+showing the brief, drop each line of it that one of those rules forbids, and say which.
 Then show a draft quickly. If the user asked for a draft first, show it in chat before production.
 Convert the panel and brief into `research/brief.md`: the viewer, story order (historical route for origins films), ideas, hero moments, the subject-appropriate visual language and any exact metaphor mapping, permitted tactile sounds (none by default), omissions, length and level. Name key points, section ends and returns. Write `SCRIPT.md` with a beat table including breaths,
 narration and screen notes. Write and revise the narration to `references/script.md`, and read it aloud before anyone else hears it. Draw rough boards that make the picture and its scale visible.
@@ -45,6 +47,8 @@ of the same kind: the selected historical-journey reference for origins films, o
 a study reference for abstract subjects (`taste.md`), Ciechanowski or Kurzgesagt for physical ones.
 Apply the hard 3D admission test in `taste.md` and record the judgment. Then shoot to those frames. This is
 preparation within the existing story decision, not another routine approval stop.
+When the director has not seen the style frames, write down each "never" in `taste.md` and
+whether every frame obeys it, and fix what does not, before shooting.
 
 ## Shoot, in one go
 
@@ -68,8 +72,9 @@ As chapters land, apply their reported shared changes and sound plans. Run the v
 build the timeline and make one `studio cut VIDEO`. Aim for a first playable version on the desk
 10–15 minutes after story lock. Measure with `studio stage`; report actual elapsed time.
 
-Make `studio review-pack VIDEO --chapter CLIP` for every chapter. Dispatch one reviewer per
-chapter in parallel to inspect motion and frames together, once. Import their findings with
+Make `studio review-pack VIDEO --chapter CLIP` for every chapter. Dispatch two reviewers per
+chapter in parallel, once: one inspects motion and frames together, the other only where the
+viewer's eye is and what the picture's order would wrongly teach. Import their findings with
 `studio suggest VIDEO FILE`. They appear as suggested notes that the user accepts or dismisses.
 Review findings are plain files under `research/reviews/`; they never authorize production.
 

@@ -79,8 +79,15 @@ Each gets the supplied brief and script in an empty working folder to reduce con
 That directory is isolation of context, not a security sandbox. Missing perspectives are reported.
 Findings remain plain files and the user sees unresolved questions.
 
-After the first scene cut, one reviewer per chapter considers motion and frames together, in
-parallel. Each bundle samples the saved cut and includes sound evidence around its events.
+After the first scene cut, two reviewers per chapter read the same bundle in parallel. One
+considers motion and frames together. The other answers one question, window by window: where is
+the viewer's eye, and what would the order of the picture wrongly teach? It is a separate reader
+because the combined review has ten things to check, and on the TCP film every fault of attention
+(two places moving, a consequence shown while the eye was elsewhere, an order that looked like
+turn-taking) reached the director unflagged. Its findings are prefixed so the desk shows which
+reader said what. It is still one pass and never a gate; the cost is one more agent per chapter.
+The panel's viewer asks the same wrong-conclusion question of the screen notes, where a fix costs
+a sentence. Each bundle samples the saved cut and includes sound evidence around its events.
 The findings become suggested desk notes. A changed script or an applied correction never
 invalidates permission to continue. The checks remain independent of a reviewer's verdict.
 

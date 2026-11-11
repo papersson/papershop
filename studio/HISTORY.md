@@ -3,6 +3,40 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## One place to look, and a reviewer for it (0.35.0)
+
+Patrik, on looping sketches for the second cut of the TCP film: "just be careful there is not too
+much movements going on at once; take it slow", then "Clearly and slowly and clearly show this
+update, make sure to get the viewers attention. And of course while you have drawn the attention
+there, don't interrupt it by doing other stuff in the lifeline diagram above it." Afterwards he
+named the principle: "be super careful about the viewers attention -- focus it on singular things
+at the screen". taste.md already said "one new thing at a time", and nothing checked it. He had
+not yet watched the finished second cut when this was written, so the wording rests on his
+reactions to sketches.
+
+- taste.md: for a change the viewer must read, one place to look; a change that causes another
+  elsewhere is a second beat; overlapping events are shown one at a time first, then once at their
+  true pace. "There is no mandatory hold after every small change" stays, because it came from his
+  own note on the hash-table film (Part F in taste/notes.md). The chapter job in shoot.md says the same.
+- A second reviewer per chapter. `studio review-pack` now writes `ATTENTION.md` beside `PROMPT.md`.
+  Its reader goes through the motion windows and names the place to look, the rivals, whether a
+  consequence waits, whether an absence is drawn, and what the order would wrongly teach, then
+  writes `attention.json` for `studio suggest`. The combined reviewer is told to leave those.
+- The panel's viewer answers the wrong-conclusion question for each screen note. Showing TCP one
+  event at a time looked turn-based twice, and the director caught both.
+- SKILL.md: the elicit step is given every written "never" and drops brief lines that break one
+  (four lines of that film's brief did); style frames the director has not seen are checked
+  against each "never" in writing (the first cut was boxes and arrows and accepted its own frames).
+- kodawari.md: on an existing film, start the box with what it already does well; for a mechanism,
+  a looping sketch of the hero scene's order of beats before the engine; the bible names one cue
+  per essential idea.
+- `studio audio-check` stopped with StopIteration on any cut whose chapters have joins: the stale
+  check looked up `s1~join` as a chapter. It now compares rendered pieces. Both TCP cuts hit this,
+  so their key sounds were never measured.
+
+Not done: a check that fails when two places move at once. The build thread wrote one for that
+film (`sims/motion_check.mjs`), and it needs every scene to declare its moving parts.
+
 ## Music barely noticeable; an auditioned mouse click (0.34.2)
 
 Written on 2026-11-05 as 0.32.1 in the Mac checkout and never committed, so installed copies lacked the click and films could only be cut from that checkout; carried onto 0.34.1 for the move to cloud sessions.

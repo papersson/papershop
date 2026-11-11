@@ -308,7 +308,7 @@ that pronunciation or balance sounds right. A missing listening pass never block
 | `shoot VIDEO` | Narration, timeline and chapter briefs with spawn prompts. |
 | `check VIDEO --chapter CLIP` | Private chapter checks and stills under `.cache/chapters/CLIP/`. |
 | `cut VIDEO [--stills-only] [--quality draft|final]` | Saved stills and an incremental playable version. |
-| `review-pack VIDEO --chapter CLIP [--cut N]` | Combined frame, motion and sound evidence from that cut. |
+| `review-pack VIDEO --chapter CLIP [--cut N]` | Frame, motion and sound evidence from that cut, with one brief for the combined review and one for attention. |
 | `suggest VIDEO FILE` | Reviewer findings as suggested desk notes. |
 | `desk VIDEO`, `serve VIDEO` | The local desktop review page. |
 | `notes VIDEO`, `wait VIDEO`, `status VIDEO TEXT` | The note loop described in `desk.md`. |

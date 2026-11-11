@@ -228,7 +228,7 @@ COMMANDS = {
     "reel": ("narrate and hold the story boards to the real voice, with a pacing report", [W("video")], "reel:main"),
     "panel": ("one parallel reading of the brief by an expert, viewer and editor", [V("video")], "panel:main"),
     "suggest": ("import reviewer findings as suggested notes for the user on the desk", [V("video"), P("file")], "suggest:main"),
-    "review-pack": ("combine motion windows, frame stills and sound for one chapter reviewer", [
+    "review-pack": ("combine motion windows, frame stills and sound for one chapter, with a brief for each of its two reviewers", [
         V("video"), A("--chapter", required=True), A("--cut", type=int),
     ], "review_pack:main"),
     "shoot": ("narrate and write a separate brief for each parallel chapter agent", [W("video")], "shoot:main"),

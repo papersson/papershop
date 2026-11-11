@@ -56,8 +56,10 @@ tagline and is never spoken; it is a test.
 worlds, different ways of drawing, different ideas of who the characters are. Not one idea in
 five colour schemes. Four rounds of code-drawn character variations failed this way ("too
 similar", "generic blobs", "flat"). Make each route cheap: one still, a two-second motion test, an
-eight-bar music sketch, one narrated sentence. Put all the routes side by side on one page at the
-same size. Bill Buxton's rule: many cheap sketches before one polished design.
+eight-bar music sketch, one narrated sentence. For a mechanism, sketch the hero scene's whole
+order of beats as a looping page and play it in real time: the director can react to pace and to
+where the eye goes within a minute, before the engine is touched. Put all the routes side by side
+on one page at the same size. Bill Buxton's rule: many cheap sketches before one polished design.
 
 Describe characters by personality before drawing them. One-liners such as "tiny but proud",
 "very old and very slow, guards the heavy book" and "mostly pocket" produced characters the
@@ -85,6 +87,7 @@ enough to read in two minutes:
   crisp (screens and their content stay crisp).
 - **Motion and acting:** how things move and how characters act, such as wind-up and catch,
   hesitation and small habits. The director liked the acting more than the drawings.
+- **Ideas:** each essential idea and the one cue that carries it, the same in every scene.
 - **Cast:** each character, what it stands for in the mechanism, its personality in one line and
   its acting habits.
 - **World:** the ground, the landscape and the props, drawn in the same hand as the cast.
@@ -118,7 +121,9 @@ The process is the same, with three differences.
   0b remake was made this way.
 - **Keep what already works.** Narration, timing and story usually stay; the remake changes the
   look, the cast and the world. Start the box from the director's notes on the existing film: what
-  they loved stays in the bible, and what felt generic is where the routes should go. When the
+  they loved stays in the bible, and what felt generic is where the routes should go. Start the
+  box with what the current film already does well, in the director's words, and redraw those
+  pictures in the new hand instead of replacing them. When the
   narration and timing don't change, reuse the existing narration and re-render only the picture.
 - **The film is its own generic frame.** For the blind comparison in step 6, use the existing
   film's frame at the same moment as the generic version. It is the real thing the director

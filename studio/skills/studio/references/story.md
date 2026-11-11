@@ -114,7 +114,8 @@ field uses differently still misleads.
 
 Run `studio panel VIDEO` once during this story session; `studio shoot` refuses to start without it. Expert, viewer and editor each read the
 brief and the script if present, in parallel and in an empty working folder. They ask about factual
-claims, prerequisites and the shape of the explanation. Their findings are saved together as
+claims, prerequisites and the shape of the explanation. The viewer also says, for each screen
+note, what its order or grouping would wrongly teach, where a fix still costs one sentence. Their findings are saved together as
 `research/reviews/panel-<n>.md`. Bring the useful questions and missing readings to the user.
 A model viewer's
 reaction is a diagnostic, and the real user's response settles the level and pace.

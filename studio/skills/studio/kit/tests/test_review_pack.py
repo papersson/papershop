@@ -30,3 +30,26 @@ def test_pack_combines_saved_frames_motion_and_sound_for_only_one_chapter(tmp_pa
     assert (out / hit['sound_sheet']).exists()
     assert (out / 'SCRIPT.md').read_text() == 'This is the saved script.'
     assert 'findings.json' in (out / 'PROMPT.md').read_text()
+
+
+def test_pack_briefs_a_second_reviewer_on_attention_and_its_findings_import(tmp_path):
+    """On the TCP film the director caught every fault of attention himself: motion in two places,
+    a consequence shown while the eye was elsewhere, and an order that looked like turn-taking."""
+    from studio_kit import suggest
+    from studio_kit.env import ROOT
+    atomic_json(tmp_path / 'video.json', {'engine': 'live', 'clips': [{'id': 's1', 'seconds': 2}, {'id': 's2', 'seconds': 2}]})
+    t = tl.build(tmp_path)
+    n, saved = cuts.allocate(tmp_path)
+    proc.ffmpeg('-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=30:duration=4', '-c:v', 'libx264', '-preset', 'ultrafast',
+                '-pix_fmt', 'yuv420p', saved / 'video.mp4')
+    atomic_json(saved / 'timeline.json', t)
+    atomic_json(saved / 'layout.json', tl.layout(tmp_path))
+    cuts.write(tmp_path, n, {'cut': n, 'kind': 'cut', 'quality': 'draft', 'video': 'video.mp4', 'clips': []})
+    out = review_pack.make(tmp_path, 's2')
+    brief = (out / 'ATTENTION.md').read_text()
+    assert 'attention.json' in brief and 'wrong conclusion' in brief and 'take turns' in brief
+    assert 'one place to look' in brief and 'one place to look' in (ROOT / 'references/taste.md').read_text()
+    assert 'ATTENTION.md' in (out / 'PROMPT.md').read_text()
+    (out / 'attention.json').write_text(brief[brief.index('{'):brief.rindex('}') + 1])
+    (note,) = suggest.import_file(tmp_path, out / 'attention.json')
+    assert note['clip'] == 's2' and note['kind'] == 'picture' and note['note'].startswith('Attention:')

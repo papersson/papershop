@@ -94,3 +94,25 @@ and high-level scope apply to this pair, not automatically to every Studio film.
 the user's chat notes quoted here; corresponding production briefs:
 How a click reaches you (`films/web-0a-how-a-click-reaches-you/research/brief.md` in studio-journey)
 and Where is the page made? (`films/web-0b-where-is-the-page-made/research/brief.md` in studio-journey).
+
+TCP film sketches (2026-11-11), reactions to looping sketches of the second cut's hero scene; the
+director had not yet watched the finished cut when this was written: “just be careful there is not
+too much movements going on at once; take it slow, otherwise it risks looking and feeling
+busy/overwhelming”; “Clearly and slowly and clearly show this update, make sure to get the viewers
+attention. And of course while you have drawn the attention there, don't interrupt it by doing
+other stuff in the lifeline diagram above it.” Afterwards, as a principle: “be super careful about
+the viewers attention -- focus it on singular things at the screen at all times (or most time, or
+well when singular and focused attention is important)”. Hence one place to look for a change the
+viewer must read, and a consequence elsewhere as its own beat. This narrows Part F and keeps it:
+motion still flows between key points, and a change nobody has to read is owed no hold. Shown one
+at a time, the exchange then looked turn-based, twice: “Does it look like the client sends, then
+waits for server, then sends again?”; “it now looks like the sender always sends a burst of its
+data, and then the server responds.” Hence the replay at true pace, and the question the panel's
+viewer and the attention reviewer now answer: what would a viewer wrongly conclude from this
+order? “I think we should clearly signify how there is no ACK on segment 2 that was lost”: draw an
+absence and give it a beat. Two notes on the first cut repeated rules already written (“I don't
+want just boxes everywhere”; “Remove all references to "the real run"”), from a build that accepted
+its own style frames; hence the written check of every "never" when the director has not seen the
+frames. Evidence: the user's chat notes quoted here; the session's
+[retrospective](https://claude.ai/artifact/78Abqd2JaUeKD37A261o9H). The film lives in a cloud
+session's scratch folder (`tcp-video-v2`), not yet in studio-journey.
