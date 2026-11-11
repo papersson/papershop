@@ -52,8 +52,11 @@ Build chapter CLIP of VIDEO. First use Read on the unique job path printed by st
 Read that job, SKILL_ROOT/references/taste.md and SKILL_ROOT/references/kit.md.
 The story and voice are settled. Build the chapter in one pass, including its performed hero
 moment, matching the accepted style frames. Follow the marked breaths: still and silent at key
-points, then reset between sections. Let related motion flow under narration elsewhere; introduce
-one genuinely new mechanism at a time and leave unrelated things still. Make the subject large enough to inspect. Use only the listed tactile sounds.
+points, then reset between sections. Let related motion flow under narration elsewhere. Where the
+viewer must read a change, give them one place to look: a change that causes another elsewhere is
+a second beat, and the first place stays still while it plays. A deliberate hold the script does
+not mark as a breath is a shared change to report, so the pacing check can tell it from dead time.
+Make the subject large enough to inspect. Use only the listed tactile sounds.
 
 Write only VIDEO/scenes/CLIP.js, VIDEO/cues/CLIP.json and VIDEO/data/CLIP/.
 Treat shared files as read-only, including the script, narration, layout, boards, timeline,
@@ -95,11 +98,12 @@ Once every chapter has landed, run `studio timeline VIDEO --events`, `studio che
 A first version 10–15 minutes after story lock is the target; stage timing records what happened.
 Keep final resolution for the user's shipping decision.
 
-## One combined review per chapter
+## Two reviewers per chapter
 
 After the first cut, run `studio review-pack VIDEO --chapter CLIP` for each chapter. These commands
 can run concurrently because each writes its own folder under `research/reviews/cutN/CLIP/`.
-Wait for the bundle paths, then dispatch one reviewer per chapter together using the Agent tool:
+Wait for the bundle paths, then dispatch two reviewers per chapter, all together, using the Agent
+tool. The first gives the combined review:
 
 ```text
 Read BUNDLE/PROMPT.md and review the saved chapter once. Inspect its frame stills beside the accepted style frames and a reference of the same kind
@@ -110,8 +114,20 @@ Write BUNDLE/findings.json in the documented shape. State any evidence you could
 Do not edit video sources. Return the findings file path and a short account of what you saw.
 ```
 
+The second looks only at where the viewer's eye is. It answers, for every motion window: the one
+place to look, what else changes and where, whether a consequence gets its own beat, whether
+something that did not happen is drawn, and what the order of the picture would wrongly teach.
+
+```text
+Read BUNDLE/ATTENTION.md and follow it once, window by window. Judge only where the viewer's eye is
+and what the picture's order would teach; the other reviewer covers the rest. Sample extra frames from the saved
+movie when a motion sheet is too coarse to tell whether two changes overlap. Write BUNDLE/attention.json
+in the documented shape. State any evidence you could not inspect.
+Do not edit video sources. Return the findings file path and, for each window, the place you named.
+```
+
 The bundle holds frame images, motion strips, sound sheets, the saved script and timeline, and a
-manifest. Findings use absolute video seconds or a sentence id from that cut. Import each file
-with `studio suggest VIDEO BUNDLE/findings.json`. The desk labels the resulting notes `review`
-and `suggested`. The user accepts or dismisses them. Continue with `desk.md`; there is one pass,
+manifest. Findings use absolute video seconds or a sentence id from that cut. Import both files
+with `studio suggest VIDEO BUNDLE/findings.json` and `studio suggest VIDEO BUNDLE/attention.json`.
+The desk labels the resulting notes `review` and `suggested`. The user accepts or dismisses them. Continue with `desk.md`; there is one pass,
 with no automatic repeat grading or verdict that gates a cut.

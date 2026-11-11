@@ -12,7 +12,10 @@ ROLES = {
               "differently, and propose either the standard term or a sentence that names the simplification.",
     "viewer": "Read at the viewer's stated level. Identify unexplained prerequisites, excess ideas, confusing terms and places to predict a toy example. "
               "When the subject is a system of parts, say whether you could state its whole path after reading: what produces what, where it travels "
-              "and what reads it. Quote the sentence that states it, or say that none does.",
+              "and what reads it. Quote the sentence that states it, or say that none does. "
+              "Then, for each screen note, say what a viewer could wrongly conclude from the order or grouping it describes that is not true "
+              "of the subject, for example that two parties take turns because the picture shows them one at a time. Quote the sentence or "
+              "screen note that prevents the wrong conclusion, or say that none does.",
     "editor": "Check canonical lecture order, useful insights, hero moments, numerical density, omissions and content-sized holds. A governing question and protagonist are optional. Point out scope that obscures the explanation. "
               f"Hear the narration against {ROOT / 'references/script.md'}: quote sentences where attention drops, the camera is narrated, a claim is defended or no question is open, and say whether the ending answers the opening.",
 }

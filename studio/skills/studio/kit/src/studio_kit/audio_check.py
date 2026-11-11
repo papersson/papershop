@@ -901,12 +901,14 @@ def sheets(video, timeline, found, rows):
 
 
 def _stale(video, rec, n):
-    """Name changed clips so sound measurements describe the picture they actually sampled."""
-    from .keys import clip_key
+    """Name changed pieces so sound measurements describe the picture they actually sampled. A cut
+    records rendered pieces, and a chapter with a join is two of them (`s1` and `s1~join`), so the
+    comparison is piece by piece: looking a join up as a chapter stopped the whole check."""
+    from .render import pieces
     try:
         current = tl.load(video)
-        changed = [c["id"] for c in rec.get("clips", [])
-                   if c["key"] != clip_key(video, current, c["id"], rec.get("quality", "draft"))]
+        now = {p["id"]: p["key"] for p in pieces(video, current, rec.get("quality", "draft"))}
+        changed = [c["id"] for c in rec.get("clips", []) if now.get(c["id"]) != c["key"]]
         return ", ".join(changed) or None
     except (OSError, ValueError, KeyError, SystemExit):
         return None
