@@ -11,8 +11,8 @@ in the swarm testing paper (Groce and others, ISSTA 2012).
   Enable a random subset per case. Many stateful libraries do this already; check
   (`refs/tools.md`).
 - **Suppression unnoticed.** An action that is always present can prevent the state a bug needs: a
-  pop keeps the stack from growing, a consumer keeps the queue short, a decision keeps an item from
-  being superseded ten times. Symmetric pairs (put and delete, create and destroy) are the signal.
+  pop keeps the stack from growing, a consumer keeps the queue short, a delete keeps the key
+  count below the point where compaction starts. Symmetric pairs (put and delete, create and destroy) are the signal.
 - **Fixed or uniform weights.** Enabled actions are chosen in the same proportions in every case.
   Draw the weights per case.
 - **Fixed ordering.** The harness imposes create, use, delete. Bugs need delete before create, use
