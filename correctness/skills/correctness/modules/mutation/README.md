@@ -7,13 +7,19 @@ A workload that has never failed has shown nothing yet. Mutation testing breaks 
 purpose, one small change at a time, and checks that the property meant to guard that behaviour
 fails. A mutant is *killed* if it does and *survived* if every check still passes.
 
-Only safety properties are mutated. Liveness and reachability properties are validated by the
-baseline run: their `Sometimes` and `Reachable` assertions must fire on the unmutated SUT.
+Only safety properties are mutated: those checked with `Always`, `AlwaysOrUnreachable` and
+`Unreachable`. Properties checked with `Sometimes` and `Reachable` are validated by the baseline
+run instead: those assertions must fire on the unmutated SUT.
 
 ## Before starting
 
-Run the workload on the unmutated SUT and record the baseline: it passes, and its reach
-assertions fire. A mutation run against a failing or unreached baseline tells you nothing.
+Run the workload on the unmutated SUT and record the baseline: which properties pass, and that
+the reach assertions fire.
+
+A property that already fails on the baseline cannot be mutated: its counterexample is the
+evidence that it can fail. Mutate only the properties that pass. If the user has agreed to fixes,
+fix the defects first and take the baseline again; if not, say which properties were left out and
+why. Apply mutants to a copy of the SUT, never to the working tree.
 
 ## Designing a mutant
 

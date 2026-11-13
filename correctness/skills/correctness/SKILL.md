@@ -127,7 +127,8 @@ touched, and where findings should be reported.
   minimal counterexample is also the easiest to read.
 - Randomize the policy per test case, not only the choices under a fixed policy
   (`modules/review-inputs/`).
-- Never skip a case silently. Count what a precondition filtered, and print it.
+- Never skip a case silently. Count what was filtered, and print it. Where the library filters
+  before a rule runs and gives no count, move the condition inside the rule and record an event.
 - Never narrow a generator to step around a known bug. Keep the bug as an expected failure.
 - Before believing a passing run, print what it generated and check that the states that matter
   were reached (`Sometimes` and `Reachable` assertions).

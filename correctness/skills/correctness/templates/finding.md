@@ -16,7 +16,7 @@ Step by step, in plain words: who did what, and what the stores say at the end.
 
 ## Cause
 
-**Class:** SUT defect | fake infidelity | wrong property | workload defect
+**Class:** SUT defect | false assumption | fake infidelity | wrong property | workload defect
 **Mechanism:** the line or the interleaving.
 
 ## Fix

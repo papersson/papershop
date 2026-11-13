@@ -36,6 +36,11 @@ are weighted, how many targets there are, how long the run is, how the system st
 6. **Report**, in this order: what the workload does, as you understand it, so the user can
    correct you; the findings by tier; what the workload already does well.
 
+## Who reviews
+
+Do not review a workload you wrote in the same session; you will find what you already know. Give
+it to a fresh agent with this module, or skip the review and say it was skipped.
+
 ## Tone and scope
 
 Findings are ceilings on what the workload can reach, not defects. A workload with several of

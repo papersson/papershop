@@ -42,6 +42,12 @@ Choose the type by what the property means, and record the reason in the catalog
 | `Reachable` | the line is executed at least once | proof a path was exercised | a recorded event at that line |
 | `Unreachable` | the line is never executed | a path that must not run | an assertion that fails if reached |
 
+**"Every X is eventually Y"** has no assertion type of its own. In a finite test, write it as a
+safety property at quiescence: once the driver has stopped injecting faults and nothing is
+pending, every X is Y. Pair it with a `Sometimes` that quiescence with at least one X was reached,
+so the check is known to have run. The table's `AlwaysOrUnreachable` is the type for the first
+half.
+
 `Sometimes` is not a weak `Always`. It is the check that a passing run was not vacuous: if the
 workload exists to reach "two messages for the same record pending at once", assert that it
 sometimes does. A library that prints per-run event statistics gives you the count; a run where a

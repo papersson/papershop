@@ -63,7 +63,11 @@ about five seconds.
 Use these when Hegel does not fit the stack. Facts are for the versions named.
 
 - **Hypothesis** (Python), 6.170: `RuleBasedStateMachine`. Swarm testing over rules is built in.
-  Invariants run after every step. `event()` with `--hypothesis-show-statistics` shows what was
+  Invariants run after every step. Keep all invariants in one machine: a test case stops at its
+  first failing invariant, so fix or mark that one as expected and run again, instead of building
+  a machine per property. A `@precondition` filters a rule before it runs and cannot be counted
+  from inside it; the statistics report cases that could make no progress as invalid, and a
+  condition that must be counted belongs inside the rule, with an event. `event()` with `--hypothesis-show-statistics` shows what was
   generated. Failures replay from a local database, from `--hypothesis-seed`, or from a
   `@reproduce_failure` token.
 - **fast-check** (TypeScript), 4.10: `fc.commands` with `fc.modelRun`. No swarm testing: every

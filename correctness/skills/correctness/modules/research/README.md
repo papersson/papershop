@@ -14,6 +14,9 @@ Ask once, and record the answer verbatim in every artifact's provenance:
 > write-ups or chat channels outside this directory that I should also consult? "Just this
 > directory" is fine.
 
+If nobody can answer (an unattended run), record "not asked: unattended" in the provenance,
+work from the directory alone, and list what you would have asked under open questions.
+
 Beyond that, ask only what you cannot infer safely: which component is the SUT, and which known
 incidents or failure modes matter most.
 
@@ -41,6 +44,13 @@ incidents or failure modes matter most.
 9. **Evaluate the catalog as a whole.** Which focuses produced nothing, and is that because the
    SUT has nothing there or because nobody looked? Which properties imply others? Which are too
    vague to fail?
+
+## Scale the artifacts to the SUT
+
+For a component of a few hundred lines, put the evidence in the catalog entry and write a separate
+evidence file only for a property with open questions or a long code path. Record a focus that
+yields nothing in one line, with the reason. The full set of files is for a system too large to
+hold in mind.
 
 ## Guidance
 
