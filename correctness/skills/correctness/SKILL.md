@@ -26,6 +26,12 @@ the workload with its faults, triage and mutation testing. They lean on each oth
 kept in another file is a step that gets skipped. Only what belongs to a different run mode, a
 different question or a different agent has a file of its own ("Other files", near the end).
 
+**Read it again when your context has been compacted.** A long task outlives the context it
+started in, and after a compaction only the beginning of this file is kept. If you cannot see the
+part you are working in, read this file again from disk before going on. The parts, in order:
+Research, Fakes, Workload (with Faults), Triage, Mutation testing, Other files, Before declaring
+done. The scratchbook is on disk and survives; start from what it already holds.
+
 It borrows its vocabulary and much of its method from Antithesis's public skills (see
 `refs/sources.md`). The product itself is not required. What it would add, deterministic replay of
 a whole deployed system and system-level fault injection, is named wherever its absence matters.

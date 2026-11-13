@@ -11,7 +11,10 @@ mutation testing are all in SKILL.md, about eight thousand words. SKILL.md is th
 agent is certain to read, and an instruction to go and read four more is an instruction that can
 be skipped, along with whatever those files said. A file of its own is kept for what is truly
 conditional (the two other run modes, the audit, model checking, the type-system detail of a fix
-by design) and for the two briefs that are handed to a different agent.
+by design) and for the two briefs that are handed to a different agent. The file is longer than
+a skill usually is, and a harness that compacts a long session keeps only its beginning. So the
+rules come first, and the file says to read it again after a compaction and names its parts, so
+that an agent that has lost the later ones knows they exist.
 
 **Antithesis's vocabulary.** Their skills and plugin are where this method is being worked out in
 public. Using their terms (SUT, workload, driver, property, assertion types, fault, property
