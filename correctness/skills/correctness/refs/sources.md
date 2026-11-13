@@ -31,7 +31,7 @@ Left out on purpose: everything that launches, inspects or debugs runs on the pl
 container topology for it, and its SDK calls.
 
 Added here, with no counterpart there: fakes and their verification, the assumption register, the
-audit of stored data, the in-process run mode, and model checking.
+audit of stored data, the in-process run mode, model checking, and confirmation by a person.
 
 ## Other sources
 
@@ -46,6 +46,27 @@ audit of stored data, the in-process run mode, and model checking.
   typed, and two still needed the workload.
 - **Yuan and others, "Simple Testing Can Prevent Most Critical Failures", OSDI 2014.** Mishandled
   errors as a cause of serious failures; the reason failure-recovery gets its own attention focus.
+- **Wayne, "Intro to property-based testing for web applications", Antithesis, October 2026.**
+  Slide text only; the recording was not watched. People choose the properties and agents
+  implement them.
+- **Brown PLT, "Human Judgment as a Specification" (PICK), blog post, June 2026.** Read as a
+  summary of the post; the ECOOP paper was not read. Ask a person about concrete inputs on which
+  candidate specifications disagree, and ask few questions. Used in research step 10, the second
+  pass of `modules/fakes/README.md` and `templates/question.md`.
+- **Wilson with Minsky, "Why Testing is Hard and How to Fix it", Signals and Threads, March
+  2026.** Transcript. Three ideas: concrete questions draw out properties that "what are your
+  properties?" does not; alerts that would page are properties; a dependency should sometimes be
+  made to do the worst its contract allows. Wilson calls the last "bugification". FoundationDB's
+  macro is `BUGGIFY`, checked against a summary of the article "Deterministic Simulation Testing:
+  BUGGIFY" (transactional.blog, 2021), not against FoundationDB's source.
+- **Fioraldi, D'Elia and Balzarotti, "The Use of Likely Invariants as Feedback for Fuzzers",
+  USENIX Security 2021.** Abstract only. The nearest published form found of the idea that a rule
+  the data almost always obeys is worth treating as a candidate property. Wilson mentions
+  "speculative properties" from "a paper somewhere"; that term was not traced to a source.
+- **Minsky, "Software Engineering in the Age of Agents", talk, 2026.** Transcript. His
+  "differential verification" ("this diff is a noop with respect to the following properties") is
+  about proofs. The differential check of a refactoring in `modules/workload/in-process.md`
+  applies the same question with generated tests, which is ordinary differential testing.
 - **Tool documentation and source**, read on 2026-11-13: hegeldev/hegel (README, the Java frontend
   README and `Stateful.java`), antithesishq/bombadil (README and manual sources).
 
@@ -57,8 +78,18 @@ runs reaching ten actions on one record were 5.29% of 20,000 uniform runs with 3
 20,000 with 12 records, and 44.2% of 2,000 test cases with a pool of one to three records drawn
 per case. They illustrate the effect; they are not a general law.
 
+The two-fakes example in the plugin's `README.md` was written for that page and is printed
+there in full. Run on 2026-11-13 with Hypothesis 6.170.15 on Python 3.13, derandomized, 300 test
+cases per fake: it passes against the fake that hides a taken job until it is acknowledged and
+fails against the one that hands it out again after a timeout, with a counterexample of four
+steps. The pass is not empty: counted once, separately, in 36 of the cases generated against the
+first fake a worker asked for a job while another had been out for the full timeout.
+
 ## What is not established
 
 - The stateful APIs of Hegel's Rust, Go, Python, C++ and OCaml frontends were not run.
 - The deployed run mode was not exercised at all in preparing this skill.
 - The skill has not yet been run end to end on a real system.
+- The confirm step and `templates/question.md` have not been used with a real owning team.
+- The differential check of a refactoring and the whole-contract switches were not run in
+  preparing this skill.

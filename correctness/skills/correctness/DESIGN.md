@@ -25,10 +25,29 @@ evidence, owners' confirmation and a mechanical comparison.
 detected or avoided. Listing them separately is what exposes the ones nobody wrote down, and each
 row gives the fake a switch, the workload an action and the audit a check.
 
+**People confirm, by scenario.** An agent can read everything and still not know what the owners
+intend, and agents are reported to be poor at choosing properties and good at implementing them.
+So every property and every fake starts as a proposal. A person confirms it by answering one
+concrete scenario, because people judge a case well and approve an abstract statement without
+reading it closely. Where two candidates exist, the scenario is one on which they disagree, so
+each question removes a candidate. Until then a property is recorded, not enforced: its
+violations become the next questions. The question is an artifact with a template, like every
+other step's output.
+
+**Fakes use the whole contract.** A fake written from observed behaviour is as punctual and
+orderly as the service usually is, and the SUT is then never tested against what the service is
+allowed to do. Switches for the rare, permitted behaviour, drawn in every test case, close that
+gap. This is separate from the switches that make an assumption false.
+
 **An audit module.** Every generated test case starts from a state the generator can build.
 Production got to its state by other routes. Properties written as functions over stores can be
 run against that state, read-only, with no harness, which makes the audit the cheapest first step
 on an existing system.
+
+**Production already states some properties.** An alert that pages someone is a property the
+team agreed on, checked after the damage. Stored data shows which proposed properties hold
+almost everywhere, and the exceptions are concrete cases to ask about. Both are cheaper sources
+of candidates than reading code, and both come with an owner.
 
 **Review of inputs and mutation testing are separate.** One asks whether the workload reaches the
 states that matter; the other asks whether a property would notice a bug once there. A surviving
@@ -45,6 +64,11 @@ and what relates run-time values, stores or moments cannot. Antithesis's skills 
 this, since they test systems as they are. It is kept to one leaf under triage, a field in the
 property template and a step in mutation testing, so the skill stays a testing skill and does not
 turn into a design guide.
+
+**Refactorings are checked differentially.** Once a seam exists, the old and new versions of the
+SUT can run on the same generated sequences against the same fakes, which checks a refactoring
+on orderings no characterization test lists. It matters most for a fix by design, where the
+change is large.
 
 **Hegel and Bombadil as defaults.** Both are open source, run without the platform, and were run
 before being named here. Hegel has the same stateful shape across languages, with swarm testing

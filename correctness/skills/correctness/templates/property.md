@@ -11,6 +11,7 @@
 **Priority:** high | medium | low, and why.
 **Enforceable by construction:** by the data type | by an abstract type with a smart constructor | no: a relation between values, cross-store, temporal, concurrent, or about a dependency
 **Found under:** the attention focuses that surfaced it.
+**Confirmed:** no | by whom, when, with which question (`questions/{id}.md`)
 **Status:** proposed | checked by workload | checked by audit | invalidated (reason)
 **Open questions:**
 - (needs human input) ...

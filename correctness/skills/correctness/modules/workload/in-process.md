@@ -20,6 +20,11 @@ the clock, randomness, and concurrency.
   hand it in: a constructor parameter, a function argument, an interface with two implementations.
 - Before changing any behaviour, record what the code does today with a characterization test, so
   the refactoring is checked against the present, not against intentions.
+- Once the seam exists, check every later refactoring of the SUT differentially: keep the old
+  version, run old and new on the same generated sequences against the same fakes, and compare
+  the stores after every step. A characterization test covers the examples someone thought of;
+  this covers the orderings nobody did. The seam itself cannot be checked this way unless the old
+  code can run against local dependencies, so keep that first change small enough to read.
 - If a type or effect system can show the seam in the function's signature, use it. A handler
   whose type names the stores it needs cannot quietly grow a new dependency.
 
