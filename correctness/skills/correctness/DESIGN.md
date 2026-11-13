@@ -76,8 +76,8 @@ SUT can run on the same generated sequences against the same fakes, which checks
 on orderings no characterization test lists. It matters most for a fix by design, where the
 change is large.
 
-**Hegel and Bombadil as defaults.** Both are open source, run without the platform, and were run
-before being named here. Hegel has the same stateful shape across languages, with swarm testing
+**Hegel and Bombadil as defaults.** Both are open source and run without the platform
+(`refs/tools.md` names the versions verified). Hegel has the same stateful shape across languages, with swarm testing
 built in, and its drivers are what the Antithesis plugin itself writes. Other libraries are
 listed for stacks where it does not fit.
 
@@ -88,4 +88,4 @@ it is written.
 **How to test this skill.** Give it a small system with known defects and known minimal
 counterexamples, and see whether research proposes the properties, the workload finds the
 defects, and mutation testing reports the properties that are too weak. A skill that cannot
-rediscover a known bug on a toy is not ready for a real system.
+rediscover a known bug in a small system is not ready for a large one.

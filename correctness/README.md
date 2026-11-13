@@ -9,8 +9,8 @@ split between agents, people and programs, and why.
 ## How the work is divided
 
 The skill tests one component with everything it talks to replaced by a fake: a small in-memory
-stand-in. The test generates random sequences of actions and checks a property, a statement that
-must hold after every step.
+replacement that behaves like the real dependency. The test generates random sequences of
+actions and checks a property, a statement that must hold after every step.
 
 Here is one such test. A worker takes jobs from a queue. Each job asks for a report to be posted
 to a channel. The worker takes a job, posts the report, and acknowledges the job afterwards. The
@@ -52,10 +52,10 @@ service or the evidence changes.
 
 ## Status
 
-The example was written for this page; the script is below. The skill has not yet been run end to
-end on a real system, and the confirm step has not been tried with a real owning team.
-[`refs/sources.md`](skills/correctness/refs/sources.md) lists what was read, what was run and
-what was not.
+The script behind the example is below. The skill has not yet been run end to end on a
+production system, and the confirm step has not been tried with an owning team.
+[`refs/sources.md`](skills/correctness/refs/sources.md) lists what was read, what was verified
+and what was not.
 
 <details>
 <summary>The script behind the example (<code>uv run two_fakes.py</code>)</summary>

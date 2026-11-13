@@ -1,6 +1,6 @@
 # Sources
 
-What each source contributes, what was actually read, and what this skill leaves out.
+What each source contributes, how much of it was read, and what this skill leaves out.
 
 ## Adapted from Antithesis's public skills
 
@@ -40,10 +40,7 @@ audit of stored data, the in-process run mode, model checking, and confirmation 
 - **Feathers, *Working Effectively with Legacy Code*.** Seams and characterization tests.
 - **Meszaros, *xUnit Test Patterns*.** Test doubles, and the distinction between a fake and a mock.
 - **Minsky, "make illegal states unrepresentable"; King, "Parse, don't validate"; Strom and
-  Yemini, "Typestate" (1986).** The basis of `modules/fix-by-design.md`. Which properties a
-  redesign made redundant in the author's course was established by rerunning mutants: one
-  property became unrepresentable, one was half covered because the language is structurally
-  typed, and two still needed the workload.
+  Yemini, "Typestate" (1986).** The basis of `modules/fix-by-design.md`.
 - **Yuan and others, "Simple Testing Can Prevent Most Critical Failures", OSDI 2014.** Mishandled
   errors as a cause of serious failures; the reason failure-recovery gets its own attention focus.
 - **Wayne, "Intro to property-based testing for web applications", Antithesis, October 2026.**
@@ -70,26 +67,18 @@ audit of stored data, the in-process run mode, model checking, and confirmation 
 - **Tool documentation and source**, read on 2026-11-13: hegeldev/hegel (README, the Java frontend
   README and `Stateful.java`), antithesishq/bombadil (README and manual sources).
 
-## Measurements quoted
+## The example in the plugin's README
 
-The figures in `refs/anti-patterns.md` under "Large uniform pools" were measured
-by the author on a 164-line toy pipeline in a private course repository, with Hypothesis 6.170.15:
-runs reaching ten actions on one record were 5.29% of 20,000 uniform runs with 3 records, 0 of
-20,000 with 12 records, and 44.2% of 2,000 test cases with a pool of one to three records drawn
-per case. They illustrate the effect; they are not a general law.
+The two-fakes example in the plugin's `README.md` is printed there in full and can be rerun with
+`uv run`. With Hypothesis 6.170.15 on Python 3.13, derandomized, 300 test cases per fake, it
+passes against the fake that hides a taken job until it is acknowledged and fails against the one
+that hands it out again after a timeout, with a counterexample of four steps. The pass is not
+empty: in 36 of the cases generated against the first fake, a worker asked for a job while
+another had been out for the full timeout.
 
-The two-fakes example in the plugin's `README.md` was written for that page and is printed
-there in full. Run on 2026-11-13 with Hypothesis 6.170.15 on Python 3.13, derandomized, 300 test
-cases per fake: it passes against the fake that hides a taken job until it is acknowledged and
-fails against the one that hands it out again after a timeout, with a counterexample of four
-steps. The pass is not empty: counted once, separately, in 36 of the cases generated against the
-first fake a worker asked for a job while another had been out for the full timeout.
+## Not verified
 
-## What is not established
-
-- The stateful APIs of Hegel's Rust, Go, Python, C++ and OCaml frontends were not run.
-- The deployed run mode was not exercised at all in preparing this skill.
-- The skill has not yet been run end to end on a real system.
-- The confirm step and `templates/question.md` have not been used with a real owning team.
-- The differential check of a refactoring and the whole-contract switches were not run in
-  preparing this skill.
+- The stateful APIs of Hegel's Rust, Go, Python, C++ and OCaml frontends.
+- The deployed run mode.
+- The differential check of a refactoring, and the whole-contract switches in fakes.
+- The skill as a whole on a production system, and the confirm step with an owning team.

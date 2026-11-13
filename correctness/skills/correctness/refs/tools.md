@@ -1,8 +1,8 @@
 # Tools
 
-What each tool is, what it needs, and what was checked. "Run" means run by the author of this
-skill on 2026-11-13, on Linux x86-64; everything else is from the tool's own docs or source, and
-versions move. Check the current docs before relying on a detail.
+What each tool is and what it needs. "Verified with" names the version a statement was checked
+against by running the tool, on Linux x86-64 in November 2026. Everything else is from the
+tool's own docs or source. Versions move: check the current docs before relying on a detail.
 
 ## Hegel: the default driver library
 
@@ -12,15 +12,15 @@ licence. It needs no Antithesis account. In beta: breaking changes are possible.
 
 | Language | Package | Notes |
 |---|---|---|
-| TypeScript | `@hegeldev/hegel` | Node 20.11 or later. Run: 0.5.3. |
-| Java, and other JVM languages | `dev.hegel:hegel` (Java 22+) or `dev.hegel:hegel-jna` (Java 17+) | Same API in both. Run: `hegel-jna` 0.12.1 from Scala 2.12.20 on Java 21. |
+| TypeScript | `@hegeldev/hegel` | Node 20.11 or later. Verified with 0.5.3. |
+| Java, and other JVM languages | `dev.hegel:hegel` (Java 22+) or `dev.hegel:hegel-jna` (Java 17+) | Same API in both. Verified with `hegel-jna` 0.12.1, called from Scala 2.12.20 on Java 21. |
 | Python | `hegeltest`, imported as `hegel` | Hypothesis itself is the mature alternative here. |
 | Rust | `hegeltest` crate | |
 | Go | `hegel.dev/go/hegel` | |
 | C++ | CMake library `hegel` | |
 | OCaml | `hegel` opam package | |
 
-Stateful testing, as run in TypeScript and Java:
+Stateful testing, as verified in TypeScript and Java:
 
 - A machine with **rules** (actions) and **invariants** (properties); `Stateful.run(machine, tc)`
   in Java, `hegel.stateful.run(tc, machine, state)` in TypeScript.
@@ -46,9 +46,9 @@ with `Hegel.test((tc: TestCase) => Stateful.run(new Machine, tc))`.
 ## Bombadil: interfaces
 
 Property-based testing for web and terminal user interfaces. MIT licence. Runs locally and in CI;
-running inside Antithesis is optional. Run: 0.7.10, installed from npm, against a local page in
-headless mode, where its default "no uncaught exceptions" property found a planted exception in
-about five seconds.
+running inside Antithesis is optional. Verified with 0.7.10, installed from npm, in headless
+mode against a local page: its default "no uncaught exceptions" property reported an exception
+planted in the page within seconds.
 
 - Install: `npm install --save-dev @antithesishq/bombadil`, or a single binary for macOS and Linux.
 - Run: `bombadil browser test <url> [spec.ts]` or `bombadil terminal test --specification=spec.ts <command>`.
@@ -74,7 +74,7 @@ Use these when Hegel does not fit the stack. Facts are for the versions named.
   position draws uniformly from all commands. The default size caps a sequence at ten commands;
   raise it. Replaying a commands failure needs the seed, the path and the `replayPath`. Its
   scheduler orders real promises, for check-then-act races in async code.
-- **ScalaCheck** (Scala): has a stateful `Commands` API. Not run by the author.
+- **ScalaCheck** (Scala): has a stateful `Commands` API. Not verified here.
 - **ZIO Test** (Scala), 2.1: no stateful API. Its test clock controls time for code that sleeps.
 
 ## Model checking

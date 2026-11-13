@@ -39,9 +39,9 @@ in the swarm testing paper (Groce and others, ISSTA 2012).
 - **Small fixed pools.** The same few targets in every case. Vary the pool's size and contents per
   case: some cases with one target, some with many.
 - **Large uniform pools.** The opposite failure, and easy to miss: every action picks from so many
-  targets that no two actions ever meet. Measured on a toy system: a bug needing ten actions on
-  one record was reached in 5% of uniform runs with 3 records and in none of 20,000 with 12, while
-  a pool of one to three records drawn per case reached it in 44% (`refs/sources.md`).
+  targets that no two actions ever meet. A bug that needs many actions on one target becomes
+  rare when every action picks evenly among a dozen, and common when each test case draws its
+  own pool of one to three.
 - **Uniform shape.** Same nesting, same field count, optional fields always present.
 - **No absent values.** Nullable things always have a value, arrays are never empty.
 - **Identical seed data.** The system always starts with the same initial records.
