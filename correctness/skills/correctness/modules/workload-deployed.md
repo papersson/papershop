@@ -1,8 +1,8 @@
 # Deployed workload
 
-**Use when:** the run mode is a deployed SUT with the driver alongside. Read `modules/workload.md`
-first.
-**Emits:** the same as `modules/workload.md`.
+**Use when:** the run mode is a deployed SUT with the driver alongside. It adds to "Workload" in
+`SKILL.md`.
+**Emits:** the same as "Workload".
 
 The SUT runs as it does in production, in its containers, with its real dependencies or as many
 of them as can be started. The driver is one more program beside it, sending requests over the

@@ -397,7 +397,7 @@ class Check:
             elif self.catalog and not any(re.search(r"(?<![\w-])" + re.escape(slug) + r"(?![\w-])", violated) for slug in self.catalog):
                 self.fail(where, '"Property violated" names no slug from property-catalog.md; add the slug, or add the property to the catalog')
             if not fields.get("Found by"):
-                self.fail(where, 'no "**Found by:**" line, or it is empty; say which module found it and in which run mode')
+                self.fail(where, 'no "**Found by:**" line, or it is empty; say what found it and in which run mode')
             replay = fields.get("Reproduces on replay", "")
             outcome = starts_with_one_of(replay, ("yes", "no", "not applicable"))
             if outcome is None or " | " in replay:

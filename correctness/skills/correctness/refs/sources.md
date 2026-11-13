@@ -12,18 +12,18 @@ name for itself and is not affiliated with or endorsed by Antithesis.
 
 | Their file | Read | Used here in |
 |---|---|---|
-| `antithesis-research/SKILL.md` | in full | `modules/research.md`, the scratchbook layout |
-| `antithesis-research/references/property-discovery.md` | in full | `modules/research.md` (the attention focuses) |
-| `antithesis-research/references/validating-claims.md` | in full | `modules/research.md`, "Validating claims" |
+| `antithesis-research/SKILL.md` | in full | "Research" in `SKILL.md`, the scratchbook layout |
+| `antithesis-research/references/property-discovery.md` | in full | "Research" in `SKILL.md` (the attention focuses) |
+| `antithesis-research/references/validating-claims.md` | in full | "Validating claims" in `SKILL.md` |
 | `antithesis-review-inputs/SKILL.md` and `references/anti-patterns.md` | in full | `modules/review-inputs.md` |
-| `antithesis-mutation-testing/references/mutant-design.md` | in full | `modules/mutation.md` |
+| `antithesis-mutation-testing/references/mutant-design.md` | in full | "Mutation testing" in `SKILL.md` |
 | `antithesis-mutation-testing/references/sweep-and-verdicts.md` | outline only | the idea of a verdict ladder; the rungs here are this skill's own |
-| `antithesis-feature-workload/SKILL.md` | opening section | `Sometimes` and `Reachable` assertions in `modules/workload.md` |
+| `antithesis-feature-workload/SKILL.md` | opening section | `Sometimes` and `Reachable` assertions in "Workload" in `SKILL.md` |
 | the other references | not read | |
 
 **antithesishq/antithesis-plugin**, version 0.1.0. Read: the README, the explainer,
 `workload/MODULE.md`, `workload/surface.md` and the first part of `workload/driver.md`. Used in
-`modules/workload.md` (mapping the surface, the driver and its model, recording a request
+"Workload" in `SKILL.md` (mapping the surface, the driver and its model, recording a request
 as sent before sending it) and `modules/workload-deployed.md`. Not read: the launch, triage, debug
 and properties modules.
 
@@ -48,7 +48,7 @@ audit of stored data, the in-process run mode, model checking, and confirmation 
 - **Brown PLT, "Human Judgment as a Specification" (PICK), blog post, June 2026.** The post, not
   the ECOOP paper behind it. Ask a person about concrete inputs on which
   candidate specifications disagree, and ask few questions. Used in research step 10, the second
-  pass of `modules/fakes.md` and `templates/question.md`.
+  pass of "Fakes" in `SKILL.md` and `templates/question.md`.
 - **Wilson with Minsky, "Why Testing is Hard and How to Fix it", Signals and Threads, March
   2026.** Transcript. Three ideas: concrete questions draw out properties that "what are your
   properties?" does not; alerts that would page are properties; a dependency should sometimes be
@@ -59,7 +59,7 @@ audit of stored data, the in-process run mode, model checking, and confirmation 
   candidate property.
 - **Minsky, "Software Engineering in the Age of Agents", talk, 2026.** Transcript. His
   "differential verification" ("this diff is a noop with respect to the following properties") is
-  about proofs. The differential check of a refactoring in `modules/workload.md`
+  about proofs. The differential check of a refactoring in "Workload" in `SKILL.md`
   applies the same question with generated tests, which is ordinary differential testing.
 - **Tool documentation and source**, read on 2026-11-13: hegeldev/hegel (README, the Java frontend
   README and `Stateful.java`), antithesishq/bombadil (README and manual sources).

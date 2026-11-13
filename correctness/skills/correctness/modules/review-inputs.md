@@ -47,4 +47,4 @@ was skipped.
 
 Findings are ceilings on what the workload can reach, not defects. A workload with several of
 these patterns may still be finding bugs. Do not review whether the assertions would notice a bug
-(that is `modules/mutation.md`), whether the SUT is correct, or whether the workload's code has bugs.
+(that is mutation testing), whether the SUT is correct, or whether the workload's code has bugs.

@@ -50,7 +50,7 @@ construction").
 3. **Show the defect no longer type-checks.** Write the offending code as a small file that is
    expected not to compile (a negative compilation test), and record the compiler's error. That
    error is the counterexample's replacement.
-4. **Rerun mutation testing** (`modules/mutation.md`, "After a design fix"). A mutant that
+4. **Rerun mutation testing** ("After a design fix" in `SKILL.md`). A mutant that
    no longer compiles is stillborn: its property is now enforced by construction. A mutant that
    still compiles and is killed shows a property that is still needed. A mutant that compiles and
    survives is a hole in the types and in the tests.

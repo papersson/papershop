@@ -343,7 +343,7 @@ class TemplatesAgree(unittest.TestCase):
     def test_fault_sources(self):
         rows = [row[0] for row in cs.table_rows(cs.content(self.read("fault-inventory.md")))]
         self.assertEqual(tuple(rows[1:]), cs.FAULTS)
-        workload = (TEMPLATES.parent / "modules" / "workload.md").read_text(encoding="utf-8")
+        workload = (TEMPLATES.parent / "SKILL.md").read_text(encoding="utf-8")
         self.assertEqual(tuple(row[0] for row in cs.table_rows(workload) if row[0] in cs.FAULTS), cs.FAULTS)
         for status in cs.FAULT_STATUSES:
             self.assertIn(f"- `{status}`:", self.read("fault-inventory.md"))
