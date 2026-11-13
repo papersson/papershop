@@ -1,7 +1,7 @@
 # Mutation testing
 
 **Use when:** you need to know whether the properties would catch a bug.
-**Emits:** `mutation-report.md`.
+**Emits:** `mutation-report.md` (`templates/mutation-report.md`).
 
 A workload that has never failed has shown nothing yet. Mutation testing breaks the SUT on
 purpose, one small change at a time, and checks that the property meant to guard that behaviour

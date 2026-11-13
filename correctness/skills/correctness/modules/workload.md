@@ -1,7 +1,8 @@
 # Workload
 
 **Use when:** you are building or extending the thing that exercises the SUT.
-**Emits:** the driver, its model, and its assertions, in the target repository's test tree.
+**Emits:** the driver, its model, and its assertions, in the target repository's test tree, and
+`fault-inventory.md`.
 
 A workload is everything added to exercise the SUT. Its centre is the **driver**: one program that
 picks actions at random, sends them to the SUT, and records each outcome in a **model** of what
@@ -132,6 +133,8 @@ choose, so its timing is explored like any other input and a failure can be repl
 ### The inventory
 
 Go through every source of nondeterminism the SUT touches and decide how the driver controls it.
+Record the decision per row in `fault-inventory.md` (`templates/fault-inventory.md`): an action,
+not applicable, or not tried, each with its rule or its reason.
 
 | Source | Actions to give the driver |
 |---|---|
@@ -168,7 +171,7 @@ to leave half done.
 
 - [ ] Every item of the surface is exercised by an action or listed as out of scope with a reason.
 - [ ] Every property in the catalog has an assertion, or a note saying why it cannot be checked here.
-- [ ] Every row of the fault inventory is an action of the driver, or is listed as not tried with a reason. Delivery faults alone are not enough: include a failing dependency and a crash mid-operation.
+- [ ] `fault-inventory.md` is filled in: every row is an action of the driver that took effect, is not applicable, or is listed as not tried with a reason. Delivery faults alone are not enough: include a failing dependency and a crash mid-operation.
 - [ ] `Sometimes` and `Reachable` assertions cover the states the workload exists to reach, and they fire.
 - [ ] A failure prints a minimal counterexample and a replay token.
 - [ ] The run's generation statistics have been read and are reported with the result.

@@ -76,6 +76,21 @@ SUT can run on the same generated sequences against the same fakes, which checks
 on orderings no characterization test lists. It matters most for a fix by design, where the
 change is large.
 
+**A program checks what a program can.** Whether every property has an evidence file, every row
+of the fault inventory a status, every safety property a mutant and every finding a replay token
+are questions with exact answers, so a script answers them and prints one line per failure with
+the fix. The templates and the script name the same fields and values, and a test fails when they
+drift apart. What is left for a reader is what needs judgement.
+
+**An independent reviewer.** Whoever built a workload knows what it was meant to cover and reads
+that into the artifacts, so the last step belongs to a reader without that knowledge: a fresh
+agent that gets the review brief and the artifacts and nothing else. It writes down the
+properties and faults it expects before reading the catalog, reruns the workload and replays the
+findings, and goes through a list of what is usually skipped. It reports and repairs nothing, so
+that no fix goes unreviewed. The fault inventory is a file of its own for the same reason: an
+omission has to be written down as `not tried` with a reason, where both the script and the
+reviewer will find it.
+
 **Hegel and Bombadil as defaults.** Both are open source and run without the platform
 (`refs/tools.md` names the versions verified). Hegel has the same stateful shape across languages, with swarm testing
 built in, and its drivers are what the Antithesis plugin itself writes. Other libraries are

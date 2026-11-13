@@ -45,9 +45,10 @@ knowledge has to come from outside the test, so the work is divided by who can s
 | **Propose** | an agent | Reads the code, logs, incident reports and recorded traffic. Drafts the properties, the assumptions and the fakes. Cites evidence for every claim and marks what it could not settle. | There is a lot to read, and an agent can read it. It cannot know what the owners intend. |
 | **Confirm** | the people who own the code or the service | Answer concrete scenarios, such as the four steps above followed by "does the queue hand the job out again in step 4?" | A concrete case is easier to judge than an abstract statement, which is easy to approve without reading closely. |
 | **Check** | a program, with no judgement involved | Sends the same inputs to the fake and to the real service, where it can be reached, and compares. Breaks the code on purpose to see whether the properties notice. Runs the properties over the data production has stored. | It needs nobody's opinion, so it can catch a wrong proposal that was also confirmed. |
+| **Review** | a second agent that did not do the work | Gets the artifacts and none of the conversation. Reruns the workload, replays every failure, and goes through a list of what tends to be skipped, starting with fault injection. Reports and fixes nothing. | Whoever built the test knows what it was meant to cover, and reads that into what is there. |
 
 A proposal is a lead until a run or a record shows it, and so is an owner's answer. Owners are
-sometimes wrong and services change, so the three rows are repeated whenever the code, the
+sometimes wrong and services change, so the rows are repeated whenever the code, the
 service or the evidence changes.
 
 ## Status

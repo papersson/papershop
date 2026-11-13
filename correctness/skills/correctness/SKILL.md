@@ -99,6 +99,7 @@ so that it cannot be skipped). Read the rest when the task reaches them.
 | `modules/fix-by-design.md` | a fix is being chosen between a guard and a redesign of the data | the "Fix" section of a finding |
 | `modules/audit.md` | you can read production stores or logs | `audit-report.md` |
 | `modules/model.md` | the question is whether a design or a proposed fix is sound | a specification and its checked result |
+| `modules/review.md` | the work is about to be reported as done | `review.md`, written by a reviewer who did not do the work |
 
 ## Workflows
 
@@ -160,8 +161,8 @@ touched, and where findings should be reported.
 ## The scratchbook
 
 Write artifacts under `correctness/scratchbook/` in the target repository unless the user names
-another place. Begin each top-level file with provenance: the path and commit of the SUT, the
-date, and the external references consulted.
+another place. Begin each top-level file with provenance: a line `SUT: path @ commit`, a line
+`Date: YYYY-MM-DD`, and the external references consulted.
 
 ```
 correctness/scratchbook/
@@ -171,10 +172,12 @@ correctness/scratchbook/
   assumptions.md           what the SUT relies on from its dependencies
   questions/{id}.md        one concrete scenario put to a person, and the answer
   fakes/{dependency}.md    evidence for each fake's behaviour, and how it was verified
+  fault-inventory.md       every source of nondeterminism: an action, not applicable, or not tried
   workload-review.md       findings on input generation
   mutation-report.md       mutant per property, verdict, what was done about survivors
   audit-report.md          findings on stored data
   findings/{id}.md         one per distinct failure
+  review.md                the independent reviewer's checklist and findings
 ```
 
 Templates are in `templates/`. If scratchbook files already exist, extend them; do not rewrite
@@ -182,7 +185,29 @@ them unless asked.
 
 ## Before declaring done
 
-Review the output against the module's own checklist. If sub-agents are available, give a fresh
-one the module file and the artifacts and have it do the review; a reader without your context
-catches what you no longer see. Then tell the user, in this order: what was found, what was not
-tried, and what remains unverified.
+Three steps, in this order.
+
+1. **Run the mechanical check** and fix what it reports:
+
+   ```
+   python3 scripts/check_scratchbook.py correctness/scratchbook --require fault-inventory.md
+   ```
+
+   The path is relative to this skill's folder. Leave `--require` out for a task that built no
+   workload. The script checks form and cross-references: that every property has its evidence
+   file, that every row of the fault inventory is accounted for, that every safety property has
+   a mutant and every finding a replay token. It cannot tell whether any of it is right.
+
+2. **Have someone else review it.** Start a fresh sub-agent and give it `modules/review.md`, the
+   paths of the scratchbook, the workload and the SUT, and nothing else: no summary of what you
+   did and no list of what you think is fine. It reruns the workload, replays the findings, goes
+   through a checklist of what tends to be skipped (fault injection first), and writes
+   `review.md` without changing anything. If no sub-agent is available, go through
+   `modules/review.md` yourself as a separate pass, and say in the report that the review was
+   not independent.
+
+3. **Close or carry each of the reviewer's findings.** Fix what can be fixed and run step 1
+   again. Whatever stays open goes into the report as it was written.
+
+Then tell the user, in this order: what was found, what was not tried, what remains unverified,
+and what the review left open.
