@@ -2,11 +2,17 @@
 
 SUT: path/to/component @ commit
 Date: YYYY-MM-DD
+References:
 
-Baseline: which properties pass on the unmutated SUT, and that the reach assertions fired.
+## Baseline
+
+<!-- Which properties pass on the unmutated SUT, and which `Sometimes` and `Reachable`
+assertions fired. -->
+
+## Mutants
 
 One row per safety property in the catalog (assertion `Always`, `AlwaysOrUnreachable` or
-`Unreachable`). Verdict is one of:
+`Unreachable`). The verdict starts with one of:
 
 - `killed`: the target property failed. Give the minimal counterexample or its replay token.
 - `survived`: the marker fired and nothing failed. Say what was done about it.
@@ -18,8 +24,11 @@ One row per safety property in the catalog (assertion `Always`, `AlwaysOrUnreach
 
 | Property | Mutant | Verdict | Counterexample, or the reason |
 |---|---|---|---|
-| {slug} | file:line, the change in a few words | | |
+
+<!-- A filled row looks like this:
+| post-at-most-once | worker.py:8, the check of posted reports removed | killed | token AXkB3 |
+-->
 
 ## Rejected candidates
 
-Per property, the mutants considered and not used, with reasons.
+<!-- Per property, the mutants considered and not used, with reasons. -->

@@ -1,6 +1,7 @@
 # Fix by design
 
-**Loaded when:** a finding is classed as a SUT defect, before a guard is proposed as the fix.
+**Use when:** a finding is classed as a SUT defect, before a guard is proposed as the fix.
+**Emits:** the "Fix" section of the finding, and a redesign if the user agrees to one.
 
 A guard is a check someone can forget, as the finding has just shown. Some properties can instead
 be enforced by construction: the data is redesigned so that the bad state has no value, and the

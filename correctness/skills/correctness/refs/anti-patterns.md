@@ -26,7 +26,7 @@ in the swarm testing paper (Groce and others, ISSTA 2012).
 - **Production thresholds in a test.** A background job set to run hourly never runs in a
   two-minute test. Scale thresholds down, and vary them.
 - **Filtering to valid actions.** The workload only does what the current state "allows": never
-  deletes what does not exist, never decides what is already decided. The SUT must handle those.
+  deletes what does not exist, never acts on what is already finished. The SUT must handle those.
   Keep only the constraints the harness physically needs.
 
 ## Data generation

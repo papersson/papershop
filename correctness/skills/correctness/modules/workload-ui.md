@@ -1,5 +1,8 @@
 # UI workload, with Bombadil
 
+**Use when:** the run mode is a web or terminal interface.
+**Emits:** a Bombadil specification, and `run-record.md`.
+
 Bombadil is property-based testing for web and terminal interfaces. It explores the interface by
 itself and checks properties written as temporal formulas. It runs locally and in CI; running it
 inside Antithesis is optional. Facts below are for version 0.7.10 (`refs/tools.md`).
@@ -13,7 +16,7 @@ npx bombadil terminal test --time-limit=1m your-cli --arg value
 ```
 
 With no specification, the default properties and action generators run. For a browser they
-include "no uncaught exceptions", which alone finds real bugs. Do this before writing anything.
+include "no uncaught exceptions". Do this before writing anything.
 
 ## Then write a specification
 

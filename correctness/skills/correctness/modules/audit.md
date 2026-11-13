@@ -19,7 +19,7 @@ and is often the cheapest first step on an existing system.
    threshold. State it, and state that it can be wrong in both directions.
 3. **Write each check as a query or a function over the stores** that returns violations, and run
    it read-only. Collect every violation; do not stop at the first. Report how many records each
-   check examined next to how many violate it. A property still `proposed` that nearly every
+   check examined next to how many violate it. A property still proposed that nearly every
    record obeys is the one worth asking about, and its few violations are ready-made scenarios
    for the question (`templates/question.md`).
 4. **Classify every finding.** One of: a defect still present; damage left by a defect since fixed

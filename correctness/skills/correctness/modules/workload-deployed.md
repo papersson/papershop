@@ -1,5 +1,9 @@
 # Deployed workload
 
+**Use when:** the run mode is a deployed SUT with the driver alongside. Read `modules/workload.md`
+first.
+**Emits:** the same as `modules/workload.md`.
+
 The SUT runs as it does in production, in its containers, with its real dependencies or as many
 of them as can be started. The driver is one more program beside it, sending requests over the
 network and checking the responses against its model.
@@ -26,7 +30,7 @@ If the answer to the first is no, this run mode is closed. Use the in-process mo
 - **Requests and the model:** record a request as sent before sending it. A request that fails or
   times out stays unacknowledged, and may still land. Judge each read against every write that
   overlapped it. Keep timeouts short so one unreachable node costs a moment, not the run.
-- **Never panic.** Record a failed assertion with the values needed to debug it, and carry on.
+- **Never abort on a failed assertion.** Record it with the values needed to debug it, and carry on.
 
 ## Faults
 

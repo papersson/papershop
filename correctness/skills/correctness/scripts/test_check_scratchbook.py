@@ -42,12 +42,12 @@ GOOD = {
 **Assertion:** Sometimes, the run must reach an empty queue.
 **Priority:** medium, a stuck job is noticed late.
 **Confirmed:** no
-**Status:** proposed
+**Status:** not checked
 """,
     "properties/post-at-most-once.md": """# post-at-most-once
 
 Claim:            each report is posted at most once
-Kind:             guarantee the SUT makes
+Claim type:       guarantee the SUT makes
 Evidence:         worker.py:41 posts before acknowledging
 Failure scenario: a job is taken twice before the first worker acknowledges it
 Competing story:  none found
@@ -98,10 +98,24 @@ Not run.
 | clock advanced | action | `advance` | 201 of 300 test cases |
 | dependency call fails | action | `fail_post` | 77 of 300 test cases |
 | dependency call times out after taking effect | not tried | the channel client has no timeout yet | |
-| later effect applied late | not applicable | the worker requests nothing for later | |
+| deferred operation applied late | not applicable | the worker defers nothing | |
 | stale read | not applicable | one store, read-your-writes | |
 | crash mid-operation | action | `crash_after_post` | 64 of 300 test cases |
 | concurrent operations on one target | not tried | the library's concurrent mode is not set up | |
+""",
+    "run-record.md": "# Run record\n\n" + HEAD + """## Scope
+
+Research and workload. No change to the SUT beyond a seam for the queue.
+
+## Command
+
+`python3 tests/test_worker.py`, Hypothesis 6.170.15, 300 test cases, derandomized.
+
+## Result
+
+```
+1 failed, 1 passed
+```
 """,
     "mutation-report.md": "# Mutation report\n\n" + HEAD + """| Property | Mutant | Verdict | Counterexample, or the reason |
 |---|---|---|---|
@@ -111,7 +125,8 @@ Not run.
 
 **Property violated:** each report is posted at most once (`post-at-most-once`).
 **Found by:** workload, in process.
-**Reproduces on replay:** yes. Replay token or seed: AXkB3
+**Reproduces on replay:** yes
+**Replay:** token AXkB3, with `python3 tests/test_worker.py`
 
 ## Minimal counterexample
 
@@ -163,6 +178,7 @@ class Passes(unittest.TestCase):
         self.assertIn("ok (0 failures)", out)
         self.assertIn("2 properties, 1 confirmed", out)
         self.assertIn("faults: 6 action, 2 not applicable, 2 not tried", out)
+        self.assertNotIn("absent", out.replace("absent, not checked: assumptions.md, audit-report.md, sut-analysis.md, workload-review.md", ""))
         self.assertIn("1 open questions need a person", out)
 
     def test_a_research_only_scratchbook_passes_and_lists_what_is_absent(self):
@@ -191,14 +207,15 @@ class Fails(unittest.TestCase):
 
     def test_provenance(self):
         self.assert_fails(edited("property-catalog.md", "SUT: services/worker @ 3f2a9c1\n", ""), 'no "SUT: path @ commit" line')
-        self.assert_fails(edited("fault-inventory.md", "Date: 2026-01-31\n", ""), 'no "Date: YYYY-MM-DD" line')
+        self.assert_fails(edited("fault-inventory.md", "Date: 2026-01-31\n", ""), 'fault-inventory.md: no "Date:" line')
+        self.assert_fails(edited("run-record.md", "SUT: services/worker @ 3f2a9c1", "SUT: path/to/component @ commit"), 'run-record.md: no "SUT: path @ commit" line')
 
     def test_catalog_fields_and_values(self):
         self.assert_fails(edited("property-catalog.md", "**Priority:** high, a duplicate reaches customers.\n", ""),
-                          'property-catalog.md [post-at-most-once]: "Priority" is missing')
+                          'property-catalog.md [post-at-most-once]: no "**Priority:** value" line')
         self.assert_fails(edited("property-catalog.md", "**Kind:** liveness", "**Kind:** safety | liveness | reachability"), "Kind is")
         self.assert_fails(edited("property-catalog.md", "**Assertion:** Always,", "**Assertion:** Never,"), "Assertion is")
-        self.assert_fails(edited("property-catalog.md", "**Status:** proposed", "**Status:** done"), "Status is")
+        self.assert_fails(edited("property-catalog.md", "**Status:** not checked", "**Status:** done"), "Status is")
 
     def test_catalog_and_evidence_files_agree(self):
         self.assert_fails({"properties/every-job-finishes.md": None}, "no evidence file; write properties/every-job-finishes.md")
@@ -206,7 +223,7 @@ class Fails(unittest.TestCase):
 
     def test_evidence_fields(self):
         self.assert_fails(edited("properties/post-at-most-once.md", "Evidence:         worker.py:41 posts before acknowledging\n", "Evidence:\n"),
-                          'properties/post-at-most-once.md: "Evidence:" is missing or empty')
+                          'properties/post-at-most-once.md: no "Evidence: value" line')
 
     def test_confirmed_needs_an_answered_question(self):
         self.assert_fails(edited("property-catalog.md", ", `questions/q1.md`", ""), "marked as confirmed without a question file")
@@ -228,8 +245,13 @@ class Fails(unittest.TestCase):
                           "fault-inventory.md [stale read]: the row is missing")
         self.assert_fails(edited("fault-inventory.md", "| message held back | action |", "| message held back | done |"), 'status is "done"')
         self.assert_fails(edited("fault-inventory.md", "`hold` | 90 of 300 test cases", " | 90 of 300 test cases"), "no rule named")
-        self.assert_fails(edited("fault-inventory.md", "`hold` | 90 of 300 test cases", "`hold` | "), 'no count under "Took effect in"')
-        self.assert_fails(edited("fault-inventory.md", "`hold` | 90 of 300 test cases", "`hold` | 0 of 300 test cases"), "the rule never took effect")
+        for effect in ("", "0 of 300 test cases", "not measured"):
+            self.assert_fails(edited("fault-inventory.md", "`hold` | 90 of 300 test cases", "`hold` | " + effect), '"Took effect in" gives no count above zero', "or mark the row not tried")
+        code, out = run(edited("fault-inventory.md", "`fail_post` | 77 of 300 test cases", "`fail_post` | 0 of 300"))
+        self.assertNotIn("or mark the row not tried", out)
+        code, out = run(edited("fault-inventory.md", "`hold` | 90 of 300 test cases", "`hold` | 0.4% of 5000 test cases"))
+        self.assertEqual(code, 0, out)
+        self.assert_fails({"fault-inventory.md": GOOD["fault-inventory.md"] + "| crash mid-operation | not applicable | none | |\n"}, "[crash mid-operation]: the row appears twice")
         self.assert_fails(edited("fault-inventory.md", "not applicable | one store, read-your-writes", "not applicable | "), '"not applicable" needs a reason')
 
     def test_a_failing_dependency_and_a_crash_must_be_tried(self):
@@ -245,13 +267,67 @@ class Fails(unittest.TestCase):
 
     def test_findings(self):
         self.assert_fails(edited("findings/f1.md", " (`post-at-most-once`)", ""), "names no slug from property-catalog.md")
-        self.assert_fails(edited("findings/f1.md", " Replay token or seed: AXkB3", " Replay token or seed:"), "no replay token or seed is given")
+        self.assert_fails(edited("findings/f1.md", "**Replay:** token AXkB3, with `python3 tests/test_worker.py`\n", ""), 'reproduces, but "**Replay:**" is empty')
         self.assert_fails(edited("findings/f1.md", "request(); take(); advance(30); take()\n", ""), "findings/f1.md: no counterexample")
         self.assert_fails(edited("findings/f1.md", "**Class:** SUT defect", "**Class:** bug"), 'Class is "bug"')
 
     def test_template_leftovers(self):
-        self.assert_fails(edited("findings/f1.md", "Two workers post the same report.", "See findings/{id}.md."), '"{id}" is a placeholder')
+        self.assert_fails(edited("findings/f1.md", "# Finding f1", "# Finding {id}"), "findings/f1.md:1: a placeholder in braces")
+        code, out = run({"sut-analysis.md": "# SUT analysis\n\n" + HEAD + "`GET /jobs/{id}` returns one job. Dates are sent as YYYY-MM-DD.\n"})
+        self.assertEqual(code, 0, out)
         self.assert_fails(edited("questions/q1.md", "3. Thirty seconds pass.", "..."), 'a line of "..." is left from a template')
+
+
+class Tolerates(unittest.TestCase):
+    """Reasonable ways of filling in the templates pass."""
+
+    def assert_passes(self, changes):
+        code, out = run(changes)
+        self.assertEqual(code, 0, out)
+        return out
+
+    def test_fields_as_a_list_or_with_the_colon_outside_the_bold(self):
+        catalog = GOOD["property-catalog.md"]
+        self.assert_passes({"property-catalog.md": re.sub(r"(?m)^\*\*", "- **", catalog)})
+        self.assert_passes({"property-catalog.md": re.sub(r"(?m)^\*\*(\w[\w ]*):\*\*", r"**\1**:", catalog)})
+
+    def test_backticks_and_capitals_in_values(self):
+        out = self.assert_passes(edited("property-catalog.md", "**Assertion:** Always,", "**Assertion:** `Always`,"))
+        self.assertIn("mutants: 1 killed", out)
+        self.assert_passes(edited("property-catalog.md", "**Kind:** safety", "**Kind:** Safety"))
+
+    def test_other_headings_in_the_catalog_are_not_entries(self):
+        self.assert_passes({"property-catalog.md": GOOD["property-catalog.md"] + "\n### Relationships\n\nThe two properties share worker.py:41.\n"})
+
+    def test_a_pipe_inside_a_code_span_does_not_split_a_cell(self):
+        self.assert_passes(edited("mutation-report.md", "worker.py:41, acknowledge skipped on retry", "worker.py:41, `a || b` changed to `a && b`"))
+
+    def test_a_verdict_may_say_more(self):
+        self.assert_passes(edited("mutation-report.md", "| killed |", "| killed (rung 3) |"))
+
+    def test_guidance_in_comments_is_not_content(self):
+        code, out = run(edited("questions/q1.md", '"Yes, after the visibility timeout." The queue\'s owners, 2026-01-30.\n',
+                               "<!-- The answer, in their words. -->\n"))
+        self.assertEqual(code, 1, out)
+        self.assertIn("questions/q1.md has no answer", out)
+
+
+class NeedsACatalog(unittest.TestCase):
+    def test_a_name_starting_with_no_is_not_no(self):
+        code, out = run(edited("property-catalog.md", "**Confirmed:** by the queue's owners, 2026-01-30, `questions/q1.md`", "**Confirmed:** Nora, 2026-01-30"))
+        self.assertEqual(code, 1, out)
+        self.assertIn("marked as confirmed without a question file", out)
+
+    def test_a_mutation_report_or_findings_without_a_catalog_fail(self):
+        code, out = run({"property-catalog.md": None})
+        self.assertEqual(code, 1, out)
+        self.assertIn("mutation-report.md: refers to properties, and there is no property-catalog.md", out)
+        self.assertIn("findings: refers to properties", out)
+
+    def test_run_record_sections(self):
+        code, out = run(edited("run-record.md", "`python3 tests/test_worker.py`, Hypothesis 6.170.15, 300 test cases, derandomized.\n", ""))
+        self.assertEqual(code, 1, out)
+        self.assertIn('run-record.md: the "Command" section is missing or empty', out)
 
 
 class TemplatesAgree(unittest.TestCase):
@@ -261,12 +337,14 @@ class TemplatesAgree(unittest.TestCase):
         return (TEMPLATES / name).read_text(encoding="utf-8")
 
     def alternatives(self, text: str, field: str) -> tuple[str, ...]:
-        line = re.search(r"\*\*" + re.escape(field) + r":\*\* ([^\n]*)", text).group(1)
+        line = re.search(r"\*\*" + re.escape(field) + r":\*\* <!-- (.*?) -->", text).group(1)
         return tuple(re.sub(r"[,.(].*", "", part).strip() for part in line.split(" | "))
 
     def test_fault_sources(self):
-        rows = [row[0] for row in cs.table_rows(self.read("fault-inventory.md"))]
-        self.assertEqual(tuple(rows[1:]), cs.FAULT_SOURCES)
+        rows = [row[0] for row in cs.table_rows(cs.content(self.read("fault-inventory.md")))]
+        self.assertEqual(tuple(rows[1:]), cs.FAULTS)
+        workload = (TEMPLATES.parent / "modules" / "workload.md").read_text(encoding="utf-8")
+        self.assertEqual(tuple(row[0] for row in cs.table_rows(workload) if row[0] in cs.FAULTS), cs.FAULTS)
         for status in cs.FAULT_STATUSES:
             self.assertIn(f"- `{status}`:", self.read("fault-inventory.md"))
 
@@ -286,7 +364,7 @@ class TemplatesAgree(unittest.TestCase):
     def test_finding_fields(self):
         text = self.read("finding.md")
         self.assertEqual(self.alternatives(text, "Class"), cs.CAUSE_CLASSES)
-        for field in ("Property violated", "Found by", "Reproduces on replay"):
+        for field in ("Property violated", "Found by", "Reproduces on replay", "Replay"):
             self.assertIn(f"**{field}:**", text)
         self.assertIn("## Minimal counterexample", text)
 
@@ -295,14 +373,31 @@ class TemplatesAgree(unittest.TestCase):
         for heading in ("Scenario", "Question", "What each answer changes", "Answer"):
             self.assertIn(f"## {heading}", text)
 
-    def test_an_unfilled_template_fails(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            build(Path(tmp), {"fault-inventory.md": self.read("fault-inventory.md")})
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                self.assertEqual(cs.main([tmp]), 1)
-            self.assertIn("is a placeholder from a template", out.getvalue())
-            self.assertIn("[stale read]: status is", out.getvalue())
+    def test_run_record_sections(self):
+        for heading in cs.RUN_RECORD_SECTIONS:
+            self.assertIn(f"## {heading}", self.read("run-record.md"))
+
+    def test_every_unfilled_template_fails(self):
+        property_template = self.read("property.md")
+        entry = property_template[property_template.index("### {slug}"):property_template.index("## In `properties/")]
+        evidence = property_template[property_template.index("Claim:"):]
+        unfilled = {
+            "property-catalog.md": "# Property catalog\n\n" + HEAD + entry.replace("{slug}", "post-at-most-once"),
+            "properties/post-at-most-once.md": evidence,
+            "questions/q1.md": self.read("question.md"),
+            "findings/f1.md": self.read("finding.md"),
+            "fault-inventory.md": self.read("fault-inventory.md"),
+            "mutation-report.md": self.read("mutation-report.md"),
+            "run-record.md": self.read("run-record.md"),
+            "assumptions.md": self.read("assumption-register.md"),
+        }
+        for name, text in unfilled.items():
+            changes = {name: text}
+            if name == "property-catalog.md":
+                changes["properties/every-job-finishes.md"] = None
+            code, out = run(changes)
+            self.assertEqual(code, 1, name + "\n" + out)
+            self.assertTrue(any(line.startswith(name.split("/")[0]) for line in out.splitlines()), name + "\n" + out)
 
 
 if __name__ == "__main__":

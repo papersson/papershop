@@ -34,8 +34,9 @@ about someone else's system, and hold it to the evidence standard in
 normally, on failure, on repeat, and when its inputs changed between request and effect. Sources,
 strongest first: recorded requests and responses; logs; the dependency's source at the *deployed*
 version; behaviour observed in a test environment; its docs. Every behaviour cites one. Pay most
-attention to anything done "at apply time" from current state: that is where a fake most often
-tells a kinder story than the service.
+attention to a deferred operation that is applied from the state at the time it runs, not the
+state at the time it was requested: that is where a fake most often tells a kinder story than
+the service.
 
 **2. Confirm with the owners, by scenario.** Do not hand over the evidence file and ask for a
 review. Where the evidence leaves more than one behaviour plausible for an operation, build each

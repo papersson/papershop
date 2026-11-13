@@ -1,8 +1,8 @@
 # Workload
 
 **Use when:** you are building or extending the thing that exercises the SUT.
-**Emits:** the driver, its model, and its assertions, in the target repository's test tree, and
-`fault-inventory.md`.
+**Emits:** the driver, its model, and its assertions, in the target repository's test tree;
+`run-record.md` and `fault-inventory.md` in the scratchbook.
 
 A workload is everything added to exercise the SUT. Its centre is the **driver**: one program that
 picks actions at random, sends them to the SUT, and records each outcome in a **model** of what
@@ -20,7 +20,7 @@ be replayed and shrunk.
      below.
    - Deployed: the SUT running in containers, the driver alongside. Read
      `modules/workload-deployed.md`.
-   - Interface: a web or terminal UI, explored with Bombadil. Read `modules/workload-ui.md`.
+   - UI: a web or terminal interface, explored with Bombadil. Read `modules/workload-ui.md`.
 3. **Pick the model.** For each property in the catalog, decide what the driver must remember so
    an assertion can judge the SUT's state or response. Keep it small enough to be obviously right.
 4. **Write the actions.** One rule per action. Each draws its inputs, performs the action, and
@@ -32,8 +32,9 @@ be replayed and shrunk.
    scenario to ask about (`templates/question.md`), and the check is kept as an expected failure
    until someone answers. Add `Sometimes` and `Reachable` assertions for the states the workload
    exists to reach, so a passing run can be told apart from one that never got there.
-7. **Run, and read what was generated** before reading the result. Then hand the workload to
-   `modules/review-inputs.md`.
+7. **Run, and read what was generated** before reading the result. Record the command, the
+   result and the statistics in `run-record.md` (`templates/run-record.md`), so that someone
+   else can run it again and compare. Then hand the workload to `modules/review-inputs.md`.
 8. **Hand failures to `modules/triage.md`.**
 
 ## Rules
@@ -43,8 +44,8 @@ be replayed and shrunk.
 - **Record a request as sent before sending it.** A request that fails or times out is not known
   to have had no effect: it may still land. Keep it in the model as possible for a bounded window,
   and let the assertions accept either outcome until it resolves.
-- **Check safety after every step.** Turn off invariant sampling for any invariant that keeps
-  memory between steps (`refs/tools.md`).
+- **Check safety after every step.** Where the library samples invariants by default, turn
+  sampling off for every safety invariant (`refs/tools.md`).
 - **Aim several actions at the same few things.** Bugs need two actions to meet. Draw a small pool
   of targets per test case, and let its size vary.
 - **Do not filter to "valid" actions** beyond what the harness physically requires. An action on a
@@ -132,19 +133,22 @@ choose, so its timing is explored like any other input and a failure can be repl
 
 ### The inventory
 
-Go through every source of nondeterminism the SUT touches and decide how the driver controls it.
-Record the decision per row in `fault-inventory.md` (`templates/fault-inventory.md`): an action,
+Go through every source of nondeterminism the SUT touches: message delivery, time, calls to
+dependencies, reads, the process itself, and concurrency. Record the decision per row in `fault-inventory.md` (`templates/fault-inventory.md`): an action,
 not applicable, or not tried, each with its rule or its reason.
 
-| Source | Actions to give the driver |
+| Fault | What the driver does |
 |---|---|
-| Message delivery | deliver any pending message (not only the oldest); deliver one again; hold one back |
-| Time | advance the clock, only when something is waiting on it |
-| A dependency call | fail it; time it out after it took effect; answer late |
-| A request for a later effect | apply any pending request now, after other actions have happened |
-| A read | return a stale value, where the real store allows one |
-| The process | crash after the nth write of an operation, then restart |
-| Concurrency | start two operations on the same target and let the library order their steps |
+| message delivered out of order | delivers any pending message, not only the oldest |
+| message delivered twice | delivers a message again |
+| message held back | leaves a message pending while other actions run |
+| clock advanced | advances the clock, only when something is waiting on it |
+| dependency call fails | makes a call to a dependency fail |
+| dependency call times out after taking effect | reports a timeout for a call whose effect has landed |
+| deferred operation applied late | applies a pending request after other actions have happened |
+| stale read | returns an old value, where the real store allows one |
+| crash mid-operation | stops the SUT after the nth write of an operation, then restarts it |
+| concurrent operations on one target | starts two operations on one target and lets the library order their steps |
 
 ### Rules
 
@@ -155,7 +159,8 @@ not applicable, or not tried, each with its rule or its reason.
 - **Decide which properties must survive a fault at every instant**, and which may be false until
   recovery finishes. Write the second kind so they are checked only when the SUT is up.
 - **Count what happened.** Record, per test case, how often each fault actually took effect and
-  how often the operation finished first. A fault rule that never bites is a `Sometimes` failure.
+  how often the operation finished first. A fault rule that never takes effect is a `Sometimes`
+  failure.
 - **A timeout is not a failure of the effect.** After a timed-out call the effect may or may not
   have happened. Both must be acceptable to the model until evidence settles it.
 

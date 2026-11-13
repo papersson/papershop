@@ -20,7 +20,7 @@ column says so.
 | Counterexample | an execution in which a property fails | printed minimal, after shrinking |
 | Property catalog | the list of properties with priorities | the same |
 | Evidence file | per property: code paths, scenario, observations, open questions | the same |
-| Scratchbook | the directory holding research artifacts | `correctness/scratchbook/` |
+| Scratchbook | the directory holding the artifacts the modules emit | `correctness/scratchbook/` |
 | Fake | a working in-memory replacement for a dependency | a term this skill adds; a kind of test double |
 | Seam | a place where behaviour can be altered without editing the code there | from Feathers; where a test supplies a dependency |
 

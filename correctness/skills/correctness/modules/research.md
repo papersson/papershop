@@ -50,15 +50,14 @@ incidents or failure modes matter most.
     `templates/question.md`: a few concrete steps ending in the state the property forbids, then
     "may the system end up here?". Ask the team that owns the SUT about a guarantee, and the team
     that owns the dependency about an assumption. Ask few questions: high priority first, and
-    none about a property the code already asserts (step 2). A property stays `proposed` until
-    someone has answered.
+    none about a property the code already asserts (step 2). A property is *proposed* (its
+    `Confirmed` field is `no`) until someone has answered.
 
 ## Scale the artifacts to the SUT
 
-For a component of a few hundred lines, put the evidence in the catalog entry and write a separate
-evidence file only for a property with open questions or a long code path. Record a focus that
-yields nothing in one line, with the reason. The full set of files is for a system too large to
-hold in mind.
+For a component of a few hundred lines, keep each evidence file to its fields, a line or two
+each, and write an investigation log only for a property with open questions or a long code
+path. Record a focus that yields nothing in one line, with the reason.
 
 ## Guidance
 
@@ -74,7 +73,8 @@ hold in mind.
 
 ## Property discovery
 
-Look at the same code through one lens at a time. Each lens finds properties the others miss, so
+Look at the same code with one attention focus at a time. Each focus finds properties the others
+miss, so
 treat each pass as a fresh examination and resist skipping one because an earlier pass "covered
 that area". If sub-agents are available, run one per focus in parallel and merge; otherwise work
 through the list in order. The wildcard always runs last.
@@ -111,7 +111,6 @@ Record, in the format of `templates/property.md`:
 - the assertion type and why it fits (`refs/terminology.md`)
 - the code paths examined, with file and line
 - the scenario in which it would fail
-- confidence, and the evidence for it
 - open questions, each with why it matters and what the answer would change
 
 ### Merging
@@ -167,7 +166,7 @@ Two kinds of statement come out of research, and they need different handling.
 | | A guarantee | An assumption |
 |---|---|---|
 | What it is | something the SUT's own code must ensure | something the SUT relies on a dependency to do |
-| Example | "only a pending item can be decided" | "a request I send is applied as I sent it" |
+| Example | "each report is posted at most once" | "a job that was taken is not handed out again" |
 | What you do | enforce it, and check it with the workload | detect when it is false, or stop relying on it |
 
 Incidents that surprise a team usually sit in the second column, in an assumption nobody wrote

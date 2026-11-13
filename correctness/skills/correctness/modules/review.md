@@ -4,8 +4,9 @@
 **Emits:** `review.md` in the scratchbook.
 
 This file is a brief for a reviewer who did not do the work. If you are that reviewer, you have
-been given the scratchbook, the workload and the SUT, and nothing of the conversation that
-produced them. That is deliberate. The person who built a workload knows what they meant it to
+been given this brief, the glossary (`refs/terminology.md`), the checking script, the scratchbook,
+the workload and the SUT (the system under test), and nothing of the conversation that produced
+them. That is deliberate. The person who built a workload knows what they meant it to
 cover and reads that into the artifacts; you can only see what is there.
 
 Your job is to find what was skipped, what was claimed without being shown, and what does not
@@ -14,17 +15,19 @@ from adding `review.md`.
 
 ## Steps
 
-1. **Run the mechanical check.** `python3 scripts/check_scratchbook.py <scratchbook>`, with
-   `--require fault-inventory.md` if a workload exists and `--require mutation-report.md` if
-   mutation testing was in scope. Copy its output into the review verbatim. Each failure is a
-   finding.
-2. **Form your own expectation first.** Before opening the property catalog, read the SUT's
-   entry points and state for a few minutes and write down the three to five properties you would
-   expect, and the faults this SUT is exposed to. Then compare. A property or fault you expected
-   and the work lacks is a finding, or a question if you may be wrong.
-3. **Rerun.** Run the workload yourself and keep the output. Replay every finding's token. A
-   finding that does not reproduce, or a run whose result differs from the one reported, is a
-   finding.
+1. **Form your own expectation first.** Before opening the scratchbook, read the SUT's entry
+   points and state for a few minutes and write down the three to five properties you would
+   expect, and the faults this SUT is exposed to. Compare once you have read the catalog. A
+   property or fault you expected and the work lacks is a finding, or a question if you may be
+   wrong.
+2. **Run the mechanical check.** `python3 <script> <scratchbook>`, with
+   `--require run-record.md --require fault-inventory.md` if a workload exists and
+   `--require mutation-report.md` if `run-record.md` puts mutation testing in scope. Copy its
+   output into the review verbatim, in a code block. Each failure is a finding.
+3. **Rerun.** Run the workload with the command in `run-record.md` and keep the output. Replay
+   every finding with the command in its `Replay` field. A finding that does not reproduce, or a
+   run whose result differs from the one recorded, is a finding. So is a run record that does
+   not let you do either.
 4. **Go through the checklist below.** Give every line a verdict: `ok` with what you looked at,
    `finding`, or `not checked` with the reason. A line you did not check is never `ok`.
 5. **Write `review.md`.** The script's output, the checklist with verdicts, then the findings,
@@ -36,9 +39,9 @@ from adding `review.md`.
 **Faults**
 
 - [ ] Every row of `fault-inventory.md` marked `action` names a rule that exists in the driver,
-      and that rule took effect in your own run, not only in the reported one.
-- [ ] A dependency call that fails, one that times out after taking effect, and a crash between
-      two writes are each an action, or the reason given for leaving one out is true of this SUT.
+      and that rule took effect in your own run, not only in the recorded one.
+- [ ] `dependency call fails` and `crash mid-operation` are actions, or are truly not applicable.
+      For every row marked `not tried`, the reason given is true of this SUT.
 - [ ] Every row marked `not applicable` is right: open the SUT and look for the source it denies.
 - [ ] Properties that may be false during recovery are checked again once the SUT is back up.
 
@@ -53,8 +56,8 @@ from adding `review.md`.
 **Properties**
 
 - [ ] Each property is one sentence stating one law, with the assertion type that matches it.
-- [ ] Safety properties are checked after every step, with sampling turned off where the
-      invariant keeps memory between steps.
+- [ ] Safety properties are checked after every step, with the library's sampling of invariants
+      turned off.
 - [ ] No sentence in the scratchbook says a property holds. It says what ran and what was seen.
 - [ ] A property nobody confirmed is not reported as a defect when it fails, and is not dropped
       either: its counterexample is a question.
@@ -80,15 +83,19 @@ from adding `review.md`.
 - [ ] Each mutant is a mistake a developer could make, placed in the code that maintains the
       invariant, with a marker at the point of divergence.
 - [ ] Every survivor led to a repaired property, a repaired workload or an open question.
-- [ ] No mutant is left in the SUT: the working tree differs from its base only by seams.
+- [ ] No mutant is in the SUT: the working tree differs from the commit on the `SUT:` line only by
+      seams (places where a test can supply a dependency).
 
 **Findings and report**
 
-- [ ] Every finding has a minimal counterexample, a replay token that reproduces it, a cause
-      class, and both a guard and a statement on whether a redesign would remove the bad state.
-- [ ] The report says what was not tried and what remains unverified, and neither list is empty
-      without a reason.
-- [ ] Changes to the SUT are limited to seams, or the user agreed to more.
+- [ ] Every finding has a minimal counterexample, a replay that reproduces it, and a cause class.
+      One classed as a SUT defect has both a guard and a statement on whether a redesign would
+      remove the bad state.
+- [ ] The scratchbook says what was not tried and what remains unverified (the fault inventory,
+      the open questions, each finding's "Not investigated"), and none of these is empty without
+      a reason.
+- [ ] Changes to the SUT are limited to seams, or `run-record.md` records that the user agreed to
+      more.
 
 ## Rules
 

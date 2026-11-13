@@ -32,7 +32,8 @@ Used throughout, defined in full in `refs/terminology.md`.
 - **SUT**: the system under test. Here, usually one component you can change.
 - **Property**: a statement that must hold. Safety (a bad thing never happens), liveness (a good
   thing eventually happens), reachability (a state is, or is never, reached).
-- **Assertion**: how a property is checked: `Always`, `Sometimes`, `Reachable`, `Unreachable`.
+- **Assertion**: how a property is checked: `Always`, `AlwaysOrUnreachable`, `Sometimes`,
+  `Reachable`, `Unreachable`.
 - **Workload**: everything added to exercise the SUT. Its **driver** picks actions at random,
   sends them, and records outcomes in a **model** of what the SUT should contain.
 - **Fault**: a disruption injected on purpose: delay, duplication, reordering, a failing
@@ -50,7 +51,7 @@ Run first, every time.
   halfway; behaviour depends on time.
 - **A smaller thing will do** when the code is a pure transformation. Write one property-based
   test (`modules/workload.md`, "Pure functions") and stop.
-- **Use their plugin instead** when the team has Antithesis. This skill is for when it does not.
+- **Use Antithesis's plugin instead** when the team has Antithesis. This skill is for when it does not.
 - **Research and audit only** when nothing of the SUT can be built or run by you. Say so, and
   lower every claim accordingly.
 
@@ -88,9 +89,9 @@ so that it cannot be skipped). Read the rest when the task reaches them.
 
 | Module | Use when | Emits |
 |---|---|---|
-| `modules/research.md` | you need to know what should be true of the SUT | `sut-analysis.md`, `property-catalog.md`, `properties/{slug}.md`, `assumptions.md` |
+| `modules/research.md` | you need to know what should be true of the SUT | `sut-analysis.md`, `property-catalog.md`, `properties/{slug}.md`, `assumptions.md`, `questions/{id}.md` |
 | `modules/fakes.md` | a dependency cannot be run where the workload runs | `fakes/{dependency}.md` and the fake itself |
-| `modules/workload.md` | you are building or extending the thing that exercises the SUT | the driver, its model, its assertions |
+| `modules/workload.md` | you are building or extending the thing that exercises the SUT | the driver, its model, its assertions, `run-record.md`, `fault-inventory.md` |
 | `modules/workload-deployed.md` | the run mode is a deployed SUT with the driver alongside | additions to the workload |
 | `modules/workload-ui.md` | the run mode is a web or terminal interface | a Bombadil specification |
 | `modules/review-inputs.md` | a workload passes and you doubt what it explored | `workload-review.md` |
@@ -98,14 +99,16 @@ so that it cannot be skipped). Read the rest when the task reaches them.
 | `modules/triage.md` | a run failed | `findings/{id}.md`, one per distinct failure |
 | `modules/fix-by-design.md` | a fix is being chosen between a guard and a redesign of the data | the "Fix" section of a finding |
 | `modules/audit.md` | you can read production stores or logs | `audit-report.md` |
-| `modules/model.md` | the question is whether a design or a proposed fix is sound | a specification and its checked result |
+| `modules/model-checking.md` | the question is whether a design or a proposed fix is sound | a specification and its checked result |
 | `modules/review.md` | the work is about to be reported as done | `review.md`, written by a reviewer who did not do the work |
 
 ## Workflows
 
 A free-form request is a chain of modules. Common shapes:
 
-- **A system new to this:** research, fakes (if needed), workload, review-inputs, mutation, audit.
+- **A system new to this:** research, fakes (if needed), workload, review-inputs, mutation,
+  audit. Where the stores can be read, the audit can run straight after research: it needs no
+  harness.
 - **One feature or handler:** targeted research, workload, mutation.
 - **After an incident:** validate the report, reproduce it as a failing property (workload or
   model), confirm with mutation that the property would have caught it, audit for damage already
@@ -122,21 +125,21 @@ touched, and where findings should be reported.
 
 - State each property in one sentence before writing its check. One property, one law.
 - You propose properties and fakes; people confirm them, by answering a concrete scenario
-  (`templates/question.md`). Until then a property is `proposed`, and its violation is a question
+  (`templates/question.md`). Until then a property is proposed (`Confirmed: no`), and its violation is a question
   for its owners, not a defect.
 - Give every property the assertion type that matches its meaning, and say why
   (`refs/terminology.md`, "Assertion types").
 - Check safety properties after every step, not once at the end. A check at the end misses a
   violation that later steps repair. Several libraries sample invariants by default; turn that off
-  for any invariant that keeps memory between steps (`refs/tools.md`).
+  for every safety invariant (`refs/tools.md`).
 
 **Inputs**
 
 - Use the library's stateful API, never a hand-written loop over actions.
 - Build choices from the library's combinators, and put the simplest alternative first, so the
   minimal counterexample is also the easiest to read.
-- Randomize the policy per test case, not only the choices under a fixed policy
-  (`modules/review-inputs.md`).
+- Randomize the configuration per test case (which actions are enabled, their weights, the pool
+  of targets), not only the choices under one fixed configuration (`modules/review-inputs.md`).
 - Never skip a case silently. Count what was filtered, and print it. Where the library filters
   before a rule runs and gives no count, move the condition inside the rule and record an event.
 - Never narrow a generator to step around a known bug. Keep the bug as an expected failure.
@@ -172,7 +175,8 @@ correctness/scratchbook/
   assumptions.md           what the SUT relies on from its dependencies
   questions/{id}.md        one concrete scenario put to a person, and the answer
   fakes/{dependency}.md    evidence for each fake's behaviour, and how it was verified
-  fault-inventory.md       every source of nondeterminism: an action, not applicable, or not tried
+  run-record.md            scope, the command that runs the workload, its result and statistics
+  fault-inventory.md       every fault: an action, not applicable, or not tried
   workload-review.md       findings on input generation
   mutation-report.md       mutant per property, verdict, what was done about survivors
   audit-report.md          findings on stored data
@@ -190,16 +194,20 @@ Three steps, in this order.
 1. **Run the mechanical check** and fix what it reports:
 
    ```
-   python3 scripts/check_scratchbook.py correctness/scratchbook --require fault-inventory.md
+   python3 SKILL_FOLDER/scripts/check_scratchbook.py TARGET_REPO/correctness/scratchbook \
+     --require run-record.md --require fault-inventory.md
    ```
 
-   The path is relative to this skill's folder. Leave `--require` out for a task that built no
-   workload. The script checks form and cross-references: that every property has its evidence
-   file, that every row of the fault inventory is accounted for, that every safety property has
-   a mutant and every finding a replay token. It cannot tell whether any of it is right.
+   `SKILL_FOLDER` is the folder this file is in. Leave the two `--require` options out for a
+   task that built no workload, and add `--require mutation-report.md` when mutation testing was
+   in scope. The script checks form and cross-references: that every property has its evidence
+   file, that every row of the fault inventory is accounted for, that every safety property has a
+   row in the mutation report, and that every finding that reproduces says how to replay it. It
+   cannot tell whether any of it is right.
 
-2. **Have someone else review it.** Start a fresh sub-agent and give it `modules/review.md`, the
-   paths of the scratchbook, the workload and the SUT, and nothing else: no summary of what you
+2. **Have someone else review it.** Start a fresh sub-agent and give it the absolute paths of
+   `modules/review.md`, `refs/terminology.md`, the script, the scratchbook, the workload and the
+   SUT, and nothing else: no summary of what you
    did and no list of what you think is fine. It reruns the workload, replays the findings, goes
    through a checklist of what tends to be skipped (fault injection first), and writes
    `review.md` without changing anything. If no sub-agent is available, go through

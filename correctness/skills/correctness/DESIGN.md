@@ -9,8 +9,8 @@ makes three decisions, and names the modules the task needs.
 **One file per module, and the common path read together.** Research, fakes, workload and the
 review of inputs are needed by almost every task and together are a few thousand words, so they
 are read in full, not on demand. A step kept in a separate file is a step that gets skipped:
-fault injection is a section of the workload file for that reason. Only the two other run modes,
-the audit, the model and the reference tables are read when the task reaches them.
+fault injection is a section of the workload file for that reason. Everything else is read when the task
+reaches it.
 
 **Antithesis's vocabulary.** Their skills and plugin are where this method is being worked out in
 public. Using their terms (SUT, workload, driver, property, assertion types, fault, property
@@ -32,7 +32,8 @@ detected or avoided. Listing them separately is what exposes the ones nobody wro
 row gives the fake a switch, the workload an action and the audit a check.
 
 **People confirm, by scenario.** An agent can read everything and still not know what the owners
-intend, and agents are reported to be poor at choosing properties and good at implementing them.
+intend, and agents are reported to be poor at choosing properties and good at implementing them
+(Wayne, in `refs/sources.md`).
 So every property and every fake starts as a proposal. A person confirms it by answering one
 concrete scenario, because people judge a case well and approve an abstract statement without
 reading it closely. Where two candidates exist, the scenario is one on which they disagree, so
@@ -66,8 +67,8 @@ and look" into a check that fails.
 
 **A module on fixing by design.** Some properties stop needing a test once the data is redesigned,
 and which ones is predictable: what is about the shape of data can be enforced by construction,
-and what relates run-time values, stores or moments cannot. Antithesis's skills have nothing on
-this, since they test systems as they are. It is kept to one short module beside triage, a field in the
+and what relates run-time values, stores or moments cannot. The parts of Antithesis's skills read for this one have nothing on
+it, since they test systems as they are. It is kept to one short module beside triage, a field in the
 property template and a step in mutation testing, so the skill stays a testing skill and does not
 turn into a design guide.
 
@@ -77,10 +78,11 @@ on orderings no characterization test lists. It matters most for a fix by design
 change is large.
 
 **A program checks what a program can.** Whether every property has an evidence file, every row
-of the fault inventory a status, every safety property a mutant and every finding a replay token
+of the fault inventory a status, every safety property a row in the mutation report and every finding a way to replay it
 are questions with exact answers, so a script answers them and prints one line per failure with
 the fix. The templates and the script name the same fields and values, and a test fails when they
-drift apart. What is left for a reader is what needs judgement.
+drift apart. A template's guidance sits in comments, which the script ignores, so an unfilled
+field reads as empty. What is left for a reader is what needs judgement.
 
 **An independent reviewer.** Whoever built a workload knows what it was meant to cover and reads
 that into the artifacts, so the last step belongs to a reader without that knowledge: a fresh

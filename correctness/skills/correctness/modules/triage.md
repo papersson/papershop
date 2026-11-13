@@ -1,7 +1,7 @@
 # Triage
 
 **Use when:** a run failed.
-**Emits:** `findings/{id}.md`, one per distinct failure.
+**Emits:** `findings/{id}.md`, one per distinct failure, in the form of `templates/finding.md`.
 
 ## Steps
 
@@ -10,13 +10,15 @@
 2. **Read the minimal counterexample as a story.** Step by step, in plain words: who did what, and
    what the stores say at the end. If you cannot tell the story, shrink further by hand: remove a
    step, replay, keep the removal if it still fails.
-3. **Classify the cause.** One of:
+3. **Classify the cause.** If the property that failed is still proposed, stop here: its
+   counterexample goes to its owners as a question (`templates/question.md`), and the failure is
+   classified once they have answered. Otherwise, one of:
    - *SUT defect*: the code violates a property that is right.
    - *False assumption*: a dependency does something the SUT relies on it not to do. The SUT's
      code may be exactly as written; the defect is in the dependency, or in relying on it. Record
      it against the row in `assumptions.md`, and say whether the SUT can defend itself.
-   - *Fake infidelity*: the fake does something the real dependency does not. Check against the
-     fake's evidence file before blaming the SUT.
+   - *Unfaithful fake*: the fake does something the real dependency does not. Check against the
+     fake's evidence (`fakes/{dependency}.md`) before blaming the SUT.
    - *Wrong property*: the property forbids something the system is meant to allow.
    - *Workload defect*: the driver or model is wrong.
 4. **Find the mechanism.** Name the line or the interleaving. A finding is not done at "it fails".
@@ -28,9 +30,9 @@
 
 ## A finding contains
 
-The property violated, in its one sentence. The minimal counterexample, verbatim. The replay
-token. The story. The cause and its class. Whether it reproduces on replay. What was not
-investigated.
+The property violated, in its one sentence, and its slug. Which module found it, and in which run
+mode. Whether it reproduces on replay, and the token and command that replay it. The minimal
+counterexample, verbatim. The story. The cause and its class. The fix. What was not investigated.
 
 ## Notes
 

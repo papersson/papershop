@@ -9,7 +9,8 @@ the statistics of what it generated.
 
 ## Core principle
 
-Randomize the *policy* per run, not only the *choices under a fixed policy*. If every test case
+Randomize the *configuration* per test case, not only the *choices under one fixed
+configuration*. If every test case
 uses every action in the same proportions on the same pool of targets, every case explores about
 the same region. Each case should draw its own configuration: which actions are enabled, how they
 are weighted, how many targets there are, how long the run is, how the system starts.
@@ -26,7 +27,7 @@ are weighted, how many targets there are, how long the run is, how the system st
 4. **Match what you see against the anti-patterns.** For each match: name it, point to file and
    line, say what region of behaviour is left unexplored, and what the workload could reach if it
    changed. Make it specific to this workload. "Your three actions are always all enabled with
-   equal weight, so no run does only deletes" is a finding; "all actions are always active" is not.
+   equal weight, so no test case does only deletes" is a finding; "all actions are always active" is not.
 5. **Tier the findings.**
    - *High signal*: a structural limit that puts whole regions out of reach.
    - *Worth considering*: more could be explored, but the limit is contextual.
@@ -39,7 +40,8 @@ are weighted, how many targets there are, how long the run is, how the system st
 ## Who reviews
 
 Do not review a workload you wrote in the same session; you will find what you already know. Give
-it to a fresh agent with this module, or skip the review and say it was skipped.
+it to a fresh agent with this module and `refs/anti-patterns.md`, or skip the review and say it
+was skipped.
 
 ## Tone and scope
 

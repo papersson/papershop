@@ -14,7 +14,7 @@ run instead: those assertions must fire on the unmutated SUT.
 ## Before starting
 
 Run the workload on the unmutated SUT and record the baseline: which properties pass, and that
-the reach assertions fire.
+the `Sometimes` and `Reachable` assertions fire.
 
 A property that already fails on the baseline cannot be mutated: its counterexample is the
 evidence that it can fail. Mutate only the properties that pass. If the user has agreed to fixes,
@@ -33,7 +33,7 @@ failure scenario recorded there are where a good mutant comes from.
 - **In the code that maintains the invariant**, not in the code that checks it. Mutating the check
   disables the reporting along with the behaviour.
 - **Not fatal.** It must not crash the SUT at startup or hang it.
-- **With a marker.** Add a signal at the point of divergence (a log line or a reach assertion
+- **With a marker.** Add a signal at the point of divergence (a log line or a `Reachable` assertion
   carrying the mutant's id), placed where the mutated branch is actually taken, so you can tell
   whether the broken code ran.
 
@@ -77,8 +77,8 @@ Report the three lists. They are the evidence for which properties the redesign 
 
 ## Done when
 
-- [ ] The baseline is recorded, with its reach assertions firing.
+- [ ] The baseline is recorded, with its `Sometimes` and `Reachable` assertions firing.
 - [ ] Every safety property in the catalog has one mutant, or a note saying why it cannot be mutated.
-- [ ] Every verdict names the rung of the ladder it stopped on.
+- [ ] Every verdict is one of the template's, which are the rungs of the ladder.
 - [ ] Every survivor led to a repaired property, a repaired workload, or an open question.
-- [ ] All mutants are removed from the SUT.
+- [ ] No mutant reached the working tree: every one was applied to a copy.

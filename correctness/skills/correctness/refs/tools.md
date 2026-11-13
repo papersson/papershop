@@ -40,8 +40,9 @@ Stateful testing, as verified in TypeScript and Java:
 - **Statistics**: `tc.event(...)` with `showStatistics` in TypeScript prints the share of test
   cases in which each event occurred.
 
-A Scala 2.12 machine is an ordinary class with `@Rule def name(tc: TestCase): Unit` methods, run
-with `Hegel.test((tc: TestCase) => Stateful.run(new Machine, tc))`.
+The Java frontend works from other JVM languages. In Scala, for example, a machine is an ordinary
+class with `@Rule def name(tc: TestCase): Unit` methods, run with
+`Hegel.test((tc: TestCase) => Stateful.run(new Machine, tc))`.
 
 ## Bombadil: interfaces
 
@@ -58,7 +59,7 @@ planted in the page within seconds.
 - After a violation: `bombadil browser inspect <dir>`, and `--reproduce <dir>` to replay. A
   `shrink` command exists and is marked experimental.
 
-## Other libraries with a stateful API
+## Other libraries
 
 Use these when Hegel does not fit the stack. Facts are for the versions named.
 
@@ -88,5 +89,6 @@ Use these when Hegel does not fit the stack. Facts are for the versions named.
 
 Deterministic replay of a whole deployed system, including its threads, network and clocks;
 system-level fault injection; and guided exploration across many branched timelines. Hegel
-drivers written for the deployed mode are the same programs their plugin runs on the platform, so
+drivers written for the deployed mode are the same programs Antithesis's plugin runs on the
+platform, so
 work done here carries over if the platform becomes available.
