@@ -5,7 +5,7 @@
 A guard is a check someone can forget, as the finding has just shown. Some properties can instead
 be enforced by construction: the data is redesigned so that the bad state has no value, and the
 compiler rejects code that tries to build it. Then the property needs no test, because it cannot
-fail. Other properties cannot be carried by types at all, and still need the workload. This leaf
+fail. Other properties cannot be carried by types at all, and still need the workload. This module
 is how to tell which is which.
 
 A design change alters the SUT far more than a seam does. Propose it; do not make it without the
@@ -49,7 +49,7 @@ construction").
 3. **Show the defect no longer type-checks.** Write the offending code as a small file that is
    expected not to compile (a negative compilation test), and record the compiler's error. That
    error is the counterexample's replacement.
-4. **Rerun mutation testing** (`modules/mutation/README.md`, "After a design fix"). A mutant that
+4. **Rerun mutation testing** (`modules/mutation.md`, "After a design fix"). A mutant that
    no longer compiles is stillborn: its property is now enforced by construction. A mutant that
    still compiles and is killed shows a property that is still needed. A mutant that compiles and
    survives is a hole in the types and in the tests.

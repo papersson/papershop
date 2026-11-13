@@ -16,7 +16,7 @@ description: >
 
 # correctness
 
-This file is a router. It takes you from "we have tests and still get surprised" to a workload
+This file is the entry point. It takes you from "we have tests and still get surprised" to a workload
 that generates the surprises on demand, and it stops when each finding is a replayable,
 minimal counterexample with a property behind it. Every module below emits one artifact into a
 scratchbook; understanding is not a deliverable.
@@ -49,7 +49,7 @@ Run first, every time.
   arrive late, twice or out of order; several writers touch the same state; work can fail or crash
   halfway; behaviour depends on time.
 - **A smaller thing will do** when the code is a pure transformation. Write one property-based
-  test (`modules/workload/in-process.md`, "Pure functions") and stop.
+  test (`modules/workload.md`, "Pure functions") and stop.
 - **Use their plugin instead** when the team has Antithesis. This skill is for when it does not.
 - **Research and audit only** when nothing of the SUT can be built or run by you. Say so, and
   lower every claim accordingly.
@@ -58,7 +58,7 @@ Run first, every time.
 
 **1. Draw the SUT boundary.** Pick the one component whose code you can change. Everything it
 talks to is a dependency. A property about a dependency's behaviour is an *assumption*, and
-assumptions are tracked separately from guarantees (`modules/research/assumptions.md`), because
+assumptions are tracked separately from guarantees (`modules/research.md`, "Guarantees and assumptions"), because
 you cannot enforce them, only detect when they are false.
 
 **2. Find out which run modes are open.** Ask; do not assume. Deployment environments are often
@@ -77,22 +77,28 @@ confirmed in writing.
 
 **3. Hold the evidence standard.** A sentence in a doc, a comment, or a bug report is a lead, not
 a fact. A claimed guarantee becomes a property to test; never write that it holds. Read
-`modules/research/validating-claims.md` once before any research.
+`modules/research.md`, "Validating claims" once before any research.
 
 ## Modules
 
-Read only the module the task needs. Each has a `README.md` and, where listed, leaves.
+Each module is one file. For any task that ends in a workload, read `modules/research.md`,
+`modules/fakes.md`, `modules/workload.md` and `modules/review-inputs.md` in full before starting:
+they are short, and each leans on the others (the fault inventory is part of the workload file
+so that it cannot be skipped). Read the rest when the task reaches them.
 
 | Module | Use when | Emits |
 |---|---|---|
-| `modules/research/` | you need to know what should be true of the SUT | `sut-analysis.md`, `property-catalog.md`, `properties/{slug}.md`, `assumptions.md` |
-| `modules/fakes/` | a dependency cannot be run where the workload runs | `fakes/{dependency}.md` and the fake itself |
-| `modules/workload/` | you are building or extending the thing that exercises the SUT | the driver, its model, its assertions |
-| `modules/review-inputs/` | a workload passes and you doubt what it explored | `workload-review.md` |
-| `modules/mutation/` | you need to know whether the properties would catch a bug | `mutation-report.md` |
-| `modules/triage/` | a run failed, or a fix is being chosen between a guard and a redesign | `findings/{id}.md`, one per distinct failure |
-| `modules/audit/` | you can read production stores or logs | `audit-report.md` |
-| `modules/model/` | the question is whether a design or a proposed fix is sound | a specification and its checked result |
+| `modules/research.md` | you need to know what should be true of the SUT | `sut-analysis.md`, `property-catalog.md`, `properties/{slug}.md`, `assumptions.md` |
+| `modules/fakes.md` | a dependency cannot be run where the workload runs | `fakes/{dependency}.md` and the fake itself |
+| `modules/workload.md` | you are building or extending the thing that exercises the SUT | the driver, its model, its assertions |
+| `modules/workload-deployed.md` | the run mode is a deployed SUT with the driver alongside | additions to the workload |
+| `modules/workload-ui.md` | the run mode is a web or terminal interface | a Bombadil specification |
+| `modules/review-inputs.md` | a workload passes and you doubt what it explored | `workload-review.md` |
+| `modules/mutation.md` | you need to know whether the properties would catch a bug | `mutation-report.md` |
+| `modules/triage.md` | a run failed | `findings/{id}.md`, one per distinct failure |
+| `modules/fix-by-design.md` | a fix is being chosen between a guard and a redesign of the data | the "Fix" section of a finding |
+| `modules/audit.md` | you can read production stores or logs | `audit-report.md` |
+| `modules/model.md` | the question is whether a design or a proposed fix is sound | a specification and its checked result |
 
 ## Workflows
 
@@ -129,7 +135,7 @@ touched, and where findings should be reported.
 - Build choices from the library's combinators, and put the simplest alternative first, so the
   minimal counterexample is also the easiest to read.
 - Randomize the policy per test case, not only the choices under a fixed policy
-  (`modules/review-inputs/`).
+  (`modules/review-inputs.md`).
 - Never skip a case silently. Count what was filtered, and print it. Where the library filters
   before a rule runs and gives no count, move the condition inside the rule and record an event.
 - Never narrow a generator to step around a known bug. Keep the bug as an expected failure.
@@ -142,7 +148,7 @@ touched, and where findings should be reported.
 - Every failure is reported with its minimal counterexample, its replay token or seed, and the
   story of the steps in plain words.
 - For a defect in the SUT, say whether a redesign of the data would make the bad state
-  unrepresentable, next to the guard that would catch it (`modules/triage/fix-by-design.md`).
+  unrepresentable, next to the guard that would catch it (`modules/fix-by-design.md`).
 - Do not invent an answer. An open question tagged `(needs human input)` is a deliverable.
 
 **Limits of authority**

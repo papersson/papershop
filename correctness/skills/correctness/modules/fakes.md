@@ -9,7 +9,7 @@ A fake is a working in-memory implementation of a dependency. A workload's verdi
 good as its fakes: the same driver and the same property can pass against a fake that does what
 you assumed and fail against one that does what the real service does. Treat a fake as a claim
 about someone else's system, and hold it to the evidence standard in
-`modules/research/validating-claims.md`.
+`modules/research.md`, "Validating claims".
 
 ## What a fake must do
 

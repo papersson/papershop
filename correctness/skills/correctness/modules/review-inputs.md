@@ -18,7 +18,7 @@ are weighted, how many targets there are, how long the run is, how the system st
 
 1. **Locate the workload** and read it: the actions, the generators, the preconditions, the
    starting state.
-2. **Read `anti-patterns.md`.**
+2. **Read `refs/anti-patterns.md`.**
 3. **Get the statistics of a run**, if the workload can be run: which actions ran together, how
    often each precondition rejected a step, how often each fault took effect, and the distribution
    of whatever the bugs you fear would need (the most actions on one target, the longest queue).
@@ -45,4 +45,4 @@ it to a fresh agent with this module, or skip the review and say it was skipped.
 
 Findings are ceilings on what the workload can reach, not defects. A workload with several of
 these patterns may still be finding bugs. Do not review whether the assertions would notice a bug
-(that is `modules/mutation/`), whether the SUT is correct, or whether the workload's code has bugs.
+(that is `modules/mutation.md`), whether the SUT is correct, or whether the workload's code has bugs.

@@ -46,7 +46,7 @@ For each mutant, in this order:
 
 1. **Did it build and start?** If not, fix the mutant.
 2. **Did the marker fire?** If not, the workload never reached the mutated code. The finding is
-   about the workload: go to `modules/review-inputs/`.
+   about the workload: go to `modules/review-inputs.md`.
 3. **Did the target property fail?** If so: killed. Record the minimal counterexample.
 4. **Did some other property fail instead?** Record it as collateral. The target property is still
    not shown to work.
@@ -55,7 +55,7 @@ For each mutant, in this order:
 
 ## After a design fix
 
-When a defect was fixed by redesigning the data (`modules/triage/fix-by-design.md`), run the
+When a defect was fixed by redesigning the data (`modules/fix-by-design.md`), run the
 same mutants against the new design and sort them:
 
 - **Stillborn**: the mutant no longer compiles. The property it targeted is enforced by

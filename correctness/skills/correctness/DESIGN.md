@@ -2,9 +2,15 @@
 
 Why each part is there.
 
-**A router, not a procedure.** The tasks differ too much for one sequence: a codebase new to this,
-a single handler, the aftermath of an incident, a suite that has gone quiet. SKILL.md gates, makes
-three decisions, and sends the reader to one module.
+**Modules, not one procedure.** The tasks differ too much for one sequence: a codebase new to
+this, a single handler, the aftermath of an incident, a suite that has gone quiet. SKILL.md gates,
+makes three decisions, and names the modules the task needs.
+
+**One file per module, and the common path read together.** Research, fakes, workload and the
+review of inputs are needed by almost every task and together are a few thousand words, so they
+are read in full, not on demand. A step kept in a separate file is a step that gets skipped:
+fault injection is a section of the workload file for that reason. Only the two other run modes,
+the audit, the model and the reference tables are read when the task reaches them.
 
 **Antithesis's vocabulary.** Their skills and plugin are where this method is being worked out in
 public. Using their terms (SUT, workload, driver, property, assertion types, fault, property
@@ -58,10 +64,10 @@ ladder keeps the two apart.
 the workload to assert that it reached the states it exists to reach turns "print the statistics
 and look" into a check that fails.
 
-**A leaf on fixing by design.** Some properties stop needing a test once the data is redesigned,
+**A module on fixing by design.** Some properties stop needing a test once the data is redesigned,
 and which ones is predictable: what is about the shape of data can be enforced by construction,
 and what relates run-time values, stores or moments cannot. Antithesis's skills have nothing on
-this, since they test systems as they are. It is kept to one leaf under triage, a field in the
+this, since they test systems as they are. It is kept to one short module beside triage, a field in the
 property template and a step in mutation testing, so the skill stays a testing skill and does not
 turn into a design guide.
 
