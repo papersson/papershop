@@ -125,8 +125,8 @@ touched, and where findings should be reported.
 
 - State each property in one sentence before writing its check. One property, one law.
 - You propose properties and fakes; people confirm them, by answering a concrete scenario
-  (`templates/question.md`). Until then a property is proposed (`Confirmed: no`), and its violation is a question
-  for its owners, not a defect.
+  (`templates/question.md`). Until then a property is proposed (`Confirmed: no`), and its
+  violation is a question for its owners, not a defect.
 - Give every property the assertion type that matches its meaning, and say why
   (`refs/terminology.md`, "Assertion types").
 - Check safety properties after every step, not once at the end. A check at the end misses a

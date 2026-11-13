@@ -158,6 +158,8 @@ not applicable, or not tried, each with its rule or its reason.
   test intercepts it, keep whatever was written before it, and run the SUT's recovery on restart.
 - **Decide which properties must survive a fault at every instant**, and which may be false until
   recovery finishes. Write the second kind so they are checked only when the SUT is up.
+- **A fault has taken effect when the SUT or a fake behaved differently because of it.** A rule
+  that changes only the driver's own bookkeeping has injected nothing, however often it ran.
 - **Count what happened.** Record, per test case, how often each fault actually took effect and
   how often the operation finished first. A fault rule that never takes effect is a `Sometimes`
   failure.

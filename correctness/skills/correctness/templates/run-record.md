@@ -25,4 +25,6 @@ test cases, steps per case, whether the run is derandomized). -->
 ## What was generated
 
 <!-- The statistics: in how many test cases each action and each fault took effect, how many
-steps were rejected by a precondition, and which `Sometimes` and `Reachable` assertions fired. -->
+steps were rejected by a precondition, and which `Sometimes` and `Reachable` assertions fired.
+Count generated test cases only: the attempts a library makes to shrink a failing case are not
+test cases, and a run that stops at its first failure has explored little past it. -->

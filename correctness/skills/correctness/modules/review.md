@@ -39,7 +39,8 @@ from adding `review.md`.
 **Faults**
 
 - [ ] Every row of `fault-inventory.md` marked `action` names a rule that exists in the driver,
-      and that rule took effect in your own run, not only in the recorded one.
+      and that rule took effect in your own run, not only in the recorded one. Taking effect
+      means the SUT or a fake behaved differently because of it.
 - [ ] `dependency call fails` and `crash mid-operation` are actions, or are truly not applicable.
       For every row marked `not tried`, the reason given is true of this SUT.
 - [ ] Every row marked `not applicable` is right: open the SUT and look for the source it denies.
