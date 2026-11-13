@@ -23,9 +23,11 @@ be replayed and shrunk.
 4. **Write the actions.** One rule per action. Each draws its inputs, performs the action, and
    updates the model.
 5. **Add the faults** as further actions. Follow `faults.md`.
-6. **Write the assertions.** One per property, with the type the catalog gave it. Add `Sometimes`
-   and `Reachable` assertions for the states the workload exists to reach, so a passing run can be
-   told apart from one that never got there.
+6. **Write the assertions.** One per property, with the type the catalog gave it. When a
+   property nobody has confirmed fails, do not report a defect: its minimal counterexample is the
+   scenario to ask about (`templates/question.md`), and the check is kept as an expected failure
+   until someone answers. Add `Sometimes` and `Reachable` assertions for the states the workload
+   exists to reach, so a passing run can be told apart from one that never got there.
 7. **Run, and read what was generated** before reading the result. Then hand the workload to
    `modules/review-inputs/`.
 8. **Hand failures to `modules/triage/`.**

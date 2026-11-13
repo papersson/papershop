@@ -26,7 +26,8 @@ incidents or failure modes matter most.
    retries.
 2. **List what exists.** Search for checks already in the code or tests that state a property
    (assertions, invariants, validation, existing property-based tests). Record file and line. No
-   later step should propose a check that is already there.
+   later step should propose a check that is already there. Ask for the alerts that would page
+   someone, too: each is a property the team already cares about, checked after the fact.
 3. **Discover properties**, one attention focus at a time. Follow `property-discovery.md`.
 4. **Separate guarantees from assumptions.** Follow `assumptions.md`.
 5. **Validate anything taken from outside the code.** Follow `validating-claims.md`.
@@ -41,6 +42,13 @@ incidents or failure modes matter most.
 9. **Evaluate the catalog as a whole.** Which focuses produced nothing, and is that because the
    SUT has nothing there or because nobody looked? Which properties imply others? Which are too
    vague to fail?
+10. **Put the properties to a person.** You can propose a property; you cannot know that its
+    owners want it. Turn each property's failure scenario into one question from
+    `templates/question.md`: a few concrete steps ending in the state the property forbids, then
+    "may the system end up here?". Ask the team that owns the SUT about a guarantee, and the team
+    that owns the dependency about an assumption. Ask few questions: high priority first, and
+    none about a property the code already asserts (step 2). A property stays `proposed` until
+    someone has answered.
 
 ## Guidance
 
@@ -51,7 +59,8 @@ incidents or failure modes matter most.
 - When a property needs internal state to be judged, say where in the SUT an assertion would have
   to sit. A check that only the workload can see may miss it.
 - Mark a property invalidated, with the reason, when investigation shows it is wrong. Keep it in
-  the catalog so nobody rediscovers it.
+  the catalog so nobody rediscovers it, and give the workload a `Sometimes` assertion for the
+  state it wrongly forbade: other code may assume that state never occurs.
 
 ## Done when
 
@@ -61,4 +70,7 @@ incidents or failure modes matter most.
 - [ ] No sentence in any artifact says a guarantee holds.
 - [ ] Guarantees and assumptions are in separate lists.
 - [ ] Open questions are visible in the catalog, not buried in evidence files.
+- [ ] Every confirmed property names who answered, when, and the question asked, and that
+      question's scenario ends in a violation of the property, so "yes, that may happen" was a
+      possible answer.
 - [ ] Each claim taken from a doc or a report cites the detail that validates it.

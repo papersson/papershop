@@ -114,6 +114,9 @@ touched, and where findings should be reported.
 **Properties**
 
 - State each property in one sentence before writing its check. One property, one law.
+- You propose properties and fakes; people confirm them, by answering a concrete scenario
+  (`templates/question.md`). Until then a property is `proposed`, and its violation is a question
+  for its owners, not a defect.
 - Give every property the assertion type that matches its meaning, and say why
   (`refs/terminology.md`, "Assertion types").
 - Check safety properties after every step, not once at the end. A check at the end misses a
@@ -159,6 +162,7 @@ correctness/scratchbook/
   property-catalog.md      every property: slug, sentence, assertion type, priority, open questions
   properties/{slug}.md     evidence file per property
   assumptions.md           what the SUT relies on from its dependencies
+  questions/{id}.md        one concrete scenario put to a person, and the answer
   fakes/{dependency}.md    evidence for each fake's behaviour, and how it was verified
   workload-review.md       findings on input generation
   mutation-report.md       mutant per property, verdict, what was done about survivors
