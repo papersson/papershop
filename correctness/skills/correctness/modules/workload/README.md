@@ -50,6 +50,7 @@ be replayed and shrunk.
 
 - [ ] Every item of the surface is exercised by an action or listed as out of scope with a reason.
 - [ ] Every property in the catalog has an assertion, or a note saying why it cannot be checked here.
+- [ ] Every row of the fault inventory in `faults.md` is an action of the driver, or is listed as not tried with a reason. Delivery faults alone are not enough: include a failing dependency and a crash mid-operation.
 - [ ] `Sometimes` and `Reachable` assertions cover the states the workload exists to reach, and they fire.
 - [ ] A failure prints a minimal counterexample and a replay token.
 - [ ] The run's generation statistics have been read and are reported with the result.
