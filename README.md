@@ -14,6 +14,7 @@ A small Claude Code plugin marketplace.
 | [`screenshot-pane`](./screenshot-pane) | A mod that shows every screenshot Claude takes in a pane beside the transcript. Flip to the previous version of the same page, and point Claude at a shot with one key. Needs a terminal with the kitty graphics protocol, such as Ghostty. |
 | [`polish-ui`](./polish-ui) | Autonomously hill climb a UI you already like within a scope-sized budget of minutes, hours or days. Preserve its character, evaluate focused candidates with measured checks and independent visual review, and continue until the budget or an evidenced plateau. Returns before/after evidence and a reviewable diff. |
 | [`walk-me-through`](./walk-me-through) | Explain one mechanism as a local click-through page. Each click changes exactly one thing on a stage drawn from the real data, and one caption line of at most 12 words says what it means. It decides first whether a sentence would do, writes the page as a click list for approval, builds it with a small engine (no dependencies, opens from disk), and checks it with a script that enforces the rules at three window sizes, screenshots, and a fresh reader. |
+| [`correctness`](./correctness) | Find the bugs example tests cannot reach in stateful, concurrent or message-driven code. Research a system under test into a catalog of testable properties and assumptions with evidence, fake the dependencies that cannot be run and verify the fakes, build a workload that explores it with faults (a Hegel state machine, or Bombadil for web and terminal UIs), review how well its inputs explore, check the properties with mutation testing, and audit stored data against them. Follows the terminology and strategies of Antithesis's public agent skills, without needing the product. |
 
 ## Install
 
@@ -34,13 +35,14 @@ claude plugin install present-your-work@papershop
 claude plugin install elicit@papershop
 claude plugin install polish-ui@papershop
 claude plugin install walk-me-through@papershop
+claude plugin install correctness@papershop
 ```
 
 `worklog` also ships a Nix flake (it has a Python engine to build); see
 [`worklog/README.md`](./worklog/README.md) for the flake input and home-manager
 wiring. `prose` is pure Markdown — no build, install via the
 plugin command above. `present-your-work` is Markdown and one standard-library Python script, with
-nothing to build. `elicit` is pure Markdown. `polish-ui` is Markdown and JSON, with no build step; it uses the target project's preview tools. `walk-me-through` is Markdown, one JavaScript and one CSS file, and standard-library Python scripts that drive an installed Chrome or Chromium. `studio` runs through its own `bin/studio`, which loads its own flake (see
+nothing to build. `elicit` and `correctness` are pure Markdown. `polish-ui` is Markdown and JSON, with no build step; it uses the target project's preview tools. `walk-me-through` is Markdown, one JavaScript and one CSS file, and standard-library Python scripts that drive an installed Chrome or Chromium. `studio` runs through its own `bin/studio`, which loads its own flake (see
 [`studio/README.md`](./studio/README.md)). The retired `tutor` plugin's lessons rebuild with the kit
 each one copied; `nix develop .#tutor` still provides that kit's system tools (Manim's cairo and
 pango, espeak-ng, ffmpeg, the IBM Plex fonts).
