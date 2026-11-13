@@ -47,6 +47,20 @@ For each mutant, in this order:
 5. **Nothing failed, and the marker fired:** survived. The property is too weak, or missing. Find
    what the mutant changes that no property observes, and repair the property.
 
+## After a design fix
+
+When a defect was fixed by redesigning the data (`modules/triage/fix-by-design.md`), run the
+same mutants against the new design and sort them:
+
+- **Stillborn**: the mutant no longer compiles. The property it targeted is enforced by
+  construction; its assertion can be retired or kept as a cheap backstop.
+- **Killed**: the mutant compiles and the property fails. The types did not take this property
+  over, and the workload is still needed for it.
+- **Survived**: the mutant compiles and nothing fails. Neither the types nor the properties
+  guard this behaviour.
+
+Report the three lists. They are the evidence for which properties the redesign made redundant.
+
 ## Do not game it
 
 - Never coarsen a mutant into obvious breakage to get it killed. Fix the workload or the property.

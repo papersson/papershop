@@ -39,6 +39,11 @@ audit of stored data, the in-process run mode, and model checking.
   which features are enabled, and the observation that including a feature can suppress behaviour.
 - **Feathers, *Working Effectively with Legacy Code*.** Seams and characterization tests.
 - **Meszaros, *xUnit Test Patterns*.** Test doubles, and the distinction between a fake and a mock.
+- **Minsky, "make illegal states unrepresentable"; King, "Parse, don't validate"; Strom and
+  Yemini, "Typestate" (1986).** The basis of `modules/triage/fix-by-design.md`. Which properties a
+  redesign made redundant in the author's course was established by rerunning mutants: one
+  property became unrepresentable, one was half covered because the language is structurally
+  typed, and two still needed the workload.
 - **Yuan and others, "Simple Testing Can Prevent Most Critical Failures", OSDI 2014.** Mishandled
   errors as a cause of serious failures; the reason failure-recovery gets its own attention focus.
 - **Tool documentation and source**, read on 2026-11-13: hegeldev/hegel (README, the Java frontend

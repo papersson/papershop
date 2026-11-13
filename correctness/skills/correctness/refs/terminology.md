@@ -47,6 +47,31 @@ workload exists to reach "two messages for the same record pending at once", ass
 sometimes does. A library that prints per-run event statistics gives you the count; a run where a
 `Sometimes` count is zero has failed, whatever else passed.
 
+## Type system terms
+
+- **Algebraic data types**: types built from **sum types** (one of several cases; also called
+  tagged or discriminated unions, or variants) and **product types** (several fields at once).
+- **Exhaustive pattern matching**: a match over a sum type that the compiler rejects when a case
+  is missing.
+- **Making illegal states unrepresentable**: designing a type so that a bad state has no value.
+- **Typestate**: encoding an object's state in its type, so an operation exists only where it is
+  legal.
+- **Nominal and structural typing**: whether two types are the same by name or by shape. Under
+  structural typing a value with the right shape is accepted whoever built it.
+- **Newtype**: a distinct type over an existing representation, such as an id over a string.
+- **Abstract (opaque) type**: a type whose representation is hidden outside its module.
+- **Smart constructor**: the only function that can build a value of an abstract type; it checks
+  a predicate once. Slogan: parse, don't validate.
+- **Representation invariant**: what a module keeps true of its own data, such that code outside
+  cannot break it.
+- **Refinement type**: a type together with a predicate on its values. **Dependent type**: a type
+  that depends on a value. Both can state relations between values statically.
+- **Linear and affine types**: values that must be used exactly once, or at most once.
+- **Effect type**: the part of a function's type that says what it needs or may do.
+- **Negative compilation test**: a file that is expected not to compile, kept to show a mistake is
+  rejected.
+- **Stillborn mutant**: a mutant that does not compile.
+
 ## Property-based testing terms
 
 - **Generator**: produces test inputs from the library's randomness.

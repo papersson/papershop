@@ -39,6 +39,13 @@ ladder keeps the two apart.
 the workload to assert that it reached the states it exists to reach turns "print the statistics
 and look" into a check that fails.
 
+**A leaf on fixing by design.** Some properties stop needing a test once the data is redesigned,
+and which ones is predictable: what is about the shape of data can be enforced by construction,
+and what relates run-time values, stores or moments cannot. Antithesis's skills have nothing on
+this, since they test systems as they are. It is kept to one leaf under triage, a field in the
+property template and a step in mutation testing, so the skill stays a testing skill and does not
+turn into a design guide.
+
 **Hegel and Bombadil as defaults.** Both are open source, run without the platform, and were run
 before being named here. Hegel has the same stateful shape across languages, with swarm testing
 built in, and its drivers are what the Antithesis plugin itself writes. Other libraries are

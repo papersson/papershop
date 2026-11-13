@@ -90,7 +90,7 @@ Read only the module the task needs. Each has a `README.md` and, where listed, l
 | `modules/workload/` | you are building or extending the thing that exercises the SUT | the driver, its model, its assertions |
 | `modules/review-inputs/` | a workload passes and you doubt what it explored | `workload-review.md` |
 | `modules/mutation/` | you need to know whether the properties would catch a bug | `mutation-report.md` |
-| `modules/triage/` | a run failed | `findings/{id}.md`, one per distinct failure |
+| `modules/triage/` | a run failed, or a fix is being chosen between a guard and a redesign | `findings/{id}.md`, one per distinct failure |
 | `modules/audit/` | you can read production stores or logs | `audit-report.md` |
 | `modules/model/` | the question is whether a design or a proposed fix is sound | a specification and its checked result |
 
@@ -137,6 +137,8 @@ touched, and where findings should be reported.
 - Say what ran and what was observed. "Not observed in 300 test cases" is not "does not happen".
 - Every failure is reported with its minimal counterexample, its replay token or seed, and the
   story of the steps in plain words.
+- For a defect in the SUT, say whether a redesign of the data would make the bad state
+  unrepresentable, next to the guard that would catch it (`modules/triage/fix-by-design.md`).
 - Do not invent an answer. An open question tagged `(needs human input)` is a deliverable.
 
 **Limits of authority**

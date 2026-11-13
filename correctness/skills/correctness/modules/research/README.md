@@ -33,9 +33,12 @@ incidents or failure modes matter most.
 6. **Write the catalog and the evidence files** from `templates/property.md`. Give each property a
    kebab-case slug, one sentence, an assertion type with the reason for it, a priority, and its
    open questions.
-7. **Investigate open questions** against the code. Resolve what the code settles. Tag the rest
+7. **Classify each property's enforceability**: by the data type alone, by an abstract type with
+   a smart constructor, or not by types at all (the table in `modules/triage/fix-by-design.md`).
+   A property a compiler could guarantee is a design finding, not only something to test.
+8. **Investigate open questions** against the code. Resolve what the code settles. Tag the rest
    `(partial: what was found)` or `(needs human input)`. Never guess.
-8. **Evaluate the catalog as a whole.** Which focuses produced nothing, and is that because the
+9. **Evaluate the catalog as a whole.** Which focuses produced nothing, and is that because the
    SUT has nothing there or because nobody looked? Which properties imply others? Which are too
    vague to fail?
 

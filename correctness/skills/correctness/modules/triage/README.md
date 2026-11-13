@@ -19,7 +19,8 @@
 4. **Find the mechanism.** Name the line or the interleaving. A finding is not done at "it fails".
 5. **Check for siblings.** Would the same mechanism break another property, or another caller?
 6. **Propose the fix and its kind**: a guard in code, or a change of design that makes the bad
-   state impossible to construct. Say which, and what each would cost.
+   state unrepresentable. For a SUT defect, read `fix-by-design.md` before settling on a guard.
+   Say which, and what each would cost.
 7. **Keep the counterexample as a regression test**, with its replay token.
 
 ## A finding contains
