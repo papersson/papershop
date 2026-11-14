@@ -1,0 +1,6 @@
+{
+  "name": "correctness",
+  "version": "0.1.0",
+  "description": "Find the bugs example tests cannot reach in stateful, concurrent or message-driven code. Research a system under test into a catalog of testable properties and assumptions, fake the dependencies you cannot run and verify the fakes, build a workload that explores it with faults (a Hegel state machine, or Bombadil for web and terminal UIs), review how well its inputs explore, check the properties with mutation testing, and audit stored data against them. Follows the terminology and strategies of Antithesis's public agent skills, without needing the Antithesis product.",
+  "author": { "name": "Patrik Persson" }
+}

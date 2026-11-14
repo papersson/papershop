@@ -55,6 +55,12 @@
       "source": "./walk-me-through",
       "version": "0.1.0",
       "description": "Explain one mechanism as a click-through HTML page: one change per click on a stage drawn from the real data, one short caption line, a click list approved before building, and a checker that enforces the rules."
+    },
+    {
+      "name": "correctness",
+      "source": "./correctness",
+      "version": "0.1.0",
+      "description": "Find the bugs example tests cannot reach in stateful, concurrent or message-driven code: a property catalog with evidence, verified fakes, a workload with faults (Hegel, or Bombadil for UIs), input review, mutation testing and an audit of stored data. Follows Antithesis's public skills, without needing the product."
     }
   ]
 }
