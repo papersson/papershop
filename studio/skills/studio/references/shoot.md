@@ -11,7 +11,8 @@ sentence ids and absolute times, beats and screen notes, the taste path and allo
 It includes the chapter’s accepted `research/style-frames/manifest.json` images and the exact
 permitted events from `research/sound.json` (none if absent). Inspect the images and match their
 drawing style, typography, palette, framing and scale; materials and light apply only to
-physical subjects admitted by the hard 3D test in taste.md. Sound may accompany only a listed tactile touch.
+physical subjects admitted by the hard 3D test in taste.md. Sound may accompany only a listed touch or
+physical consequence.
 It also includes `research/story/<clip>.md`: that chapter's hero moment as described in the elicit
 material and the relevant panel principles with reasons, selected during story conversion. Keep
 the full panel and rich brief in `research/elicit.md`; do not send them wholesale to every agent.
@@ -22,6 +23,13 @@ can already be applied by the main session. Otherwise the chapter proposes its p
 data folder and reports it back. Shared work should be small enough to keep the chapter jobs
 independent. The live kit supplies CodePanel, Editor, RunTerminal, ProgramWindow, Terminal and
 HelperCard; all read the same typing and code-view data.
+
+### One shared library
+
+Keep a film's look, parts and overlay once, in its shared scene files; chapters import them and
+never keep private copies. One machine, one drawing function. A film of several videos keeps a
+canonical `shared/` folder, synced into each act by a script and checked identical before a render
+(the Save film's five acts had drifted apart, and drew one server two ways).
 
 ## Dispatch the chapter agents
 
@@ -49,14 +57,15 @@ Use this prompt, replacing the paths and clip id:
 
 ```text
 Build chapter CLIP of VIDEO. First use Read on the unique job path printed by studio shoot.
-Read that job, SKILL_ROOT/references/taste.md and SKILL_ROOT/references/kit.md.
+Read that job, SKILL_ROOT/references/taste.md, SKILL_ROOT/references/staging.md and
+SKILL_ROOT/references/kit.md.
 The story and voice are settled. Build the chapter in one pass, including its performed hero
 moment, matching the accepted style frames. Follow the marked breaths: still and silent at key
 points, then reset between sections. Let related motion flow under narration elsewhere. Where the
 viewer must read a change, give them one place to look: a change that causes another elsewhere is
 a second beat, and the first place stays still while it plays. A deliberate hold the script does
 not mark as a breath is a shared change to report, so the pacing check can tell it from dead time.
-Make the subject large enough to inspect. Use only the listed tactile sounds.
+Make the subject large enough to inspect and follow staging.md. Use only the listed sounds.
 
 Write only VIDEO/scenes/CLIP.js, VIDEO/cues/CLIP.json and VIDEO/data/CLIP/.
 Treat shared files as read-only, including the script, narration, layout, boards, timeline,

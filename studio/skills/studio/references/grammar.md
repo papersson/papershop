@@ -20,9 +20,17 @@ label `name-payment`.
   word: up to 0.6 s, keeping 0.1 s clear of the voice. A cut needs at least 0.2 s of quiet,
   otherwise it stays hard. The incoming chapter chooses how it is joined: `export const join = { match: 'payment' }`
   is a match cut, where the outgoing camera carries the named thing to where the next chapter first
-  draws it, while the dissolve runs. `export const join = 'hard'` is a straight cut, for a
-  deliberate jolt. A join renders as its own short piece of the outgoing clip, so editing a chapter
+  draws it, while the dissolve runs. `export const join = 'hard'` is a straight cut, kept
+  for a deliberate jolt inside a silence that lands the new subject in the middle of the frame; a
+  change of place is a camera move along the map, never a cut (next item). A join renders as its own short piece of the outgoing clip, so editing a chapter
   re-renders only its own clip and the join into it.
+- **One map.** A film about where things are (a click travelling to a server and back) has one
+  map: every place keeps its position for the whole film, and the camera travels between them
+  continuously, so the viewer always knows where they are. A reply visibly returns along the way
+  it came to whoever asked, instead of continuing down a pipeline. Show the whole map once before
+  detail, and come back to it when the detail's consequence is elsewhere. Patrik, on a cut back to
+  the browser after the power cut: "The transition back to the browser should be much cleaner and
+  continuous."
 - **Callbacks.** `c.recall('s2', 'end', { into: [x, y, w, h] })` draws chapter s2's own frame
   (at a clip time, or `'end'`) fitted into a box on the overlay layer. Without `into`, it fills the
   stage. The payoff shows the setup exactly as it was, because it is the same drawing. Which setups return,

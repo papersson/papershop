@@ -18,7 +18,7 @@ anything. If something is missing, use the setup guidance in `references/kit.md`
 
 ## Develop the story, with the user
 
-Read `references/taste.md` and `references/story.md`. For an origins film, historical journey,
+Read `references/taste.md`, `references/staging.md` and `references/story.md`. For an origins film, historical journey,
 or a request to explain a modern system through its history, also read
 [`references/origins.md`](references/origins.md). Its story order and reference selection take
 precedence over the lecture defaults below. When `video.json` has `"kodawari": true` or the
@@ -111,5 +111,6 @@ After the video, fold lasting lessons from the user's notes into `references/tas
 note with its reason in `references/taste/notes.md`. Read `references/taste/comic.md` only
 when the user asks for comedy. For other kinds of video, use `references/by-hand.md`.
 
-The six working references are `taste.md`, `story.md`, `script.md`, `shoot.md`, `desk.md` and `kit.md`.
+The seven working references are `taste.md`, `staging.md`, `story.md`, `script.md`, `shoot.md`,
+`desk.md` and `kit.md`.
 `DESIGN.md` records the reasons behind the tools.
