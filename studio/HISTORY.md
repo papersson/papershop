@@ -3,6 +3,31 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Staging, the real thing, one map (0.36.0)
+
+Lessons from the Save film ("What happens when I click Save?", 44:53), where Patrik's notes kept
+returning to the same few things: where his attention goes, drawing the real machines, continuous
+movement on one map, and sound for physical events. His words are in taste/notes.md. This release
+writes the rules down; the checks and commands that would enforce them are proposed in
+`proposals/2026-11-save-film.md` and are not built yet.
+
+- New `references/staging.md`: eleven staging rules (one subject per sentence, size and brightness
+  as the pointer, one change at a time on its word, eye trace, the camera follows the subject,
+  still rests, a still beat on a consequence, words as names on things with a 26 px floor, nothing
+  the sentence does not need, one map) and the attention audit's measures with their aims. They
+  come from the film's own staging rules, which turned Act 4's dashboard look into a staged one,
+  and from what won the polish rounds on three clips of it. SKILL.md, the story step and the
+  chapter prompt in shoot.md read it.
+- taste.md: clean means focused, not pale; draw a system's real machines, one silhouette per
+  component, as fundamentals reusable across films; one living network at real scale. Sound may
+  accompany a physical consequence as well as a touch (a power cut's relay and fans), designed by
+  ear and listed in the brief; typing and clicks are never synthesized; permitted sounds sit at
+  least 12 dB under the voice; the music bed runs under rests and its recipe is kept.
+- grammar.md: one map, travelled by camera, with replies that visibly return; `join = 'hard'`
+  stays for a jolt inside a silence, never for a change of place.
+- shoot.md: one shared library per film, one drawing function per machine, and for a film of
+  several videos a canonical `shared/` folder synced into each and checked identical.
+
 ## One place to look, and a reviewer for it (0.35.0)
 
 Patrik, on looping sketches for the second cut of the TCP film: "just be careful there is not too

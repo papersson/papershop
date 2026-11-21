@@ -116,3 +116,27 @@ its own style frames; hence the written check of every "never" when the director
 frames. Evidence: the user's chat notes quoted here; the session's
 [retrospective](https://claude.ai/artifact/78Abqd2JaUeKD37A261o9H). The film lives in a cloud
 session's scratch folder (`tcp-video-v2`), not yet in studio-journey.
+
+Save film, "What happens when I click Save?" (2026-11-17 to 11-21), notes on the Act 4 cuts, the
+first opening and Act 1 of the 44:53 v2 film, and three polished prototype clips. Staging, after the
+dark cut of Act 4: “I want to really optimize the "staging" aspect of it. Be extremely careful about
+designing the experience for my attention should go, and make sure nothing else distracts it, and
+make sure I can digest whatever I'm attending.” On what clean means: “there is not a lot of
+distraction -- your eyes are drawn to the thing you need to attend to, and the stuff around it is
+either blank or subtle/quiet”; the pale colours were “a bit difficult to look at, maybe not enough
+contrast”. Hence `staging.md`: one subject per sentence, brightness and size as the pointer, still
+rests, words only as names on things. On cut 4: components looked “super similar; the only thing
+differentiating them is the label. I'd like as distinct visuals as possible, while still
+maintaining the clean vibe”; on character studies, “Memory and disk are fundamental concept, so
+the visuals should be able to fit in any video about memory and disk.” Hence draw the real thing,
+one silhouette per component, reusable. On the v2 opening: “Why dont we see "the server"
+anywhere?”, “Why is "my computer" showing a mouse... do a computer with a mouse at least”, and the
+transition back to the browser “should be much cleaner and continuous”. Hence one map travelled by
+camera, and a reply that visibly loops back. On the power cut: “Could use a much better sound
+effect and visual effect for this moment”; on typing, use the kit's keyboard. Hence recorded sound
+for touch, designed sound for physical consequence. On pauses: “maybe we pause too often” and “we
+need background music/bed to signify that stuff is still happening during the pause”. On the
+polished clips: “I love how smooth the animations are.” The polish rounds that won kept no text
+clipped by the frame, dimmed what sat beside the subject, stopped all motion before each rest and
+held still on a consequence before the camera left. Evidence: the user's notes quoted here; the
+film's staging rules and polish report live with the film, in Patrik's studio folder.

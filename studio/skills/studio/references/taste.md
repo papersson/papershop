@@ -52,6 +52,9 @@ a time first, then once more at their true pace, so the order of the telling is 
 order of the mechanism. Related transformations and reframing can develop one idea continuously.
 Keep performed code typing in speech pauses, with every key heard, then explain the completed line.
 
+Stage it by `staging.md`. Clean means focused, not pale: the subject is the brightest, largest thing
+near the middle, and everything around it is blank or quiet.
+
 The reason is rhythm: small holds after every change create one even pace without a real rest.
 Inside an idea the picture can move freely; when the idea lands, everything stops. A section
 break acts like a paragraph break. Mark key points and section ends in the brief and beat table's
@@ -67,9 +70,8 @@ still belong only after a real question the viewer can answer. Do not add meanin
 silence a diagnostic. Stop repeated demonstrations before introducing the next concept; loop
 only when repetition is the subject.
 
-Fill the frame with the subject. Make code, mechanisms and diagrams large enough to inspect at
-the delivered resolution. A tiny diagram or small editor surrounded by an empty stage wastes the
-picture. Enlarge the subject or move the camera before adding labels. Use close-ups for detail
+Fill the frame with the subject, large enough to inspect at the delivered resolution (staging.md,
+rule 2). Move the camera before adding labels. Use close-ups for detail
 and return to the overview when the relationship matters.
 
 Keep the overview clean: component names and current state. Open a component into a full-frame
@@ -119,6 +121,15 @@ A physical metaphor is allowed only when it maps exactly onto the mechanism; exp
 and limits in the brief. Draw it in the same flat, illustrated style, never model and light it.
 Do not invent drawers, machinery or a room to make an abstract subject look substantial.
 
+### Draw the real thing
+
+Draw a system's real machines (laptop, router, server, memory, disk) plainly, never a word in a box;
+a box with words is only for a real message. Each component gets its own silhouette carrying its
+property (memory light, the drive heavy), drawn as a fundamental that would fit any film on the
+subject, by one function everywhere in the film (shoot.md). A network is one living network at real
+scale, quietly alive; distance is one continuous zoom. Animate a claim on the picture instead of
+labelling it.
+
 ### Physical subjects: spatial craft
 
 For a hard drive, an engine, a lock or another physical mechanism, Ciechanowski is the bar.
@@ -155,18 +166,20 @@ as the word is said (`c.focus`; a screens `point`); a state change lands in the 
 sentence. Film grammar is in `grammar.md`.
 
 Default to no sound effects. Sound makes an object real (Ben Burtt): it belongs to things with
-a body that are touched. Permit recorded keys for performed typing, clicks, a window opening, or
+a body that are touched, and to their physical consequences: a power cut's relay clunk, fans
+winding down, then silence, designed by ear and listed in the brief. Permit recorded keys for performed typing, clicks, a window opening, or
 a real physical contact such as a disk head landing. List the exact permitted events in the shoot
 brief; an empty list means silence. Never put a whoosh, pop, ding or chime on an abstraction: a
 key entering a bucket, a label appearing or a reveal; a drawer metaphor does not license one.
 One trial exception: the outcome sounds, `finished` and `failed`, on outcome marks, when the
 director asks.
 
-The recorded sound kit stays. Keep permitted sounds below speech, with their transient on the
-pictured frame. Type in human bursts, with punctuation pauses and plausible corrections; vary
+The recorded sound kit stays; never synthesize typing or clicks. Keep permitted sounds at least
+12 dB below speech, with their transient on the pictured frame. Type in human bursts, with punctuation pauses and plausible corrections; vary
 key recordings without losing rhythm. Enter, save and run accents must correspond to performed
 keys or clicks. Do not add an accent merely because an output appeared. New films get palette
-music: wallpaper, barely noticeable, never swelling into a pause.
+music: wallpaper, barely noticeable, never swelling into a pause. It runs under rests, so a pause reads as
+time passing; record how it was built, to rebuild it after a timing change.
 
 Spend emphasis on meaning. Give the strongest event more space and a closer view when it reveals
 the stake. Let the world react only as the mechanism permits. A heavy physical contact can recoil
