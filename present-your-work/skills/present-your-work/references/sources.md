@@ -73,6 +73,29 @@ Each rule traces to a source below. The sources are summarized only as far as th
   Economy 97, 1989): someone who knows a thing cannot set it aside when judging what others know,
   so a writer cannot find their own private labels by rereading. Hence a script finds them.
 
+## The voice
+
+- **What marks text as machine-written today.** Wikipedia's "Signs of AI writing" (WikiProject AI
+  Cleanup) catalogues the structures: negative parallelism ("not X, but Y"), the rule of three,
+  trailing participial phrases, copula avoidance, colon reveals and bold lead-ins. Karl Weinmeister's
+  evaluation of humanizer skills (2026, [method and catalogs](https://github.com/kweinmeister/scripts/tree/main/evals/humanizer-skills))
+  measured current models against human writing on the same facts: *specifically* 5.4 times as
+  often, *essential* 8.3 times, *though* 5 times, and *furthermore*, *vital* and *alongside* almost
+  absent from the human text, while the old markers (*delve*, *tapestry*) had become rare. Hence
+  the voice rule's word list, applied to clusters rather than single uses.
+- **Drafting decides most of it.** The same evaluation found that a plain editing instruction
+  ("Edit to remove signs of AI writing, if there are any. Keep the meaning, facts, and register")
+  removed about a third of the tells while leaving 92% of human-written text untouched, that no
+  editing skill escaped the trade-off between removing tells and rewriting good text, and that
+  the drafting model mattered far more than any editing pass. Hence the voice rules in the drafting
+  step and one light reread, not a heavy rewrite.
+- **Rules that can be counted, and examples over bans.** Banned-word lists go stale and invite
+  synonyms; countable constraints (one idea per sentence, a length limit) and examples of the
+  target voice hold up better. Hence the sentence-length limit and `voice.md`.
+- **Write close to speech.** William Zinsser, *On Writing Well*, and Paul Graham, "Write Simply"
+  ([paulgraham.com](https://paulgraham.com/simply.html)): write the way you would say it to a
+  friend. Hence a report told to the person, in the first person, with contractions.
+
 ## Handing work back
 
 - **A structured handoff prevents errors at no cost in time.** Starmer et al., "Changes in

@@ -47,6 +47,17 @@ without adding any checking. So one sentence says what was checked and what was 
 level, and the full list is there to ask for. Naming changed test files closes the commonest way a
 check can be hollow: a test edited until it passes.
 
+## A voice that does not read as machine-written
+
+A report that reads like a model wrote it gets skimmed, so the voice is part of the job. Most of
+it is decided while drafting: an editing pass afterwards removes only part of the tells and
+starts rewriting good sentences once it removes more. So the skill puts the voice rules in the
+drafting step, shows three reports in the target voice instead of a long list of bans, asks for
+one light reread as the listener, and lets the script count the structures that give a draft away.
+Translating through another dialect or a second model changes the words and keeps the structure,
+and in agent reports the structure (labelled sentences, colon reveals) is most of the problem. It
+gives up the speed of a template: a report in this voice cannot be filled in like a form.
+
 ## A script for what the writer cannot see
 
 The writer cannot find their own private names by rereading, cannot feel their own length, and

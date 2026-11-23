@@ -47,9 +47,10 @@ and start no subagents. Budget: 15 to 60 seconds.
 Leave a line empty rather than inflate it: most tasks have no key idea and nothing opaque.
 `references/quick.md` has each line's rule and a worked example.
 
-### 2. Write it
+### 2. Write it the way you'd say it
 
-Write the text to a scratch file in this shape, 60 to 300 words, no headings:
+Write the text to a scratch file as if you were telling the person across a desk what you did. It
+has this shape, in 60 to 300 words and no headings, but the shape is never spelled out in the text:
 
 1. **The goal and the answer, then the catch.** One clause of goal, then the answer with its
    comparison ("by 05:40, against 08:50 the week before"), then the catch in the next sentence.
@@ -74,7 +75,27 @@ While writing:
 - Mark a new term once, where it is defined, in bold or italic, and use bold and italic for
   nothing else. At most two new terms.
 
-### 3. Check it once
+The voice matters as much as the content: a report that reads like a model wrote it gets skimmed.
+How the drafting goes decides most of it, because a later edit removes only a third of the tells,
+so get it right in the first draft.
+
+- Talk, don't announce. First person, contractions, plain words, full sentences.
+- One idea per sentence, most under 25 words, with the length varied.
+- No labels in front of sentences ("The catch:", "Checked:", "Next:", "Bottom line:"). Say it:
+  "There's one catch." "I ran the tests." "What I need from you is…"
+- No colon reveals ("The answer: it works"), no "not X, but Y", no em dashes, no groups of three
+  for rhythm, no trailing "-ing" clause that comments on the sentence ("…, ensuring that…").
+- Watch the words models overuse today: *specifically*, *essential*, *though*, *furthermore*,
+  *vital*, *alongside*, *crucial*, *additionally*. One is fine; a cluster is a tell.
+- No sign-off, no summary of the summary, no offer of more help.
+
+`references/voice.md` has three short reports in this voice, each beside the version a model writes
+by default. Read one before your first report in a session.
+
+### 3. Reread it as them, then check it once
+
+Read the draft once as the person hearing it. Edit only what you wouldn't say out loud to them and
+what reads as written by a model; keep the meaning, the facts and the order. Then run the script.
 
 ```
 python3 scripts/check_draft.py DRAFT [--changed-from -] [--glossary GLOSSARY.md] [--known TERM]
@@ -84,7 +105,8 @@ Pipe the changed files in so the script can see changed tests:
 `git diff --name-only BASE | python3 scripts/check_draft.py DRAFT --changed-from -`, with BASE the
 commit the work started from. The script runs in under a second and checks words, new terms,
 numbers, private labels, terms before their definition, superlatives, checks claimed without
-evidence, changed test files not named, and log-like telling (`references/checks.md`). Fix what it
+evidence, changed test files not named, log-like telling and the voice tells above
+(`references/checks.md`). Fix what it
 reports by replacing or cutting, never by adding a definition or a caveat, and run it once more.
 Then paste the text into the reply as the reply's whole content: no preamble, no offer of more.
 
@@ -101,6 +123,7 @@ Then paste the text into the reply as the reply's whole content: no preamble, no
 | Superlatives | They make the work sound checked without checking it. |
 | Length | A longer report raises trust without raising accuracy. |
 | A list of evidence | Readers skim it; it adds length, not checking. One sentence says what was checked, and the rest is there to ask for. |
+| Labelled sentences and colon reveals | They read as a form being filled in, and they are the first thing a reader recognizes as machine-written. |
 
 `references/sources.md` gives the sources behind each rule, and `DESIGN.md` the reasons for the
 skill's shape.

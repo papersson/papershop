@@ -17,7 +17,10 @@ list (or an appendix), without notes or references:
   tests     every changed test file (--changed) named somewhere in the draft, so a test that was
             edited to pass cannot hide behind "the tests pass";
   log       not told as a log: three or more markers of chronology ("first", "then", "after that",
-            "finally", a weekday) mean the text follows the order of the work, not of the argument.
+            "finally", a weekday) mean the text follows the order of the work, not of the argument;
+  voice     no marks of machine-written prose: labelled sentences and colon reveals ("The catch:"),
+            semicolons, em dashes, "not X, but Y", a trailing "-ing" comment clause, a sentence over
+            30 words, a sign-off offer, or a cluster (two or more) of the words models overuse now.
 
 It prints a short report and exits 0 when every rule holds, 1 when one is broken, 2 on a usage
 error. Standard library only.
@@ -52,11 +55,30 @@ RULES = {
     "evidence": "checks claimed without evidence",
     "tests": "changed test files not named",
     "log": "markers of chronology",
+    "voice": "marks of machine-written prose",
 }
 CHRONOLOGY = re.compile(
     r"\b(?:first(?:ly)?|then|after that|afterwards|afterward|finally|eventually|subsequently|later on"
     r"|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|yesterday|this morning)\b", re.I)
 LOG_LIMIT = 3
+# Words current models overuse against human writing on the same facts (Weinmeister's humanizer
+# evaluation, 2026: "specifically" 5.4x, "essential" 8.3x, "though" 5x; "furthermore", "vital" and
+# "alongside" nearly absent in human text). One is fine; two or more is a cluster.
+OVERUSED = re.compile(r"\b(?:specifically|essential(?:ly)?|though|furthermore|vital|alongside|crucial(?:ly)?"
+                      r"|additionally|notably|moreover|ensur(?:e|es|ed|ing)|leverag(?:e|es|ed|ing)|key)\b", re.I)
+VOICE = [
+    ("a colon in a sentence", re.compile(r"(?<!\d):(?=\s)")),
+    ("a semicolon", re.compile(r";")),
+    ("an em dash", re.compile(r"—|\s–\s|\s--\s")),
+    ("not X, but Y", re.compile(r"\bnot (?:only|just|merely|simply)\b[^.]{0,80}\bbut\b|\bit'?s not\b[^.]{0,60}[,;—–-]\s*it'?s\b"
+                                r"|\bisn'?t (?:just|merely|simply)\b[^.]{0,60}\bit'?s\b", re.I)),
+    ("a trailing -ing comment", re.compile(r",\s+(?:highlighting|underscoring|emphasizing|ensuring|reflecting|"
+                                           r"contributing to|fostering|enhancing|showcasing|enabling|allowing|"
+                                           r"paving the way|signaling|demonstrating|illustrating|making)\b", re.I)),
+    ("a sign-off offer", re.compile(r"\b(?:let me know|feel free|happy to help|i hope this helps|"
+                                    r"would you like me|don't hesitate)\b", re.I)),
+]
+LONG_SENTENCE = 30
 
 SUPERLATIVES = re.compile(
     r"\b(?:comprehensive(?:ly)?|robust(?:ly)?|seamless(?:ly)?|significantly|dramatically|drastically"
@@ -585,6 +607,7 @@ class Result:
     unbacked: list  # sentences that claim a check without evidence
     untold: list  # changed test files the draft never names
     chronology: list  # markers of a story told in the order of the work
+    voice: list  # (kind, excerpt) marks of machine-written prose
     failures: list
 
 
@@ -689,7 +712,22 @@ def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
     other_sections = len({b.section for b in rest})
 
     # Tone and evidence, sentence by sentence in the main text.
-    tone, unbacked, chronology = [], [], []
+    tone, unbacked, chronology, voice, overused = [], [], [], [], []
+    for b in body:
+        if b.kind != "text":
+            continue
+        bare = without_code(b.text)
+        overused += [m.group(0) for m in OVERUSED.finditer(bare)]
+        for kind, rx in VOICE:
+            for m in rx.finditer(bare):
+                a, z = max(0, m.start() - 30), min(len(bare), m.end() + 30)
+                voice.append((kind, plain(b.text[a:z]).strip()))
+        for sentence in re.split(r"(?<=[.!?])\s+", b.text):
+            n = count_words(sentence)
+            if n > LONG_SENTENCE:
+                voice.append((f"a sentence of {n} words", plain(sentence).strip()[:60] + "…"))
+    if len(overused) >= 2:
+        voice.append(("overused words", ", ".join(overused)))
     for b in body:
         bare = without_code(b.text)
         tone += [m.group(0) for m in SUPERLATIVES.finditer(bare)]
@@ -732,8 +770,10 @@ def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
         failures.append("tests")
     if len(chronology) >= LOG_LIMIT:
         failures.append("log")
+    if voice:
+        failures.append("voice")
     return Result(sections, stats, words, terms, numbers, labels, order, sum(count_words(b.text) for b in rest),
-                  other_sections, tone, unbacked, untold, chronology, failures)
+                  other_sections, tone, unbacked, untold, chronology, voice, failures)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -762,6 +802,7 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
     out.append(f"  {status('evidence')}  {RULES['evidence']}: {len(r.unbacked)}")
     out.append(f"  {status('tests')}  {RULES['tests']}: {len(r.untold)}")
     out.append(f"  {status('log')}  {RULES['log']}: {len(r.chronology)} (fewer than {LOG_LIMIT} passes)")
+    out.append(f"  {status('voice')}  {RULES['voice']}: {len(r.voice)}")
     out.append("")
     out.append(f"  {'Main-text section':<34} {'words':>6} {'terms':>6} {'numbers':>8} {'labels':>7}")
     for sec in sorted(r.stats):
@@ -801,6 +842,9 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
         out += capped([f"    \"{short(u, 90)}\"" for u in r.unbacked])
     if "log" in r.failures:
         out += ["", f"  Told in the order of the work ({', '.join(r.chronology)}): order it by the argument, answer first"]
+    if r.voice:
+        out += ["", "  Marks of machine-written prose (say it as you would out loud):"]
+        out += capped([f"    {kind}: \"{short(text, 70)}\"" for kind, text in r.voice])
     if r.untold:
         out += ["", "  Test files changed but never named (say what changed in them):"]
         out += capped([f"    {u}" for u in r.untold])

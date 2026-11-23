@@ -1,4 +1,5 @@
 """Tests for check_draft.py. Run: python3 test_check_draft.py (standard library only)."""
+import re
 import subprocess
 import sys
 import tempfile
@@ -43,7 +44,7 @@ class Samples(unittest.TestCase):
         glossary = cd.read_list(SAMPLES / "GLOSSARY.md")
         self.assertEqual(glossary, ["the fp trick", "S3B", "S3A"])
         r = cd.analyse(cd.load(SAMPLES / "fail-quick.md"), glossary, changed=["tests/test_load.py"])
-        self.assertEqual(r.failures, ["terms", "numbers", "labels", "tone", "evidence", "tests", "log"])
+        self.assertEqual(r.failures, ["terms", "numbers", "labels", "tone", "evidence", "tests", "log", "voice"])
         kinds = {label: info["kind"] for label, info in r.labels.items()}
         self.assertEqual(kinds, {"the fp trick": "glossary", "S3B": "glossary", "loader_v2": "letters and digits",
                                  "ZSTD": "acronym"})
@@ -55,7 +56,7 @@ class Samples(unittest.TestCase):
         self.assertEqual(run(SAMPLES / "pass-quick.md").returncode, 0)
         failing = run(SAMPLES / "fail-quick.md", "--glossary", SAMPLES / "GLOSSARY.md", "--changed", "tests/test_load.py")
         self.assertEqual(failing.returncode, 1)
-        self.assertIn("7 of 9 rules broken", failing.stdout)
+        self.assertIn("8 of 10 rules broken", failing.stdout)
         self.assertEqual(run(SAMPLES / "missing.md").returncode, 2)
 
     def test_known_terms_are_not_labels(self):
@@ -96,6 +97,28 @@ class QuickRules(unittest.TestCase):
     def test_evidence_line_starts_the_back_matter(self):
         r = self.check("It is faster.\n\nEvidence:\n- ran loader_v2 at 05:40, 05:41 and 05:39\n")
         self.assertEqual((r.labels, r.numbers), ({}, set()))
+
+    def test_voice(self):
+        kinds = lambda md: [k for k, _ in self.check(md).voice]
+        self.assertEqual(kinds("The catch: it is slow."), ["a colon in a sentence"])
+        self.assertEqual(kinds("It works; it is slow."), ["a semicolon"])
+        self.assertEqual(kinds("It works \u2014 mostly."), ["an em dash"])
+        self.assertEqual(kinds("It is not only fast but cheap."), ["not X, but Y"])
+        self.assertEqual(kinds("I fixed the parser, ensuring dates are right."), ["a trailing -ing comment"])
+        self.assertEqual(kinds("Let me know if you want more."), ["a sign-off offer"])
+        self.assertEqual(kinds("It is specifically the essential part."), ["overused words"])
+        self.assertEqual(kinds("It is specifically the part that broke."), [])  # one is fine
+        self.assertEqual(kinds("It ran at 05:40 with `a: b` in the config."), [])  # times and code are not prose
+        self.assertEqual(kinds(" ".join(["word"] * 31) + "."), ["a sentence of 31 words"])
+
+    def test_voice_examples_pass(self):
+        """Every report the skill shows as the target voice passes the check."""
+        text = (HERE.parent / "references" / "voice.md").read_text()
+        said = re.findall(r"The same report, said:\n\n((?:> .*\n?)+)", text)
+        self.assertEqual(len(said), 3)
+        for block in said:
+            r = self.check("\n".join(line[2:] for line in block.splitlines()))
+            self.assertEqual(r.failures, [], block[:60])
 
     def test_chronology(self):
         r = self.check("First I read the logs. Then I fixed it. Finally I ran it.")
