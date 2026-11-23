@@ -38,12 +38,14 @@ answer, and a list at the end is where decisive facts go unread. So the skill ke
 states short and on the claim ("on staging only"), says the catch once beside the answer, and drops
 caveats that carry no information.
 
-## Evidence in the sentence and in a list
+## Evidence in the sentence, not in a list
 
-A claim of a check is only as good as the reader's ability to verify it. Putting the command or the
-result in the same sentence, and every command and changed file in an evidence list, makes
-checking cheaper than trusting. Naming changed test files closes the commonest way a check can be
-hollow: a test edited until it passes.
+A claim of a check is only as good as the reader's ability to verify it, so the command or the
+result goes in the sentence that makes the claim. A list of every command and changed file looks
+like the same thing and is not: readers skim it, and it lengthens the text, which raises trust
+without adding any checking. So one sentence says what was checked and what was not, at a high
+level, and the full list is there to ask for. Naming changed test files closes the commonest way a
+check can be hollow: a test edited until it passes.
 
 ## A script for what the writer cannot see
 

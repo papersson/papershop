@@ -49,17 +49,16 @@ Leave a line empty rather than inflate it: most tasks have no key idea and nothi
 
 ### 2. Write it
 
-Write the text to a scratch file in this shape, 60 to 300 words before the evidence list, no
-headings:
+Write the text to a scratch file in this shape, 60 to 300 words, no headings:
 
 1. **The goal and the answer, then the catch.** One clause of goal, then the answer with its
    comparison ("by 05:40, against 08:50 the week before"), then the catch in the next sentence.
 2. **Why, and the key idea.** Why this and not what the reader would have expected. When there is a
    key idea, state it plainly with one concrete case.
-3. **What is not verified or not understood**, in a sentence or two, when there is any.
+3. **What was checked and what was not**, in one or two sentences: the checks that ran, at a high
+   level, with the command or result that makes each one checkable, then what was not run or is
+   not understood. No list of commands or files: the reader asks for those when they want them.
 4. **What the reader decides or does next,** ranked, with an if-then where a result would reorder it.
-5. **`Evidence:`** on its own line, then a short list: each command with its result, each file
-   changed, in code spans. The reader checks the claims against this list.
 
 While writing:
 
@@ -101,6 +100,7 @@ Then paste the text into the reply as the reply's whole content: no preamble, no
 | Labels from the session | The writer has used them for an hour; the reader meets them cold. |
 | Superlatives | They make the work sound checked without checking it. |
 | Length | A longer report raises trust without raising accuracy. |
+| A list of evidence | Readers skim it; it adds length, not checking. One sentence says what was checked, and the rest is there to ask for. |
 
 `references/sources.md` gives the sources behind each rule, and `DESIGN.md` the reasons for the
 skill's shape.

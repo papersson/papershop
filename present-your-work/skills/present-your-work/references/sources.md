@@ -11,8 +11,8 @@ Each rule traces to a source below. The sources are summarized only as far as th
   claim to its evidence rather than argue for it.
 - **Explanations help when they make verification cheaper.** Vasconcelos et al., "Explanations
   Can Reduce Overreliance on AI Systems During Decision-Making" (CSCW 2023,
-  [arXiv:2212.06823](https://arxiv.org/abs/2212.06823)). Hence the evidence list, and evidence in
-  the sentence that makes the claim.
+  [arXiv:2212.06823](https://arxiv.org/abs/2212.06823)). Hence evidence in the sentence that makes
+  the claim, where checking it costs the least.
 - **Length raises trust without raising accuracy.** Steyvers et al., "What Large Language Models
   Know and What People Think They Know" (Nature Machine Intelligence, 2025,
   [arXiv:2401.13835](https://arxiv.org/abs/2401.13835)). Longer explanations raised people's
