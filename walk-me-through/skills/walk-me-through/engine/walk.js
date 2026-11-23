@@ -7,8 +7,9 @@
  *     cover?: bool | string, notes?: [string per chapter] }
  *
  *   object: { piece: 'text' | 'chip' | 'card' | 'tree' | 'code' | <custom>, ...piece data,
- *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters] }
- *   click:  { chapter, caption?, object, state, highlight?: selector | false, settle?: ms }
+ *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters],
+ *             context?: true }
+ *   click:  { chapter, caption?, object, state, with?: [id], highlight?: selector, settle?: ms }
  *        or { chapter, caption?, clear: true, keep?: [ids] }
  *
  * Chapters are numbered from 1. x and y place an object's top left corner on a fixed 1600 by 900
@@ -18,11 +19,16 @@
  * computed once, so #7 opens click 7 finished, Next animates one change and Back plays it in reverse.
  * - An object without `start` begins hidden at the position of its first click's state, so that
  *   click fades it in place.
- * - An object with `ch` is hidden outside those chapters without spending a click. Objects that
- *   appear as a chapter opens wait for the old ones to fade.
+ * - An object with `ch` is hidden outside those chapters, and shown again in them, without spending
+ *   a click. Objects that appear as a chapter opens wait for the old ones to fade.
  * - A `clear` click hides every object not in `keep`. A later click on one shows it again.
- * - The highlight ring goes on the changed object, or on `highlight` (looked up inside the object,
- *   then on the whole stage), after `settle` ms. `highlight: false` skips it.
+ * - Brightness points at the subject, the object the click changes. It is at full ink; the subject
+ *   of the click before steps down to the second tone, and anything older is quiet. `with` holds an
+ *   object the subject must be read against at the second tone for that click. An object marked
+ *   `context` (an axis, a frame of reference) is always quiet and need not be any click's subject.
+ * - The highlight ring is off unless a click names `highlight`, a selector for the part of a large
+ *   object that changed (looked up inside the object, then on the whole stage). It arrives after
+ *   `settle` ms. Brightness does the pointing; the ring is for a part brightness cannot single out.
  * - Backticks in captions and labels become monospace. Everything else is escaped.
  *
  * Moving: arrow keys, space, Page Up and Down, Home, End, or a click on the stage (shift-click goes
@@ -38,6 +44,8 @@
 (function () {
   'use strict';
   const W = 1600, H = 900, MOVE = 900, FADE = 500, TURN = 500, CAPTION_FADE = 180;
+  // Opacity of the three tones: the subject, the one before it (or one read with it), the rest.
+  const TONE = { 1: 1, 2: 0.6, 3: 0.32 };
   const pieces = {};
   const query = new URLSearchParams(location.search);
   const mode = query.has('check') ? 'check' : query.has('mid') ? 'mid' : query.has('strip') ? 'strip' : 'live';
@@ -105,6 +113,9 @@
       const o = objects[c.object];
       if (!o) fail(`click ${n} names unknown object '${c.object}'; ${known}`);
       if (!o.states[c.state]) fail(`click ${n}: object '${c.object}' has no state '${c.state}'; its states: ${Object.keys(o.states).join(', ')}`);
+      if (o.context) fail(`click ${n} changes '${c.object}', which is marked context; context is never a click's subject`);
+      if (c.with != null && !Array.isArray(c.with)) fail(`click ${n}: with must be a list of object ids`);
+      (c.with || []).forEach(k => objects[k] || fail(`click ${n} is read with unknown object '${k}'; ${known}`));
     });
     for (let ch = 1; ch <= nch; ch++) if (!def.clicks.some(c => c.chapter === ch)) fail(`chapter ${ch} has no clicks`);
 
@@ -144,7 +155,28 @@
         const same = a.x === b.x && a.y === b.y && a.s === b.s && a.o === b.o && a.cls.join(' ') === b.cls.join(' ');
         if (same) return;
         const freeHide = b.o === 0 && a.o > 0 && (f.click.clear || (objects[id].ch && !objects[id].ch.includes(f.chapter)));
-        (freeHide ? f.hidden : f.changed).push(id);
+        // An object with `ch` comes back with its chapter for free, as it leaves with it. It comes back
+        // quiet, so it is set dressing, not a rival to the click's subject.
+        const freeShow = a.o === 0 && b.o > 0 && frames[p - 1].chapter !== f.chapter && objects[id].ch &&
+          id !== f.click.object;
+        (freeHide || freeShow ? f.hidden : f.changed).push(id);
+      });
+      const c = f.click;
+      f.subject = c.clear ? null : c.object;
+      // A subject that moves carries the eye with it, even one fading in as it goes.
+      f.travelled = !!f.subject &&
+        (prev[f.subject].x !== f.objects[f.subject].x || prev[f.subject].y !== f.objects[f.subject].y);
+    });
+    // Tones: the subject at full ink, the previous click's subject and any `with` at the second
+    // tone, everything else quiet. Computed per frame, so #7 and Back show the same brightness.
+    const lastSeen = {};
+    frames.forEach((f, p) => {
+      if (f.subject) lastSeen[f.subject] = p;
+      const along = (f.click && f.click.with) || [];
+      f.tones = {};
+      ids.forEach(id => {
+        const age = lastSeen[id] == null || objects[id].context ? Infinity : p - lastSeen[id];
+        f.tones[id] = age === 0 ? 1 : age === 1 || along.includes(id) ? 2 : 3;
       });
     });
     return frames;
@@ -192,9 +224,8 @@
     function ringTarget(f) {
       const c = f.click;
       if (!c || c.clear || c.highlight === false) return null;
-      const el = els[c.object];
-      if (!c.highlight) return el;
-      return el.querySelector(c.highlight) || stage.querySelector(c.highlight);
+      if (!c.highlight) return null;
+      return els[c.object].querySelector(c.highlight) || stage.querySelector(c.highlight);
     }
     function placeRing(f) {
       const t = ringTarget(f);
@@ -226,8 +257,9 @@
         const appearing = prev && prev.objects[id].o === 0 && st.o > 0;
         el.style.transitionDelay = turn && appearing ? TURN + 'ms' : '0ms';
         el.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.s})`;
-        el.style.opacity = st.o;
-        el.className = base[id] + (st.cls.length ? ' ' + st.cls.join(' ') : '') + (st.o === 0 ? ' w-gone' : '');
+        const tone = f.tones[id];
+        el.style.opacity = st.o * TONE[tone];
+        el.className = base[id] + ` w-tone-${tone}` + (st.cls.length ? ' ' + st.cls.join(' ') : '') + (st.o === 0 ? ' w-gone' : '');
         if (updates[id]) updates[id](st.cls);
       });
       stage.classList.toggle('on-cover', f.chapter === 0);
@@ -328,25 +360,40 @@
       const r = Math.max(...rs.map(r => r.right)), b = Math.max(...rs.map(r => r.bottom));
       return { x: (l - sr.left) * k, y: (t - sr.top) * k, w: (r - l) * k, h: (b - t) * k, lines: rs.length };
     };
-    const textsIn = (el, owner) => {
+    const textsIn = (el, owner, scale) => {
       const found = [], walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
         if (!n.nodeValue.trim() || !visible(n.parentElement, el)) continue;
         const box = boxOf(n);
-        if (box) found.push(Object.assign(box, { owner, text: n.nodeValue.trim().slice(0, 40), code: !!n.parentElement.closest('code, .w-code, .w-mono, .w-chip-value, .w-tree-row') }));
+        if (box) found.push(Object.assign(box, { owner, text: n.nodeValue.trim().slice(0, 40),
+          size: Math.round(parseFloat(getComputedStyle(n.parentElement).fontSize) * scale * 10) / 10,
+          code: !!n.parentElement.closest('code, .w-code, .w-mono, .w-chip-value, .w-tree-row') }));
       }
       return found;
     };
+    const stageBox = el => {
+      const r = el.getBoundingClientRect();
+      return { x: (r.left - sr.left) * k, y: (r.top - sr.top) * k, w: r.width * k, h: r.height * k };
+    };
+    const ids = Object.keys(v.els), objects = def.objects || {};
+    out.unused = ids.filter(id => !objects[id].context && !def.clicks.some(c => c.object === id));
     const seen = new Set();
     for (let p = first; p <= N; p++) {
       v.show(p, null, false);
       void v.stage.offsetHeight;
       const f = frames[p], c = f.click || {};
       const texts = [];
-      Object.keys(v.els).forEach(id => { if (f.objects[id].o > 0) texts.push(...textsIn(v.els[id], id)); });
+      const labels = [];
+      ids.forEach(id => {
+        if (f.objects[id].o === 0) return;
+        texts.push(...textsIn(v.els[id], id, f.objects[id].s));
+        v.els[id].querySelectorAll('.w-chip-label, .w-card-title, .w-card-field').forEach(e => {
+          if (visible(e, v.els[id]) && e.textContent.trim()) labels.push(`${id} "${e.textContent.trim()}"`);
+        });
+      });
       const chrome = [['title', v.title], ['caption', v.caption], ['count', v.count]];
       if (p === 0) chrome.push(['cover', v.cover]);
-      chrome.forEach(([name, el]) => texts.push(...textsIn(el, name)));
+      chrome.forEach(([name, el]) => texts.push(...textsIn(el, name, 1)));
       texts.forEach(t => { if (!t.code && t.owner !== 'count') seen.add(t.text); });
       const overlaps = [], outside = [], band = [];
       for (let i = 0; i < texts.length; i++) {
@@ -365,8 +412,16 @@
         n: p, chapter: f.chapter, caption: f.caption, clear: !!c.clear, object: c.object || null, state: c.state || null,
         changed: f.changed || [], hidden: f.hidden || [], overlaps, outside, band,
         captionWidth: capBox ? Math.round(capBox.w) : 0,
+        subject: f.subject || null, travelled: !!f.travelled, labels,
+        lit: ids.filter(id => f.objects[id].o > 0 && f.tones[id] === 1),
+        second: ids.filter(id => f.objects[id].o > 0 && f.tones[id] === 2),
+        small: texts.filter(t => t.size < 20).map(t => `${t.owner} "${t.text}" at ${t.size}px`),
       };
-      if (p > 0 && !c.clear && c.highlight !== false && f.objects[c.object].o > 0) {
+      if (f.subject && f.objects[f.subject].o > 0) {
+        const t = c.highlight ? v.ringTarget(f) : v.els[f.subject];
+        if (t) entry.subjectBox = stageBox(t);
+      }
+      if (p > 0 && !c.clear && c.highlight && f.objects[c.object].o > 0) {
         const t = v.ringTarget(f);
         entry.ring = { selector: c.highlight || null, found: !!t, visible: !!t && visible(t, v.stage) };
       }
@@ -520,15 +575,16 @@
     };
   };
 
-  // code: { lines: [string | [mark, string]] } with marks in the margin. Classes 'lit:3' or 'lit:3-5'
-  // light lines (counted from 1) and dim the rest.
+  // code: { lines: [string | [mark, string]] } with marks in the margin, drawn as badges so they
+  // cannot be read as line numbers. Classes 'lit:3' or 'lit:3-5' light lines (counted from 1) and dim
+  // the rest; 'marks' dims the code and leaves the badges bright, to introduce them.
   pieces.code = (el, o) => {
     const lines = (o.lines || []).map(l => Array.isArray(l) ? l : ['', l]);
     const rows = lines.map(([mark, text], i) => {
       const row = make('div', 'w-code-line', el);
       const hash = text.search(/(^|\s)(#|\/\/)/);
       const body = hash < 0 ? esc(text) : esc(text.slice(0, hash)) + `<span class="w-code-c">${esc(text.slice(hash))}</span>`;
-      row.innerHTML = `<span class="w-code-m">${esc(mark)}</span><code>${body || ' '}</code>`;
+      row.innerHTML = `<span class="w-code-m">${mark ? `<span class="w-code-badge">${esc(mark)}</span>` : ''}</span><code>${body || ' '}</code>`;
       row.dataset.line = i + 1;
       return row;
     });
@@ -542,6 +598,7 @@
       });
       rows.forEach((r, i) => r.classList.toggle('is-lit', on.has(i + 1)));
       el.classList.toggle('has-lit', on.size > 0);
+      el.classList.toggle('show-marks', cls.includes('marks'));
     };
   };
 

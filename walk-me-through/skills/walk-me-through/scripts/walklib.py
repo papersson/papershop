@@ -7,6 +7,7 @@ import platform
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
@@ -208,8 +209,12 @@ def dom_offset(chrome):
     87 pixels of height for a window frame there (a screenshot resizes to the full size before it
     captures), so the checker asks for that much more to measure the size it means."""
     if chrome not in _offset:
-        probe = "data:text/html,<script>document.write('<p id=v>'+innerWidth+'x'+innerHeight+'</p>')</script>"
-        out = run_chrome(chrome, (1000, 1000), probe, ["--dump-dom"]).stdout
+        # A file, not a data: URL: Chromium 148 on NixOS dumps an empty DOM for data: URLs
+        # (measured on 2026-11-23), which read as no offset at all.
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = Path(tmp) / "probe.html"
+            probe.write_text("<script>document.write('<p id=v>'+innerWidth+'x'+innerHeight+'</p>')</script>")
+            out = run_chrome(chrome, (1000, 1000), probe.as_uri(), ["--dump-dom"]).stdout
         found = re.search(r"id=\"?v\"?>(\d+)x(\d+)<", out)
         _offset[chrome] = (1000 - int(found.group(1)), 1000 - int(found.group(2))) if found else (0, 0)
     return _offset[chrome]

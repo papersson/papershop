@@ -42,13 +42,16 @@ placeholders one at a time with real pieces and states (`references/visuals.md`,
 ## 4. Check
 
 `check.py OUT_DIR` prints nothing. You have looked at every shot from `shoot.py OUT_DIR --mid 3,8
---strip`. A fresh reader, given only the shots and captions, explains it back. Then open the page.
+--strip`. A fresh reviewer given `shots/attention.md` finds one place to look on every click. A
+fresh reader, given only the shots and captions, explains it back. Then open the page.
 Details: `references/checking.md`.
 
 ## The rules in one breath
 
-One change per click. One caption line, one sentence, 12 words, only when needed. One highlight, on
-the part that changed, after the motion settles. Labels name data. The data is the picture, boxes
+One change per click. One caption line, one sentence, 12 words, only when needed. One subject per
+click at full ink, the one before at the second tone, the rest quiet: the eye never searches. The
+subject is the part that changed, large enough to find, near where the eye already was. Nothing on
+the stage that no click is about. Labels name data. The data is the picture, boxes
 only when containing is the point. Real values only. Plain chapter titles. No controls on the
 stage. A deck has a cover. The stage is 1600 by 900, scaled. Plain words, no dashes or semicolons.
 Motion carries meaning: no bounces, no gradients, no sound.

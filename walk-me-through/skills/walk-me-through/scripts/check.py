@@ -20,6 +20,48 @@ import walklib  # noqa: E402
 
 
 CAPTION_WIDTH = 1400  # the caption line: the stage's width less 100px each side
+TEXT_FLOOR = 20       # stage px: about 18 px in a 1440-wide window, the smallest a reader reads at a glance
+LABEL_WORDS = 4       # a label names a thing; a fifth word starts explaining it
+FAR_JUMP = 480        # stage px between one subject and the next, 30% of the stage's width
+HERO_SHARE = 0.002    # the subject's share of the stage (a short chip), below which the eye has to hunt for it
+
+
+def gap(a, b):
+    """Distance between two boxes' nearest edges, 0 when they touch or overlap."""
+    dx = max(0, max(a["x"], b["x"]) - min(a["x"] + a["w"], b["x"] + b["w"]))
+    dy = max(0, max(a["y"], b["y"]) - min(a["y"] + a["h"], b["y"] + b["h"]))
+    return (dx * dx + dy * dy) ** 0.5
+
+
+def attention_problems(frames):
+    """Where the eye goes: one thing at full ink, the next subject near the last, large enough to find."""
+    out, prev = [], None
+    for f in frames:
+        n, where = f["n"], f"click {f['n']}"
+        if n == 0:
+            continue
+        if len(f["lit"]) > 1:
+            out.append(f"{where} has {len(f['lit'])} things at full ink ({', '.join(f['lit'])}): one subject per click")
+        if len(f["second"]) > 2:
+            out.append(f"{where} has {len(f['second'])} things at the second tone ({', '.join(f['second'])}): at most two")
+        box = f.get("subjectBox")
+        if box:
+            share = box["w"] * box["h"] / (1600 * 900)
+            if share < HERO_SHARE:
+                out.append(f"{where} subject '{f['subject']}' is {share:.2%} of the stage: too small to find at a glance; "
+                           "draw it larger, or make the part that changed the subject")
+            if prev and prev.get("subjectBox") and prev["chapter"] == f["chapter"] and not f["travelled"]:
+                d = gap(prev["subjectBox"], box)
+                if d > FAR_JUMP:
+                    out.append(f"{where} subject '{f['subject']}' is {d:.0f}px from the last one: the eye has to jump; "
+                               "bring it nearer, or let the thing travel there")
+        out += [f"{where} text is too small to read: {s}" for s in f["small"]]
+        for label in f["labels"]:
+            text = label.split('"', 1)[1].rstrip('"')
+            if len(walklib.words(text)) > LABEL_WORDS:
+                out.append(f"{where} label {label} has more than {LABEL_WORDS} words: a label names, the caption explains")
+        prev = f
+    return out
 
 
 def size_problems(rep, size):
@@ -61,12 +103,13 @@ def size_problems(rep, size):
         out += [f"{where} text overlaps: {o}" for o in f["overlaps"]]
         out += [f"{where} text runs outside the stage: {o}" for o in f["outside"]]
         out += [f"{where} object text sits in the caption band: {o}" for o in f["band"]]
-    return out
+    return out + attention_problems(rep["frames"])
 
 
 def page_problems(rep, out_dir):
     """Problems that do not depend on the window: prose and drift from the approved list."""
-    out = []
+    out = [f"object '{u}' is on the page but no click is about it: cut it, or mark it context if it is a frame of reference"
+           for u in rep.get("unused", [])]
     for text in dict.fromkeys(rep.get("prose", [])):
         out += [f"text '{text[:50]}' {p}" for p in walklib.punctuation_problems(text)]
     for i, title in enumerate(rep.get("chapters", []), 1):

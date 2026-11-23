@@ -39,7 +39,7 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
   font-size: 32px; line-height: 1.35; color: var(--ink); white-space: nowrap; transition: opacity .18s var(--ease); }
 .w-caption.out, .w-title.out { opacity: 0; transition-duration: .18s; }
 .no-captions .w-caption { visibility: hidden; }
-.w-count { position: absolute; right: 44px; bottom: 30px; font-size: 18px; color: var(--dim);
+.w-count { position: absolute; right: 44px; bottom: 30px; font-size: 20px; color: var(--dim);
   font-variant-numeric: tabular-nums; opacity: .7; }
 .w-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   padding: 0 160px; text-align: center; font-size: 76px; font-weight: 650; line-height: 1.12;
@@ -73,9 +73,9 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
 
 /* chip: one value, named in small type above it */
 .w-chip { display: flex; flex-direction: column; gap: 4px; }
-.w-chip-label { font-size: 16px; color: var(--dim); letter-spacing: .02em; transition: opacity .4s var(--ease); }
+.w-chip-label { font-size: 20px; color: var(--dim); letter-spacing: .02em; transition: opacity .4s var(--ease); }
 .w-chip.no-label .w-chip-label { opacity: 0; }
-.w-chip-value { font-family: var(--mono); font-size: 30px; padding: 5px 14px; border-radius: 8px;
+.w-chip-value { font-family: var(--mono); font-size: 34px; padding: 5px 14px; border-radius: 8px;
   background: var(--tint); align-self: flex-start; }
 .w-chip.tone-a .w-chip-value { color: var(--a); } .w-chip.tone-b .w-chip-value { color: var(--b); }
 .w-chip.tone-c .w-chip-value { color: var(--c); }
@@ -107,12 +107,14 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
 /* code: lines with marks in the margin, usually the last chapter */
 .w-code { font-size: 25px; }
 .w-code-line { display: flex; height: 44px; align-items: center; transition: opacity .5s var(--ease); }
-.w-code-m { width: 56px; flex: none; text-align: right; padding-right: 26px; color: var(--hi);
-  font-family: var(--mono); font-size: 18px; opacity: .85; }
+.w-code-m { width: 64px; flex: none; display: flex; justify-content: flex-end; padding-right: 22px; }
+.w-code-badge { min-width: 22px; padding: 1px 7px; border: 1.5px solid var(--hi); border-radius: 999px;
+  color: var(--hi); font-family: var(--sans); font-size: 20px; line-height: 1.2; text-align: center; }
 .w-code-line code { font-size: 1em; white-space: pre; color: var(--ink); }
 .w-code-c { color: var(--dim); }
 .w-code.has-lit .w-code-line { opacity: .3; }
 .w-code.has-lit .w-code-line.is-lit { opacity: 1; }
+.w-code.show-marks .w-code-line code { opacity: .3; transition: opacity .5s var(--ease); }
 
 /* ?strip: small multiples of every click */
 body:has(.w-strip) { overflow: auto; height: auto; }

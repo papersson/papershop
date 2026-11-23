@@ -51,11 +51,51 @@ click of a chapter usually needs one. A run of similar reveals needs one on the 
 *Why:* Mayer's redundancy principle. Captions that repeat the picture train the reader to skip
 captions, including the ones that matter.
 
-**One highlight.** The thing the click changed gets the page's single highlight ring, arriving as
-the motion settles. Point it at the part that changed (the row, the value), not the whole object.
-Skip it when the motion already points, as a glide does. *Why:* Mayer's signalling principle. The
-caption says what, the ring says where. A ring on everything, or on a whole card, points at
-nothing.
+## Attention
+
+One change per click says what moves. These rules say where the eye goes, which is a different
+question: a page where only one thing moves at a time can still look like a dashboard, every value
+ever shown at full brightness, the new one a small square among them. The reader should never have
+to search. Their eyes go to the thing they need to attend to, and everything around it is blank or
+quiet.
+
+**One subject per click, and brightness points at it.** The subject is the object the click
+changes, and the engine draws it at full ink. The subject of the click before steps down to the
+second tone, and everything older is quiet. At most one thing is at full ink and two at the second
+tone. *Why:* contrast is what the eye goes to first, before it reads anything (Treisman's
+pop-out; Mayer's signalling principle). A tone that falls with age also tells the reader what is
+new without a word.
+
+**The subject is the part that changed.** When the change is inside a large object (one bucket of
+a table, one row of a tree), the piece lights that part itself and fades the rest, so the bright
+thing is exactly where the change is. A highlight ring is the last resort, for a part the piece
+cannot light. Never glow, pulse, a second accent colour or an arrow that is not the motion itself.
+*Why:* a ring on a dim stage is a second pointer competing with brightness, and a ring around a
+whole object points at nothing.
+
+**Size is importance.** The subject is large enough to find at a glance, never a tick mark or a
+digit on its own: give a small result its context (the mark goes on the row it judges). *Why:*
+Hitchcock's rule that the size of a thing in the frame should match its importance to the story at
+that moment. A small bright thing still makes the eye hunt.
+
+**The next subject appears where the eye already is.** Put it near the last one, or carry the eye
+there with one visible motion: the thing itself travels, or a line draws. A chapter's first click
+may start anywhere. *Why:* Walter Murch's eye trace. A cut that sends the eye across the frame
+with nothing to follow costs the viewer the first moment of the new shot.
+
+**A consequence elsewhere is its own click.** When one change causes another somewhere else (a
+count, a second panel), the second waits for its own click. Where real events overlap, show them
+one at a time, then once together, so the order of telling is not taken for the order of the
+mechanism. *Why:* the eye can follow one place at a time, and a sequence teaches a sequence.
+
+**Draw an absence.** When the point is that something did not happen (no reply, an empty slot, a
+list that ends), draw it and give it its click. *Why:* the reader cannot see a thing failing to
+appear.
+
+**Nothing on the stage that no click is about.** Every object is the subject of some click, or is
+marked `context` (an axis, a frame of reference) and stays quiet. No legends, counters or
+reminders the clicks do not need. *Why:* Doumont's signal-to-noise law. Everything on the stage
+competes for the eye, so anything that is not the signal is noise.
 
 **Labels name data.** Text on objects only names things: a field, a version, an axis. *Why:* a
 label that starts to explain is a caption in the wrong place, and it breaks "text in one place".
@@ -69,9 +109,9 @@ Flat rounded boxes with words in them are the failure this skill exists to avoid
 there are parts, not how the parts work.
 
 **Motion carries meaning.** Objects glide between states with eased motion (slow in, slow out), one
-thing at a time, and the ring arrives after the motion lands. *Why:* Frank Thomas and Ollie
+thing at a time, and the brightness steps settle with it. *Why:* Frank Thomas and Ollie
 Johnston, *The Illusion of Life*: staging presents one idea so it is unmistakable, easing makes
-motion read as physical, timing carries meaning. The beat of "motion, settle, ring, caption" is the
+motion read as physical, timing carries meaning. The beat of "motion, settle, step down, caption" is the
 rhythm of the page. Motion for its own sake (bounces, spins, confetti) is tacky, and so are gradients
 competing with the data, and sound.
 

@@ -35,7 +35,7 @@ Walk.page({
   objects: {
     card,
     id: { piece: 'chip', label: 'id', value: 'A-1042', tone: 'a', ch: [1],
-      states: { made: { x: 160, y: 300 }, filed: { x: idIn.x, y: idIn.y - 22, s: 0.8, cls: ['no-label'] } } },
+      states: { made: { x: 420, y: 300 }, filed: { x: idIn.x, y: idIn.y - 22, s: 0.8, cls: ['no-label'] } } },
     paid: { piece: 'text', text: 'paid', verdict: 'yes', ch: [1], states: { shown: { x: paidIn.x, y: paidIn.y + 6 } } },
     json: tree({ data: ORDER }, 560, 2),
     source: { piece: 'code', ch: [3], lines: PROTO.split('\n'), states: { shown: { x: 100, y: 200 } } },
@@ -49,23 +49,23 @@ Walk.page({
     ], states: { shown: { x: 340, y: 260 }, lit: { x: 340, y: 260, cls: ['lit:4'] } } },
   },
   clicks: [
-    { chapter: 1, caption: 'An example order, followed through every piece on this page.', object: 'card', state: 'shown', highlight: false },
-    { chapter: 1, caption: 'A `chip` is one value that can travel.', object: 'id', state: 'made', highlight: '.w-chip-value' },
-    { chapter: 1, object: 'id', state: 'filed', highlight: false },
+    { chapter: 1, caption: 'An example order, followed through every piece on this page.', object: 'card', state: 'shown' },
+    { chapter: 1, caption: 'A `chip` is one value that can travel.', object: 'id', state: 'made' },
+    { chapter: 1, object: 'id', state: 'filed' },
     { chapter: 1, caption: 'A `text` with a verdict shows yes or no.', object: 'paid', state: 'shown' },
 
-    { chapter: 2, caption: 'A `tree` draws nested data, one row per field.', object: 'json', state: 'shown', highlight: false },
-    { chapter: 2, caption: 'A marker walks the rows by path.', object: 'json', state: 'item0', highlight: '[data-path="order.item[0]"]' },
-    { chapter: 2, object: 'json', state: 'item1', highlight: '[data-path="order.item[1]"]' },
-    { chapter: 2, object: 'json', state: 'qty', highlight: '[data-path="order.item[1].qty"]' },
-    { chapter: 2, caption: 'Lighting a row marks the value that matters.', object: 'json', state: 'lit', highlight: false },
-    { chapter: 2, caption: 'A dashed box sets one row apart.', object: 'json', state: 'boxed', highlight: false },
+    { chapter: 2, caption: 'A `tree` draws nested data, one row per field.', object: 'json', state: 'shown' },
+    { chapter: 2, caption: 'A marker walks the rows by path.', object: 'json', state: 'item0' },
+    { chapter: 2, object: 'json', state: 'item1' },
+    { chapter: 2, object: 'json', state: 'qty' },
+    { chapter: 2, caption: 'Lighting a row marks the value that matters.', object: 'json', state: 'lit' },
+    { chapter: 2, caption: 'A dashed box sets one row apart.', object: 'json', state: 'boxed' },
 
-    { chapter: 3, caption: 'The same order written in protobuf text format.', object: 'source', state: 'shown', highlight: false },
-    { chapter: 3, caption: 'The `tree` piece reads that format too.', object: 'proto', state: 'shown', highlight: false },
+    { chapter: 3, caption: 'The same order written in protobuf text format.', object: 'source', state: 'shown' },
+    { chapter: 3, caption: 'The `tree` piece reads that format too.', object: 'proto', state: 'shown' },
 
-    { chapter: 4, caption: 'Each margin number is the click that showed that line.', object: 'code', state: 'shown', highlight: false },
-    { chapter: 4, caption: 'Lighting a line dims the rest.', object: 'code', state: 'lit', highlight: false },
+    { chapter: 4, caption: 'Each margin number is the click that showed that line.', object: 'code', state: 'shown' },
+    { chapter: 4, caption: 'Lighting a line dims the rest.', object: 'code', state: 'lit' },
   ],
 });
 </script>

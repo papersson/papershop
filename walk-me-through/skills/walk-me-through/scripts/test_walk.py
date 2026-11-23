@@ -145,10 +145,6 @@ class Checker(unittest.TestCase):
             "click 2 changes nothing": (
                 {"a": text("alpha", 100, 200)},
                 [{"chapter": 1, "object": "a", "state": "a"}, {"chapter": 1, "object": "a", "state": "a"}]),
-            "click 3 changes 2 objects (a, b)": (  # b re-enters chapter 1 with its start state as a moves
-                {"a": text("alpha", 100, 200), "b": text("beta", 100, 400, ch=[1, 3], start="a")},
-                [{"chapter": 1, "object": "a", "state": "a"}, {"chapter": 2, "object": "a", "state": "b"},
-                 {"chapter": 3, "object": "a", "state": "a"}]),
             "text overlaps: a \"alpha\" and b \"alpha\"": (
                 {"a": text("alpha", 100, 200), "b": text("alpha", 110, 205)},
                 [{"chapter": 1, "object": "a", "state": "a"}, {"chapter": 1, "object": "b", "state": "a"}]),
@@ -170,6 +166,26 @@ class Checker(unittest.TestCase):
             "page error: tree: no row at 'x.y'": (
                 {"t": {"piece": "tree", "data": {"x": 1}, "states": {"a": {"x": 100, "y": 200, "cls": ["lit:x.y"]}}}},
                 [{"chapter": 1, "object": "t", "state": "a"}]),
+            # Attention: brightness, size, distance, labels, clutter.
+            "click 4 has 3 things at the second tone (a, b, d)": (
+                {k: text(k * 6, 100 + i * 220, 300) for i, k in enumerate("abcd")},
+                [{"chapter": 1, "object": "a", "state": "a"}, {"chapter": 1, "object": "d", "state": "a"},
+                 {"chapter": 1, "object": "b", "state": "a"}, {"chapter": 1, "object": "c", "state": "a", "with": ["a", "d"]}]),
+            "from the last one: the eye has to jump": (
+                {"a": text("alpha alpha", 100, 160), "b": text("beta beta", 1300, 680)},
+                [{"chapter": 1, "object": "a", "state": "a"}, {"chapter": 1, "object": "b", "state": "a"}]),
+            "click 1 subject 'a' is 0.05% of the stage": (
+                {"a": text("ok", 100, 200, size=22)}, [{"chapter": 1, "object": "a", "state": "a"}]),
+            "click 1 text is too small to read: a \"alpha beta gamma\" at 14px": (
+                {"a": text("alpha beta gamma", 100, 200, size=14)}, [{"chapter": 1, "object": "a", "state": "a"}]),
+            "label a \"the value that the key maps to\" has more than 4 words": (
+                {"a": {"piece": "chip", "label": "the value that the key maps to", "value": "42",
+                       "states": {"a": {"x": 100, "y": 200}}}}, [{"chapter": 1, "object": "a", "state": "a"}]),
+            "object 'b' is on the page but no click is about it": (
+                {"a": text("alpha alpha", 100, 200), "b": text("beta beta", 100, 300, start="a")},
+                [{"chapter": 1, "object": "a", "state": "a"}]),
+            "page error: click 1 changes 'a', which is marked context": (
+                {"a": text("alpha alpha", 100, 200, context=True)}, [{"chapter": 1, "object": "a", "state": "a"}]),
         }
         for expected, (objects, clicks) in cases.items():
             chapters = sorted({c["chapter"] for c in clicks})
@@ -178,6 +194,15 @@ class Checker(unittest.TestCase):
                 code, stdout = self.check(out)
                 self.assertEqual(code, 1, stdout)
                 self.assertIn(expected, stdout)
+
+    def test_brightness_steps_down_with_age(self):
+        """The subject at full ink, the one before at the second tone, older ones quiet."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = broken_page(tmp, {k: text(k * 6, 100 + i * 300, 300) for i, k in enumerate("abc")},
+                              [{"chapter": 1, "object": k, "state": "a"} for k in "abc"])
+            rep = walklib.check_report(CHROME, out, (1440, 900))
+            last = rep["frames"][-1]
+            self.assertEqual((last["lit"], last["second"]), (["c"], ["b"]))
 
     def test_drift_from_the_approved_list(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -193,10 +218,10 @@ class Checker(unittest.TestCase):
         """#7 opens click 7 finished; ?mid freezes part way. Read from the DOM, not a screenshot."""
         page = walklib.page_url(SKILL / "assets/example", "", "7")
         dom = walklib.run_chrome(CHROME, (1440, 900), page, ["--dump-dom"]).stdout
-        self.assertIn('class="w-count">7/22<', dom)
+        self.assertIn('class="w-count">7/24<', dom)
         mid = walklib.page_url(SKILL / "assets/example", "mid=7&at=450")
         dom = walklib.run_chrome(CHROME, (1440, 900), mid, ["--dump-dom"]).stdout
-        self.assertIn('class="w-count">7/22<', dom)
+        self.assertIn('class="w-count">7/24<', dom)
 
 
 if __name__ == "__main__":

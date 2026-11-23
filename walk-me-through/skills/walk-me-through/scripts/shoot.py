@@ -5,8 +5,8 @@
 
 Writes shots/<W>x<H>/07.png for click 7 finished (00.png is the cover), shots/mid/08-450ms.png for
 click 8 frozen 450 ms into its motion, shots/strip.png for every click as small multiples (--strip),
-and shots/captions.md: each click's number, chapter and caption beside its screenshot, which is the
-packet a fresh reader gets. Runs in parallel, one headless Chrome (with its own temporary profile)
+shots/captions.md: each click's number, chapter and caption beside its screenshot, which is the
+packet a fresh reader gets, and shots/attention.md, the brief for the attention reviewer. Runs in parallel, one headless Chrome (with its own temporary profile)
 per shot. Virtual time makes the shots deterministic.
 """
 import argparse
@@ -17,6 +17,36 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import walklib  # noqa: E402
+
+
+ATTENTION = """# Attention review: {title}
+
+You are reviewing a click-through page for where the reader's eye goes, and nothing else. Another
+reader checks whether the page explains its subject; leave wording, accuracy and beauty to them.
+
+Read {out}/captions.md, then open every finished shot in {out}/{size}/ in order, and the frozen
+mid-motion shots in {out}/mid/ if there are any. Compare each shot with the one before it.
+
+For each click, answer in order:
+
+1. The place. Where should the eye be, and what sends it there: the only bright thing, the only
+   thing that moved, the largest new thing? If you cannot tell, that is the finding.
+2. The rivals. What else is bright, new or moving? Anything that competes with the place is a
+   finding, unless both are one idea in one place.
+3. The jump. Is the place near where the eye was on the click before, or carried there by
+   something visibly travelling? A jump across the stage with nothing to follow is a finding.
+4. The consequence. When this change causes another somewhere else, does the second one wait for
+   its own click?
+5. The absence. When the point is that something did not happen (no reply, an empty slot, a list
+   that ends), is the absence drawn, or does it only fail to appear?
+6. The clutter. Is anything on the stage that this click does not need, and that is not quiet?
+7. The wrong conclusion. What would someone new to the subject conclude from the order, grouping
+   or spacing that is not true of it? Name the conclusion and the picture that suggests it.
+
+Report only what you see in the shots, each finding with its click number, and propose one specific
+change for it: what should dim, wait, move closer, grow, or get its own click. Say so when every
+click had one place to look and nothing misled.
+"""
 
 
 def main():
@@ -72,6 +102,7 @@ def main():
         lines += [f"## {label}: {chapter}", "", f"![{label}]({w}x{h}/{f['n']:02d}.png)", "",
                   f"> {f['caption']}" if f["caption"] else "_(no caption)_", ""]
     (out / "captions.md").write_text("\n".join(lines))
+    (out / "attention.md").write_text(ATTENTION.format(title=rep["title"], size=f"{w}x{h}", out=out.resolve()))
     for f in failures:
         print(f)
     print(f"{len(jobs) - len(failures)} shots in {out}")

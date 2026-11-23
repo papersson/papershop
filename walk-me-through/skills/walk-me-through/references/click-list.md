@@ -45,7 +45,11 @@ follow it, then one line per problem. Show that markdown, not the JSON.
   the same: same table, same bucket.
 - **One idea per chapter.** If a chapter's title needs "and", it is two chapters.
 - **Each click one visible change toward that idea.** "The key's three bytes appear" is a click.
-  "The key is hashed" is not: say what the reader sees.
+  "The key is hashed" is not: say what the reader sees. The change names the one place the eye
+  should go. If you cannot say where that is, the click is not ready.
+- **A consequence elsewhere is the next click.** "The count goes up" after "the entry is stored"
+  is two clicks, even when the code does both at once. Name an absence as a change too: "the list
+  ends after fig".
 - **15 to 25 clicks.** Fewer usually means the page should be a sentence or a diagram. More usually
   means two pages.
 - **The concrete before the general.** The rule ("the cost is one bucket's length") comes after
