@@ -4,7 +4,10 @@
  * THE PAGE FORMAT (the contract). A page loads stage.css and stage.js, then calls Stage.page(def) once:
  *
  *   { title, chapters: [string], objects: { id: object }, clicks: [click],
- *     cover?: bool | string, notes?: [string per chapter] }
+ *     cover?: bool | string, notes?: [string per chapter], titles?: bool }
+ *
+ * Chapter titles are not drawn unless `titles` is true: the caption is the one line of words beside
+ * the picture, so the first click of each chapter carries a caption that says the chapter's point.
  *
  *   object: { piece: 'text' | 'chip' | 'card' | 'tree' | 'code' | <custom>, ...piece data,
  *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters],
@@ -264,7 +267,10 @@
         if (updates[id]) updates[id](st.cls);
       });
       stage.classList.toggle('on-cover', f.chapter === 0);
-      titleTimer = swap(title, f.chapter ? fmt(def.chapters[f.chapter - 1]) : '', animate && turn, titleTimer);
+      // Chapter titles structure the click list; on the stage the caption is the one line of words,
+      // so a title is drawn only when the page asks for it with `titles: true`.
+      const heading = def.titles && f.chapter ? fmt(def.chapters[f.chapter - 1]) : '';
+      titleTimer = swap(title, heading, animate && turn, titleTimer);
       captionTimer = swap(caption, fmt(f.caption), animate, captionTimer);
       count.textContent = p ? `${p}/${N}` : '';
       notes.innerHTML = notesFor(f.chapter);

@@ -22,8 +22,10 @@ the approved list, `values.py` computes every number on it, and `page.html` is t
 ```
 
 - `cover`: the answer, one sentence, what is now true. Required.
-- `chapters`: plain short sentences, no numbers in front. A title can state the chapter's finding
-  ("It now finishes at 05:49").
+- `chapters`: plain short sentences, no numbers in front. They name the parts of the list for you
+  and the reader approving it; the stage doesn't show them. Three kinds of words on one screen (a
+  title, text on the picture and a caption) leave the eye with nowhere to settle, so the caption
+  carries what a title would have said.
 - `clicks[].change`: what the reader sees change, in words. If it needs "and", it's two clicks.
 - `clicks[].caption`: optional, one sentence of at most 12 words, in the report voice: no colons,
   semicolons or dashes, nothing a person wouldn't say out loud. Leave it out where the picture says
@@ -41,6 +43,8 @@ problem. Show them that, not the JSON.
 - **One real case from start to end.** The same file, request or run on every chapter, so the
   reader never starts over.
 - **One idea per chapter.** A chapter title that needs "and" is two chapters.
+- **A caption opens every chapter.** With no title on the stage, the chapter's first click says its
+  point in the caption. `new_page.py` refuses a list where it doesn't.
 - **Each click one visible change.** "The fingerprint of round-17 appears" is a click. "The file is
   fingerprinted" is not, because it doesn't say what the reader sees.
 - **Before and after together.** The after chapter keeps a trace of the before on screen (a faint

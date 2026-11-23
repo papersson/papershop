@@ -86,7 +86,7 @@
     {
       "chapter": 4,
       "change": "The finish marker slides from 08:50 to 05:49, leaving a faint marker at 08:50",
-      "caption": "That's over an hour before the analysts start.",
+      "caption": "It now finishes at 05:49, over an hour before the analysts.",
       "object": "clock",
       "state": "new"
     },
@@ -108,7 +108,8 @@
       "chapter": 6,
       "change": "A line appears saying it finishes by 05:49 on staging",
       "object": "now",
-      "state": "shown"
+      "state": "shown",
+      "caption": "Here's where it stands, and what I need from you."
     },
     {
       "chapter": 6,

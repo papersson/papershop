@@ -122,7 +122,9 @@ invented, the page's notes say so once.
 
 ### 2. Write the click list and get it approved
 
-The story has a fixed order, one chapter each, with plain sentences as chapter titles:
+The story has a fixed order, one chapter each. Chapter titles name the parts of the click list and
+never appear on the stage: the caption is the only line of words beside the picture, so the first
+click of each chapter has a caption that says the chapter's point.
 
 1. **The cover states the answer**, as one sentence: what is now true.
 2. **Before.** The running example as it was, and why that was a problem.

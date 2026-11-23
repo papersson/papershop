@@ -132,6 +132,13 @@ def lint(spec):
         problems.append("cover must be the answer as one sentence: what is now true")
     else:
         problems += [f"cover {p}" for p in caption_problems(cover) if "words" not in p]
+    seen = set()
+    for n, c in enumerate(clicks, 1):
+        if isinstance(c, dict) and c.get("chapter") not in seen:
+            seen.add(c.get("chapter"))
+            if not c.get("caption") and not spec.get("titles"):
+                problems.append(f"click {n} opens chapter {c.get('chapter')} without a caption; with no title on "
+                                "the stage, its caption says the chapter's point")
     predicts = [n for n, c in enumerate(clicks, 1) if isinstance(c, dict) and c.get("predict")]
     if len(predicts) > 1:
         problems.append(f"clicks {', '.join(map(str, predicts))} all ask for a prediction; one at most, at the turning point")
