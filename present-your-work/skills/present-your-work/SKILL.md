@@ -56,9 +56,10 @@ has this shape, in 60 to 300 words and no headings, but the shape is never spell
    comparison ("by 05:40, against 08:50 the week before"), then the catch in the next sentence.
 2. **Why, and the key idea.** Why this and not what the reader would have expected. When there is a
    key idea, state it plainly with one concrete case.
-3. **What was checked and what was not**, in one or two sentences: the checks that ran, at a high
-   level, with the command or result that makes each one checkable, then what was not run or is
-   not understood. No list of commands or files: the reader asks for those when they want them.
+3. **What you ran or tried, and what you didn't**, in one or two sentences, at a high level, with
+   the command or result that lets the reader rerun or weigh it, then what was not run or is not
+   understood. Name the action ("I ran the tests", "I tried it on last week's data"), never
+   "checked" or "verified". No list of commands or files: the reader asks for those.
 4. **What the reader decides or does next,** ranked, with an if-then where a result would reorder it.
 
 While writing:
@@ -87,6 +88,9 @@ so get it right in the first draft.
   for rhythm, no trailing "-ing" clause that comments on the sentence ("…, ensuring that…").
 - Watch the words models overuse today: *specifically*, *essential*, *though*, *furthermore*,
   *vital*, *alongside*, *crucial*, *additionally*. One is fine; a cluster is a tell.
+- Say what you did, not that you checked. "Checked", "verified", "validated" and "confirmed" tell
+  the reader something was looked at but not what; "I ran", "I tried", "I measured", "I read"
+  tell them what happened.
 - No sign-off, no summary of the summary, no offer of more help.
 
 `references/voice.md` has three short reports in this voice, each beside the version a model writes

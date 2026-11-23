@@ -38,9 +38,10 @@ Next:      decide whether to run it on production tonight; then split the reload
 2. **Why and the key idea.** Lead with the cause, then the idea that answered it, introduced by a
    concrete case before any name. One sentence for the alternative that was rejected, if it
    explains the choice.
-3. **Checked, and not.** One sentence for the checks that ran, at a high level, each with the
-   command or result that lets the reader rerun or weigh it ("the load tests pass, 6 of them in
-   the new `tests/test_fingerprint.py`"). Then what was not run and what is not understood, in the
+3. **What you ran, and what you didn't.** One sentence for what you ran or tried, at a high
+   level, each with the command or result that lets the reader rerun or weigh it ("I ran the load
+   for five nights on staging, and the 6 tests in the new `tests/test_fingerprint.py` pass"). Name
+   the action, not "checked" or "verified". Then what was not run and what is not understood, in the
    first person and without hedging the rest of the text. No list of every command and file: it
    is the part readers skim, and they can ask for it.
 4. **Next.** What the reader decides or does, ranked. An if-then names the result that would

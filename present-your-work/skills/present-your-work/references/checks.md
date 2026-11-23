@@ -24,7 +24,7 @@ no appendix; the marker is for a longer draft that keeps one.
 | evidence | A sentence that claims a check (passes, verified, confirmed, tested, green) with no code span and no number in it | Negated sentences ("not tested on Linux") |
 | tests | A changed test file (from `--changed` or `--changed-from`) that the draft never names, by file name or stem | Changed files that are not tests |
 | log | Three or more markers of chronology: first, then, after that, finally, a weekday | |
-| voice | Colons and semicolons in sentences (labelled lead-ins, colon reveals), em dashes, "not X, but Y", a trailing "-ing" comment clause, a sign-off offer, a sentence over 30 words, and two or more of the words models now overuse (specifically, essential, though, furthermore, vital, alongside, crucial, additionally, notably, ensure, leverage, key) | Code spans; clock times; a single overused word |
+| voice | Colons and semicolons in sentences (labelled lead-ins, colon reveals), em dashes, "not X, but Y", a trailing "-ing" comment clause, a sign-off offer, "checked", "verified", "validated" or "confirmed" where the action should be named, a sentence over 30 words, and two or more of the words models now overuse (specifically, essential, though, furthermore, vital, alongside, crucial, additionally, notably, ensure, leverage, key) | Code spans; clock times; a single overused word |
 
 What the draft does so the script can see it:
 

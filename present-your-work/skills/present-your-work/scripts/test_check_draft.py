@@ -106,6 +106,8 @@ class QuickRules(unittest.TestCase):
         self.assertEqual(kinds("It is not only fast but cheap."), ["not X, but Y"])
         self.assertEqual(kinds("I fixed the parser, ensuring dates are right."), ["a trailing -ing comment"])
         self.assertEqual(kinds("Let me know if you want more."), ["a sign-off offer"])
+        self.assertEqual(kinds("I verified the parser on 3 files."), ["a vague verb for what was done"])
+        self.assertEqual(kinds("I ran the parser on 3 files."), [])
         self.assertEqual(kinds("It is specifically the essential part."), ["overused words"])
         self.assertEqual(kinds("It is specifically the part that broke."), [])  # one is fine
         self.assertEqual(kinds("It ran at 05:40 with `a: b` in the config."), [])  # times and code are not prose

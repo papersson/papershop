@@ -20,7 +20,8 @@ list (or an appendix), without notes or references:
             "finally", a weekday) mean the text follows the order of the work, not of the argument;
   voice     no marks of machine-written prose: labelled sentences and colon reveals ("The catch:"),
             semicolons, em dashes, "not X, but Y", a trailing "-ing" comment clause, a sentence over
-            30 words, a sign-off offer, or a cluster (two or more) of the words models overuse now.
+            30 words, a sign-off offer, "checked" or "verified" where the action should be named, or
+            a cluster (two or more) of the words models overuse now.
 
 It prints a short report and exits 0 when every rule holds, 1 when one is broken, 2 on a usage
 error. Standard library only.
@@ -75,6 +76,7 @@ VOICE = [
     ("a trailing -ing comment", re.compile(r",\s+(?:highlighting|underscoring|emphasizing|ensuring|reflecting|"
                                            r"contributing to|fostering|enhancing|showcasing|enabling|allowing|"
                                            r"paving the way|signaling|demonstrating|illustrating|making)\b", re.I)),
+    ("a vague verb for what was done", re.compile(r"\b(?:double-)?(?:checked|verified|validated|confirmed)\b", re.I)),
     ("a sign-off offer", re.compile(r"\b(?:let me know|feel free|happy to help|i hope this helps|"
                                     r"would you like me|don't hesitate)\b", re.I)),
 ]
