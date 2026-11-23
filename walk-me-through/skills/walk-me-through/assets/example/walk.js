@@ -4,7 +4,10 @@
  * THE PAGE FORMAT (the contract). A page loads walk.css and walk.js, then calls Walk.page(def) once:
  *
  *   { title, chapters: [string], objects: { id: object }, clicks: [click],
- *     cover?: bool | string, notes?: [string per chapter] }
+ *     cover?: bool | string, notes?: [string per chapter], titles?: bool }
+ *
+ * Chapter titles are not drawn unless `titles` is true: the caption is the one line of words beside
+ * the picture, so the first click of each chapter carries a caption that says the chapter's point.
  *
  *   object: { piece: 'text' | 'chip' | 'card' | 'tree' | 'code' | <custom>, ...piece data,
  *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters],
@@ -263,7 +266,10 @@
         if (updates[id]) updates[id](st.cls);
       });
       stage.classList.toggle('on-cover', f.chapter === 0);
-      titleTimer = swap(title, f.chapter ? fmt(def.chapters[f.chapter - 1]) : '', animate && turn, titleTimer);
+      // Chapter titles structure the click list; on the stage the caption is the one line of words,
+      // so a title is drawn only when the page asks for it with `titles: true`.
+      const heading = def.titles && f.chapter ? fmt(def.chapters[f.chapter - 1]) : '';
+      titleTimer = swap(title, heading, animate && turn, titleTimer);
       captionTimer = swap(caption, fmt(f.caption), animate, captionTimer);
       count.textContent = p ? `${p}/${N}` : '';
       notes.innerHTML = notesFor(f.chapter);
@@ -358,7 +364,9 @@
       if (!rs.length) return null;
       const l = Math.min(...rs.map(r => r.left)), t = Math.min(...rs.map(r => r.top));
       const r = Math.max(...rs.map(r => r.right)), b = Math.max(...rs.map(r => r.bottom));
-      return { x: (l - sr.left) * k, y: (t - sr.top) * k, w: (r - l) * k, h: (b - t) * k, lines: rs.length };
+      // Each line's own box too: text that wraps covers two lines, not the rectangle around them.
+      const lines = rs.map(q => ({ x: (q.left - sr.left) * k, y: (q.top - sr.top) * k, w: q.width * k, h: q.height * k }));
+      return { x: (l - sr.left) * k, y: (t - sr.top) * k, w: (r - l) * k, h: (b - t) * k, lines: rs.length, boxes: lines };
     };
     const textsIn = (el, owner, scale) => {
       const found = [], walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -403,8 +411,8 @@
         if (isObj && a.y + a.h > 756 && a.y < 836) band.push(`${a.owner} "${a.text}"`);
         for (let j = i + 1; j < texts.length; j++) {
           const b = texts[j];
-          const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-          if (ix > 2 && iy > 2) overlaps.push(`${a.owner} "${a.text}" and ${b.owner} "${b.text}"`);
+          const hit = (p, q) => Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x) > 2 && Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y) > 2;
+          if (a.boxes.some(p => b.boxes.some(q => hit(p, q)))) overlaps.push(`${a.owner} "${a.text}" and ${b.owner} "${b.text}"`);
         }
       }
       const capBox = texts.find(t => t.owner === 'caption');

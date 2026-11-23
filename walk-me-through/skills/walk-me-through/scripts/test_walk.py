@@ -66,6 +66,10 @@ class Lint(unittest.TestCase):
         self.assertTrue(any("chapter 4" in p for p in self.problems(chapter=4)))
         self.assertIn("click 1 does not say what changes (give it a 'change')", self.problems(change=""))
 
+    def test_every_chapter_opens_on_a_caption(self):
+        self.assertIn("click 1 opens chapter 1 without a caption; with no title on the stage, its caption says "
+                      "the chapter's point", self.problems(caption=""))
+
     def test_numbered_chapter_title(self):
         spec = dict(THREE, chapters=["1. A request arrives", *THREE["chapters"][1:]])
         self.assertTrue(any("starts with a number" in p for p in walklib.lint(spec)[0]))

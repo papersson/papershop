@@ -116,6 +116,13 @@ def lint(spec):
         problems.append("notes must be a list with at most one entry per chapter")
     if "cover" in spec and not isinstance(spec["cover"], (bool, str)):
         problems.append("cover must be true, false or the cover's question")
+    seen = set()
+    for n, c in enumerate(clicks, 1):
+        if isinstance(c, dict) and c.get("chapter") not in seen:
+            seen.add(c.get("chapter"))
+            if not c.get("caption") and not c.get("clear") and not spec.get("titles"):
+                problems.append(f"click {n} opens chapter {c.get('chapter')} without a caption; with no title on "
+                                "the stage, its caption says the chapter's point")
     if clicks and not 15 <= len(clicks) <= 25:
         notes.append(f"{len(clicks)} clicks; a page usually holds 15 to 25, and more usually means two pages")
     return problems, notes

@@ -52,7 +52,8 @@ One change per click. One caption line, one sentence, 12 words, only when needed
 click at full ink, the one before at the second tone, the rest quiet: the eye never searches. The
 subject is the part that changed, large enough to find, near where the eye already was. Nothing on
 the stage that no click is about. Labels name data. The data is the picture, boxes
-only when containing is the point. Real values only. Plain chapter titles. No controls on the
+only when containing is the point. Real values only. No chapter titles on the stage: the caption is the only line of words, and it
+opens every chapter. No controls on the
 stage. A deck has a cover. The stage is 1600 by 900, scaled. Plain words, no dashes or semicolons.
 Motion carries meaning: no bounces, no gradients, no sound.
 

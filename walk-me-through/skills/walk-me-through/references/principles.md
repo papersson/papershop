@@ -122,8 +122,11 @@ intuition, so the code reads as a summary instead of a wall.
 
 ## Page furniture
 
-**Plain chapter titles.** Short plain sentences, no numbers in front. *Why:* numbers are noise at
-the top of every screen, and the corner count already says where you are.
+**No chapter titles on the stage.** Chapter titles are plain short sentences that structure the
+click list, and the stage doesn't show them. The caption is the only line of words beside the
+picture, and the first click of each chapter has one that says the chapter's point. *Why:* a
+title at the top, text on the picture and a caption at the bottom are three places to read, and
+the eye can't tell which one to settle on. The corner count already says where you are.
 
 **No controls on the stage.** No Back and Next buttons, no progress dots, no "arrow keys work too".
 Arrow keys, space, Page Up and Down, Home and End, or a click on the stage move. A quiet "x/N" in a

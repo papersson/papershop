@@ -24,7 +24,9 @@ builds the starter page from it. `check.py` holds the finished page to it.
 
 - `title`: the page title, and the cover's text when `cover` is `true`.
 - `cover`: `true` for a page that will be presented, or a string to open on a question instead.
-- `chapters`: plain short sentences, no numbers. Clicks name them by number, counting from 1.
+- `chapters`: plain short sentences, no numbers. Clicks name them by number, counting from 1. They
+  structure the list; the stage doesn't show them, so each chapter's first click has a caption
+  that says its point (`new_page.py` refuses a list where it doesn't).
 - `notes`: optional speaker notes, one string per chapter, shown with N.
 - `clicks[].change`: what the reader sees change, in words. Required. If it needs "and", it is two
   clicks.

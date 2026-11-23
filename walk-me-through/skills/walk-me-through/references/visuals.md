@@ -38,8 +38,7 @@ Do not build pieces for data nobody has asked to explain yet.
 
 | Zone | Where |
 |---|---|
-| chapter title | top left, x 80, y 40 to 110 |
-| objects | y 140 to 740, x 80 to 1520 |
+| objects | y 80 to 740, x 80 to 1520 (no chapter title takes the top) |
 | caption | one line centred at y 772, 1400 wide |
 | count | bottom right corner |
 
