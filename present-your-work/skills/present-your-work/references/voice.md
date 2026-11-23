@@ -18,8 +18,7 @@ The same report, said:
 
 > The dates are right now for people east of Greenwich. `parse_date` read timestamps without a
 > zone as UTC, so anyone ahead of UTC saw yesterday's date after midnight. It now treats them as
-> local time, which is what the export writes. I added four cases to `tests/test_dates.py`, one per
-> zone we ship to, and they pass. Two other functions read timestamps the same way. I haven't
+> local time, which is what the export writes. Two other functions read timestamps the same way. I haven't
 > touched them, because one of them feeds the billing report and I didn't want to change billing
 > without asking you. Should I fix those too?
 
@@ -40,8 +39,8 @@ The same report, said:
 
 > Search now answers in about 80 ms instead of 900. Nearly all of it came from one index on
 > `products.name`. Before that, the database read the whole table for every query. I also tried caching
-> results, but it saved only another 10 ms and would have shown stale prices, so I took it out. I
-> measured on a copy of last week's data with `bench/search.sh`, not on production traffic. If
+> results, but it saved only another 10 ms and would have shown stale prices, so I took it out.
+> Those times are from a copy of last week's data, so production may differ a little. If
 > you're happy with it, the index takes about two minutes to build, so it's best added outside
 > shop hours.
 
@@ -66,6 +65,6 @@ The same report, said:
 
 - The answer comes first, as a plain statement, and the catch is in the same breath.
 - There are no labels, no bold, no bullets for things that connect, and no closing offer.
-- Each claim says how it is known: which test, which data, what was not run.
+- There's no proof in them. No test counts, no commands, no "verified that". The reader can ask.
 - The why is concrete. It names the cause and the alternative that was dropped, and why it was dropped.
 - Sentences vary in length, use contractions, and sound like one person talking to another.

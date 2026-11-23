@@ -2,31 +2,16 @@
 
 Each rule traces to a source below. The sources are summarized only as far as the skill uses them.
 
-## Making checking cheaper than trusting
+## Short, and selected
 
-- **Explanations raise acceptance whether the answer is right or wrong.** Bansal et al., "Does the
-  Whole Exceed its Parts? The Effect of AI Explanations on Complementary Team Performance" (CHI
-  2021, [arXiv:2006.14779](https://arxiv.org/abs/2006.14779)). Confidence information helped
-  teams; explanations mostly raised agreement with the AI, wrong answers included. Hence: tie each
-  claim to its evidence rather than argue for it.
-- **Explanations help when they make verification cheaper.** Vasconcelos et al., "Explanations
-  Can Reduce Overreliance on AI Systems During Decision-Making" (CSCW 2023,
-  [arXiv:2212.06823](https://arxiv.org/abs/2212.06823)). Hence evidence in the sentence that makes
-  the claim, where checking it costs the least.
-- **Length raises trust without raising accuracy.** Steyvers et al., "What Large Language Models
+- **Length raises confidence, not understanding.** Steyvers et al., "What Large Language Models
   Know and What People Think They Know" (Nature Machine Intelligence, 2025,
-  [arXiv:2401.13835](https://arxiv.org/abs/2401.13835)). Longer explanations raised people's
-  confidence in an answer, not their accuracy; wording that matched the model's own confidence
-  narrowed the gap. Hence the word budget and the evidence states.
-- **More detail can hide errors.** Poursabzi-Sangdeh et al., "Manipulating and Measuring Model
-  Interpretability" (CHI 2021, [arXiv:1802.07810](https://arxiv.org/abs/1802.07810)). A more
-  transparent model made people worse at catching its mistakes. Hence selection over completeness.
-- **"Tests pass" is weak evidence on its own.** Patches that pass a benchmark's tests can still
-  differ from the correct behaviour (Wang, Pradel and Liu, "Are 'Solved Issues' in SWE-bench Really
-  Solved Correctly?", 2025, [arXiv:2503.15223](https://arxiv.org/abs/2503.15223)), and agents can
-  make tests pass by changing them (Zhong et al., "ImpossibleBench", 2025,
-  [arXiv:2510.20270](https://arxiv.org/abs/2510.20270)). Hence the rule that changed test files
-  are named.
+  [arXiv:2401.13835](https://arxiv.org/abs/2401.13835)). Longer explanations made people more
+  confident in an answer without making them more accurate. Hence the word budget.
+- **More detail can hide what matters.** Poursabzi-Sangdeh et al., "Manipulating and Measuring
+  Model Interpretability" (CHI 2021, [arXiv:1802.07810](https://arxiv.org/abs/1802.07810)). Showing
+  people more of a model's workings made them worse at noticing its mistakes, through overload.
+  Hence selection over completeness, and no proof nobody asked for.
 
 ## Saying what the diff cannot
 

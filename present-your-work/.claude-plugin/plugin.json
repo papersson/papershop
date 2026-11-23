@@ -1,7 +1,7 @@
 {
   "name": "present-your-work",
   "version": "0.2.0",
-  "description": "Present finished work to the person who asked for it, in the chat, in under a minute, in the voice of a colleague telling them: the goal and the answer first, why it was done this way and its key idea, the one limitation that matters beside the answer, every claimed check tied to its evidence, and what the reader now has to decide or do. A one-second standard-library script checks private labels, budgets, superlatives, checks claimed without evidence, unnamed test changes, log-like telling and the marks of machine-written prose.",
+  "description": "Present finished work to the person who asked for it, in the chat, in under a minute, the way a colleague would tell them: the goal and what is now true first, why it was done this way and its key idea, the one thing that could change their mind beside the answer, and what they now have to decide. Exposition, not proof. A one-second standard-library script flags private labels, budgets, superlatives, log-like telling and the marks of machine-written prose.",
   "author": {
     "name": "Patrik Persson"
   }

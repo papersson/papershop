@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Check a quick presentation of finished work against the present-your-work rules.
 
-Reads a Markdown or HTML draft and checks its main text, which is everything before the evidence
-list (or an appendix), without notes or references:
+Reads a Markdown or HTML draft and checks its main text, which is everything before an appendix,
+without notes or references:
 
   words     the word count of the prose against the budget (ten percent either side passes);
   terms     new terms against the budget;
@@ -12,16 +12,12 @@ list (or an appendix), without notes or references:
             neither common, nor known, nor defined, unless they are in a code span;
   order     no term used before the draft defines it;
   tone      no superlatives or self-praise ("robust", "seamless", "comprehensive");
-  evidence  no claim that something passes, was verified or tested without its evidence in the
-            same sentence: a code span (the command, the test) or a number (the result);
-  tests     every changed test file (--changed) named somewhere in the draft, so a test that was
-            edited to pass cannot hide behind "the tests pass";
   log       not told as a log: three or more markers of chronology ("first", "then", "after that",
             "finally", a weekday) mean the text follows the order of the work, not of the argument;
   voice     no marks of machine-written prose: labelled sentences and colon reveals ("The catch:"),
             semicolons, em dashes, "not X, but Y", a trailing "-ing" comment clause, a sentence over
-            30 words, a sign-off offer, "checked" or "verified" where the action should be named, or
-            a cluster (two or more) of the words models overuse now.
+            30 words, a sign-off offer, the vocabulary of an audit ("checked", "verified"), or a
+            cluster (two or more) of the words models overuse now.
 
 It prints a short report and exits 0 when every rule holds, 1 when one is broken, 2 on a usage
 error. Standard library only.
@@ -31,8 +27,8 @@ What the draft does so the script can see it:
     are references the reader can look up, so they are not labels and their numbers are not counted.
   - A new term is marked where it is defined: <dfn>, or a short italic or bold span; an acronym is
     defined as "long form (ABC)". Italic and bold are used for nothing else.
-  - The evidence list starts at a line that reads "Evidence:" (or a heading "Evidence"); an
-    appendix at a heading that begins with "Appendix" or the comment <!-- appendix -->.
+  - An appendix, if any, starts at a heading that begins with "Appendix", a line or heading
+    "Evidence" or "Details", or the comment <!-- appendix -->.
 """
 from __future__ import annotations
 
@@ -53,8 +49,6 @@ RULES = {
     "labels": "internal labels in the main text",
     "order": "terms used before their definition",
     "tone": "superlatives and self-praise",
-    "evidence": "checks claimed without evidence",
-    "tests": "changed test files not named",
     "log": "markers of chronology",
     "voice": "marks of machine-written prose",
 }
@@ -76,7 +70,7 @@ VOICE = [
     ("a trailing -ing comment", re.compile(r",\s+(?:highlighting|underscoring|emphasizing|ensuring|reflecting|"
                                            r"contributing to|fostering|enhancing|showcasing|enabling|allowing|"
                                            r"paving the way|signaling|demonstrating|illustrating|making)\b", re.I)),
-    ("a vague verb for what was done", re.compile(r"\b(?:double-)?(?:checked|verified|validated|confirmed)\b", re.I)),
+    ("the vocabulary of an audit", re.compile(r"\b(?:double-)?(?:checked|verified|validated|confirmed)\b", re.I)),
     ("a sign-off offer", re.compile(r"\b(?:let me know|feel free|happy to help|i hope this helps|"
                                     r"would you like me|don't hesitate)\b", re.I)),
 ]
@@ -88,10 +82,6 @@ SUPERLATIVES = re.compile(
     r"|powerful|massive(?:ly)?|incredibl[ey]|extremely|thoroughly|fully|best[- ]in[- ]class"
     r"|state[- ]of[- ]the[- ]art|cutting[- ]edge|world[- ]class|rock[- ]solid|game[- ]changing"
     r"|excellent|remarkabl[ey]|impressive(?:ly)?)\b", re.I)
-CHECK_CLAIM = re.compile(
-    r"\b(?:pass(?:es|ed|ing)?|verified|verifies|confirmed|validated|tested|green|succeed(?:s|ed)?)\b", re.I)
-NEGATION = re.compile(r"\b(?:not|no|never|without|cannot|can't|didn't|doesn't|don't|isn't|wasn't|haven't|hasn't|nor|unverified|untested)\b", re.I)
-TEST_FILE = re.compile(r"(?:^|/)(?:tests?|__tests__|spec)/|(?:^|/)test_[^/]+$|_test\.[A-Za-z]+$|\.(?:test|spec)\.[A-Za-z]+$")
 
 EVIDENCE_LINE = re.compile(r"(?:\*\*|__)?(?:evidence|details)(?:\*\*|__)?\s*:?\s*(?:\*\*|__)?", re.I)
 CODE_OPEN, CODE_CLOSE = "\x04", "\x05"
@@ -606,8 +596,6 @@ class Result:
     other_words: int
     other_sections: int
     tone: list  # superlatives found
-    unbacked: list  # sentences that claim a check without evidence
-    untold: list  # changed test files the draft never names
     chronology: list  # markers of a story told in the order of the work
     voice: list  # (kind, excerpt) marks of machine-written prose
     failures: list
@@ -617,7 +605,7 @@ def plain(text: str) -> str:
     return text.replace(CODE_OPEN, "`").replace(CODE_CLOSE, "`")
 
 
-def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
+def analyse(blocks: list[Block], glossary=(), known=()) -> Result:
     sections = sectionize(blocks)
     budget = BUDGET
     known_cf = {k.casefold() for k in known}
@@ -713,8 +701,8 @@ def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
     rest = [b for b in blocks if sections[b.section].zone != "main" and b.kind in ("text", "cell", "code")]
     other_sections = len({b.section for b in rest})
 
-    # Tone and evidence, sentence by sentence in the main text.
-    tone, unbacked, chronology, voice, overused = [], [], [], [], []
+    # Tone, chronology and voice in the main text.
+    tone, chronology, voice, overused = [], [], [], []
     for b in body:
         if b.kind != "text":
             continue
@@ -734,23 +722,6 @@ def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
         bare = without_code(b.text)
         tone += [m.group(0) for m in SUPERLATIVES.finditer(bare)]
         chronology += [m.group(0) for m in CHRONOLOGY.finditer(bare)]
-        for sentence in re.split(r"(?<=[.!?])\s+", b.text):
-            words_only = without_code(sentence)
-            if (CHECK_CLAIM.search(words_only) and not NEGATION.search(words_only)
-                    and CODE_OPEN not in sentence and not re.search(r"\d", words_only)):
-                unbacked.append(plain(sentence).strip())
-
-    # Changed test files, named anywhere in the draft.
-    everything = " ".join(b.text for b in blocks)
-    untold = []
-    for path in changed:
-        path = path.strip()
-        if not path or not TEST_FILE.search(path):
-            continue
-        name = path.rsplit("/", 1)[-1]
-        stem = name.rsplit(".", 1)[0]
-        if name not in everything and stem not in everything:
-            untold.append(path)
 
     lo, hi = budget["words"]
     failures = []
@@ -766,16 +737,12 @@ def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
         failures.append("order")
     if tone:
         failures.append("tone")
-    if unbacked:
-        failures.append("evidence")
-    if untold:
-        failures.append("tests")
     if len(chronology) >= LOG_LIMIT:
         failures.append("log")
     if voice:
         failures.append("voice")
     return Result(sections, stats, words, terms, numbers, labels, order, sum(count_words(b.text) for b in rest),
-                  other_sections, tone, unbacked, untold, chronology, voice, failures)
+                  other_sections, tone, chronology, voice, failures)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -801,8 +768,6 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
     out.append(f"  {status('labels')}  {RULES['labels']}: {len(r.labels)} distinct")
     out.append(f"  {status('order')}  {RULES['order']}: {len(r.order)}")
     out.append(f"  {status('tone')}  {RULES['tone']}: {len(r.tone)}")
-    out.append(f"  {status('evidence')}  {RULES['evidence']}: {len(r.unbacked)}")
-    out.append(f"  {status('tests')}  {RULES['tests']}: {len(r.untold)}")
     out.append(f"  {status('log')}  {RULES['log']}: {len(r.chronology)} (fewer than {LOG_LIMIT} passes)")
     out.append(f"  {status('voice')}  {RULES['voice']}: {len(r.voice)}")
     out.append("")
@@ -839,17 +804,11 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
         out += capped(lines)
     if r.tone:
         out += ["", f"  Superlatives (say what was measured instead): {', '.join(dict.fromkeys(r.tone))}"]
-    if r.unbacked:
-        out += ["", "  Checks claimed without evidence (put the command in a code span, or the result as a number):"]
-        out += capped([f"    \"{short(u, 90)}\"" for u in r.unbacked])
     if "log" in r.failures:
         out += ["", f"  Told in the order of the work ({', '.join(r.chronology)}): order it by the argument, answer first"]
     if r.voice:
         out += ["", "  Marks of machine-written prose (say it as you would out loud):"]
         out += capped([f"    {kind}: \"{short(text, 70)}\"" for kind, text in r.voice])
-    if r.untold:
-        out += ["", "  Test files changed but never named (say what changed in them):"]
-        out += capped([f"    {u}" for u in r.untold])
     if "terms" in r.failures:
         out += ["", "  New terms by section:"]
         by_sec: dict[int, list] = {}
@@ -863,10 +822,6 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Check a quick presentation against the present-your-work rules.")
     ap.add_argument("draft", type=Path, help="the draft, Markdown or HTML")
-    ap.add_argument("--changed", action="append", default=[],
-                    help="a file the work changed (repeatable); test files among them must be named")
-    ap.add_argument("--changed-from", help="a file listing changed files, one per line, or - for stdin "
-                                           "(e.g. git diff --name-only BASE | ... --changed-from -)")
     ap.add_argument("--glossary", type=Path, action="append", default=[],
                     help="a GLOSSARY.md whose labels must not appear in the main text (repeatable)")
     ap.add_argument("--known", action="append", default=[],
@@ -882,11 +837,7 @@ def main(argv=None) -> int:
             return 2
     glossary = [g for p in args.glossary for g in read_list(p)]
     known = list(args.known) + [k for p in args.known_file for k in read_list(p)]
-    changed = list(args.changed)
-    if args.changed_from:
-        src = sys.stdin.read() if args.changed_from == "-" else Path(args.changed_from).read_text()
-        changed += src.splitlines()
-    result = analyse(load(args.draft), glossary, known, changed)
+    result = analyse(load(args.draft), glossary, known)
     print(render(result, args.draft, args.all))
     return 1 if result.failures else 0
 

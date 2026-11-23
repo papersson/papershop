@@ -35,28 +35,27 @@ def run(path, *args):
 
 class Samples(unittest.TestCase):
     def test_passing_sample_breaks_no_rule(self):
-        r = cd.analyse(cd.load(SAMPLES / "pass-quick.md"), changed=["tests/test_fingerprint.py", "load/run.py"])
+        r = cd.analyse(cd.load(SAMPLES / "pass-quick.md"))
         self.assertEqual(r.failures, [])
         self.assertEqual(set(r.terms), {"fingerprint"})
-        self.assertEqual(r.numbers, {"07:00", "05:40", "08:50"})  # the evidence list is not counted
+        self.assertEqual(r.numbers, {"07:00", "05:40", "08:50"})
 
     def test_failing_sample_breaks_each_rule_it_shows(self):
         glossary = cd.read_list(SAMPLES / "GLOSSARY.md")
         self.assertEqual(glossary, ["the fp trick", "S3B", "S3A"])
-        r = cd.analyse(cd.load(SAMPLES / "fail-quick.md"), glossary, changed=["tests/test_load.py"])
-        self.assertEqual(r.failures, ["terms", "numbers", "labels", "tone", "evidence", "tests", "log", "voice"])
+        r = cd.analyse(cd.load(SAMPLES / "fail-quick.md"), glossary)
+        self.assertEqual(r.failures, ["terms", "numbers", "labels", "tone", "log", "voice"])
         kinds = {label: info["kind"] for label, info in r.labels.items()}
         self.assertEqual(kinds, {"the fp trick": "glossary", "S3B": "glossary", "loader_v2": "letters and digits",
                                  "ZSTD": "acronym"})
         self.assertEqual(r.tone, ["comprehensive", "robust"])
-        self.assertEqual(r.unbacked, ["All tests pass and the slowdown is fixed.", "Everything was verified."])
-        self.assertEqual(r.untold, ["tests/test_load.py"])
+        self.assertIn(("the vocabulary of an audit", "verified"), [(k, t.split()[-1].strip(".\"")) for k, t in r.voice])
 
     def test_exit_codes(self):
         self.assertEqual(run(SAMPLES / "pass-quick.md").returncode, 0)
-        failing = run(SAMPLES / "fail-quick.md", "--glossary", SAMPLES / "GLOSSARY.md", "--changed", "tests/test_load.py")
+        failing = run(SAMPLES / "fail-quick.md", "--glossary", SAMPLES / "GLOSSARY.md")
         self.assertEqual(failing.returncode, 1)
-        self.assertIn("8 of 10 rules broken", failing.stdout)
+        self.assertIn("6 of 8 rules broken", failing.stdout)
         self.assertEqual(run(SAMPLES / "missing.md").returncode, 2)
 
     def test_known_terms_are_not_labels(self):
@@ -79,20 +78,8 @@ class QuickRules(unittest.TestCase):
         self.assertEqual(r.labels, {})
         self.assertEqual(r.numbers, {"6"})
 
-    def test_a_claimed_check_needs_its_evidence(self):
-        self.assertEqual(self.check("The tests pass.").unbacked, ["The tests pass."])
-        self.assertEqual(self.check("The tests pass (`script/test`).").unbacked, [])
-        self.assertEqual(self.check("All 16 tests passed.").unbacked, [])
-        self.assertEqual(self.check("It was not tested on Linux.").unbacked, [])
-
     def test_superlatives(self):
         self.assertEqual(self.check("A robust and seamless cache.").tone, ["robust", "seamless"])
-
-    def test_changed_test_files_must_be_named(self):
-        md = "The load is faster (`make load`: 05:40).\n\nEvidence:\n- changed `tests/test_load.py`\n"
-        self.assertEqual(self.check(md, changed=["tests/test_load.py", "src/load.py"]).untold, [])
-        self.assertEqual(self.check("Faster.", changed=["src/load.test.ts"]).untold, ["src/load.test.ts"])
-        self.assertEqual(self.check("Faster.", changed=["src/load.py"]).untold, [])
 
     def test_evidence_line_starts_the_back_matter(self):
         r = self.check("It is faster.\n\nEvidence:\n- ran loader_v2 at 05:40, 05:41 and 05:39\n")
@@ -106,7 +93,7 @@ class QuickRules(unittest.TestCase):
         self.assertEqual(kinds("It is not only fast but cheap."), ["not X, but Y"])
         self.assertEqual(kinds("I fixed the parser, ensuring dates are right."), ["a trailing -ing comment"])
         self.assertEqual(kinds("Let me know if you want more."), ["a sign-off offer"])
-        self.assertEqual(kinds("I verified the parser on 3 files."), ["a vague verb for what was done"])
+        self.assertEqual(kinds("I verified the parser on 3 files."), ["the vocabulary of an audit"])
         self.assertEqual(kinds("I ran the parser on 3 files."), [])
         self.assertEqual(kinds("It is specifically the essential part."), ["overused words"])
         self.assertEqual(kinds("It is specifically the part that broke."), [])  # one is fine
