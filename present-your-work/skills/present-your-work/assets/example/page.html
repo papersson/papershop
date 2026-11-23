@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The nightly load now finishes before the analysts start</title>
+<link rel="stylesheet" href="stage.css">
+<style>
+/* The season's files: one custom piece, so reading all, marking the changed ones and skipping the
+   rest are one change each. One look per meaning, kept on every click: a blue outline means read,
+   a purple fill means changed, faded, dashed and struck through means skipped. */
+.w-files { font-family: var(--mono); }
+.fl-head { position: absolute; left: 0; top: 0; font-family: var(--sans); font-size: 22px; color: var(--dim); }
+.fl-tile { position: absolute; width: 104px; height: 56px; box-sizing: border-box; border-radius: 8px;
+  background: var(--tint); border: 2px solid transparent; color: var(--dim); font-size: 24px;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .6s var(--ease), border-color .5s var(--ease), color .5s var(--ease), background .5s var(--ease); }
+/* read */
+.w-files.mode-read .fl-tile, .w-files.mode-skip .fl-tile.is-changed { border-color: var(--a); color: var(--ink); }
+/* changed */
+.w-files.mode-changed .fl-tile.is-changed, .w-files.mode-skip .fl-tile.is-changed,
+.w-files.mode-format .fl-tile { background: color-mix(in srgb, var(--c) 34%, var(--tint)); color: var(--ink); }
+/* skipped */
+.w-files.mode-skip .fl-tile:not(.is-changed), .w-files.mode-skip24 .fl-tile.is-pick {
+  border: 2px dashed var(--dim); opacity: .3; text-decoration: line-through; }
+.w-files.mode-skip24 .fl-tile.is-pick { opacity: .85; border-color: var(--b); color: var(--ink); }
+/* the one file the key idea follows; everything else steps back */
+.w-files.mode-pick .fl-tile:not(.is-pick), .w-files.mode-skip24 .fl-tile:not(.is-pick) { opacity: .2; }
+.w-files.mode-pick .fl-tile.is-pick { border-color: var(--b); color: var(--ink); }
+
+/* The two fingerprints of the example file, compared. */
+.w-prints { font-family: var(--sans); }
+.pr-row { position: absolute; left: 0; }
+.pr-label { font-size: 20px; color: var(--dim); }
+.pr-value { margin-top: 4px; font-family: var(--mono); font-size: 34px; color: var(--b); padding: 5px 14px;
+  border-radius: 8px; background: var(--tint); display: inline-block; }
+.pr-row.is-last, .pr-eq { opacity: 0; transition: opacity .5s var(--ease); }
+.w-prints.both .pr-row.is-last, .w-prints.both .pr-eq { opacity: 1; }
+.pr-eq { position: absolute; left: 230px; top: 92px; font-size: 40px; color: var(--ink); }
+
+/* The night as a time line: hours, the analysts' start, and when the load finished. */
+.w-clock { font-family: var(--sans); }
+.ck-axis { position: absolute; left: 0; top: 60px; height: 0; border-top: 2px solid var(--faint); }
+.ck-tick { position: absolute; top: 72px; font-family: var(--mono); font-size: 20px; color: var(--dim);
+  transform: translateX(-50%); }
+.ck-tick::before { content: ""; position: absolute; left: 50%; top: -14px; height: 10px; border-left: 2px solid var(--faint); }
+.ck-deadline { position: absolute; top: 20px; height: 84px; border-left: 2px dashed var(--dim); }
+.ck-deadline-label { position: absolute; top: 118px; font-size: 22px; color: var(--dim); transform: translateX(-50%); }
+.ck-marker { position: absolute; top: 0; transition: transform var(--move) var(--ease); }
+.ck-marker-label { position: absolute; left: 0; top: 0; font-size: 26px; color: var(--b); transform: translateX(-50%);
+  white-space: nowrap; }
+.ck-marker-dot { position: absolute; left: -9px; top: 51px; width: 18px; height: 18px; border-radius: 50%; background: var(--b); }
+.ck-ghost { opacity: 0; transition: opacity .5s var(--ease); }
+.ck-ghost .ck-marker-label { color: var(--dim); }
+.ck-ghost .ck-marker-dot { background: var(--dim); }
+.ck-ghost.on { opacity: .7; }
+</style>
+</head>
+<body>
+<script src="stage.js"></script>
+<script>
+// Every number below comes from values.py, which computes them and checks these lines appear here.
+// The work is invented; values.py says which inputs are made up.
+const FILES = 40;
+const CHANGED = [10, 21, 26];
+const TIMES = { old: '08:50', new: '05:49', worst: '08:54', deadline: '07:00' };
+const PICK = { file: 24, tonight: 'd1fce79c', last: 'd1fce79c' };
+
+// Tokens: 'mode-read' (every file read), 'mode-changed' (the changed ones marked), 'mode-pick' (only
+// the example file stands out), 'mode-skip24' (the example file skipped), 'mode-skip' (unchanged
+// files skipped, changed ones read), 'mode-format' (every file changed).
+Stage.piece('files', (el, o, page) => {
+  page.make('div', 'fl-head', el, "this season's files");
+  for (let i = 0; i < FILES; i++) {
+    const t = page.make('div', 'fl-tile', el, String(i + 1));
+    t.style.left = (i % 8) * 120 + 'px';
+    t.style.top = 44 + Math.floor(i / 8) * 70 + 'px';
+    t.style.setProperty('--i', i);
+    t.dataset.file = i + 1;
+    if (CHANGED.includes(i + 1)) t.classList.add('is-changed');
+    if (i + 1 === PICK.file) t.classList.add('is-pick');
+  }
+  el.style.width = 7 * 120 + 104 + 'px'; el.style.height = 44 + 4 * 70 + 56 + 'px';
+});
+
+// Tokens: 'at:old', 'at:new', 'at:worst' place the finish marker; 'was:old' and 'was:new' leave a
+// faint marker at the old and the usual finish, so the comparison stays on screen.
+const HOUR0 = 4, HOURS = 6, AXIS = 1200;
+const xAt = hhmm => { const [h, m] = hhmm.split(':').map(Number); return ((h - HOUR0) * 60 + m) / (HOURS * 60) * AXIS; };
+Stage.piece('clock', (el, o, page) => {
+  page.make('div', 'ck-axis', el).style.width = AXIS + 'px';
+  for (let h = HOUR0; h <= HOUR0 + HOURS; h++) {
+    const t = page.make('div', 'ck-tick', el, `${String(h).padStart(2, '0')}:00`);
+    t.style.left = xAt(`${h}:00`) + 'px';
+  }
+  page.make('div', 'ck-deadline', el).style.left = xAt(TIMES.deadline) + 'px';
+  const dl = page.make('div', 'ck-deadline-label', el, 'analysts start');
+  dl.style.left = xAt(TIMES.deadline) + 'px';
+  const ghostAt = (time, text) => {
+    const g = page.make('div', 'ck-marker ck-ghost', el);
+    page.make('div', 'ck-marker-label', g, text);
+    page.make('div', 'ck-marker-dot', g);
+    g.style.transform = `translateX(${xAt(time)}px)`;
+    return g;
+  };
+  const ghostOld = ghostAt(TIMES.old, `was ${TIMES.old}`), ghostNew = ghostAt(TIMES.new, `usually ${TIMES.new}`);
+  const marker = page.make('div', 'ck-marker', el);
+  const label = page.make('div', 'ck-marker-label', marker);
+  page.make('div', 'ck-marker-dot', marker);
+  el.style.width = AXIS + 'px'; el.style.height = '150px';
+  return cls => {
+    const at = cls.find(c => c.startsWith('at:'));
+    if (!at || !TIMES[at.slice(3)]) throw new Error(`clock: needs at:old, at:new or at:worst, got ${at}`);
+    const time = TIMES[at.slice(3)];
+    marker.style.transform = `translateX(${xAt(time)}px)`;
+    label.textContent = `finished ${time}`;
+    ghostOld.classList.toggle('on', cls.includes('was:old'));
+    ghostNew.classList.toggle('on', cls.includes('was:new'));
+  };
+});
+
+// Tokens: 'both' adds last night's fingerprint and the sign between them.
+Stage.piece('prints', (el, o, page) => {
+  const row = (cls, label, value, top) => {
+    const r = page.make('div', 'pr-row ' + cls, el);
+    r.style.top = top + 'px';
+    page.make('div', 'pr-label', r, label);
+    page.make('div', 'pr-value', r, value);
+  };
+  row('is-tonight', 'fingerprint tonight', PICK.tonight, 0);
+  row('is-last', 'fingerprint last night', PICK.last, 120);
+  page.make('div', 'pr-eq', el, '=');
+  el.style.width = '300px'; el.style.height = '200px';
+});
+
+const line = (text, y) => ({ piece: 'text', text, size: 36, width: 1300, ch: [6], states: { shown: { x: 150, y } } });
+
+Stage.page({
+  title: 'The nightly load now finishes before the analysts start',
+  cover: 'On staging, the nightly load now finishes before the analysts start.',
+  chapters: [
+    'Each night the load read every file',
+    'Most files had not changed',
+    'A fingerprint shows which files changed',
+    'It now finishes at 05:49',
+    'A new file format still costs a night',
+    'Where it stands, and what I need',
+  ],
+  notes: [
+    'An invented example. The file contents, read times and start time are made up, and values.py computes the rest.',
+  ],
+  objects: {
+    files: { piece: 'files', ch: [1, 2, 3, 4, 5], states: {
+      read: { x: 100, y: 150, cls: ['mode-read'] }, plain: { x: 100, y: 150 },
+      changed: { x: 100, y: 150, cls: ['mode-changed'] }, skip: { x: 100, y: 150, cls: ['mode-skip'] },
+      pick: { x: 100, y: 150, cls: ['mode-pick'] }, skip24: { x: 100, y: 150, cls: ['mode-skip24'] },
+      format: { x: 100, y: 150, cls: ['mode-format'] } } },
+
+    // One time line from the first chapter to the catch, kept in place.
+    clock: { piece: 'clock', ch: [1, 2, 3, 4, 5], states: {
+      old: { x: 200, y: 560, cls: ['at:old'] }, new: { x: 200, y: 560, cls: ['at:new', 'was:old'] },
+      worst: { x: 200, y: 560, cls: ['at:worst', 'was:new'] } } },
+    // Comes out of its tile in the grid, so the eye follows it.
+    file: { piece: 'chip', label: 'file', value: `round-${PICK.file}.csv`, ch: [3], start: 'made', states: {
+      made: { x: 940, y: 310, o: 0 }, shown: { x: 1110, y: 190 } } },
+    prints: { piece: 'prints', ch: [3], states: { tonight: { x: 1110, y: 300 }, both: { x: 1110, y: 300, cls: ['both'] } } },
+
+    now: line(`It finishes by ${TIMES.new} on the staging copy.`, 230),
+    open: line("Two nights it read four files it didn't need to, and I don't know why yet.", 340),
+    ask: line('Should it run on production tonight?', 450),
+  },
+  clicks: [
+    { chapter: 1, caption: 'Each night the load read all 40 files of the season.', object: 'files', state: 'read' },
+    { chapter: 1, caption: 'So it finished at 08:50, after the analysts start.', object: 'clock', state: 'old' },
+
+    { chapter: 2, caption: 'How many of these do you think changed since last night?', object: 'files', state: 'plain', predict: true },
+    { chapter: 2, caption: 'Only 3 of the 40 had.', object: 'files', state: 'changed' },
+
+    { chapter: 3, caption: 'Take one file that has not changed, number 24.', object: 'files', state: 'pick' },
+    { chapter: 3, object: 'file', state: 'shown' },
+    { chapter: 3, caption: "A fingerprint is a short code computed from the file's contents.", object: 'prints', state: 'tonight' },
+    { chapter: 3, caption: "Last night's fingerprint is the same.", object: 'prints', state: 'both' },
+    { chapter: 3, caption: 'So file 24 is skipped tonight.', object: 'files', state: 'skip24' },
+    { chapter: 3, caption: 'Only the files whose fingerprint changed are read.', object: 'files', state: 'skip' },
+
+    { chapter: 4, caption: "That's over an hour before the analysts start.", object: 'clock', state: 'new' },
+
+    { chapter: 5, caption: 'A new file format changes every fingerprint at once.', object: 'files', state: 'format' },
+    { chapter: 5, caption: 'That night it finishes at 08:54, as late as before.', object: 'clock', state: 'worst' },
+
+    { chapter: 6, object: 'now', state: 'shown' },
+    { chapter: 6, object: 'open', state: 'shown' },
+    { chapter: 6, object: 'ask', state: 'shown' },
+  ],
+});
+</script>
+</body>
+</html>

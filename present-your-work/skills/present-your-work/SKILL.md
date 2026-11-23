@@ -6,9 +6,10 @@ description: >
   say why it was done this way and what the key idea is, put the one thing that could change their
   mind beside the answer, and end on what they now have to decide or do. A one-second script flags
   private labels, budgets, superlatives, log-like telling and the marks of machine-written prose.
-  Use at the end of a task, or when asked "present your work", "what did you do", "write it up",
-  "report back" or "summarize what you did". Not for a changelog, a commit message, or a style edit
-  of existing prose (that is `prose`).
+  A visual mode tells the same story as a click-through page with one change per click, for when
+  the person asks to be shown. Use at the end of a task, or when asked "present your work", "what
+  did you do", "write it up", "report back", "summarize what you did" or "show me what you did".
+  Not for a changelog, a commit message, or a style edit of existing prose (that is `prose`).
 ---
 
 # present-your-work
@@ -103,6 +104,64 @@ their definition, superlatives, log-like telling and the voice tells above (`ref
 Fix what it reports by replacing or cutting, never by adding a definition or a caveat, and run it
 once more. Then paste the text into the reply as the reply's whole content: no preamble, no offer
 of more.
+
+## Visual mode: a click-through page
+
+Use it when the person asks for it ("show me", "walk me through what you did", "make it visual"),
+or offer it in one line at the end of a quick report when the work changed how something behaves
+and a picture would show it better than prose. It is the same story as quick mode, told on a
+stage: one change per click, a caption of at most 12 words, the eye always on one thing. It takes
+longer, from a quarter of an hour to an hour, so it is never the default.
+
+### 1. Fill the card, then pick the running example
+
+Fill the same card as in quick mode. Then pick one real case that shows the change: one request, one
+file, one night's run. Follow it from the first click to the last. Compute every value the page
+will show with a small script (`values.py` beside the page), never from memory. If the case is
+invented, the page's notes say so once.
+
+### 2. Write the click list and get it approved
+
+The story has a fixed order, one chapter each, with plain sentences as chapter titles:
+
+1. **The cover states the answer**, as one sentence: what is now true.
+2. **Before.** The running example as it was, and why that was a problem.
+3. **Why it was like that.** The cause, shown on the example. This is the place for the one
+   prediction click (`"predict": true`), whose caption asks the reader to guess before the answer.
+4. **The key idea**, shown on the example, concrete before any name.
+5. **After.** The same example now, with before and after on screen together.
+6. **The catch**, no later than here, shown on the example where it can be.
+7. **What I need from you.** Two or three plain sentences, one per click: where it stands, what is
+   open or opaque, and the decision.
+
+Fold chapters together when the work is small, and leave the key idea out when there is none. Aim
+for 8 to 20 clicks. Write the list as `clicks.json`, show the person
+`python3 -I scripts/new_page.py clicks.json --markdown`, and change it until they approve it.
+`references/visual.md` has the format and what makes a good list.
+
+### 3. Build it
+
+`python3 -I scripts/new_page.py clicks.json OUT_DIR` writes a page that runs at once, one
+placeholder per click, with its own copy of `engine/stage.js` and `engine/stage.css`. Replace the
+placeholders with real pieces one at a time; the format is in `engine/stage.js`'s header, and
+`assets/example/` is a finished presentation with its `values.py`. Stage it for attention: the
+engine draws each click's subject at full brightness and steps everything older down, so draw the
+part that changed as the subject, large and near where the eye already is, and put nothing on the
+stage that no click is about.
+
+### 4. Look at it, then hand it over
+
+- `python3 -I scripts/check_page.py OUT_DIR` prints nothing.
+- You've looked at every shot from `python3 -I scripts/shoot_page.py OUT_DIR --mid 3,8 --strip`,
+  the strip first.
+- A fresh agent given `shots/attention.md` finds one place to look on every click. Fix what it
+  points to.
+- A fresh agent given only `shots/captions.md` and the shots says in three sentences what changed,
+  why, and what the reader has to decide, and names the key idea. If they miss the point, fix the
+  click list, not the wording.
+
+Then open `page.html` for the person and tell them the keys in one line: arrows or a click to move,
+C hides captions, `#N` opens click N.
 
 ## Anti-patterns
 

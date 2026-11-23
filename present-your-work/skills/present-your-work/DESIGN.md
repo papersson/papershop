@@ -58,6 +58,17 @@ is the right one, so it is a floor, not a verdict. Its heuristics will flag some
 `--known` and code spans take those out, and an over-flag costs a glance while a missed one costs
 the reader.
 
+## A visual mode, on its own engine
+
+Some work is easier to see than to read: a change in how something behaves, a before and an after.
+For that the skill tells the same story on a click-through stage, one change per click, with the
+reader's eye held on one thing at a time by brightness that steps down with age. The story keeps
+quick mode's order (the answer on the cover, the catch no later than the after, the decision at
+the end) and adds what a stage does better than prose: a running example followed from start to
+end, before and after on screen together, and one click that asks the reader to guess first. The
+skill carries its own copy of the engine and its scripts, so it needs nothing else installed. It
+gives up speed: a page takes far longer than a paragraph, so it is offered, never the default.
+
 ## Budgets
 
 Sixty to three hundred words, two new terms and three numbers outside code spans are judgement,

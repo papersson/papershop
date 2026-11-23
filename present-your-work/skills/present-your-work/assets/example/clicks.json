@@ -1,0 +1,126 @@
+{
+  "title": "The nightly load now finishes before the analysts start",
+  "cover": "On staging, the nightly load now finishes before the analysts start.",
+  "chapters": [
+    "Each night the load read every file",
+    "Most files had not changed",
+    "A fingerprint shows which files changed",
+    "It now finishes at 05:49",
+    "A new file format still costs a night",
+    "Where it stands, and what I need"
+  ],
+  "notes": [
+    "An invented example. The file contents, read times and start time are made up, and values.py computes the rest."
+  ],
+  "clicks": [
+    {
+      "chapter": 1,
+      "change": "The season's 40 files appear, all outlined as read",
+      "caption": "Each night the load read all 40 files of the season.",
+      "object": "files",
+      "state": "read"
+    },
+    {
+      "chapter": 1,
+      "change": "A time line appears with the finish marker at 08:50, past the analysts' start",
+      "caption": "So it finished at 08:50, after the analysts start.",
+      "object": "clock",
+      "state": "old"
+    },
+    {
+      "chapter": 2,
+      "change": "The files lose their outline",
+      "caption": "How many of these do you think changed since last night?",
+      "object": "files",
+      "state": "plain",
+      "predict": true
+    },
+    {
+      "chapter": 2,
+      "change": "Files 10, 21 and 26 fill purple, changed",
+      "caption": "Only 3 of the 40 had.",
+      "object": "files",
+      "state": "changed"
+    },
+    {
+      "chapter": 3,
+      "change": "Every file but number 24 fades",
+      "caption": "Take one file that has not changed, number 24.",
+      "object": "files",
+      "state": "pick"
+    },
+    {
+      "chapter": 3,
+      "change": "The file round-24.csv comes out of its tile and glides beside the grid",
+      "object": "file",
+      "state": "shown"
+    },
+    {
+      "chapter": 3,
+      "change": "Tonight's fingerprint of it appears below",
+      "caption": "A fingerprint is a short code computed from the file's contents.",
+      "object": "prints",
+      "state": "tonight"
+    },
+    {
+      "chapter": 3,
+      "change": "Last night's fingerprint appears below it with an equals sign, the same code",
+      "caption": "Last night's fingerprint is the same.",
+      "object": "prints",
+      "state": "both"
+    },
+    {
+      "chapter": 3,
+      "change": "Tile 24 turns dashed and struck through, skipped",
+      "caption": "So file 24 is skipped tonight.",
+      "object": "files",
+      "state": "skip24"
+    },
+    {
+      "chapter": 3,
+      "change": "Every unchanged file turns skipped, the three changed ones outlined as read",
+      "caption": "Only the files whose fingerprint changed are read.",
+      "object": "files",
+      "state": "skip"
+    },
+    {
+      "chapter": 4,
+      "change": "The finish marker slides from 08:50 to 05:49, leaving a faint marker at 08:50",
+      "caption": "That's over an hour before the analysts start.",
+      "object": "clock",
+      "state": "new"
+    },
+    {
+      "chapter": 5,
+      "change": "Every file fills purple, changed",
+      "caption": "A new file format changes every fingerprint at once.",
+      "object": "files",
+      "state": "format"
+    },
+    {
+      "chapter": 5,
+      "change": "The finish marker slides from 05:49 to 08:54, leaving a faint marker at 05:49",
+      "caption": "That night it finishes at 08:54, as late as before.",
+      "object": "clock",
+      "state": "worst"
+    },
+    {
+      "chapter": 6,
+      "change": "A line appears saying it finishes by 05:49 on staging",
+      "object": "now",
+      "state": "shown"
+    },
+    {
+      "chapter": 6,
+      "change": "A line appears saying two nights read four unneeded files, reason unknown",
+      "object": "open",
+      "state": "shown"
+    },
+    {
+      "chapter": 6,
+      "change": "A line appears asking whether to run it on production tonight",
+      "object": "ask",
+      "state": "shown"
+    }
+  ]
+}
