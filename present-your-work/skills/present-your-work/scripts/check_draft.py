@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
-"""Check a presentation draft against the present-your-work rules.
+"""Check a quick presentation of finished work against the present-your-work rules.
 
-Reads a Markdown or HTML draft and checks its main text, which is everything before the appendix
-without notes, references or a table of contents:
+Reads a Markdown or HTML draft and checks its main text, which is everything before the evidence
+list (or an appendix), without notes or references:
 
-  words    the word count of the prose, tables left out, against the size's range (ten percent
-           either side passes);
-  terms    new terms against the size's budget;
-  numbers  distinct numerals, tables included, against the size's budget;
-  labels   no internal labels: the glossary's labels, tokens that mix letters and digits (dev40,
-           B8), snake_case and camelCase identifiers, file names and paths, and acronyms that are
-           neither common, nor listed as known, nor defined in the draft;
-  order    no term used before the draft defines it, including a term defined only in the appendix.
+  words     the word count of the prose against the budget (ten percent either side passes);
+  terms     new terms against the budget;
+  numbers   distinct numerals outside code spans against the budget;
+  labels    no private names: the glossary's labels, tokens that mix letters and digits (v2, B8),
+            snake_case and camelCase identifiers, file names and paths, and acronyms that are
+            neither common, nor known, nor defined, unless they are in a code span;
+  order     no term used before the draft defines it;
+  tone      no superlatives or self-praise ("robust", "seamless", "comprehensive");
+  evidence  no claim that something passes, was verified or tested without its evidence in the
+            same sentence: a code span (the command, the test) or a number (the result);
+  tests     every changed test file (--changed) named somewhere in the draft, so a test that was
+            edited to pass cannot hide behind "the tests pass";
+  log       not told as a log: three or more markers of chronology ("first", "then", "after that",
+            "finally", a weekday) mean the text follows the order of the work, not of the argument.
 
 It prints a short report and exits 0 when every rule holds, 1 when one is broken, 2 on a usage
 error. Standard library only.
 
 What the draft does so the script can see it:
-  - A new term is marked where it is defined: <dfn>, or a short italic or bold span (*term*,
-    **term**, <em>, <i>, <strong>, <b>); a glossary's <dt> also defines its terms. An acronym is
-    defined as "long form (ABC)".
-  - The appendix starts at a heading that begins with "Appendix", a heading whose id begins with
-    "app-" or "appendix", or the comment <!-- appendix -->.
-  - Quantities the reader must weigh are written as numerals; counts that structure the text
-    (three results, two readings) are spelled out. Years, dates, citation brackets and references
-    such as "Section 4" or "Figure 2" are not counted.
+  - Names from the code (files, commands, functions) go in code spans: `script/test`. Code spans
+    are references the reader can look up, so they are not labels and their numbers are not counted.
+  - A new term is marked where it is defined: <dfn>, or a short italic or bold span; an acronym is
+    defined as "long form (ABC)". Italic and bold are used for nothing else.
+  - The evidence list starts at a line that reads "Evidence:" (or a heading "Evidence"); an
+    appendix at a heading that begins with "Appendix" or the comment <!-- appendix -->.
 """
 from __future__ import annotations
 
@@ -35,11 +39,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-SIZES = {
-    "small": {"words": (150, 300), "terms": 2, "numbers": 3},
-    "medium": {"words": (600, 900), "terms": 5, "numbers": 8},
-    "large": {"words": (2500, 4000), "terms": 10, "numbers": 25},
-}
+BUDGET = {"words": (60, 300), "terms": 2, "numbers": 3}
 WORD_TOLERANCE = 0.10
 
 RULES = {
@@ -48,7 +48,35 @@ RULES = {
     "numbers": "numbers in the main text",
     "labels": "internal labels in the main text",
     "order": "terms used before their definition",
+    "tone": "superlatives and self-praise",
+    "evidence": "checks claimed without evidence",
+    "tests": "changed test files not named",
+    "log": "markers of chronology",
 }
+CHRONOLOGY = re.compile(
+    r"\b(?:first(?:ly)?|then|after that|afterwards|afterward|finally|eventually|subsequently|later on"
+    r"|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|yesterday|this morning)\b", re.I)
+LOG_LIMIT = 3
+
+SUPERLATIVES = re.compile(
+    r"\b(?:comprehensive(?:ly)?|robust(?:ly)?|seamless(?:ly)?|significantly|dramatically|drastically"
+    r"|perfect(?:ly)?|flawless(?:ly)?|bulletproof|production[- ]ready|blazing(?:ly)?|elegant(?:ly)?"
+    r"|powerful|massive(?:ly)?|incredibl[ey]|extremely|thoroughly|fully|best[- ]in[- ]class"
+    r"|state[- ]of[- ]the[- ]art|cutting[- ]edge|world[- ]class|rock[- ]solid|game[- ]changing"
+    r"|excellent|remarkabl[ey]|impressive(?:ly)?)\b", re.I)
+CHECK_CLAIM = re.compile(
+    r"\b(?:pass(?:es|ed|ing)?|verified|verifies|confirmed|validated|tested|green|succeed(?:s|ed)?)\b", re.I)
+NEGATION = re.compile(r"\b(?:not|no|never|without|cannot|can't|didn't|doesn't|don't|isn't|wasn't|haven't|hasn't|nor|unverified|untested)\b", re.I)
+TEST_FILE = re.compile(r"(?:^|/)(?:tests?|__tests__|spec)/|(?:^|/)test_[^/]+$|_test\.[A-Za-z]+$|\.(?:test|spec)\.[A-Za-z]+$")
+
+EVIDENCE_LINE = re.compile(r"(?:\*\*|__)?(?:evidence|details)(?:\*\*|__)?\s*:?\s*(?:\*\*|__)?", re.I)
+CODE_OPEN, CODE_CLOSE = "\x04", "\x05"
+
+
+def without_code(text: str) -> str:
+    """The text with code spans blanked to spaces, so positions stay put."""
+    return re.sub(CODE_OPEN + "[^" + CODE_CLOSE + "]*" + CODE_CLOSE, lambda m: " " * len(m.group(0)), text)
+
 
 BACK_MATTER = {
     "notes", "footnotes", "endnotes", "references", "bibliography", "works cited", "sources",
@@ -191,6 +219,8 @@ class HTMLDraft(html.parser.HTMLParser):
             self.emit(" ")
         elif tag in self.MARKS:
             self.emit(MARK_OPEN)
+        elif tag == "code":
+            self.emit(CODE_OPEN)
         elif tag == "sup" or (tag == "a" and (a.get("href") or "").startswith("#")):
             self.capture.append([tag, []])
 
@@ -231,6 +261,8 @@ class HTMLDraft(html.parser.HTMLParser):
                 self.cell = max(0, self.cell - 1)
         elif tag in self.MARKS:
             self.emit(MARK_CLOSE)
+        elif tag == "code":
+            self.emit(CODE_CLOSE)
         elif self.capture and self.capture[-1][0] == tag:
             _, parts = self.capture.pop()
             text = "".join(parts)
@@ -280,7 +312,7 @@ def md_inline(s: str) -> str:
     s = re.sub(r"(?<![\w*])\*(?![\s*])(.+?)(?<![\s*])\*(?![\w*])", MARK_OPEN + r"\1" + MARK_CLOSE, s)
     s = re.sub(r"(?<![\w_])_(?![\s_])(.+?)(?<![\s_])_(?![\w_])", MARK_OPEN + r"\1" + MARK_CLOSE, s)
     s = re.sub(r"\\([\\`*_{}\[\]()#+\-.!|])", r"\1", s)
-    return re.sub(r"\x03(\d+)\x03", lambda m: codes[int(m.group(1))], s)
+    return re.sub(r"\x03(\d+)\x03", lambda m: CODE_OPEN + codes[int(m.group(1))] + CODE_CLOSE, s)
 
 
 def parse_markdown(src: str) -> list[Block]:
@@ -306,7 +338,7 @@ def parse_markdown(src: str) -> list[Block]:
             if stripped.startswith(fence):
                 text, _ = finish(" ".join(code))
                 if text:
-                    blocks.append(Block("code", text))
+                    blocks.append(Block("code", CODE_OPEN + text + CODE_CLOSE))
                 fence, code = None, []
             else:
                 code.append(line)
@@ -315,7 +347,7 @@ def parse_markdown(src: str) -> list[Block]:
             flush()
             fence = stripped[:3]
             continue
-        if re.fullmatch(r"<!--\s*appendix\s*-->", stripped, re.I):
+        if re.fullmatch(r"<!--\s*appendix\s*-->", stripped, re.I) or EVIDENCE_LINE.fullmatch(stripped):
             flush()
             blocks.append(Block("marker"))
             continue
@@ -380,7 +412,7 @@ def heading_name(text: str) -> str:
 
 def is_appendix_heading(b: Block) -> bool:
     return bool(
-        re.match(r"(?:[A-Z][.:)]?\s*)?appendi(x|ces)\b", b.text.strip(), re.I)
+        re.match(r"(?:[A-Z][.:)]?\s*)?(appendi(x|ces)|evidence|details)\b", b.text.strip(), re.I)
         or re.match(r"(appendix|app[-_:\d])", b.hid, re.I)
     )
 
@@ -540,7 +572,6 @@ def read_list(path: Path) -> list[str]:
 
 @dataclass
 class Result:
-    size: str
     sections: list
     stats: dict  # section index -> {"words", "terms", "numbers", "labels"}
     words: int
@@ -550,12 +581,20 @@ class Result:
     order: list  # (display, first-use section, definition section or None, definition zone)
     other_words: int
     other_sections: int
+    tone: list  # superlatives found
+    unbacked: list  # sentences that claim a check without evidence
+    untold: list  # changed test files the draft never names
+    chronology: list  # markers of a story told in the order of the work
     failures: list
 
 
-def analyse(blocks: list[Block], size: str, glossary=(), known=()) -> Result:
+def plain(text: str) -> str:
+    return text.replace(CODE_OPEN, "`").replace(CODE_CLOSE, "`")
+
+
+def analyse(blocks: list[Block], glossary=(), known=(), changed=()) -> Result:
     sections = sectionize(blocks)
-    budget = SIZES[size]
+    budget = BUDGET
     known_cf = {k.casefold() for k in known}
     main = [b for b in blocks if sections[b.section].zone == "main"]
     body = [b for b in main if b.kind in ("text", "cell")]
@@ -613,7 +652,7 @@ def analyse(blocks: list[Block], size: str, glossary=(), known=()) -> Result:
     for b in main:
         if b.kind == "marker":
             continue
-        text = b.text
+        text = without_code(b.text)
         for g, rx in gloss:
             for m in rx.finditer(text):
                 note(g, "glossary", b)
@@ -638,7 +677,7 @@ def analyse(blocks: list[Block], size: str, glossary=(), known=()) -> Result:
         if b.kind in ("text", "code"):
             st["words"] += count_words(b.text)
         if b.kind in ("text", "cell"):
-            st["numbers"].update(find_numbers(b.text))
+            st["numbers"].update(find_numbers(without_code(b.text)))
     for key, (_, sec) in terms.items():
         stats.setdefault(sec, {"words": 0, "terms": 0, "numbers": set(), "labels": set()})["terms"] += 1
     for label, info in labels.items():
@@ -648,6 +687,30 @@ def analyse(blocks: list[Block], size: str, glossary=(), known=()) -> Result:
 
     rest = [b for b in blocks if sections[b.section].zone != "main" and b.kind in ("text", "cell", "code")]
     other_sections = len({b.section for b in rest})
+
+    # Tone and evidence, sentence by sentence in the main text.
+    tone, unbacked, chronology = [], [], []
+    for b in body:
+        bare = without_code(b.text)
+        tone += [m.group(0) for m in SUPERLATIVES.finditer(bare)]
+        chronology += [m.group(0) for m in CHRONOLOGY.finditer(bare)]
+        for sentence in re.split(r"(?<=[.!?])\s+", b.text):
+            words_only = without_code(sentence)
+            if (CHECK_CLAIM.search(words_only) and not NEGATION.search(words_only)
+                    and CODE_OPEN not in sentence and not re.search(r"\d", words_only)):
+                unbacked.append(plain(sentence).strip())
+
+    # Changed test files, named anywhere in the draft.
+    everything = " ".join(b.text for b in blocks)
+    untold = []
+    for path in changed:
+        path = path.strip()
+        if not path or not TEST_FILE.search(path):
+            continue
+        name = path.rsplit("/", 1)[-1]
+        stem = name.rsplit(".", 1)[0]
+        if name not in everything and stem not in everything:
+            untold.append(path)
 
     lo, hi = budget["words"]
     failures = []
@@ -661,8 +724,16 @@ def analyse(blocks: list[Block], size: str, glossary=(), known=()) -> Result:
         failures.append("labels")
     if order:
         failures.append("order")
-    return Result(size, sections, stats, words, terms, numbers, labels, order,
-                  sum(count_words(b.text) for b in rest), other_sections, failures)
+    if tone:
+        failures.append("tone")
+    if unbacked:
+        failures.append("evidence")
+    if untold:
+        failures.append("tests")
+    if len(chronology) >= LOG_LIMIT:
+        failures.append("log")
+    return Result(sections, stats, words, terms, numbers, labels, order, sum(count_words(b.text) for b in rest),
+                  other_sections, tone, unbacked, untold, chronology, failures)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -674,9 +745,9 @@ def short(title: str, n: int = 34) -> str:
 
 
 def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> str:
-    budget = SIZES[r.size]
+    budget = BUDGET
     lo, hi = budget["words"]
-    out = [f"present-your-work check: {path.name}, size {r.size}", ""]
+    out = [f"present-your-work check: {path.name}", ""]
 
     def status(rule):
         return "FAIL" if rule in r.failures else "ok  "
@@ -687,6 +758,10 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
     out.append(f"  {status('numbers')}  {RULES['numbers']}: {len(r.numbers)} distinct (budget {budget['numbers']})")
     out.append(f"  {status('labels')}  {RULES['labels']}: {len(r.labels)} distinct")
     out.append(f"  {status('order')}  {RULES['order']}: {len(r.order)}")
+    out.append(f"  {status('tone')}  {RULES['tone']}: {len(r.tone)}")
+    out.append(f"  {status('evidence')}  {RULES['evidence']}: {len(r.unbacked)}")
+    out.append(f"  {status('tests')}  {RULES['tests']}: {len(r.untold)}")
+    out.append(f"  {status('log')}  {RULES['log']}: {len(r.chronology)} (fewer than {LOG_LIMIT} passes)")
     out.append("")
     out.append(f"  {'Main-text section':<34} {'words':>6} {'terms':>6} {'numbers':>8} {'labels':>7}")
     for sec in sorted(r.stats):
@@ -719,6 +794,16 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
                           f"({r.sections[defined].title})")
             lines.append(f"    \"{display}\": used in {short(r.sections[used].title, 30)}, {where}")
         out += capped(lines)
+    if r.tone:
+        out += ["", f"  Superlatives (say what was measured instead): {', '.join(dict.fromkeys(r.tone))}"]
+    if r.unbacked:
+        out += ["", "  Checks claimed without evidence (put the command in a code span, or the result as a number):"]
+        out += capped([f"    \"{short(u, 90)}\"" for u in r.unbacked])
+    if "log" in r.failures:
+        out += ["", f"  Told in the order of the work ({', '.join(r.chronology)}): order it by the argument, answer first"]
+    if r.untold:
+        out += ["", "  Test files changed but never named (say what changed in them):"]
+        out += capped([f"    {u}" for u in r.untold])
     if "terms" in r.failures:
         out += ["", "  New terms by section:"]
         by_sec: dict[int, list] = {}
@@ -730,9 +815,12 @@ def render(r: Result, path: Path, list_all: bool = False, limit: int = 12) -> st
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Check a presentation draft against the present-your-work rules.")
+    ap = argparse.ArgumentParser(description="Check a quick presentation against the present-your-work rules.")
     ap.add_argument("draft", type=Path, help="the draft, Markdown or HTML")
-    ap.add_argument("--size", required=True, choices=sorted(SIZES), help="the presentation's size")
+    ap.add_argument("--changed", action="append", default=[],
+                    help="a file the work changed (repeatable); test files among them must be named")
+    ap.add_argument("--changed-from", help="a file listing changed files, one per line, or - for stdin "
+                                           "(e.g. git diff --name-only BASE | ... --changed-from -)")
     ap.add_argument("--glossary", type=Path, action="append", default=[],
                     help="a GLOSSARY.md whose labels must not appear in the main text (repeatable)")
     ap.add_argument("--known", action="append", default=[],
@@ -748,7 +836,11 @@ def main(argv=None) -> int:
             return 2
     glossary = [g for p in args.glossary for g in read_list(p)]
     known = list(args.known) + [k for p in args.known_file for k in read_list(p)]
-    result = analyse(load(args.draft), args.size, glossary, known)
+    changed = list(args.changed)
+    if args.changed_from:
+        src = sys.stdin.read() if args.changed_from == "-" else Path(args.changed_from).read_text()
+        changed += src.splitlines()
+    result = analyse(load(args.draft), glossary, known, changed)
     print(render(result, args.draft, args.all))
     return 1 if result.failures else 0
 

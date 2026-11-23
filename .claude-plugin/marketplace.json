@@ -40,7 +40,9 @@
     },
     {
       "name": "present-your-work",
-      "source": "./present-your-work"
+      "source": "./present-your-work",
+      "version": "0.2.0",
+      "description": "Present finished work in the chat, in under a minute: the goal and the answer first, why and the key idea, the one limitation that matters beside the answer, every claimed check tied to its evidence, and what the reader now decides. A one-second script checks labels, budgets, superlatives, unbacked checks, unnamed test changes and log-like telling."
     },
     {
       "name": "elicit",

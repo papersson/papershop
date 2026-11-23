@@ -34,35 +34,73 @@ def run(path, *args):
 
 class Samples(unittest.TestCase):
     def test_passing_sample_breaks_no_rule(self):
-        r = cd.analyse(cd.load(SAMPLES / "pass-small.md"), "small")
+        r = cd.analyse(cd.load(SAMPLES / "pass-quick.md"), changed=["tests/test_fingerprint.py", "load/run.py"])
         self.assertEqual(r.failures, [])
         self.assertEqual(set(r.terms), {"fingerprint"})
-        self.assertEqual(r.numbers, {"07:00", "05:40", "08:50"})
+        self.assertEqual(r.numbers, {"07:00", "05:40", "08:50"})  # the evidence list is not counted
 
-    def test_failing_sample_breaks_each_rule_once(self):
+    def test_failing_sample_breaks_each_rule_it_shows(self):
         glossary = cd.read_list(SAMPLES / "GLOSSARY.md")
-        self.assertEqual(glossary, ["spotter", "B8", "B4"])
-        r = cd.analyse(cd.load(SAMPLES / "fail-small.md"), "small", glossary)
-        self.assertEqual(r.failures, ["words", "terms", "numbers", "labels", "order"])
-        self.assertGreater(r.words, 330)
-        self.assertEqual(set(r.terms), {"crowded miss", "receipt", "duplicate"})
-        self.assertEqual(r.numbers, {"0.692", "0.838", "0.827", "0.91"})
+        self.assertEqual(glossary, ["the fp trick", "S3B", "S3A"])
+        r = cd.analyse(cd.load(SAMPLES / "fail-quick.md"), glossary, changed=["tests/test_load.py"])
+        self.assertEqual(r.failures, ["terms", "numbers", "labels", "tone", "evidence", "tests", "log"])
         kinds = {label: info["kind"] for label, info in r.labels.items()}
-        self.assertEqual(kinds, {"spotter": "glossary", "B8": "glossary", "dev40": "letters and digits",
-                                 "run_queue": "snake_case", "TCN": "acronym"})
-        self.assertEqual([o[0] for o in r.order], ["crowded miss"])
+        self.assertEqual(kinds, {"the fp trick": "glossary", "S3B": "glossary", "loader_v2": "letters and digits",
+                                 "ZSTD": "acronym"})
+        self.assertEqual(r.tone, ["comprehensive", "robust"])
+        self.assertEqual(r.unbacked, ["All tests pass and the slowdown is fixed.", "Everything was verified."])
+        self.assertEqual(r.untold, ["tests/test_load.py"])
 
     def test_exit_codes(self):
-        self.assertEqual(run(SAMPLES / "pass-small.md", "--size", "small").returncode, 0)
-        failing = run(SAMPLES / "fail-small.md", "--size", "small", "--glossary", SAMPLES / "GLOSSARY.md")
+        self.assertEqual(run(SAMPLES / "pass-quick.md").returncode, 0)
+        failing = run(SAMPLES / "fail-quick.md", "--glossary", SAMPLES / "GLOSSARY.md", "--changed", "tests/test_load.py")
         self.assertEqual(failing.returncode, 1)
-        self.assertIn("5 of 5 rules broken", failing.stdout)
-        self.assertEqual(run(SAMPLES / "missing.md", "--size", "small").returncode, 2)
+        self.assertIn("7 of 9 rules broken", failing.stdout)
+        self.assertEqual(run(SAMPLES / "missing.md").returncode, 2)
 
     def test_known_terms_are_not_labels(self):
-        r = cd.analyse(cd.load(SAMPLES / "fail-small.md"), "small", known=["TCN", "dev40"])
-        self.assertNotIn("TCN", r.labels)
-        self.assertNotIn("dev40", r.labels)
+        r = cd.analyse(cd.load(SAMPLES / "fail-quick.md"), known=["ZSTD", "loader_v2"])
+        self.assertNotIn("ZSTD", r.labels)
+        self.assertNotIn("loader_v2", r.labels)
+
+
+class QuickRules(unittest.TestCase):
+    def check(self, md, **kw):
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
+            f.write(md)
+        try:
+            return cd.analyse(cd.load(Path(f.name)), **kw)
+        finally:
+            Path(f.name).unlink()
+
+    def test_code_spans_are_references_not_labels_or_numbers(self):
+        r = self.check("The fix is in `load/run_v2.py`, and `pytest -k fingerprint_42` covers it with 6 cases.")
+        self.assertEqual(r.labels, {})
+        self.assertEqual(r.numbers, {"6"})
+
+    def test_a_claimed_check_needs_its_evidence(self):
+        self.assertEqual(self.check("The tests pass.").unbacked, ["The tests pass."])
+        self.assertEqual(self.check("The tests pass (`script/test`).").unbacked, [])
+        self.assertEqual(self.check("All 16 tests passed.").unbacked, [])
+        self.assertEqual(self.check("It was not tested on Linux.").unbacked, [])
+
+    def test_superlatives(self):
+        self.assertEqual(self.check("A robust and seamless cache.").tone, ["robust", "seamless"])
+
+    def test_changed_test_files_must_be_named(self):
+        md = "The load is faster (`make load`: 05:40).\n\nEvidence:\n- changed `tests/test_load.py`\n"
+        self.assertEqual(self.check(md, changed=["tests/test_load.py", "src/load.py"]).untold, [])
+        self.assertEqual(self.check("Faster.", changed=["src/load.test.ts"]).untold, ["src/load.test.ts"])
+        self.assertEqual(self.check("Faster.", changed=["src/load.py"]).untold, [])
+
+    def test_evidence_line_starts_the_back_matter(self):
+        r = self.check("It is faster.\n\nEvidence:\n- ran loader_v2 at 05:40, 05:41 and 05:39\n")
+        self.assertEqual((r.labels, r.numbers), ({}, set()))
+
+    def test_chronology(self):
+        r = self.check("First I read the logs. Then I fixed it. Finally I ran it.")
+        self.assertIn("log", r.failures)
+        self.assertNotIn("log", self.check("It is faster. Then again, it uses more memory.").failures)
 
 
 class Html(unittest.TestCase):
@@ -70,7 +108,7 @@ class Html(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
             f.write(HTML)
         self.path = Path(f.name)
-        self.r = cd.analyse(cd.load(self.path), "small")
+        self.r = cd.analyse(cd.load(self.path))
 
     def tearDown(self):
         self.path.unlink()
@@ -125,7 +163,7 @@ class Parts(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as f:
             f.write(md)
         try:
-            r = cd.analyse(cd.load(Path(f.name)), "small")
+            r = cd.analyse(cd.load(Path(f.name)))
         finally:
             Path(f.name).unlink()
         self.assertEqual(set(r.terms), {"one league"})

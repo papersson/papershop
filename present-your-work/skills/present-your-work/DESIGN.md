@@ -1,72 +1,63 @@
 # Why present-your-work is shaped this way
 
-The skill exists for one situation: an agent has worked alone for hours or days, and someone asks it
-to present the work. The person wants the first draft to have the right shape, so that rounds of
-review are about details. The case in `references/case-eventlearn.md` shows the default outcome: a
-text that follows the records, passes its checks, and loses its reader. Each choice below answers a
-part of that outcome, and each records what it gives up.
+Agents are good at finishing work and poor at handing it back. The default ending is an activity
+log: accurate, chronological, full of the session's own names, and silent on what the reader most
+needs, which is what is now true, how it is known, why it was done this way, and what they have to
+do next. Each choice below answers part of that, and each records what it gives up.
 
-## The story is fixed before the prose
+## Two jobs: checking and learning
 
-A writer who drafts from records reproduces their order and grain: chronology, every decision, the
-private names. Fixing the answer, three results and the way forward on a card of at most 150 words
-forces the choice of what matters before any sentence can carry the records' shape in. The card is
-short enough to show the commissioner in a minute, which is why the delivering reply leads with it.
-It gives up the discovery that sometimes happens while drafting; when drafting shows the card is
-wrong, the card is rewritten and the draft follows it.
+A reader of finished work needs to check it and to learn from it. The research on explanations of
+automated work says the first is the harder: explanations and length raise acceptance whether the
+work is right or wrong, so a fluent report can make a wrong result more convincing. The skill
+therefore ties claims to evidence instead of arguing for them. The second job is easy to forget
+because the work is done: a correct result that nobody understands transfers nothing, so the card
+asks for the key idea and for what is still opaque. It gives up the reassuring tone of a report
+that only says everything went well.
 
-## The genre is a defense, ending on the way forward
+## In the chat, in under a minute
 
-A presentation of unfinished work is a checkpoint. The reader's decision is what to do next, so the
-text answers the five questions a committee or a programme manager asks, and ends on the distance
-to the goal and the ranked next steps rather than on results. It gives up the paper's usual
-narrative of method then results; method appears only where a result needs it.
+The reader is in the conversation, knows the request and is waiting. A file, a page or a review
+step would cost them more than the presentation saves, and a check that takes minutes would not be
+run at the end of every task. So quick mode writes from what is already in context, runs one
+deterministic check that takes under a second, and delivers in the chat. It gives up the second
+reader and the fact check that a longer presentation would earn.
 
-## Three sizes with budgets
+## A card before the prose
 
-Left alone, a presentation grows with the work and with each review: in the case, 6,500 words and a
-video 2:30 over plan. Budgets for words, new terms and numbers, tied to the size of the work, make
-"too long" and "too many terms" checkable before a reader suffers them. The numbers in the budgets
-are judgement, not measurement: a page a reader finishes in a few minutes, a memo that fits one
-page, an article an evening can hold. They are the skill's least certain part and the first to
-revise when real presentations show them wrong.
+A writer who starts from the session reproduces its order and its names. Filling seven short lines
+first (goal, answer, why, key idea, the catch, opaque, next) forces the choice of what matters
+before any sentence can carry the session's shape in. In quick mode the card stays in the writer's
+head; its lines become the paragraphs.
 
-## Subtraction is a step of its own
+## The catch beside the answer
 
-Every check in the case added: a caveat, an interval, a number. No step had the job of removing
-anything, and none did. A separate pass whose only output is cuts and pointers to the appendix, and
-a rule that caveats go to one limitations section, turn the checks' additions into an appendix
-instead of a longer main text. The appendix has no budget, so nothing a checker needs is lost.
+A single limitations section keeps hedges out of every sentence, which readers learn to skip. But
+the one limitation that changes what the reader should do is the first thing they need after the
+answer, and a list at the end is where decisive facts go unread. So the skill keeps evidence
+states short and on the claim ("on staging only"), says the catch once beside the answer, and drops
+caveats that carry no information.
+
+## Evidence in the sentence and in a list
+
+A claim of a check is only as good as the reader's ability to verify it. Putting the command or the
+result in the same sentence, and every command and changed file in an evidence list, makes
+checking cheaper than trusting. Naming changed test files closes the commonest way a check can be
+hollow: a test edited until it passes.
 
 ## A script for what the writer cannot see
 
-The curse of knowledge makes a writer blind to their own labels and to terms they use before
-explaining them; rereading does not help, and a model reviewer shares the blindness to anything it
-can infer. A deterministic script can find coined-looking tokens, a glossary's labels and
-definition order without that blindness, costs nothing to rerun, and gives the same answer twice.
-It cannot judge clarity, so it is the first check, not the only one. Its heuristics will flag some
-ordinary names (product names with digits, standard acronyms the reader knows); `--known` takes
-those out, and an over-flag costs a glance, while a missed label costs the reader.
+The writer cannot find their own private names by rereading, cannot feel their own length, and
+tends to praise their own work. A deterministic script finds coined-looking names, superlatives,
+claimed checks without evidence, unnamed test changes and the markers of a log, gives the same
+answer twice and costs nothing to rerun. It cannot judge whether the answer is right or the catch
+is the right one, so it is a floor, not a verdict. Its heuristics will flag some ordinary names;
+`--known` and code spans take those out, and an over-flag costs a glance while a missed one costs
+the reader.
 
-## The cold reader checks shape, and a person checks more
+## Budgets
 
-In the case, three model readers scored 10 of 10 on a comprehension quiz while the first human
-reader was lost. Model readers fill gaps, so a quiz about facts on the page measures recall. The
-teach-back asks instead for the story in three sentences and a list of guesses, which reveal a
-structural fault even when the gaps are filled. It is weaker than a person new to the work, and the
-skill says so rather than presenting it as a comprehension test.
-
-## The research keeps three pages as it goes
-
-The labels, the distance to the goal and a plain account of the work are cheapest to write while the
-work runs, and nearly impossible to reconstruct at the end without the writer's blindness. Keeping
-`GOAL.md`, `GLOSSARY.md` and `EXPLAINER.md` current at every checkpoint is the research-time half of
-this skill, carried by the project's own checkpoint routine (`references/research-pages.md`). A
-presentation starts from these pages and the raw records, never from an earlier presentation, which
-would carry its order, emphasis and errors into the new one.
-
-## One story for the article and the video
-
-A video made from the article starts from its story file, so the two cannot drift into different
-stories, and the video's narrative still goes through studio's approval because a video needs
-things an article does not: what is on screen, timing, hero moments.
+Sixty to three hundred words, two new terms and three numbers outside code spans are judgement,
+not measurement: what a reader takes in at a glance at the end of a task. The floor matters as
+much as the ceiling, since readers dislike over-compressed text as much as padded text. They are
+the first thing to revise when real presentations show them wrong.
