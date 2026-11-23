@@ -359,7 +359,9 @@
       if (!rs.length) return null;
       const l = Math.min(...rs.map(r => r.left)), t = Math.min(...rs.map(r => r.top));
       const r = Math.max(...rs.map(r => r.right)), b = Math.max(...rs.map(r => r.bottom));
-      return { x: (l - sr.left) * k, y: (t - sr.top) * k, w: (r - l) * k, h: (b - t) * k, lines: rs.length };
+      // Each line's own box too: text that wraps covers two lines, not the rectangle around them.
+      const lines = rs.map(q => ({ x: (q.left - sr.left) * k, y: (q.top - sr.top) * k, w: q.width * k, h: q.height * k }));
+      return { x: (l - sr.left) * k, y: (t - sr.top) * k, w: (r - l) * k, h: (b - t) * k, lines: rs.length, boxes: lines };
     };
     const textsIn = (el, owner, scale) => {
       const found = [], walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -404,8 +406,8 @@
         if (isObj && a.y + a.h > 756 && a.y < 836) band.push(`${a.owner} "${a.text}"`);
         for (let j = i + 1; j < texts.length; j++) {
           const b = texts[j];
-          const ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-          if (ix > 2 && iy > 2) overlaps.push(`${a.owner} "${a.text}" and ${b.owner} "${b.text}"`);
+          const hit = (p, q) => Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x) > 2 && Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y) > 2;
+          if (a.boxes.some(p => b.boxes.some(q => hit(p, q)))) overlaps.push(`${a.owner} "${a.text}" and ${b.owner} "${b.text}"`);
         }
       }
       const capBox = texts.find(t => t.owner === 'caption');
