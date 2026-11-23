@@ -15,12 +15,26 @@ as a", "stands as", "represents", "functions as" where "is" belongs (Wikipedia, 
 Writing"). Marketing verbs: *boasts, offers, features* for *has*. None is wrong alone; the density
 is the signature.
 
+The list ages. Measured against human writing on the same facts, current frontier models rarely
+use the old markers (*delve* about once in 25,000 words, *tapestry* less) and instead overuse
+ordinary connectors and evaluatives: *specifically* 5.4 times the human rate, *essential* 8.3
+times, *though* 5 times, and *furthermore*, *vital* and *alongside*, which are almost absent from
+the human text (Weinmeister, humanizer-skills evaluation, 2026). Look for clusters of these before
+the famous words.
+
 **Structural.** Negative parallelism ("Not only X, but also Y"). The rule of three (adjective,
 adjective, and adjective). Participial synthesis: sentences ending "...highlighting the need for...",
 "...underscoring the complexity of...", which perform analysis without making a claim. The
 challenge/future-directions coda (achievement, vague challenge, unattributed experts, "looking
 ahead... potential... collaboration") that appends to any topic. The grand human-condition sweep.
 Hollow significance: *groundbreaking, invaluable, indelible, vital, profound, pioneering.*
+
+Labelled sentences and colon reveals: a short label and a colon in front of the point ("The catch:
+it only runs on staging", "Bottom line:", "Next steps:"), or a colon that holds back the payoff ("The
+answer is simple: cache it"). In prose meant to be read straight through they turn sentences into
+a form being filled in, and they are now among the first things readers recognize. The same goes
+for bold lead-ins on every bullet, a closing line that restates the paragraph, and a staged opener
+("When we think of..."). Replacing em dashes with colons produces this tell, so do not.
 
 **Statistical.** Low burstiness: uniform sentence length and shape; the same medium rhythm
 throughout (GPTZero). Low perplexity: the high-probability word every time. Em-dash overuse. Caveat

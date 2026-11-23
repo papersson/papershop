@@ -70,11 +70,15 @@ sometimes; machine text uses them constantly.
 - **Lexical tells:** the inflated cluster (*delve, crucial, pivotal, tapestry, testament,
   underscore, showcase, vibrant, intricate, leverage, foster, garner, seamless, robust*); copula
   avoidance ("serves as a", "stands as", "represents" where "is" belongs); marketing verbs
-  (*boasts, offers, features* for *has*).
+  (*boasts, offers, features* for *has*). Current models have mostly dropped the famous words and
+  overuse ordinary ones instead: *specifically, essential, though, furthermore, vital, alongside*
+  (measured at five to eight times the human rate, or nearly absent from human text).
 - **Structural tells:** negative parallelism ("not only X but also Y"); the rule of three (three
   approximate words for one precise one); participial synthesis ("...highlighting the need for
   further research"); the challenge/future-directions coda; hollow significance ("groundbreaking",
-  "vital", "invaluable").
+  "vital", "invaluable"); labelled sentences and colon reveals ("The catch: ...", "Next steps:",
+  "The answer is simple: ..."), bold lead-ins on every bullet, and a closing line that restates
+  the paragraph.
 - **Pathologies (older than LLMs, and why the tells fail):** vagueness and abstraction; Latinate
   inflation; nominalizations (zombie nouns) that hide the actor; the curse of knowledge; clutter;
   dead metaphors; verbal false limbs ("give rise to", "make contact with"); ritual hedging as
@@ -99,12 +103,25 @@ Six themes (full attribution in `reference.md`):
 - **Honesty** — make claims as strong as they can be without becoming false; hedge only real
   uncertainty; commit (Graham, Alexander, Feynman).
 
-House rules that hold in every register: no em dashes (use a colon, parentheses, or a new sentence),
-and straight quotes rather than curly ones.
+House rules that hold in every register: no em dashes, and straight quotes rather than curly
+ones. Replace a dash with a new sentence, a comma or parentheses. Do not replace it with a colon:
+a colon in the middle of a sentence is now as strong a tell as the dash it replaced. Keep colons
+for introducing a list, a quotation or code.
 
 For technical and explanatory writing specifically: build the reader's mental model rather than
 recording your own; put the concrete image before the abstract label (scene before symbol);
 demonstrate interest, don't announce it ("notably", "interestingly" signal the opposite).
+
+## How hard to edit
+
+The editing decision that matters most is how much evidence you need before rewriting a sentence,
+not which words are on the list. In a measured comparison of editing approaches on the same
+passages, a plain instruction ("Edit to remove signs of AI writing, if there are any. Keep the
+meaning, facts, and register") removed about a third of the tells and left 92% of human-written
+text untouched. Approaches that removed more tells rewrote more good human prose with them, and
+zero-tolerance rules (ban all passive voice, all adverbs) did the most damage (Weinmeister,
+humanizer-skills evaluation, 2026). So rewrite where tells cluster, leave a sentence with one
+ambiguous tell alone, and treat that plain instruction as the baseline `rewrite` has to beat.
 
 ## The biggest risk: over-correction
 
