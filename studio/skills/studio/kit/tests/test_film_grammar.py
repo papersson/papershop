@@ -93,6 +93,17 @@ def test_a_dissolve_ends_on_the_next_chapters_first_frame(tmp_path):
 
 
 @needs_engine
+def test_a_dissolve_ends_on_the_next_chapters_framing_when_it_opens_pushed_in(tmp_path):
+    two_chapters(tmp_path, ROAD.replace("SHOTS", ""),
+                 "export default function draw(c) { c.S.rect('mark', 100, 100, 200, 200, { fill: '#ff0000' }); c.S.cam(200, 200, 4) }\n")
+    e = Engine(tmp_path)
+    e.stills([{"clip": "s1", "t": 59 / 30, "out": str(tmp_path / "last.png")}, {"clip": "s2", "t": 0, "out": str(tmp_path / "first.png")}])
+    a, b = rgba(tmp_path / "last.png"), rgba(tmp_path / "first.png")
+    diff = lambda x, y: sum(abs(p - q) for p, q in zip(x[::997], y[::997])) / len(x[::997])
+    assert diff(a, b) < 2
+
+
+@needs_engine
 def test_a_match_cut_carries_the_named_thing_to_where_the_next_chapter_draws_it(tmp_path):
     two_chapters(tmp_path, ROAD.replace("SHOTS", ""), INSIDE + "export const join = { match: 'payment' }\n")
     f = Engine(tmp_path).boxes_at([{"clip": "s1", "t": 58 / 30}])[0]       # the last frame but one: still faintly visible
@@ -111,6 +122,20 @@ def test_a_callback_draws_the_earlier_chapters_own_frame(tmp_path):
     at = lambda x, y: tuple(px[(y * w + x) * 3:(y * w + x) * 3 + 3])
     assert at(960 + 100, 100) == (255, 0, 0)          # the mark, at half scale in the inset
     assert at(150, 150) != (255, 0, 0)
+
+
+@needs_engine
+def test_a_callback_keeps_the_earlier_chapters_camera(tmp_path):
+    """s1 pushes in four times on a mark; recalling its frame shows the push-in, not the world unmoved."""
+    two_chapters(tmp_path, "export default function draw(c) { c.S.rect('mark', 100, 100, 200, 200, { fill: '#ff0000' }); c.S.cam(200, 200, 4) }\n",
+                 "export default function draw(c) { c.recall('s1', 'end') }\nexport const join = 'hard'\n")
+    e = Engine(tmp_path)
+    e.stills([{"clip": "s2", "t": 0.5, "out": str(tmp_path / "s2.png")}])
+    px = rgba(tmp_path / "s2.png")
+    w = 1920
+    at = lambda x, y: tuple(px[(y * w + x) * 3:(y * w + x) * 3 + 3])
+    assert at(960, 540) == (255, 0, 0)                # the mark fills the middle of the pushed-in frame
+    assert at(150, 150) != (255, 0, 0)                # where it would sit if the camera were dropped
 
 
 @needs_engine
