@@ -92,6 +92,7 @@ def test_a_dissolve_ends_on_the_next_chapters_first_frame(tmp_path):
     assert diff(a, b) < 2 and diff(c, b) > 20
 
 
+@needs_engine
 def test_a_dissolve_ends_on_the_next_chapters_framing_when_it_opens_pushed_in(tmp_path):
     two_chapters(tmp_path, ROAD.replace("SHOTS", ""),
                  "export default function draw(c) { c.S.rect('mark', 100, 100, 200, 200, { fill: '#ff0000' }); c.S.cam(200, 200, 4) }\n")
