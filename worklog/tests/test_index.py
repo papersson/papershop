@@ -17,6 +17,12 @@ spec.loader.exec_module(worklog)
 
 
 class IndexTest(unittest.TestCase):
+    def setUp(self):
+        # Hermetic: never read the atuin of the machine running the tests.
+        env = patch.dict("os.environ", {"WORKLOG_ATUIN": "0"})
+        env.start()
+        self.addCleanup(env.stop)
+
     def test_all_tools_and_notebook_paths(self):
         names = ["mcp__browser__click", "Glob", "Grep", "WebFetch", "Agent", "Workflow"]
         content = [{"type": "tool_use", "name": n, "id": n, "input": {}} for n in names]
@@ -62,6 +68,76 @@ class IndexTest(unittest.TestCase):
             self.assertEqual(con.execute("SELECT count(*) FROM events WHERE user_kind='tool_result'").fetchone()[0], 1)
             self.assertEqual(len(worklog.fetch_window(con, "2026", "2027")), 2)
             self.assertFalse(worklog._score_like(con, "poison", None))
+
+    def test_without_atuin_nothing_runs(self):
+        """A machine without atuin (or with WORKLOG_ATUIN=0) indexes transcripts only."""
+        with patch.object(worklog.subprocess, "run") as run:
+            self.assertIsNone(worklog.atuin_bin())
+            self.assertEqual(worklog._ingest_atuin(duckdb.connect(), {}, set()), 0)
+            run.assert_not_called()
+        with patch.dict("os.environ", {"WORKLOG_ATUIN": ""}), \
+                patch.object(worklog.shutil, "which", return_value=None):
+            self.assertIsNone(worklog.atuin_bin())
+
+    def test_atuin_threads_fill_what_transcripts_miss(self):
+        threads = [
+            # This machine has the transcript, so atuin's copy is skipped.
+            {"harness": "claude-code", "session_id": "local", "atuin_id": "a-local",
+             "updated_at": "2026-10-01T10:00:00+00:00", "message_count": 2},
+            {"harness": "codex", "session_id": "cx", "atuin_id": "a-codex",
+             "updated_at": "2026-10-01T11:00:00+00:00", "message_count": 4},
+            {"harness": "claude-code", "session_id": "agent-x", "atuin_id": "a-sub",
+             "updated_at": "2026-10-01T12:00:00+00:00", "message_count": 1,
+             "preview": "look around the repo"},
+        ]
+        code_cell = ('text(await tools.exec_command({cmd:"rg -n foo src"}))\n'
+                     'await tools.apply_patch("*** Begin Patch\\n*** Update File: src/app.py\\n")')
+        shows = {
+            "a-codex": [
+                {"kind": "session", "session_id": "cx", "cwd": "/repo", "title": "Codex fix"},
+                {"kind": "message", "role": "user", "timestamp": "2026-10-01T11:00:00.5+00:00",
+                 "content": [{"type": "text", "text": "fix the parser"}]},
+                {"kind": "message", "role": "assistant", "timestamp": "2026-10-01T11:01:00+00:00",
+                 "content": [{"type": "tool_call", "id": "c1", "name": "exec", "input": code_cell}]},
+                {"kind": "message", "role": "tool", "timestamp": "2026-10-01T11:02:00+00:00",
+                 "content": [{"type": "tool_result", "tool_use_id": "c1", "content": "ok"}]},
+                {"kind": "message", "role": "token_usage_record", "timestamp": "2026-10-01T11:02:00+00:00"},
+            ],
+            "a-sub": [
+                {"kind": "session", "session_id": "agent-x", "parent_kind": "subagent", "cwd": "/repo"},
+                {"kind": "message", "role": "assistant", "timestamp": "2026-10-01T12:00:00+00:00",
+                 "content": [{"type": "tool_call", "id": "b1", "name": "Bash",
+                              "input": "{\"command\": \"git status\"}"}]},
+            ],
+        }
+        calls = []
+        def fake_atuin(*args):
+            calls.append(args)
+            if args[:2] == ("threads", "list"):
+                return json.dumps(threads)
+            return "\n".join(json.dumps(l) for l in shows[args[2]])
+        con = duckdb.connect()
+        con.execute(worklog.SCHEMA)
+        with patch.object(worklog, "_atuin", fake_atuin):
+            self.assertEqual(worklog._ingest_atuin(con, {}, {"local"}), 2)
+            prior = {r[0]: (r[1], r[2]) for r in con.execute("SELECT path, mtime, size FROM ingested").fetchall()}
+            self.assertEqual(worklog._ingest_atuin(con, prior, {"local"}), 0)
+        self.assertNotIn(("threads", "show", "a-local", "--style", "ndjson"), calls)
+        rows = con.execute("SELECT session, role, user_kind, is_sidechain, commands, edits, ts "
+                           "FROM events WHERE path = 'atuin:a-codex' ORDER BY ts").fetchall()
+        self.assertEqual([r[2] for r in rows], ["human", "", "tool_result"])
+        self.assertEqual(rows[0][6], "2026-10-01T11:00:00.500Z")
+        self.assertEqual(json.loads(rows[1][4]), ["rg -n foo src"])
+        self.assertEqual(json.loads(rows[1][5]), ["src/app.py"])
+        sub = con.execute("SELECT is_sidechain, commands FROM events WHERE path = 'atuin:a-sub'").fetchone()
+        self.assertEqual(sub, (True, '["git status"]'))
+        window = worklog.fetch_window(con, "2026", "2027")
+        self.assertEqual({e["session"] for e in window}, {"cx"})
+        sessions = worklog.add_transcripts(con, worklog.group_sessions(window))
+        self.assertEqual((sessions[0]["title"], sessions[0]["transcript"]), ("Codex fix", "atuin:a-codex"))
+        # No AI title: the thread's first prompt stands in.
+        self.assertEqual(con.execute("SELECT title FROM titles WHERE session = 'agent-x'").fetchone(),
+                         ("look around the repo",))
 
     def test_audit_deduplicates_calls_and_counts_human_gaps(self):
         con = duckdb.connect()

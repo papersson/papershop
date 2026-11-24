@@ -11,6 +11,21 @@ transcripts remain the lossless archive. The index stays a ranked skeleton
 (what/when/where); the skill reads raw transcripts on demand when it needs detail
 the index dropped (for example, the error bodies that friction analysis needs).
 
+## Sources
+
+The index always reads this machine's Claude Code transcripts
+(`~/.claude/projects/**/*.jsonl`). When [atuin](https://atuin.sh) 18.25+ with thread
+capture is on PATH, it also reads the threads atuin holds that have no transcript here:
+Codex threads, and threads synced from your other machines. They are indexed like
+transcripts, with path `atuin:<atuin id>`; `atuin threads show <id>` prints one whole,
+tool results included. Claude threads that do have a local transcript are skipped, since
+the transcript is the richer copy.
+
+atuin is optional. Without it, or with `WORKLOG_ATUIN=0`, worklog indexes the
+transcripts alone, exactly as before; `worklog index` prints `atuin=off` or the number of
+atuin threads indexed. Turning it off later leaves already-indexed atuin threads in the
+index until it is rebuilt.
+
 ## Parts
 
 - `scripts/worklog.py` — the engine. LLM-free, deterministic, incremental
@@ -76,6 +91,7 @@ drops a `worklog` shim into `~/.local/bin`. The shim runs the bundled script via
 | --- | --- | --- |
 | `WORKLOG_DB` | `~/.claude/worklog.duckdb` | Index location |
 | `WORKLOG_DUCKDB_EXTENSION_DIR` | duckdb default | Writable dir for the `fts` extension |
+| `WORKLOG_ATUIN` | on when `atuin` is on PATH | `0` indexes Claude transcripts only |
 
 The nix wrapper points both at `$XDG_CACHE_HOME/worklog` — `WORKLOG_DUCKDB_EXTENSION_DIR`
 unconditionally, `WORKLOG_DB` as a default that an already-set value overrides.
@@ -151,8 +167,8 @@ WHERE session='SESSION-UUID';
 Use `local` for local sessions; unannotated sessions remain `unknown`, never
 inferred remote from an SSH command. Import remote Claude transcripts under a
 distinct subtree of `~/.claude/projects`, preserving session IDs and sidechain
-directories, then reindex and rerun the same SQL. Amp/Codex histories require an
-explicit format adapter before this index can measure them. The pilot query
+directories, then reindex and rerun the same SQL. Codex threads come in through atuin
+when it is installed (see Sources); Amp histories still need an adapter. The pilot query
 counts human sessions, keeping SDK child jobs out of its denominator.
 
 Validation: `uv run --with duckdb python -m unittest discover -s worklog/tests`.

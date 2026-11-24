@@ -19,6 +19,12 @@ Subcommands (all auto-refresh the index first; all accept --json):
 
 Index: ~/.claude/worklog.duckdb   Transcripts: ~/.claude/projects/**/*.jsonl
 Ranking uses DuckDB's FTS (BM25) when available, falling back to keyword counts offline.
+
+When `atuin` (18.25+, with thread capture) is on PATH, the index also takes the
+threads atuin holds that this machine has no transcript for: Codex threads and
+threads synced from other machines. Their events have path `atuin:<atuin id>`;
+read one whole with `atuin threads show <id>`. Without atuin, or with
+WORKLOG_ATUIN=0, only the Claude transcripts are indexed, exactly as before.
 """
 from __future__ import annotations
 
@@ -26,6 +32,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -43,6 +50,10 @@ HAY_CAP = 8000
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 READ_TOOLS = {"Read", "NotebookRead"}
+# Claude's Bash plus Codex's shell tools; Codex may pass the command as argv.
+SHELL_TOOLS = {"Bash", "bash", "Shell", "shell", "exec_command", "local_shell"}
+# Files an apply_patch (Codex) adds, updates or deletes.
+_PATCH_FILE = re.compile(r"\*\*\* (?:Add|Update|Delete) File: ([^\s\"\\]+)")
 
 # Slash-command plumbing and harness-injected blocks that the transcript records
 # as "user" turns but which carry no work-log signal.
@@ -133,8 +144,12 @@ def unpack(content) -> tuple[str, list[str], list[str], list[str], list[str]]:
                 edits.append(fp)
             elif name in READ_TOOLS and fp:
                 reads.append(fp)
-            elif name in {"Bash", "bash", "Shell", "shell"}:
+            elif name == "apply_patch":
+                edits += _PATCH_FILE.findall(str(inp.get("patch") or inp.get("input") or ""))
+            elif name in SHELL_TOOLS:
                 command = inp.get("command") or inp.get("cmd")
+                if isinstance(command, list):
+                    command = " ".join(str(c) for c in command)
                 if isinstance(command, str):
                     cmds.append(command)
     return " ".join(p for p in prose if p).strip(), edits, reads, cmds, tools
@@ -181,6 +196,9 @@ def tool_provenance(content, cwd: str) -> tuple[list[str], list[dict]]:
         access = "write" if name in EDIT_TOOLS else "read" if name in READ_TOOLS else "reference"
         if name in {"Glob", "Grep"}:
             refs.append({"tool": name, "path": inp.get("path") or cwd, "access": "search"})
+        elif name == "apply_patch":
+            for p in _PATCH_FILE.findall(str(inp.get("patch") or inp.get("input") or "")):
+                refs.append({"tool": name, "path": p, "access": "write"})
         else:
             for key in ("file_path", "notebook_path", "path", "paths", "directory", "root_path"):
                 value = inp.get(key)
@@ -229,6 +247,157 @@ def distill_file(path: Path) -> tuple[list[tuple], tuple[str, str] | None]:
     return rows, title
 
 
+# ----------------------------------------------------------------------------- atuin
+# Codex "code mode" runs a JS cell whose source calls exec_command({cmd:"..."})
+# and apply_patch; pull those calls out as the tool calls they are.
+_CODE_MODE_CMD = re.compile(r'exec_command\(\{\s*"?cmd"?\s*:\s*"((?:[^"\\]|\\.)*)"')
+
+
+def atuin_bin() -> str | None:
+    """The atuin executable, or None when it is absent or WORKLOG_ATUIN=0."""
+    if os.environ.get("WORKLOG_ATUIN", "").lower() in {"0", "off", "false", "no"}:
+        return None
+    return shutil.which("atuin")
+
+
+def _atuin(*args: str) -> str | None:
+    """Run atuin; None if it fails (no daemon, an old atuin without threads)."""
+    exe = atuin_bin()
+    if not exe:
+        return None
+    try:
+        p = subprocess.run([exe, *args], capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return p.stdout if p.returncode == 0 else None
+
+
+def _z(ts: str) -> str:
+    """atuin's +00:00 timestamps in the Z form the transcripts use, so strings compare."""
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return ts or ""
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+def _atuin_blocks(content) -> list[dict]:
+    """Translate atuin content blocks into the transcript blocks unpack() reads."""
+    out = []
+    for b in content if isinstance(content, list) else []:
+        if not isinstance(b, dict):
+            continue
+        typ = b.get("type")
+        if typ == "text":
+            out.append({"type": "text", "text": b.get("text", "")})
+        elif typ == "tool_result":
+            out.append({"type": "tool_result", "tool_use_id": b.get("tool_use_id", "")})
+        elif typ == "tool_call":
+            raw, name = b.get("input"), b.get("name", "")
+            inp = raw
+            if isinstance(raw, str):
+                try:
+                    inp = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    inp = None
+            if not isinstance(inp, dict):
+                inp = {"input": raw if isinstance(raw, str) else json.dumps(raw)}
+            out.append({"type": "tool_use", "id": b.get("id", ""), "name": name, "input": inp})
+            if name == "exec" and isinstance(raw, str):  # Codex code mode
+                for cmd in _CODE_MODE_CMD.findall(raw):
+                    try:
+                        cmd = json.loads(f'"{cmd}"')
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                    out.append({"type": "tool_use", "id": "", "name": "exec_command",
+                                "input": {"cmd": cmd}})
+                if _PATCH_FILE.search(raw):
+                    out.append({"type": "tool_use", "id": "", "name": "apply_patch",
+                                "input": {"patch": raw}})
+    return out
+
+
+def distill_atuin(lines: list[dict], key: str) -> tuple[list[tuple], tuple[str, str] | None]:
+    """Distill one `atuin threads show --style ndjson` thread into index rows."""
+    head = next((l for l in lines if l.get("kind") == "session"), {})
+    session = head.get("session_id") or key
+    sidechain = head.get("parent_kind") == "subagent"
+    rows: list[tuple] = []
+    for m in lines:
+        if m.get("kind") != "message" or m.get("role") not in ("user", "assistant", "tool"):
+            continue
+        ts = m.get("timestamp")
+        if not ts:
+            continue
+        # Tool results are user turns in Claude transcripts; keep that shape.
+        typ = "assistant" if m["role"] == "assistant" else "user"
+        content = _atuin_blocks(m.get("content"))
+        cwd = m.get("cwd") or head.get("cwd") or ""
+        prose, edits, reads, cmds, tools = unpack(content)
+        kind = user_kind({"type": typ, "isSidechain": sidechain}, content, prose)
+        tool_ids, path_refs = tool_provenance(content, cwd)
+        prose = strip_noise(prose)
+        if not (prose or edits or reads or cmds or tools or kind in {"tool_result", "human"}):
+            continue
+        project = short_path(cwd)
+        hay = " ".join(filter(None, [
+            prose, project, " ".join(edits), " ".join(reads), " ".join(cmds)]))[:HAY_CAP]
+        rows.append((
+            key, session, project, m.get("git_branch") or head.get("git_branch") or "",
+            _z(ts), typ, sidechain, prose[:TEXT_CAP],
+            json.dumps(edits), json.dumps(reads), json.dumps(cmds), json.dumps(tools), hay,
+            m.get("id", ""), kind, json.dumps(tool_ids), json.dumps(path_refs),
+        ))
+    title = (session, head.get("title") or "") if head.get("title") else None
+    return rows, title
+
+
+def _ingest_atuin(con, prior: dict, local_sessions: set[str]) -> int:
+    """Index atuin's threads that no local Claude transcript already covers."""
+    listing = _atuin("threads", "list", "--style", "json")
+    if listing is None:
+        return 0
+    try:
+        threads = json.loads(listing)
+    except (json.JSONDecodeError, ValueError):
+        return 0
+    changed = 0
+    placeholders = ",".join("?" for _ in INSERT_COLS.split(","))
+    for t in threads:
+        if t.get("harness") == "claude-code" and t.get("session_id") in local_sessions:
+            continue  # this machine's own transcript is the richer copy
+        key = f"atuin:{t.get('atuin_id', '')}"
+        try:
+            stamp = datetime.fromisoformat(str(t.get("updated_at")).replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            stamp = 0.0
+        if prior.get(key) == (stamp, t.get("message_count", 0)):
+            continue
+        shown = _atuin("threads", "show", t.get("atuin_id", ""), "--style", "ndjson")
+        if shown is None:
+            continue
+        lines = []
+        for line in shown.splitlines():
+            try:
+                lines.append(json.loads(line))
+            except (json.JSONDecodeError, ValueError):
+                continue
+        rows, title = distill_atuin(lines, key)
+        if not (title and title[1]) and rows and (preview := strip_noise(t.get("preview") or "")):
+            title = (rows[0][1], preview[:80])  # Codex threads have no AI title
+        con.execute("DELETE FROM events WHERE path = ?", [key])
+        if rows:
+            con.executemany(f"INSERT INTO events ({INSERT_COLS}) VALUES ({placeholders})", rows)
+        if title and title[1]:
+            con.execute("INSERT INTO titles VALUES (?,?) ON CONFLICT(session) "
+                        "DO UPDATE SET title = excluded.title", list(title))
+        con.execute("INSERT INTO ingested VALUES (?,?,?) ON CONFLICT(path) "
+                    "DO UPDATE SET mtime = excluded.mtime, size = excluded.size",
+                    [key, stamp, t.get("message_count", 0)])
+        changed += 1
+    return changed
+
+
 def ensure_index(con) -> int:
     global FTS_OK
     con.execute("CREATE TABLE IF NOT EXISTS meta (k VARCHAR PRIMARY KEY, v VARCHAR)")
@@ -245,9 +414,11 @@ def ensure_index(con) -> int:
 
     prior = {r[0]: (r[1], r[2]) for r in con.execute("SELECT path, mtime, size FROM ingested").fetchall()}
     changed = 0
+    local_sessions: set[str] = set()
     for p in PROJECTS.rglob("*.jsonl"):
         # Keep sidechains for quantitative audits; retrieval below excludes them
         # so worklog's own generated reports do not pollute search results.
+        local_sessions.add(p.stem)
         st = p.stat()
         if prior.get(str(p)) == (st.st_mtime, st.st_size):
             continue
@@ -263,6 +434,7 @@ def ensure_index(con) -> int:
                     "DO UPDATE SET mtime = excluded.mtime, size = excluded.size",
                     [str(p), st.st_mtime, st.st_size])
         changed += 1
+    changed += _ingest_atuin(con, prior, local_sessions)
 
     # Current filesystem evidence for the path audit; historical paths whose
     # checkout has disappeared remain unclassified rather than invented repos.
@@ -308,6 +480,19 @@ def jl(s: str) -> list[str]:
         return json.loads(s) if s else []
     except (json.JSONDecodeError, ValueError):
         return []
+
+
+def add_transcripts(con, items: list[dict]) -> list[dict]:
+    """Set each item's `transcript`: its .jsonl path, or atuin:<id> for an atuin thread."""
+    ids = list({i["session"] for i in items})
+    if not ids:
+        return items
+    found = dict(con.execute(
+        f"SELECT session, min(path) FROM events WHERE NOT is_sidechain "
+        f"AND session IN ({','.join('?' for _ in ids)}) GROUP BY session", ids).fetchall())
+    for i in items:
+        i["transcript"] = found.get(i["session"], "")
+    return items
 
 
 def fetch_window(con, start: str, end: str) -> list[dict]:
@@ -445,6 +630,7 @@ def _score_like(con, query: str, since: str | None) -> dict[str, dict]:
 def cmd_search(con, query: str, since: str | None, as_json: bool) -> None:
     ranked = sorted(score_sessions(con, query, since).values(), key=lambda s: -s["score"])[:15]
     if as_json:
+        add_transcripts(con, ranked)
         for s in ranked:
             s["score"] = round(s["score"], 2)
             s["snippets"] = [e["text"][:200] for e in s["events"] if e["text"]][:4]
@@ -478,9 +664,10 @@ def cmd_task(con, query: str, as_json: bool) -> None:
             cmds += list(e["commands"])
     dossier = {
         "query": query,
-        "sessions": [{"title": s["title"], "project": s["project"], "branch": s["branch"],
-                      "from": s["t0"][:16], "to": s["t1"][:16], "score": round(s["score"], 2)}
-                     for s in sessions],
+        "sessions": add_transcripts(con, [
+            {"session": s["session"], "title": s["title"], "project": s["project"],
+             "branch": s["branch"], "from": s["t0"][:16], "to": s["t1"][:16],
+             "score": round(s["score"], 2)} for s in sessions]),
         "timeline": timeline[:120],
         "files_edited": sorted(edits.items(), key=lambda kv: -kv[1])[:30],
         "files_read": sorted(reads.items(), key=lambda kv: -kv[1])[:40],
@@ -527,13 +714,16 @@ def main() -> None:
     if args.cmd == "index":
         n = con.execute("SELECT count(*) FROM events").fetchone()[0]
         rank = "BM25" if FTS_OK else "keyword-fallback"
-        print(f"indexed: {changed} file(s) refreshed · {n} events · ranking={rank} · {DB_PATH}")
+        threads = con.execute("SELECT count(*) FROM ingested WHERE path LIKE 'atuin:%'").fetchone()[0]
+        source = f"atuin={threads} thread(s)" if atuin_bin() else "atuin=off"
+        print(f"indexed: {changed} file(s) refreshed · {n} events · {source} · "
+              f"ranking={rank} · {DB_PATH}")
     elif args.cmd == "report":
         since = parse_since(args.since)
         until = parse_iso(args.until) if args.until else datetime.now(timezone.utc)
         sessions = group_sessions(fetch_window(con, iso_z(since), iso_z(until)))
         if args.json:
-            print(json.dumps(sessions, indent=2))
+            print(json.dumps(add_transcripts(con, sessions), indent=2))
         elif args.summarize:
             print(claude_summarize(render_report(sessions),
                   "Turn this developer activity log into a crisp standup report grouped by "

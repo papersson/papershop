@@ -59,11 +59,18 @@ the index is never built manually. Add `--json` to any query for structured data
 Scoring is keyword-based (term-hit count), so longer sessions can over-rank — apply judgment, don't
 trust the order blindly. Use `--json` when filtering or cross-referencing.
 
+Sources: the index always covers this machine's Claude Code transcripts. When `atuin` is on PATH
+(not on every machine; `worklog index` prints `atuin=off` when it isn't), it also covers the
+threads atuin holds that have no transcript here: Codex threads, and threads synced from the
+user's other machines. Every session in `--json` output has a `transcript` field saying where its
+raw record is: a `.jsonl` path, or `atuin:<id>`.
+
 Important index limitation: the index does **not** store command/tool error output (`tool_result`
 bodies are dropped at distill time). The real errors, failed attempts, and the user's exact
-corrections live only in the raw transcripts at `~/.claude/projects/**/<session-id>.jsonl`. Any
-analysis of *what went wrong* or *what the user re-instructed* must read those raw files — the index
-alone undercounts both.
+corrections live only in the raw record. Any analysis of *what went wrong* or *what the user
+re-instructed* must read it — the index alone undercounts both. Read a `.jsonl` transcript as a
+file; read an `atuin:<id>` thread with `atuin threads show <id> --style ndjson` (one JSON message
+per line, tool results included).
 
 ## Be thorough — over-collect, then distill
 
@@ -75,7 +82,7 @@ over-collection. These directives go into every subagent brief:
   different sessions.
 - **Widen the window** past the obvious. If the user says "last week," also glance back further —
   the task often started earlier than they remember.
-- **Read raw `.jsonl` transcripts liberally**, not only as a last resort. The index drops tool and
+- **Read raw records liberally** (`.jsonl` transcripts and `atuin:` threads), not only as a last resort. The index drops tool and
   error output, so corrections, failures, and exact values (amounts, IDs, flags, addresses) live
   only in the raw files. Read every plausibly-relevant session's transcript, not just the top hit.
 - **Prefer false positives to misses.** Surface a borderline session flagged as uncertain rather
@@ -141,12 +148,12 @@ drops error bodies, this needs the raw transcripts, and there are usually too ma
 one context. Drive a workflow:
 
 - **Queue** — `task "<topic>" --json` to get the relevant session ids and transcript paths.
-- **Fan out** — one agent per session reads that raw `.jsonl` and extracts concrete friction points
+- **Fan out** — one agent per session reads that session's raw record (its `transcript`) and extracts concrete friction points
   (the actual error, what was retried, what was worked around), each grounded in a real line.
 - **Synthesize** — cluster pain points by recurrence and recency, rank them, separate quick fixes
   from deeper ones, and ground each in a concrete session/error. Drop anything not grounded.
 
-The **verifier is rung-1 deterministic**: a pain-point must cite a real line in a `.jsonl`; one that
+The **verifier is rung-1 deterministic**: a pain-point must cite a real line in a raw record (a `.jsonl` line or an atuin message); one that
 doesn't is **FAILED** and dropped (an agent error), not BLOCKED. **BLOCK** only on genuinely
 unresolvable scope — an empty or ambiguous session list, or an ambiguous time window — rather than
 fabricating friction.
@@ -158,13 +165,19 @@ concrete paths), and domain knowledge (decisions, constraints, gotchas; read the
 transcripts for exact detail). Output a clean handoff document.
 
 **5. Find & reopen a past session (single subagent).** Run `search "<topic>" --since <recent
-window> --json`. The JSON gives each match's `session` (id), `project` (path), and `t1` (last
-activity). Pick by **recency among relevant matches**, not raw score. Beware: the single newest hit
-is often the *current* session (it matches because this very conversation is about the topic) —
-discount any session whose activity is happening right now or whose content is this meta-request.
-Return a ready-to-paste command:
+window> --json`. The JSON gives each match's `session` (id), `project` (path), `t1` (last
+activity) and `transcript`. Pick by **recency among relevant matches**, not raw score. Beware: the
+single newest hit is often the *current* session (it matches because this very conversation is
+about the topic) — discount any session whose activity is happening right now or whose content is
+this meta-request. Return a ready-to-paste command:
 
-    cd <project-path> && claude --resume <session-id>
+- When `atuin` is on PATH, give `atuin resume <id>`, taking `<id>` from an `atuin:<id>`
+  transcript or, for a `.jsonl` one, the session id (atuin accepts either). It resumes any
+  agent's thread in its own directory (the current one if that directory isn't on this machine), and `atuin resume` with no id opens its picker. Add
+  `--in claude-code` or `--in codex` to continue the thread in the other agent.
+- Without atuin, for a Claude Code session:
+
+      cd <project-path> && claude --resume <session-id>
 
 If two or three are plausible, list each with title / dir / time / id and give the command for the
 best guess.
@@ -176,7 +189,7 @@ and distill the recurring ones into CLAUDE.md rules. These corrections live in t
 adversarial-verify workflow:
 
 - **Queue** — `report --since <window> --json` (or the last N sessions) for the session list.
-- **Fan out (generate)** — one agent per session reads the raw `.jsonl` and extracts candidate
+- **Fan out (generate)** — one agent per session reads its raw record (its `transcript`) and extracts candidate
   corrections: places where the user redirected, rejected, or re-specified the agent's behavior.
   Each candidate cites the session and the turn.
 - **Cluster & dedupe** — merge candidates into recurring themes across sessions; a one-off
