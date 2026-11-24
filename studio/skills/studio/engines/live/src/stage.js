@@ -162,6 +162,7 @@ export class Stage {
     const outer = this.el(prefix + ':nest', 'g', { ...attrs, 'data-nest': 1 }, layer)
     this.scope = outer
     this.nested = this.el(prefix + ':cam', 'g', { transform: 'translate(0 0)' })
+    this.scope = this.nested   // draw inside the camera group, so the nested scene's cam() moves its drawing
     this.prefix = saved[0] + prefix + '/'
     try { draw() } finally { [this.prefix, this.scope, this.nested] = saved }
     return outer

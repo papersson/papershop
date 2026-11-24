@@ -3,6 +3,16 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A recalled chapter keeps its camera (0.36.1)
+
+`Stage.nest` made the nested scene's camera group but left drawing in the outer group, so a
+chapter's `cam()` moved an empty group: `c.recall` and `c.scene` showed the other chapter's world
+unmoved (a pushed-in grid drawn as the whole map), and a dissolve or match cut into a chapter whose
+first frame moves the camera drew it at the wrong framing. Nested drawing now goes inside the camera
+group. Found by a chapter agent of the Autolith film, whose s6 recall of s3 drew s3's map instead of
+its grid. `test_a_callback_keeps_the_earlier_chapters_camera` and
+`test_a_dissolve_ends_on_the_next_chapters_framing_when_it_opens_pushed_in` fail without the fix.
+
 ## Staging, the real thing, one map (0.36.0)
 
 Lessons from the Save film ("What happens when I click Save?", 44:53), where Patrik's notes kept
