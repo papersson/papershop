@@ -90,7 +90,8 @@ export async function boot({ svg, canvas, light: lightCanvas, video, layout: lay
   // Images a frame draws (a plate) are decoded before the frame counts as drawn, so a still never
   // catches a plate half loaded: draw() returns a promise while any is pending.
   // Live playback (the desk) also decodes the next few plate frames ahead of the playhead.
-  const decoded = new Map(), ready = new Set(), shown = new Map(), AHEAD = 6
+  // `ready` holds the decoded images themselves, so the browser keeps their pixels while they may be shown.
+  const decoded = new Map(), ready = new Map(), shown = new Map(), AHEAD = 6
   let pending = []
 
   async function load() {
@@ -197,9 +198,9 @@ export async function boot({ svg, canvas, light: lightCanvas, video, layout: lay
     if (!decoded.has(href)) {
       const img = new Image()
       img.src = href
-      decoded.set(href, img.decode().then(() => { ready.add(href) },
+      decoded.set(href, img.decode().then(() => { ready.set(href, img) },
         () => { throw new Error(`plate frame missing: ${p.dir}/${name}`) }))
-      if (decoded.size > 240) {
+      if (decoded.size > 48) { // about 400 MB of decoded 1080p frames
         const old = decoded.keys().next().value
         decoded.delete(old)
         ready.delete(old)

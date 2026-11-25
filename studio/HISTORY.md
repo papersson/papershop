@@ -3,6 +3,15 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## The desk keeps plate frames, so a held frame never reloads (0.36.3)
+
+0.36.2 still flashed every few seconds: the desk sent every file with `Cache-Control: no-store`, so
+each plate frame the stage showed was fetched and decoded again by the SVG image even after the
+player had decoded it, and garbage collection could drop the player's decoded copy. Plate frames
+now go out as `max-age=31536000, immutable` (a plate store is named by the hash of everything its
+frames depend on, so a frame never changes), and the player keeps its decoded images (the last 48)
+alive. Screenshots of 20 s of footage playing live: three dark flashes before, none after.
+
 ## Live playback holds a plate frame instead of flashing (0.36.2)
 
 The desk's live view set each plate frame's image the moment it drew the frame, so when decoding

@@ -279,12 +279,12 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def _send(self, code, body, ctype="application/json; charset=utf-8", extra=None):
+    def _send(self, code, body, ctype="application/json; charset=utf-8", extra=None, cache="no-store"):
         data = body if isinstance(body, bytes) else body.encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache)
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -364,16 +364,21 @@ class Handler(BaseHTTPRequestHandler):
         """Serve a file with byte ranges, which a video element needs to seek."""
         size = f.stat().st_size
         ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
+        # A plate store is named by the hash of everything its frames depend on, so a frame written
+        # there never changes: the browser may keep it, and live playback then shows a decoded frame
+        # without fetching it again.
+        cache = ("max-age=31536000, immutable" if f.parent.parent.name == "plates" and f.parent.parent.parent.name == ".cache"
+                 and re.fullmatch(r"f\d+\.png", f.name) else "no-store")
         rng = re.fullmatch(r"bytes=(\d*)-(\d*)", self.headers.get("Range", ""))
         with f.open("rb") as fh:
             if not rng:
-                return self._send(200, fh.read(), ctype, {"Accept-Ranges": "bytes"})
+                return self._send(200, fh.read(), ctype, {"Accept-Ranges": "bytes"}, cache)
             a = int(rng.group(1)) if rng.group(1) else max(0, size - int(rng.group(2)))
             b = int(rng.group(2)) if rng.group(1) and rng.group(2) else size - 1
             b = min(b, size - 1)
             fh.seek(a)
             return self._send(206, fh.read(b - a + 1), ctype,
-                              {"Accept-Ranges": "bytes", "Content-Range": f"bytes {a}-{b}/{size}"})
+                              {"Accept-Ranges": "bytes", "Content-Range": f"bytes {a}-{b}/{size}"}, cache)
 
     def _events(self):
         """Server-sent events: `notes` when the log changes, `status` when the builder's status line
