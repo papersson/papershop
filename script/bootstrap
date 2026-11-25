@@ -30,12 +30,16 @@ export PATH="$tools/bin:$HOME/.local/bin:$PATH"
 
 # The uv that uv.toml names goes in .cache/tools, from PyPI rather than astral.sh, which the cloud's
 # default network does not allow. Any uv already here can fetch it (ignoring uv.toml, which an older uv
-# would refuse); otherwise pip, which Debian's python3 lacks until apt installs it.
+# would refuse); otherwise the uv of the flake's locked nixpkgs, since NixOS's python3 has no pip;
+# otherwise pip, which Debian's python3 lacks until apt installs it.
 pin="$(sed -n 's/^required-version = ">=\(.*\)"$/\1/p' "$root/uv.toml")"
 if [ "$(uv --version 2>/dev/null | cut -d' ' -f2)" != "$pin" ]; then
   say "installing uv $pin into .cache/tools"
   if command -v uv >/dev/null; then
     uv pip install --quiet --no-config --system --target "$tools" "uv==$pin"
+  elif command -v nix >/dev/null && ! python3 -m pip --version >/dev/null 2>&1; then
+    nix --extra-experimental-features 'nix-command flakes' run --inputs-from "$root" nixpkgs#uv -- \
+      pip install --quiet --no-config --system --target "$tools" "uv==$pin"
   else
     if ! python3 -m pip --version >/dev/null 2>&1 && [ "$(id -u)" = 0 ] && command -v apt-get >/dev/null; then
       apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3-pip >/dev/null
