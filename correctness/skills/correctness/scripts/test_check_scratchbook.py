@@ -20,6 +20,8 @@ import check_scratchbook as cs  # noqa: E402
 
 TEMPLATES = Path(__file__).parent.parent / "templates"
 HEAD = "SUT: services/worker @ 3f2a9c1\nDate: 2026-01-31\n\n"
+REPO = {"tests/properties.py": "def post_at_most_once(channel):\n    assert len(channel) == len(set(channel))\n"}
+CHECK_HASH = __import__("hashlib").sha256(REPO["tests/properties.py"].encode()).hexdigest()[:12]
 
 GOOD = {
     "property-catalog.md": "# Property catalog\n\n" + HEAD + """### post-at-most-once
@@ -32,6 +34,7 @@ GOOD = {
 **Found under:** duplicate delivery
 **Confirmed:** by the queue's owners, 2026-01-30, `questions/q1.md`
 **Status:** checked by workload
+**Check:** `tests/properties.py` sha256:""" + CHECK_HASH + """
 **Open questions:**
 - (needs human input) may a report be reposted after an edit?
 
@@ -90,17 +93,19 @@ Not run.
 
 "Yes, after the visibility timeout." The queue's owners, 2026-01-30.
 """,
-    "fault-inventory.md": "# Fault inventory\n\n" + HEAD + """| Source | Status | Rule in the driver, or the reason | Took effect in |
-|---|---|---|---|
-| message delivered out of order | action | `deliver_any` | 240 of 300 test cases |
-| message delivered twice | action | `duplicate` | 187 of 300 test cases |
-| message held back | action | `hold` | 90 of 300 test cases |
-| clock advanced | action | `advance` | 201 of 300 test cases |
-| dependency call fails | action | `fail_post` | 77 of 300 test cases |
+    "fault-inventory.md": "# Fault inventory\n\n" + HEAD + """| Source | Status | Rule in the driver, or the reason | Took effect in | Contract |
+|---|---|---|---|---|
+| message delivered out of order | action | `deliver_any` | 240 of 300 test cases | within |
+| message delivered twice | action | `duplicate` | 187 of 300 test cases | within |
+| message held back | action | `hold` | 90 of 300 test cases | within |
+| clock advanced | action | `advance` | 201 of 300 test cases | within |
+| dependency call fails | action | `fail_post` | 77 of 300 test cases | both |
 | dependency call times out after taking effect | not tried | the channel client has no timeout yet | |
 | deferred operation applied late | not applicable | the worker defers nothing | |
 | stale read | not applicable | one store, read-your-writes | |
-| crash mid-operation | action | `crash_after_post` | 64 of 300 test cases |
+| crash mid-operation | action | `crash_after_post` | 64 of 300 test cases | within |
+| power loss | not applicable | the worker writes no local files, and the queue is durable once it acknowledges | |
+| sync fails | not applicable | the worker never flushes a file | |
 | concurrent operations on one target | not tried | the library's concurrent mode is not set up | |
 """,
     "run-record.md": "# Run record\n\n" + HEAD + """## Scope
@@ -157,12 +162,18 @@ def build(root: Path, changes: dict[str, str | None] | None = None) -> None:
         path.write_text(text, encoding="utf-8")
 
 
-def run(changes: dict[str, str | None] | None = None, *args: str) -> tuple[int, str]:
+def run(changes: dict[str, str | None] | None = None, *args: str, repo: dict[str, str] | None = None) -> tuple[int, str]:
+    """Build the scratchbook at REPO/correctness/scratchbook, beside the repository's files, and check it."""
     with tempfile.TemporaryDirectory() as tmp:
-        build(Path(tmp), changes)
+        for name, text in (repo if repo is not None else REPO).items():
+            (Path(tmp) / name).parent.mkdir(parents=True, exist_ok=True)
+            (Path(tmp) / name).write_text(text, encoding="utf-8")
+        book = Path(tmp) / "correctness" / "scratchbook"
+        book.mkdir(parents=True)
+        build(book, changes)
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            code = cs.main([tmp, *args])
+            code = cs.main([str(book), *args])
         return code, out.getvalue()
 
 
@@ -177,7 +188,7 @@ class Passes(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("ok (0 failures)", out)
         self.assertIn("2 properties, 1 confirmed", out)
-        self.assertIn("faults: 6 action, 2 not applicable, 2 not tried", out)
+        self.assertIn("faults: 6 action, 4 not applicable, 2 not tried", out)
         self.assertNotIn("absent", out.replace("absent, not checked: assumptions.md, audit-report.md, sut-analysis.md, workload-review.md", ""))
         self.assertIn("1 open questions need a person", out)
 
@@ -199,8 +210,8 @@ class Passes(unittest.TestCase):
 
 
 class Fails(unittest.TestCase):
-    def assert_fails(self, changes, *expected: str):
-        code, out = run(changes)
+    def assert_fails(self, changes, *expected: str, repo: dict[str, str] | None = None):
+        code, out = run(changes, repo=repo)
         self.assertEqual(code, 1, out)
         for text in expected:
             self.assertIn(text, out)
@@ -253,6 +264,30 @@ class Fails(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assert_fails({"fault-inventory.md": GOOD["fault-inventory.md"] + "| crash mid-operation | not applicable | none | |\n"}, "[crash mid-operation]: the row appears twice")
         self.assert_fails(edited("fault-inventory.md", "not applicable | one store, read-your-writes", "not applicable | "), '"not applicable" needs a reason')
+
+    def test_every_action_says_whether_it_stays_within_the_contract(self):
+        self.assert_fails(edited("fault-inventory.md", "`hold` | 90 of 300 test cases | within |", "`hold` | 90 of 300 test cases | |"),
+                          "fault-inventory.md [message held back]: Contract is", "within, beyond, both")
+
+    def test_a_confirmed_check_is_frozen(self):
+        self.assert_fails(edited("property-catalog.md", "**Check:** `tests/properties.py` sha256:" + CHECK_HASH + "\n", ""),
+                          "[post-at-most-once]: confirmed and checked, with no \"**Check:**\" files")
+        self.assert_fails({}, "has changed since the property was confirmed", repo={"tests/properties.py": "def post_at_most_once(channel):\n    pass\n"})
+        self.assert_fails({}, "its check tests/properties.py does not exist", repo={})
+        code, out = run(edited("property-catalog.md", "**Status:** checked by workload", "**Status:** not checked"), repo={})
+        self.assertEqual(code, 1, out)  # a stated hash is still checked
+        code, out = run(edited("property-catalog.md", "**Status:** checked by workload\n**Check:** `tests/properties.py` sha256:" + CHECK_HASH,
+                               "**Status:** not checked"))
+        self.assertEqual(code, 0, out)  # confirmed and not yet checked needs no hash
+
+    def test_hash_prints_the_line_for_a_check_field(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "properties.py"
+            path.write_text(REPO["tests/properties.py"], encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(cs.main(["--hash", str(path)]), 0)
+            self.assertEqual(out.getvalue(), f"{path} sha256:{CHECK_HASH}\n")
 
     def test_a_failing_dependency_and_a_crash_must_be_tried(self):
         self.assert_fails(edited("fault-inventory.md", "| crash mid-operation | action | `crash_after_post` | 64 of 300 test cases |",
@@ -347,6 +382,8 @@ class TemplatesAgree(unittest.TestCase):
         self.assertEqual(tuple(row[0] for row in cs.table_rows(workload) if row[0] in cs.FAULTS), cs.FAULTS)
         for status in cs.FAULT_STATUSES:
             self.assertIn(f"- `{status}`:", self.read("fault-inventory.md"))
+        for contract in cs.CONTRACTS:
+            self.assertIn(f"`{contract}`", self.read("fault-inventory.md"))
 
     def test_verdicts(self):
         self.assertEqual(tuple(re.findall(r"^- `([a-z ]+)`:", self.read("mutation-report.md"), re.M)), cs.VERDICTS)
@@ -356,7 +393,7 @@ class TemplatesAgree(unittest.TestCase):
         self.assertEqual(self.alternatives(text, "Kind"), cs.KINDS)
         self.assertEqual(self.alternatives(text, "Assertion"), cs.ASSERTIONS)
         self.assertEqual(self.alternatives(text, "Status"), cs.STATUSES)
-        for field in cs.CATALOG_FIELDS:
+        for field in cs.CATALOG_FIELDS + ("Check",):
             self.assertIn(f"**{field}:**", text)
         for field in cs.EVIDENCE_FIELDS:
             self.assertRegex(text, r"(?m)^" + re.escape(field) + r":")

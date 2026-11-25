@@ -13,6 +13,9 @@ and is often the cheapest first step on an existing system.
 1. **Pick the properties a snapshot can express.** A property that reads only current state can be
    audited as it stands. One that says "never changes" needs history: use logs or an append-only
    record if there is one, and say so if there is not.
+   Where the SUT already logs the abstract events of a reference model, replay production's
+   logs through it ("The event log and the reference model" in `SKILL.md`). That checks the
+   properties that need history over every record the logs cover.
 2. **Rewrite what depends on things you cannot see.** In a test, "this item is still on its way"
    is answered by looking in a queue. In production the queue belongs to someone else, so ask the
    clock instead: an item that has waited far longer than normal is treated as lost. That needs a

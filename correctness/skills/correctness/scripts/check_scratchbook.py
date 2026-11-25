@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Check a correctness scratchbook for what a program can check: its form and its cross-references.
 
-    python3 check_scratchbook.py [SCRATCHBOOK] [--require FILE ...]
+    python3 check_scratchbook.py [SCRATCHBOOK] [--require FILE ...] [--repo DIR]
+    python3 check_scratchbook.py --hash FILE ...
 
 SCRATCHBOOK defaults to correctness/scratchbook. The script reads the Markdown files the skill's
 modules emit. It does not judge whether a property is the right one or a fake is faithful; that
@@ -13,11 +14,15 @@ is the reviewer's job (modules/review.md).
   evidence     every evidence file belongs to a catalog entry and gives a claim, its evidence, a
                failure scenario and a way to check it;
   confirmed    a property marked as confirmed names a question file, and that file has an answer;
+  frozen       a confirmed property that is checked names the files of its check with their hashes,
+               and no file has changed since (paths are relative to --repo, which defaults to the
+               folder that holds correctness/scratchbook);
   questions    every question has a scenario of one to six numbered steps, one question ending in
                a question mark, and what each answer changes;
   run record   run-record.md gives the scope, the command and the result;
   faults       fault-inventory.md keeps every row of the template; each row is an action with a
-               rule and a count of how often it took effect, is not applicable with a reason, or
+               rule, a count of how often it took effect and whether it stays within the
+               dependency's contract, is not applicable with a reason, or
                is not tried with a reason; a failing dependency call and a crash may not be left
                as not tried;
   mutation     mutation-report.md has one row per safety property in the catalog, each with a
@@ -31,6 +36,8 @@ that does not exist is not checked and is listed as absent, so a research-only t
 --require to make an absence a failure, for example
 --require fault-inventory.md --require run-record.md once a workload has been built.
 
+--hash FILE prints the line to paste into a property's Check field, and checks nothing.
+
 It prints one line per failure, "file: what is wrong; what to do", then one summary line. Exit 0
 when every check holds, 1 when one fails, 2 on a usage error. Standard library only, Python 3.9+.
 The allowed values below are the ones in templates/; change both together
@@ -39,6 +46,7 @@ The allowed values below are the ones in templates/; change both together
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -59,9 +67,14 @@ FAULTS = (
     "deferred operation applied late",
     "stale read",
     "crash mid-operation",
+    "power loss",
+    "sync fails",
     "concurrent operations on one target",
 )
 FAULT_STATUSES = ("action", "not applicable", "not tried")
+CONTRACTS = ("within", "beyond", "both")
+CHECKED = ("checked by workload", "checked by audit")
+HASHED = re.compile(r"(\S+?)`?\s+`?sha256:([0-9a-f]{12,64})\b")
 FAULTS_THAT_MUST_BE_TRIED = ("dependency call fails", "crash mid-operation")
 VERDICTS = ("killed", "survived", "collateral", "not reached", "equivalent", "stillborn", "not mutated")
 CAUSE_CLASSES = ("SUT defect", "false assumption", "unfaithful fake", "wrong property", "workload defect")
@@ -188,9 +201,20 @@ def starts_with_one_of(value: str, allowed: tuple[str, ...], exact_case: bool = 
     return None
 
 
+def file_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+
+
+def default_repo(root: Path) -> Path:
+    """The target repository: the folder holding correctness/scratchbook, else the working directory."""
+    root = root.resolve()
+    return root.parent.parent if root.parent.name == "correctness" else Path.cwd()
+
+
 class Check:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, repo: Path | None = None):
         self.root = root
+        self.repo = repo if repo is not None else default_repo(root)
         self.failures: list[tuple[str, str]] = []
         self.absent: list[str] = []
         self.summary: list[str] = []
@@ -251,6 +275,7 @@ class Check:
             if not (self.root / "properties" / f"{slug}.md").is_file():
                 self.fail(where, f"no evidence file; write properties/{slug}.md")
             self.confirmation(where, fields.get("Confirmed", ""))
+            self.frozen(where, fields)
         confirmed = sum(1 for f in self.catalog.values() if f.get("Confirmed") and not self.unconfirmed(f["Confirmed"]))
         self.summary.append(f"{len(self.catalog)} properties, {confirmed} confirmed")
 
@@ -270,6 +295,20 @@ class Check:
                 self.fail(where, f"cites questions/{qid}.md, which does not exist; write it, or set Confirmed to no")
             elif not sections(self.text(path), 2).get("Answer", "").strip():
                 self.fail(where, f"marked as confirmed, but questions/{qid}.md has no answer; record the answer, or set Confirmed to no")
+
+    def frozen(self, where: str, fields: dict[str, str]) -> None:
+        confirmed = fields.get("Confirmed") and not self.unconfirmed(fields["Confirmed"])
+        checked = starts_with_one_of(fields.get("Status", ""), CHECKED) is not None
+        pairs = HASHED.findall(fields.get("Check", ""))
+        if confirmed and checked and not pairs:
+            self.fail(where, 'confirmed and checked, with no "**Check:**" files and hashes; add each file with the line check_scratchbook.py --hash FILE prints')
+        for name, recorded in pairs:
+            name = name.strip("`")
+            path = self.repo / name
+            if not path.is_file():
+                self.fail(where, f"its check {name} does not exist under {self.repo}; fix the path, or pass --repo")
+            elif not file_hash(path).startswith(recorded[:12]):
+                self.fail(where, f"{name} has changed since the property was confirmed; restore it, or treat the change as a new proposal and ask again")
 
     def evidence(self) -> None:
         for path in self.files("properties"):
@@ -334,8 +373,8 @@ class Check:
             if fault not in rows:
                 self.fail(where, "the row is missing; restore it from templates/fault-inventory.md and give it a status")
                 continue
-            cells = rows[fault] + [""] * 4
-            status, detail, effect = plain(cells[1]).lower(), cells[2], cells[3]
+            cells = rows[fault] + [""] * 5
+            status, detail, effect, contract = plain(cells[1]).lower(), cells[2], cells[3], cells[4]
             must = fault in FAULTS_THAT_MUST_BE_TRIED
             if status not in FAULT_STATUSES:
                 self.fail(where, f'status is "{cells[1]}"; choose one of: {", ".join(FAULT_STATUSES)}')
@@ -347,6 +386,8 @@ class Check:
                 if not re.search(r"[1-9]", effect) or re.match(r"0(?![.\d])", effect):
                     how = "give the rule a precondition under which it takes effect" + ("" if must else ", or mark the row not tried")
                     self.fail(where, f'"Took effect in" gives no count above zero; run the workload and record the count, and if it is zero, {how}')
+                if starts_with_one_of(contract, CONTRACTS) is None:
+                    self.fail(where, f'Contract is "{contract}"; say whether the fault stays within the dependency\'s contract: {", ".join(CONTRACTS)}')
             elif not detail:
                 self.fail(where, f'"{status}" needs a reason in the third column')
             elif status == "not tried" and must:
@@ -450,17 +491,26 @@ class Check:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check a correctness scratchbook.")
     parser.add_argument("scratchbook", nargs="?", default="correctness/scratchbook")
+    parser.add_argument("--repo", metavar="DIR", help="the target repository, which the Check paths are relative to")
+    parser.add_argument("--hash", nargs="+", metavar="FILE", help="print each file with its hash for a Check field, and check nothing")
     parser.add_argument("--require", action="append", default=[], metavar="FILE",
                         help="fail when this file or folder is absent (repeatable)")
     try:
         args = parser.parse_args(argv)
     except SystemExit:
         return 2
+    if args.hash:
+        for name in args.hash:
+            if not Path(name).is_file():
+                print(f"{name}: not a file", file=sys.stderr)
+                return 2
+            print(f"{name} sha256:{file_hash(Path(name))}")
+        return 0
     root = Path(args.scratchbook)
     if not root.is_dir():
         print(f"{root}: not a directory; pass the scratchbook's path", file=sys.stderr)
         return 2
-    check = Check(root)
+    check = Check(root, Path(args.repo) if args.repo else None)
     check.run(args.require)
     for path, message in check.failures:
         print(f"{path}: {message}")

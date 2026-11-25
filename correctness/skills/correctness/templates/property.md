@@ -16,6 +16,7 @@ owners, not a defect.
 **Found under:** <!-- the attention focuses that surfaced it -->
 **Confirmed:** <!-- no | by whom, when, with which question (`questions/{id}.md`) -->
 **Status:** <!-- not checked | checked by workload | checked by audit | invalidated (reason) -->
+**Check:** <!-- once confirmed and checked: each file that holds this property's check, and the reference model if it uses one, with the hash printed by `check_scratchbook.py --hash FILE`, such as `tests/properties.py sha256:0123456789ab`. The script fails when a file changes after this. -->
 **Open questions:**
 <!-- - (needs human input) ...
 - (partial: what was found) ... -->

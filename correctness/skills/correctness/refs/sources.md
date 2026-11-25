@@ -61,6 +61,29 @@ audit of stored data, the in-process run mode, model checking, and confirmation 
   "differential verification" ("this diff is a noop with respect to the following properties") is
   about proofs. The differential check of a refactoring in "Workload" in `SKILL.md`
   applies the same question with generated tests, which is ordinary differential testing.
+- **Antithesis, "Nightmare mode" (blog post, 2026) and bbolt issue 1335.** A process kill is not
+  a power loss: the page cache survives the first and not the second. A failed `fsync` on Linux
+  can leave the data lost while a retry reports success (the 2018 "fsyncgate" finding). Crashes
+  matter before, during and after a disk call. The bbolt bug needs an I/O error followed by a
+  power loss. Used in "Fakes" and "Faults" in `SKILL.md`. The post gives no bug counts.
+- **Greef, post on X about TigerBeetle's VOPR, November 2026.** The hard part of simulation
+  testing is the workload and the checker. A simulator that knows how many faults it injected can
+  require progress while they last. Used in the fault ledger in "Faults" in `SKILL.md`.
+- **Wayne, post on X on trace validation, and Antithesis, "Verifying formal models" (blog post,
+  2026).** Logs of real runs checked against a model, with the safety properties fixed by people
+  and an agent doing the rest. The warning taken from it: iterating until traces and model agree
+  can fit the model to buggy code. Used in "The event log and the reference model".
+- **Khourshid, thread on model-based and property-based testing, November 2026, with Valim's
+  reply.** Read as discussed in this project, not first hand. The same event log that checks
+  conformance can report which model transitions no test reached. Used in
+  `modules/review-inputs.md`, with the caveat that coverage of an abstract model and finding a bug
+  are different things.
+- **Finke, "How to formally verify everything" (fi-le.net, 2026) and its repository.** The human
+  pins each statement in a file that proofs may not change, and every trusted file is hashed. The
+  frozen `Check` field applies the same rule to tests.
+- **datadog-labs/ephyra, README, November 2026.** An agent rewrites the generators for coverage
+  while people write the properties. Its own examples let an agent write properties too, which is
+  the line the frozen `Check` field guards.
 - **Tool documentation and source**, read on 2026-11-13: hegeldev/hegel (README, the Java frontend
   README and `Stateful.java`), antithesishq/bombadil (README and manual sources).
 
@@ -76,4 +99,6 @@ that hands it out again after a timeout, with a counterexample of four steps.
 - The stateful APIs of Hegel's Rust, Go, Python, C++ and OCaml frontends.
 - The deployed run mode.
 - The differential check of a refactoring, and the whole-contract switches in fakes.
+- Kill and power loss as separate faults, the fault ledger, the reference model over an event
+  log, and the frozen `Check` field, apart from the script's tests of that field.
 - The skill as a whole on a production system, and the confirm step with an owning team.

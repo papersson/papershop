@@ -23,6 +23,10 @@ are weighted, how many targets there are, how long the run is, how the system st
 3. **Get the statistics of a run**, if the workload can be run: which actions ran together, how
    often each precondition rejected a step, how often each fault took effect, and the distribution
    of whatever the bugs you fear would need (the most actions on one target, the longest queue).
+   Where the properties share a reference model, add the pairs of (model state, event) that no
+   run reached ("The event log and the reference model" in `SKILL.md`). An unreached pair is a
+   region the generators never enter. Reaching every pair is not the goal on its own: a bug can
+   sit inside one model state.
    If the workload reports none of this, that is the first finding.
 4. **Match what you see against the anti-patterns.** For each match: name it, point to file and
    line, say what region of behaviour is left unexplored, and what the workload could reach if it

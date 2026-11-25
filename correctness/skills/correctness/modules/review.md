@@ -45,6 +45,11 @@ from adding `review.md`.
       For every row marked `not tried`, the reason given is true of this SUT.
 - [ ] Every row marked `not applicable` is right: open the SUT and look for the source it denies.
 - [ ] Properties that may be false during recovery are checked again once the SUT is back up.
+- [ ] Where the SUT or a fake acknowledges a write before it is durable, the workload has both a
+      kill and a power loss, and a fake's failed `fsync` does not come back as success on retry.
+- [ ] Every fault is marked within the dependency's contract or beyond it. Faults within it have
+      a progress property checked while faults are live; faults beyond it have a property that
+      the SUT fails loudly.
 
 **Reach**
 
@@ -62,6 +67,11 @@ from adding `review.md`.
 - [ ] No sentence in the scratchbook says a property holds. It says what ran and what was seen.
 - [ ] A property nobody confirmed is not reported as a defect when it fails, and is not dropped
       either: its counterexample is a question.
+- [ ] The checks of confirmed properties, and the reference model, sit in files apart from the
+      driver and its generators, and `git log` shows no change to them after confirmation that
+      lacks a new question.
+- [ ] Where there is a reference model, it was written from the properties, not fitted to the
+      code, and corrupted logs were rejected by it.
 
 **Evidence**
 
