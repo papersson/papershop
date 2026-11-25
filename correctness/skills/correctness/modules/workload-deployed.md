@@ -44,3 +44,8 @@ Exact replay. The same seed sends the same requests, but threads, the network an
 not under the driver's control, so a failure may not recur. Record enough (requests, responses,
 fault times, logs) to diagnose from one occurrence, and where possible reduce the finding to an
 in-process reproduction, which can be replayed.
+
+Where the properties share a reference model ("The event log and the reference model" in
+`SKILL.md`), collect the SUT's event log from every node and replay it through the model after the
+run. That needs no replay of the run itself: the log settles whether a property was broken, and
+the counterexample is the shortest prefix of the log that the model rejects.

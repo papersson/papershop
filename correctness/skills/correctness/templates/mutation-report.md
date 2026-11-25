@@ -29,6 +29,13 @@ One row per safety property in the catalog (assertion `Always`, `AlwaysOrUnreach
 | post-at-most-once | worker.py:8, the check of posted reports removed | killed | token AXkB3 |
 -->
 
+## Corrupted logs
+
+<!-- Only where the properties share a reference model. One row per corruption of a recorded log
+that conforms: the log, the change (an event dropped, repeated, swapped with its neighbour, or a
+value changed), and whether the conformance check rejected it. A corruption it accepted is a
+property missing from the model. -->
+
 ## Rejected candidates
 
 <!-- Per property, the mutants considered and not used, with reasons. -->

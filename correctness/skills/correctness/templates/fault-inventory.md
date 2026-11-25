@@ -9,24 +9,30 @@ One row per fault. Keep every row and the first column as written:
 
 - `action`: the driver has a rule for it. Name the rule, and give how often it took effect in the
   run recorded in `run-record.md`. A rule that never took effect is not a fault that was tried.
+  Say whether it stays within the dependency's contract: `within` (the contract allows it),
+  `beyond` (it makes an assumption false), or `both` (the rule can do either, and the fault
+  ledger records which).
 - `not applicable`: the SUT has no such source of nondeterminism. Say why.
 - `not tried`: it applies and the workload does not do it. Say why. This is a gap to report, and
   the workload is not done while a failing dependency call or a crash is in this state.
 
-| Fault | Status | Rule in the driver, or the reason | Took effect in |
-|---|---|---|---|
-| message delivered out of order | | | |
-| message delivered twice | | | |
-| message held back | | | |
-| clock advanced | | | |
-| dependency call fails | | | |
-| dependency call times out after taking effect | | | |
-| deferred operation applied late | | | |
-| stale read | | | |
-| crash mid-operation | | | |
-| concurrent operations on one target | | | |
+| Fault | Status | Rule in the driver, or the reason | Took effect in | Contract |
+|---|---|---|---|---|
+| message delivered out of order | | | | |
+| message delivered twice | | | | |
+| message held back | | | | |
+| clock advanced | | | | |
+| dependency call fails | | | | |
+| dependency call times out after taking effect | | | | |
+| deferred operation applied late | | | | |
+| stale read | | | | |
+| crash mid-operation | | | | |
+| power loss | | | | |
+| sync fails | | | | |
+| concurrent operations on one target | | | | |
 
 <!-- Filled rows look like this:
-| message delivered twice | action | `duplicate` | 187 of 300 test cases |
-| stale read | not applicable | the store is a single node with read-your-writes | |
+| message delivered twice | action | `duplicate` | 187 of 300 test cases | within |
+| stale read | not applicable | the store is a single node with read-your-writes | | |
+| power loss | not applicable | the SUT writes no local files, and every fake is durable once it acknowledges, as its contract says | | |
 -->

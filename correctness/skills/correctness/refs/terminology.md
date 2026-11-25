@@ -23,6 +23,10 @@ column says so.
 | Scratchbook | the directory holding the artifacts the modules emit | `correctness/scratchbook/` |
 | Fake | a working in-memory replacement for a dependency | a term this skill adds; a kind of test double |
 | Seam | a place where behaviour can be altered without editing the code there | from Feathers; where a test supplies a dependency |
+| Kill, power loss | a crash after which unsynced writes survive, and one after which they are gone | two separate faults; a fake that stores data keeps what is visible apart from what is durable |
+| Fault ledger | the record of every fault applied, and whether it stayed within the dependency's contract | read only by the assertions |
+| Reference model | a small function from a state and an abstract event to the next state, or a rejection | written from the confirmed properties; checks event logs from any run mode |
+| Conformance | every event in a log is accepted by the reference model | the check behind trace validation |
 
 ## Kinds of property
 
@@ -47,6 +51,10 @@ safety property at quiescence: once the driver has stopped injecting faults and 
 pending, every X is Y. Pair it with a `Sometimes` that quiescence with at least one X was reached,
 so the check is known to have run. The table's `AlwaysOrUnreachable` is the type for the first
 half.
+
+Quiescence alone hides a stall that faults within the contract cause while they last. So add a
+second form where the fault ledger allows it: while every live fault is within its dependency's
+contract, work that no fault has touched finishes within a stated deadline in simulated time.
 
 `Sometimes` is not a weak `Always`. It is the check that a passing run was not vacuous: if the
 workload exists to reach "two messages for the same record pending at once", assert that it

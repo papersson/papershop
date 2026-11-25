@@ -104,6 +104,12 @@ a fact. A claimed guarantee becomes a property to test; never write that it hold
 - Check safety properties after every step, not once at the end. A check at the end misses a
   violation that later steps repair. Several libraries sample invariants by default; turn that off
   for every safety invariant (`refs/tools.md`).
+- A confirmed property is frozen. Keep the checks, and the reference model if there is one, in
+  files of their own, apart from the driver and its generators. Record each file's hash in the
+  property's `Check` field when it is confirmed (`scripts/check_scratchbook.py --hash FILE`), and
+  the script fails when a file changes afterwards. Work on the workload may change the driver
+  and the generators, never the checks. A check that has to change is a new proposal and needs a
+  new question.
 
 **Inputs**
 
@@ -380,6 +386,9 @@ when. A row with no confirmation is marked unverified, and stays that way until 
 - **The workload** gets an action for each way the assumption can fail ("Faults").
 - **The audit** gets a check that finds, in stored data, the traces a false assumption leaves
   (`modules/audit.md`).
+- **The catalog** gets a property that the SUT fails loudly when the assumption is false: it
+  reports or refuses, and loses nothing silently. The register's column "How it would be noticed
+  if false" is that property's first draft.
 
 ### Done when
 
@@ -420,6 +429,13 @@ about someone else's system, and hold it to the evidence standard in
   give the fake a switch for each. The driver draws these with a low probability in every test
   case, not only when a fault is being injected. (FoundationDB does this inside its own code
   with `BUGGIFY`.)
+- **Keep what is visible apart from what is durable.** A fake of anything that stores data has two
+  layers: what reads see, and what would survive a power cut. Its contract says when the first
+  reaches the second: a database with `synchronous_commit=off` acknowledges a commit before it is
+  on disk, a broker with `acks=1` acknowledges before any replica has the message, a local file is
+  durable only after a successful `fsync`. A failed `fsync` must be modelled as Linux does it: the
+  data may already be gone, and a retry that reports success does not bring it back. A fake whose
+  every acknowledged write is durable cannot fail a property about durability.
 - **Take all its choices from the driver.** No clock, randomness or threads of its own.
 - **Stay small.** If a fake needs more than a few dozen lines per operation, it is modelling more
   than the SUT depends on.
@@ -589,6 +605,33 @@ The same function then serves the workload, the mutation run and the audit of st
 property that needs history ("this never changes") needs memory in the driver; one that reads only
 the current state can also run against production.
 
+#### The event log and the reference model
+
+For a SUT with a protocol (a lifecycle per record, a handshake, an ordering it promises), the
+properties can share one checker: a **reference model**, a small function from a state and an
+abstract event to the next state, or a rejection. The SUT logs one line per abstract event at the
+point where its state changes ("job 7 taken", "report 7 posted", "job 7 acknowledged"), and the
+check replays the log through the model. Conformance holds when the model accepts every event.
+
+- **Write the model from the confirmed properties, not from the code.** A model fitted to what
+  the code does inherits its bugs. When a log and the model disagree, the disagreement is a
+  question for the owners, never a reason to edit the model until they agree. The model is frozen
+  like any other check ("Rules").
+- **One checker for every run mode.** The same model checks the in-process workload, a deployed
+  run whose failures will not replay, and production logs in the audit. Where a deployed run has
+  no replay, its log still settles whether a property was broken.
+- **The same log measures coverage.** Count the pairs of (model state, event) the runs reached,
+  and report the pairs never reached to `modules/review-inputs.md`. Coverage and finding the bug
+  are different things: a bug that needs the sixteenth item in a list sits inside one model state,
+  so reaching every pair once does not find it.
+- **Check the checker.** Take a recorded log that conforms, change one event (drop it, repeat it,
+  swap it with its neighbour, change a value), and confirm the check rejects the result. A
+  corruption the check accepts is a property that is missing from the model. Record the
+  corruptions and their verdicts in `mutation-report.md`.
+
+Keep the model small enough to read in one sitting. If it is as large as the SUT, it is a second
+implementation, and it will share the SUT's mistakes.
+
 #### Replay
 
 Every failure prints the minimal counterexample and a replay token. Keep the token with the
@@ -620,7 +663,9 @@ not applicable, or not tried, each with its rule or its reason.
 | dependency call times out after taking effect | reports a timeout for a call whose effect has landed |
 | deferred operation applied late | applies a pending request after other actions have happened |
 | stale read | returns an old value, where the real store allows one |
-| crash mid-operation | stops the SUT after the nth write of an operation, then restarts it |
+| crash mid-operation | kills the SUT around a call to a dependency, keeps everything written that was visible, then restarts it |
+| power loss | kills the SUT and drops every write that was visible but not yet durable, then restarts it |
+| sync fails | makes a flush or `fsync` report an error, with the fake's data treated as the contract allows |
 | concurrent operations on one target | starts two operations on one target and lets the library order their steps |
 
 #### Rules
@@ -628,7 +673,28 @@ not applicable, or not tried, each with its rule or its reason.
 - **A fault needs a precondition that makes it meaningful.** An action that can always run and
   usually changes nothing soaks up test cases. Advancing time is the usual offender.
 - **A crash is not an exception the SUT can catch.** Model it so that no handler in the code under
-  test intercepts it, keep whatever was written before it, and run the SUT's recovery on restart.
+  test intercepts it, and run the SUT's recovery on restart.
+- **A kill and a power loss are different faults.** After a kill, what the operating system or a
+  dependency had accepted is still there, written or not. After a power loss, only what was
+  durable is. A defect that commits a step before its data is durable passes every kill and fails
+  the first power loss. Use both wherever the SUT or a fake has writes that are visible before
+  they are durable, and mark `power loss` not applicable only where nothing does.
+- **Crash at a call, not at a random instant.** Around each call to a dependency there are three
+  moments that differ: before the call, during it (a write that is partly applied), and after
+  its effect but before the SUT has seen the answer. Let the driver draw the call and the moment.
+  That gives few choices, each meaningful, and two faults in a row (a failed `fsync`, then a power
+  loss) become reachable.
+- **Keep a fault ledger.** Record every fault the driver applies and whether it stays within the
+  dependency's contract (a switch from "Use the whole contract") or breaks an assumption (a switch
+  that makes a row of `assumptions.md` false). Only the assertions read it; the SUT and the fakes
+  never see it. It decides which properties apply:
+  - Within the contract, the safety properties hold, and work that no fault has touched keeps
+    making progress while other faults are still live: it finishes within a stated deadline in
+    simulated time. Waiting until every fault has stopped would hide a stall that faults within
+    the contract cause.
+  - Beyond the contract, the SUT fails loudly: it raises an error, refuses the work or reports
+    the problem, and loses or duplicates nothing silently. Each assumption row needs this
+    property ("Guarantees and assumptions").
 - **Decide which properties must survive a fault at every instant**, and which may be false until
   recovery finishes. Write the second kind so they are checked only when the SUT is up.
 - **A fault has taken effect when the SUT or a fake behaved differently because of it.** A rule
@@ -653,6 +719,7 @@ to leave half done.
 - [ ] Every property in the catalog has an assertion, or a note saying why it cannot be checked here.
 - [ ] `fault-inventory.md` is filled in: every row is an action of the driver that took effect, is not applicable, or is listed as not tried with a reason. Delivery faults alone are not enough: include a failing dependency and a crash mid-operation.
 - [ ] `Sometimes` and `Reachable` assertions cover the states the workload exists to reach, and they fire.
+- [ ] Every fault in the ledger is marked within the contract or beyond it, and both kinds of property (progress within it, failing loudly beyond it) have an assertion.
 - [ ] A failure prints a minimal counterexample and a replay token.
 - [ ] The run's generation statistics have been read and are reported with the result.
 
@@ -743,6 +810,10 @@ failure scenario recorded there are where a good mutant comes from.
 Research several candidates per property, apply the strongest, and record the rejected ones with
 reasons.
 
+Where the properties share a reference model, corrupt recorded logs as well ("The event log and
+the reference model"). A mutant tests whether the workload and a property notice a bug in the
+SUT. A corrupted log tests whether the checker notices a bad history, with no workload involved.
+
 ### The verdict ladder
 
 For each mutant, in this order:
@@ -817,8 +888,9 @@ Three steps, in this order.
    task that built no workload, and add `--require mutation-report.md` when mutation testing was
    in scope. The script checks form and cross-references: that every property has its evidence
    file, that every row of the fault inventory is accounted for, that every safety property has a
-   row in the mutation report, and that every finding that reproduces says how to replay it. It
-   cannot tell whether any of it is right.
+   row in the mutation report, that every finding that reproduces says how to replay it, and
+   that no confirmed check has changed since it was confirmed. It cannot tell whether any of it
+   is right. Run it from the target repository, or pass `--repo`, so it can find the checks.
 
 2. **Have someone else review it.** Start a fresh sub-agent and give it the absolute paths of
    `modules/review.md`, `refs/terminology.md`, the script, the scratchbook, the workload and the

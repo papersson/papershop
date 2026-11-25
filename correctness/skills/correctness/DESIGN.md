@@ -7,7 +7,7 @@ this, a single handler, the aftermath of an incident, a suite that has gone quie
 makes three decisions, and says which parts the task chains together.
 
 **The common path is one file.** Research, fakes, the workload with its faults, triage and
-mutation testing are all in SKILL.md, about eight thousand words. SKILL.md is the only file an
+mutation testing are all in SKILL.md, about nine thousand words. SKILL.md is the only file an
 agent is certain to read, and an instruction to go and read four more is an instruction that can
 be skipped, along with whatever those files said. A file of its own is kept for what is truly
 conditional (the two other run modes, the audit, model checking, the type-system detail of a fix
@@ -30,6 +30,29 @@ smallest thing that gives exact replay: one component in process, with faked dep
 The same driver and property can pass against a fake that does what was assumed and fail against
 one that does what the service does. So a fake is treated as a claim about another system, with
 evidence, owners' confirmation and a mechanical comparison.
+
+**A kill and a power loss are separate faults.** A crash that keeps every write is the kind one,
+and a defect that commits before its data is durable survives it. A fake that stores data
+therefore keeps what is visible apart from what is durable, its contract says when the first
+becomes the second, and the driver crashes at a call (before, during, after) rather than at a
+random instant, so that two faults in a row are reachable.
+
+**Faults carry their contract.** The fakes already have two kinds of switch: what the contract
+allows, and what makes an assumption false. The fault ledger records which kind each fault was,
+and that decides the property. Within the contract the SUT must keep making progress while faults
+last, which a check at quiescence would miss. Beyond it the SUT must fail loudly, since an
+assumption can only be detected, never enforced.
+
+**One reference model, many logs.** A deployed run cannot be replayed, but its log can be checked.
+A small model of the protocol, written from the confirmed properties, checks the logs of every
+run mode alike, reports the transitions no run reached, and is itself checked by corrupting a log
+that conforms. It is written from the properties and not fitted to traces, because a model that
+agrees with the code shares its bugs.
+
+**Confirmed checks are frozen.** An agent that is improving a workload, or fixing the SUT, can make
+a failure go away by editing the check. Keeping the checks in files of their own and recording
+their hashes at confirmation makes such an edit something the script reports, and a changed check
+goes back to the owners as a new question.
 
 **Guarantees and assumptions are kept apart.** An assumption cannot be enforced by the SUT, only
 detected or avoided. Listing them separately is what exposes the ones nobody wrote down, and each
