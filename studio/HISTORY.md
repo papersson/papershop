@@ -3,6 +3,17 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Live playback holds a plate frame instead of flashing (0.36.2)
+
+The desk's live view set each plate frame's image the moment it drew the frame, so when decoding
+fell behind the playhead the stage showed the background for that frame. A film that is mostly
+screen recordings (full-frame plates) flickered all the way through, while its cuts were clean.
+The plate image now keeps the clip's last decoded frame until the requested one is decoded, and
+live playback (`render.html?play=1`) decodes six frames ahead. A frame still counts as drawn only
+when the requested frame is in place, so stills, checks and cuts are unchanged. Measured on the
+terminal-browser film, ten seconds of playback: frames showing an unloaded plate fell from 289 of
+572 to 27 of 586.
+
 ## A recalled chapter keeps its camera (0.36.1)
 
 `Stage.nest` made the nested scene's camera group but left drawing in the outer group, so a

@@ -33,7 +33,7 @@ canvas#gl, canvas#light { display: none; }
 // Query: video=<base URL of the video folder>, layout=<URL of layout.json>. Exposes window.studio.
 import { boot } from './src/player.js'
 const q = new URLSearchParams(location.search)
-boot({ svg: document.getElementById('stage'), canvas: document.getElementById('gl'), light: document.getElementById('light'), video: q.get('video'), layout: q.get('layout') })
+boot({ svg: document.getElementById('stage'), canvas: document.getElementById('gl'), light: document.getElementById('light'), video: q.get('video'), layout: q.get('layout'), play: Boolean(q.get('play')) })
   .then(api => { window.studio = api; window.studioReady = true; if (q.get('play')) parent.postMessage({ studioLive: 'ready' }, '*') })
   .catch(e => { window.studioError = String(e && e.stack ? e.stack : e); console.error(e) })
 </script>

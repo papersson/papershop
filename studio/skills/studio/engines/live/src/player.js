@@ -84,12 +84,13 @@ async function exists(url) {
   return r.ok
 }
 
-export async function boot({ svg, canvas, light: lightCanvas, video, layout: layoutUrl }) {
+export async function boot({ svg, canvas, light: lightCanvas, video, layout: layoutUrl, play: playing = false }) {
   const base = video.endsWith('/') ? video : video + '/'
   let T, L, scenes, joins, overlay, boards, notes, legend, colours, motion, plates, platePoints, version = 0
   // Images a frame draws (a plate) are decoded before the frame counts as drawn, so a still never
   // catches a plate half loaded: draw() returns a promise while any is pending.
-  const decoded = new Map()
+  // Live playback (the desk) also decodes the next few plate frames ahead of the playhead.
+  const decoded = new Map(), ready = new Set(), shown = new Map(), AHEAD = 6
   let pending = []
 
   async function load() {
@@ -190,21 +191,40 @@ export async function boot({ svg, canvas, light: lightCanvas, video, layout: lay
     return { c, first, frames: frameOf(c.end, T.fps) - first }
   }
 
+  /** The URL of a clip's plate frame f, starting its decode the first time it is asked for. */
+  function plateFrame(clip, f) {
+    const p = plates[clip], name = `f${String(f).padStart(5, '0')}.png`, href = `${base}${p.dir}/${name}`
+    if (!decoded.has(href)) {
+      const img = new Image()
+      img.src = href
+      decoded.set(href, img.decode().then(() => { ready.add(href) },
+        () => { throw new Error(`plate frame missing: ${p.dir}/${name}`) }))
+      if (decoded.size > 240) {
+        const old = decoded.keys().next().value
+        decoded.delete(old)
+        ready.delete(old)
+      }
+    }
+    return href
+  }
+
   /** c.plate for a clip at frame f: draws the plate's frame behind the camera, filling the stage. */
   function plateOf(clip, f) {
     const draw = (o = {}) => {
       const p = plates[clip]
       if (!p) throw new Error(`no plate for ${clip}: name it in video.json plates (studio plate renders it)`)
-      const href = `${base}${p.dir}/f${String(f).padStart(5, '0')}.png`
-      if (!decoded.has(href)) {
-        const img = new Image()
-        img.src = href
-        decoded.set(href, img.decode().catch(() => { throw new Error(`plate frame missing: ${p.dir}/f${String(f).padStart(5, '0')}.png`) }))
-        if (decoded.size > 240) decoded.delete(decoded.keys().next().value)
-      }
-      pending.push(decoded.get(href))
-      stage.el('plate', 'image', { href, x: 0, y: 0, width: L.width, height: L.height, preserveAspectRatio: 'none',
-        opacity: o.opacity ?? 1, box: o.box }, 'back')
+      const href = plateFrame(clip, f)
+      // Until this frame is decoded the image keeps showing the clip's last decoded frame, so live
+      // playback that outruns decoding holds a frame instead of flashing the background. The frame
+      // counts as drawn only once the requested frame is in place, so stills are unchanged.
+      const ok = ready.has(href)
+      const node = stage.el('plate', 'image', { href: ok ? href : shown.get(clip) ?? href, 'data-want': href,
+        x: 0, y: 0, width: L.width, height: L.height, preserveAspectRatio: 'none', opacity: o.opacity ?? 1, box: o.box }, 'back')
+      pending.push(ok ? Promise.resolve() : decoded.get(href).then(() => {
+        if (node.getAttribute('data-want') === href) node.setAttribute('href', href)
+      }))
+      shown.set(clip, ok ? href : shown.get(clip) ?? href)
+      if (playing) for (let k = 1; k <= AHEAD; k++) if (f + k < clipRange(clip).frames) plateFrame(clip, f + k)
     }
     draw.at = name => {
       const p = plates[clip], pt = (platePoints[clip] ?? {})[f]?.[name]
