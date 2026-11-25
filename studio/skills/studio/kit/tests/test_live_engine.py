@@ -162,7 +162,7 @@ def test_a_broken_look_file_is_named(tmp_path):
     live_video(tmp_path)
     (tmp_path / "scenes" / "look.js").write_text("export default function look(c) {\n")
     with pytest.raises(EngineError, match=r"scenes/look\.js: .*Unexpected end of input"):
-        Engine(tmp_path).look(tmp_path / "out", [])
+        Engine(tmp_path).look(tmp_path / "out")
     assert Engine(tmp_path).boxes_at([{"clip": "s1", "t": 1.0}])           # the chapters still draw
 
 
@@ -185,7 +185,7 @@ export default function draw(c) {
     from studio_kit import check
     (w,) = [r["detail"] for r in check.run(tmp_path, only=["legend"]) if r.get("severity") == "warning"]
     assert w.startswith("cold, which the legend keeps for focus, is on 'title' at s1")
-    pages = Engine(tmp_path).look(tmp_path / "out", [])["pages"]
+    pages = Engine(tmp_path).look(tmp_path / "out")["pages"]
     assert [p["title"] for p in pages][-1] == "colour legend"
 
 
@@ -219,7 +219,7 @@ export default function draw(c) {
     (tmp_path / "video.json").write_text(json.dumps({"title": "t", "engine": "live", "legend": legend}))
     assert [r for r in check.run(tmp_path, only=["legend"]) if r.get("severity")] == []
     for fmt in (None, "9:16"):
-        page = Engine(tmp_path, fmt=fmt).look(tmp_path / "out", [])["pages"][-1]
+        page = Engine(tmp_path, fmt=fmt).look(tmp_path / "out")["pages"][-1]
         by = {b["name"]: b for b in page["boxes"]}
         for meaning in legend:
             a, b = by[f"legend {meaning}"], by[f"legend colour {meaning}"]

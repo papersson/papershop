@@ -3,6 +3,21 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Kit-only sounds trimmed to today's synth median, and three tests caught up (0.36.4)
+
+A type only the kit has (dice, key-enter, key-press, key-take, page-turn, question, stack, toggle)
+is trimmed to the median level of the synth voices. 0.22.0 added two voices for the screens layer,
+which moved that median by about 0.1 dB, and the kit's facts were never measured again: 23 of the
+156 recordings had a `trim_db` 0.1 dB off what the kit measures. They are measured again, so those
+sounds play 0.1 dB louder. The facts test catches this only where the sounds are fetched, which CI
+does not do.
+
+Two kinds of test had gone stale without failing in CI. The look-sheet tests still passed the
+caption argument 0.28.0 removed from `Engine.look()`, and they skip without the live engine. The
+launcher tests ran `bin/studio` with PATH set to `/usr/bin:/bin`, which on NixOS holds only `env`
+and `sh`, so `#!/usr/bin/env bash` failed before the launcher ran; they now link the few basic
+tools the launcher calls when those two directories lack them, and nothing anywhere else.
+
 ## The desk keeps plate frames, so a held frame never reloads (0.36.3)
 
 0.36.2 still flashed every few seconds: the desk sent every file with `Cache-Control: no-store`, so

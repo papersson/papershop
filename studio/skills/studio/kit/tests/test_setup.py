@@ -15,12 +15,26 @@ def executable(path, body):
     path.chmod(0o755)
 
 
+# What a clean machine has in /usr/bin and /bin, and bin/studio needs. NixOS keeps only env and sh
+# there, so the tools it lacks are linked from this machine's PATH; elsewhere nothing is linked.
+BASE_TOOLS = ("bash", "cat", "cut", "dirname", "mkdir", "mv", "shasum")
+
+
+def clean_path(tmp_path):
+    base = tmp_path / "base-tools"
+    base.mkdir()
+    for tool in BASE_TOOLS:
+        if not shutil.which(tool, path="/usr/bin:/bin") and (found := shutil.which(tool)):
+            (base / tool).symlink_to(found)
+    return f"{base}:/usr/bin:/bin"
+
+
 def launcher(tmp_path):
     root = tmp_path / "plugin with spaces"
     (root / "bin").mkdir(parents=True)
     shutil.copyfile(doctor.ROOT / "bin/studio", root / "bin/studio")
     (root / "bin/studio").chmod(0o755)
-    env = {**os.environ, "STUDIO_NO_NIX": "1", "PATH": "/usr/bin:/bin", "STUDIO_HOME": str(tmp_path / "home")}
+    env = {**os.environ, "STUDIO_NO_NIX": "1", "PATH": clean_path(tmp_path), "STUDIO_HOME": str(tmp_path / "home")}
     for k in ("STUDIO_ENV", "PYTHONPATH"):
         env.pop(k, None)
     return root, env
