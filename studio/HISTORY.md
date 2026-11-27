@@ -3,6 +3,21 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A recorded take cleans to studio's level (0.38.0)
+
+Kit Langton open-sourced effect.institute, whose narration is his own voice recorded in the
+browser and run through a fixed chain before alignment. Patrik's plan is to narrate the films he
+likes in his own voice once he has trained it, so the first piece is the one he can use now, while
+practising: `studio take FILE` cleans any take the same way every time and says what to change at
+the mic. The chain is the one that worked on his own takes in October and November (high-pass,
+light denoise, gentle gate, -16 LUFS), plus Kit's trim, compressor and de-esser. On his 62 s phone
+take of 2026-11-05 it gives -15.9 LUFS, -1.5 dBTP, the voice 46 dB above the room (41 in the raw
+take; without the gate the compressor lifted the room to 34), and `--text` reads 0.99 of the script.
+
+- `studio take FILE [--out OUT] [--text SCRIPT]`, with `take.py`'s header naming each step and why.
+- A fixed gain before the trim, so a quiet take (his first was -46 LUFS) is not trimmed to nothing.
+- Not yet: a `recorded` narration engine that cuts takes into sentences for the timeline.
+
 ## Chapter agents measure their own staging (0.37.0)
 
 Patrik, after studying shadcn's UI SDK video: the review mechanisms are great, "but I still wish

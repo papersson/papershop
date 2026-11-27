@@ -79,8 +79,10 @@ settings override it. `studio lexicon add WORD --spoken TEXT [--phonemes IPA]` p
 
 `studio voice-check VIDEO` transcribes sentences and scores them against the script; `--all`
 checks all again, while normal runs reuse unchanged results. Investigate low scores and missing
-speech. `studio align VIDEO` attaches recognized words and rechunks captions. Pronunciation still
-needs judgment: recognition can miss the difference between an acronym spoken as letters or a word.
+speech. `studio align VIDEO` attaches recognized words and rechunks captions. Pronunciation
+needs judgment: recognition can't tell an acronym spoken as letters from a word.
+
+`studio take FILE` cleans a recorded voice take (see `take.py`).
 
 ElevenLabs remains available in `narration.json.engine`, with its settings under `elevenlabs`.
 Choose it before scene timing when the user asks. `--plan` reports work, `--fetch-only` fills the
