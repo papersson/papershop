@@ -257,6 +257,11 @@ class Film(unittest.TestCase):
                                    "most lines are typed beside the thing they are about")
                 kinds = {s["kind"] for s in browser.eval("WalkFilm.sounds")}
                 self.assertTrue({"tick", "turn", "yes", "no", "key"} <= kinds, kinds)
+                # The table fills one entry at a time and the code types in line by line: each item
+                # gets its own tick, a step higher than the last, at the moment it starts.
+                steps = [s for s in browser.eval("WalkFilm.sounds") if "step" in s]
+                self.assertGreaterEqual(len(steps), 10, steps)
+                self.assertTrue(all(b["t"] > a["t"] for a, b in zip(steps, steps[1:]) if b["step"]), steps)
                 # Seeking is exact: the same moment twice gives the same frame, whatever came between.
                 t = beats[5]["move"] + 300
                 first = browser.eval(f"WalkFilm.seek({t})")

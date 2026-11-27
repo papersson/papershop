@@ -31,6 +31,11 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
   transition: transform var(--move) var(--ease), opacity var(--fade) var(--ease); }
 .w-gone { pointer-events: none; }
 .w-still *, .w-still *::before, .w-still *::after { transition: none !important; }
+/* A group arrives one item at a time: rows of a tree, fields of a card, lines of code. Each part
+   marked w-part starts --step after the one before it (a stagger), so the eye reads them in order. */
+@keyframes w-part-in { from { opacity: 0; transform: translateY(8px); } }
+.w-entering .w-part { animation: w-part-in var(--fade) var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * var(--step, 90ms) + var(--d, 0ms)); }
 
 /* Chrome: title top left, caption bottom centre, a quiet count in the corner. */
 .w-title { position: absolute; left: 80px; top: 44px; height: 66px; display: flex; align-items: center;

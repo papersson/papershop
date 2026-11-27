@@ -153,15 +153,29 @@ def _level(samples, dbfs):
     return [v * g for v in samples]
 
 
+def _knock(f, seed):
+    return [_env(i / RATE, 0.0015, 0.009) * (0.8 * (0.75 * math.sin(2 * math.pi * f * i / RATE)
+            + 0.25 * math.sin(2 * math.pi * 2.08 * f * i / RATE)) + 0.2 * (random.Random(seed + i).random() * 2 - 1))
+            for i in range(int(RATE * 0.045))]
+
+
+# A staggered group ticks once per item, climbing a major pentatonic scale (no step can sound wrong
+# against another), and holds the top note for a long group.
+PENTATONIC = (0, 2, 4, 7, 9, 12, 14, 16)
+
+
+def stepped_tick(step):
+    semis = PENTATONIC[min(step, len(PENTATONIC) - 1)]
+    return _level(_knock(1250 * 2 ** (semis / 12), 7), -24)
+
+
 def voices():
     """One sound per kind of change, each with one meaning (after Kit Langton's effect.institute):
     tick, a thing arrives; tap, a thing already there changes; glide, a thing travels; yes and no, a
     verdict lands; ring, a part is singled out; wipe, the stage clears; turn, a new chapter; key, a
     letter of the line. Synthesized and seeded, so every render is the same; levels sit well under
     a voice would, since the film has none to sit under."""
-    knock = lambda f, seed: [_env(i / RATE, 0.0015, 0.009) * (0.8 * (0.75 * math.sin(2 * math.pi * f * i / RATE)
-                             + 0.25 * math.sin(2 * math.pi * 2.08 * f * i / RATE)) + 0.2 * (random.Random(seed + i).random() * 2 - 1))
-                             for i in range(int(RATE * 0.045))]
+    knock = _knock
     return {
         "tick": _level(knock(1250, 7), -24),
         "tap": _level(knock(880, 11), -30),
@@ -189,7 +203,10 @@ def write_audio(path, duration_ms, sounds, level="events"):
         if s["kind"] not in keep or s["kind"] not in bank:
             continue
         start = int(RATE * s["t"] / 1000)
-        for i, v in enumerate(bank[s["kind"]]):
+        step = s.get("step") or 0
+        if step and (s["kind"], step) not in bank:
+            bank[(s["kind"], step)] = stepped_tick(step)
+        for i, v in enumerate(bank[(s["kind"], step)] if step else bank[s["kind"]]):
             if start + i < total:
                 samples[start + i] += v
     with wave.open(str(path), "wb") as w:
@@ -257,6 +274,7 @@ def main():
                 sheet.mkdir(parents=True, exist_ok=True)
                 for kind in voices():
                     write_audio(sheet / f"{kind}.wav", 1000, [{"t": 50, "kind": kind}], "all")
+                write_audio(sheet / "stagger.wav", 1000, [{"t": 50 + 90 * i, "kind": "tick", "step": i} for i in range(5)])
             out.parent.mkdir(parents=True, exist_ok=True)
             enc = subprocess.Popen(
                 [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "image2pipe", "-framerate", str(args.fps),

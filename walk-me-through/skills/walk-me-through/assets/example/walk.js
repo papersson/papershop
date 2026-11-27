@@ -48,7 +48,7 @@
  */
 (function () {
   'use strict';
-  const W = 1600, H = 900, MOVE = 900, FADE = 500, TURN = 500, CAPTION_FADE = 180;
+  const W = 1600, H = 900, MOVE = 900, FADE = 500, TURN = 500, CAPTION_FADE = 180, STAGGER = 90, STAGGER_SPAN = 1000;
   // FILM: one beat per click, measured on shadcn's UI SDK video. The line types out first, the change
   // starts a moment after it is finished, then the picture rests while the reader catches up: words
   // and motion never compete for the eye. Times in ms.
@@ -209,13 +209,19 @@
     const notes = make('aside', 'w-notes', root);
     const api = { def, stage, fmt, esc, make, W, H };
 
-    const els = {}, updates = {}, base = {};
+    const els = {}, updates = {}, base = {}, spans = {};
     Object.keys(def.objects || {}).forEach(id => {
       const o = def.objects[id];
       const el = make('div', `w-obj w-${o.piece}`, stage);
       el.dataset.id = id;
       const upd = pieces[o.piece](el, o, api);
       els[id] = el; base[id] = el.className;
+      // A group arrives one item at a time (a stagger): parts marked w-part are numbered in order,
+      // and the steps shrink for a long group so the whole arrival stays near a second.
+      const parts = el.querySelectorAll('.w-part');
+      parts.forEach((part, i) => part.style.setProperty('--i', i));
+      spans[id] = parts.length > 1 ? (parts.length - 1) * Math.min(STAGGER, STAGGER_SPAN / (parts.length - 1)) : 0;
+      if (parts.length > 1) el.style.setProperty('--step', spans[id] / (parts.length - 1) + 'ms');
       if (typeof upd === 'function') {
         updates[id] = upd;
         // Try every state now, so a bad path or token fails on load instead of at click 17.
@@ -263,14 +269,17 @@
     function show(p, from, animate) {
       const f = frames[p], prev = from == null ? null : frames[from];
       const turn = animate && prev && prev.chapter !== f.chapter;
+      let staggered = 0;
       Object.keys(els).forEach(id => {
         const el = els[id], st = f.objects[id];
         const appearing = prev && prev.objects[id].o === 0 && st.o > 0;
         el.style.transitionDelay = turn && appearing ? TURN + 'ms' : '0ms';
+        const entering = animate && appearing && spans[id] > 0;
+        if (entering) { el.style.setProperty('--d', (turn ? TURN : 0) + 'ms'); staggered = Math.max(staggered, spans[id] + FADE); }
         el.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.s})`;
         const tone = f.tones[id];
         el.style.opacity = st.o * TONE[tone];
-        el.className = base[id] + ` w-tone-${tone}` + (st.cls.length ? ' ' + st.cls.join(' ') : '') + (st.o === 0 ? ' w-gone' : '');
+        el.className = base[id] + ` w-tone-${tone}` + (st.cls.length ? ' ' + st.cls.join(' ') : '') + (st.o === 0 ? ' w-gone' : '') + (entering ? ' w-entering' : '');
         if (updates[id]) updates[id](st.cls);
       });
       stage.classList.toggle('on-cover', f.chapter === 0);
@@ -284,7 +293,7 @@
       clearTimeout(ringTimer);
       ring.classList.remove('on');
       if (!animate) { placeRing(f); return; }
-      const settle = f.click && f.click.settle != null ? f.click.settle : MOVE + (turn ? TURN : 0) + 80;
+      const settle = f.click && f.click.settle != null ? f.click.settle : Math.max(MOVE, staggered) + (turn ? TURN : 0) + 80;
       ringTimer = setTimeout(() => placeRing(f), settle);
     }
     // ?film: the clicks as a timeline. Each beat: the caption types out (in place, the untyped part
@@ -316,6 +325,32 @@
         measure.push({ boxes: visibleBoxes(p), yes: marks('is-yes'), no: marks('is-no'),
           subject: frames[p].subject ? boxIn(target || els[frames[p].subject]) : null });
       }
+      // How each change moves: when its last motion ends, and, when a group arrives one item at a
+      // time, when each item starts. Items are the same kind of element (first class) starting at
+      // different times; whole objects are left out, since a chapter turn delays them on purpose.
+      const motion = [null];
+      for (let p = 1; p <= N; p++) {
+        root.classList.add('w-still');
+        show(p - 1, null, false);
+        void stage.offsetHeight;
+        root.classList.remove('w-still');
+        show(p, p - 1, true);
+        clearTimeout(captionTimer); clearTimeout(ringTimer); clearTimeout(titleTimer);
+        let end = 0;
+        const groups = {};
+        document.getAnimations().forEach(a => {
+          const el = a.effect && a.effect.target;
+          if (!el || !stage.contains(el) || el === ring || el === caption || el === title) return;
+          const tm = a.effect.getComputedTiming();
+          end = Math.max(end, tm.endTime);
+          if (el.classList.contains('w-obj') || !el.classList.length) return;
+          (groups[el.classList[0]] = groups[el.classList[0]] || new Set()).add(Math.round(a.effect.getTiming().delay));
+        });
+        const best = Object.values(groups).map(g => [...g].sort((x, y) => x - y)).sort((x, y) => y.length - x.length || x[0] - y[0])[0];
+        motion.push({ end, items: best && best.length > 1 ? best : null });
+        document.getAnimations().forEach(a => a.cancel());
+      }
+      jump(first);
       const GAP = 22, EDGE = 44;
       const overlaps = (a, b) => a.x < b.x + b.w + 8 && b.x < a.x + a.w + 8 && a.y < b.y + b.h + 8 && b.y < a.y + a.h + 8;
       function sizeOf(text, wrap) {
@@ -359,7 +394,7 @@
         const typing = Math.round(text.length / FILM.cps * 1000);
         const move = t + (text ? typing + FILM.lead : FILM.bare);
         const turn = frames[p - 1].chapter !== f.chapter;
-        let settle = c.settle != null ? c.settle : MOVE + (turn ? TURN : 0) + 80;
+        let settle = c.settle != null ? c.settle : Math.max(MOVE + (turn ? TURN : 0), motion[p].end) + 80;
         if (c.highlight) settle += FILM.ring;
         const rest = text ? FILM.rest + FILM.perWord * wordsIn(f.caption) : FILM.restBare;
         const end = move + settle + rest + (p === N ? FILM.last : 0);
@@ -379,7 +414,11 @@
           else kind = 'tap';
         }
         if (turn && p > 1) sounds.push({ t: move, kind: 'turn' });
-        if (kind !== 'none') sounds.push({ t: kind === 'yes' || kind === 'no' ? arrive + MOVE * 0.5 : arrive, kind, ms: MOVE });
+        const items = motion[p].items;
+        if (items && (kind === 'tick' || kind === 'tap') && !c.sound) {
+          // A staggered group sounds one tick per item, each a step higher, so the ear counts them in.
+          items.forEach((d, i) => sounds.push({ t: arrive + d - items[0], kind: 'tick', step: i }));
+        } else if (kind !== 'none') sounds.push({ t: kind === 'yes' || kind === 'no' ? arrive + MOVE * 0.5 : arrive, kind, ms: MOVE });
         if (c.highlight) sounds.push({ t: move + settle - FILM.ring, kind: 'ring' });
         t = end;
       }
@@ -658,9 +697,9 @@
     const fields = o.fields || [], lw = o.labelWidth || 150;
     el.style.width = (o.w || 520) + 'px';
     el.style.height = CARD.head + fields.length * CARD.row + CARD.pad + 'px';
-    make('div', 'w-card-title', el, fmt(o.title || ''));
+    make('div', 'w-card-title w-part', el, fmt(o.title || ''));
     fields.forEach((f, i) => {
-      const row = make('div', 'w-card-field', el);
+      const row = make('div', 'w-card-field w-part', el);
       row.dataset.field = f;
       Object.assign(row.style, { top: CARD.head + i * CARD.row + 'px', width: lw + 'px' });
       make('span', '', row, fmt(f));
@@ -714,7 +753,7 @@
     let d = '';
     const byPath = {};
     rows.forEach((r, i) => {
-      const left = 26 + r.depth * ind, row = make('div', 'w-tree-row', el);
+      const left = 26 + r.depth * ind, row = make('div', 'w-tree-row w-part', el);
       row.dataset.path = r.path;
       Object.assign(row.style, { top: i * rowH + 'px', left: left + 'px', height: rowH + 'px' });
       const v = r.value;
@@ -757,7 +796,7 @@
   pieces.code = (el, o) => {
     const lines = (o.lines || []).map(l => Array.isArray(l) ? l : ['', l]);
     const rows = lines.map(([mark, text], i) => {
-      const row = make('div', 'w-code-line', el);
+      const row = make('div', 'w-code-line w-part', el);
       const hash = text.search(/(^|\s)(#|\/\/)/);
       const body = hash < 0 ? esc(text) : esc(text.slice(0, hash)) + `<span class="w-code-c">${esc(text.slice(hash))}</span>`;
       row.innerHTML = `<span class="w-code-m">${mark ? `<span class="w-code-badge">${esc(mark)}</span>` : ''}</span><code>${body || ' '}</code>`;
