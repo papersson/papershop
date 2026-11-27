@@ -12,7 +12,8 @@
  *   object: { piece: 'text' | 'chip' | 'card' | 'tree' | 'code' | <custom>, ...piece data,
  *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters],
  *             context?: true }
- *   click:  { chapter, caption?, object, state, with?: [id], highlight?: selector, settle?: ms }
+ *   click:  { chapter, caption?, object, state, with?: [id], highlight?: selector, settle?: ms,
+ *             sound?: kind, predict?: true (the one click whose caption may ask the reader to guess first) }
  *        or { chapter, caption?, clear: true, keep?: [ids] }
  *
  * Chapters are numbered from 1. x and y place an object's top left corner on a fixed 1600 by 900
@@ -627,7 +628,7 @@
         n: p, chapter: f.chapter, caption: f.caption, clear: !!c.clear, object: c.object || null, state: c.state || null,
         changed: f.changed || [], hidden: f.hidden || [], overlaps, outside, band,
         captionWidth: capBox ? Math.round(capBox.w) : 0,
-        subject: f.subject || null, travelled: !!f.travelled, labels,
+        subject: f.subject || null, travelled: !!f.travelled, labels, predict: !!c.predict,
         lit: ids.filter(id => f.objects[id].o > 0 && f.tones[id] === 1),
         second: ids.filter(id => f.objects[id].o > 0 && f.tones[id] === 2),
         small: texts.filter(t => t.size < 20).map(t => `${t.owner} "${t.text}" at ${t.size}px`),

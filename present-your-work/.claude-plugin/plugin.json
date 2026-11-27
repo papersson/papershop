@@ -1,6 +1,6 @@
 {
   "name": "present-your-work",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Present finished work to the person who asked for it, the way a colleague would tell them: what is now true, why it was done this way and its key idea, the one thing that could change their mind beside the answer, and what they now have to decide. Quick mode is a few paragraphs in the chat in under a minute, with a one-second script for labels, budgets, superlatives, log-like telling and machine-written prose. Visual mode tells the same story as a click-through page on its own small engine: one change per click, one place to look, a running example, checked by a script, screenshots and two fresh readers. Exposition, not proof.",
   "author": {
     "name": "Patrik Persson"

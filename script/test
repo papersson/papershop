@@ -13,7 +13,7 @@ export PATH="$root/.cache/tools/bin:$HOME/.local/bin:$PATH"
 cd "$root"
 
 suites=("$@")
-[ ${#suites[@]} -gt 0 ] || suites=(pins worklog present-your-work walk-me-through correctness studio)
+[ ${#suites[@]} -gt 0 ] || suites=(pins engines worklog present-your-work walk-me-through correctness studio)
 studio_env=()
 if [[ " ${suites[*]} " == *" studio "* ]] && [ -z "${STUDIO_ENV:-}" ] && command -v nix >/dev/null; then
   while IFS= read -r var; do studio_env+=("$var"); done < <(
@@ -37,6 +37,7 @@ run() {
 for suite in "${suites[@]}"; do
   case "$suite" in
     pins) run pins script/check-pins ;;
+    engines) run engines script/sync-engines --check ;;
     worklog) run worklog uv run --quiet --with "duckdb$(sed -n 's/.*"duckdb\([^"]*\)".*/\1/p' worklog/scripts/worklog.py | head -1)" python -m unittest discover -s worklog/tests ;;
     # The page tests' browser checks skip, with the fix named, on a machine with no Chrome or Chromium.
     present-your-work) run present-your-work sh -c 'python3 present-your-work/skills/present-your-work/scripts/test_check_draft.py && python3 -I present-your-work/skills/present-your-work/scripts/test_page.py' ;;
