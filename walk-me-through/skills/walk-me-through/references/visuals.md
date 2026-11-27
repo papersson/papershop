@@ -11,6 +11,7 @@ is about choosing.
 | a record with named fields | `card`, with chips docking into `Walk.slot(card, state, field)` | a chip taking a slot (add class `no-label`) |
 | nested data: JSON, a config, a protobuf message | `tree` with `data` or `text` (protobuf text format) | `at:PATH` marker walking rows, `lit:PATH`, `box:PATH` |
 | code, usually the last chapter | `code` with `[mark, line]` margin numbers | `lit:3-5` lighting lines and dimming the rest |
+| code that changes: an argument, a result, a line added | `code` with `{{name}}` slots and lines `{ id, text, hidden: true }` | `set:name=value` swapping one part while the rest slides; `show:ID` opening a line |
 | a yes or no about one thing | `text` with `verdict: 'yes'` or `'no'`; about a part of a piece (an entry, a row), the piece draws the mark on that part | appearing beside the thing |
 | a measured number with its name | `text`, larger `size` | appearing |
 | a structure with its own shape: a table of buckets, a queue, a grid, a timeline | a custom piece | classes the piece's CSS transitions |
@@ -35,6 +36,9 @@ element (`style.setProperty('--i', i)`) and `transition-delay: calc(var(--i) * 1
 change, read as one gesture. `assets/example/page.html` has a complete one.
 
 Do not build pieces for data nobody has asked to explain yet.
+
+Change code in place rather than drawing a second copy: when only a value or one line differs,
+the reader should see that part move and nothing else. `assets/slots` does this for a cache.
 
 ## Layout zones on the 1600 by 900 stage
 

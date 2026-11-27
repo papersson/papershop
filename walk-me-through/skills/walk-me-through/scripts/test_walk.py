@@ -96,7 +96,7 @@ class Lint(unittest.TestCase):
 
 class Copies(unittest.TestCase):
     def test_shipped_pages_carry_the_current_engine(self):
-        for page in ("example", "pieces"):
+        for page in ("example", "pieces", "slots"):
             for name in ("walk.js", "walk.css"):
                 self.assertEqual((SKILL / "assets" / page / name).read_bytes(), (SKILL / "engine" / name).read_bytes(),
                                  f"assets/{page}/{name} is stale: copy engine/{name} over it")
@@ -132,7 +132,7 @@ class Checker(unittest.TestCase):
         return run.returncode, run.stdout
 
     def test_shipped_pages_pass_at_three_sizes(self):
-        for page in ("example", "pieces"):
+        for page in ("example", "pieces", "slots"):
             run = script("check.py", SKILL / "assets" / page)
             self.assertEqual((run.returncode, run.stdout), (0, ""), page)
 
@@ -189,6 +189,13 @@ class Checker(unittest.TestCase):
             "object 'b' is on the page but no click is about it": (
                 {"a": text("alpha alpha", 100, 200), "b": text("beta beta", 100, 300, start="a")},
                 [{"chapter": 1, "object": "a", "state": "a"}]),
+            "page error: click 1: on 'zebra' is not a word of its caption": (
+                {"a": text("alpha", 100, 200)},
+                [{"chapter": 1, "object": "a", "state": "a", "caption": "Alpha arrives.", "on": "zebra"}]),
+            "page error: code: no slot value 'nope=one'": (
+                {"c": {"piece": "code", "lines": ["x = {{v}}"], "slots": {"v": {"one": "1"}},
+                       "states": {"a": {"x": 100, "y": 200, "cls": ["set:nope=one"]}}}},
+                [{"chapter": 1, "object": "c", "state": "a"}]),
             "page error: click 1 changes 'a', which is marked context": (
                 {"a": text("alpha alpha", 100, 200, context=True)}, [{"chapter": 1, "object": "a", "state": "a"}]),
         }
@@ -267,6 +274,23 @@ class Film(unittest.TestCase):
                 first = browser.eval(f"WalkFilm.seek({t})")
                 browser.eval(f"WalkFilm.seek({beats[12]['move'] + 100})")
                 self.assertEqual(browser.eval(f"WalkFilm.seek({t})"), first)
+            finally:
+                browser.close()
+
+    def test_a_change_can_fire_on_a_word(self):
+        """`on: 'word'` moves the change to the moment the caption types that word."""
+        with tempfile.TemporaryDirectory() as tmp:
+            browser = film.Chrome(CHROME, Path(tmp, "profile"))
+            try:
+                browser.open((SKILL / "assets/slots/page.html").resolve().as_uri() + "?film", (1600, 900))
+                for _ in range(200):
+                    if browser.eval("!!(window.WalkFilm && WalkFilm.ready)"):
+                        break
+                beats = browser.eval("WalkFilm.beats")
+                early = [b for b in beats[1:] if b["chars"] and b["move"] < b["typed"]]
+                self.assertGreaterEqual(len(early), 5, "the clicks with `on` move before their line ends")
+                for b in early:
+                    self.assertGreater(b["end"], b["typed"], "the line still finishes before the next click")
             finally:
                 browser.close()
 

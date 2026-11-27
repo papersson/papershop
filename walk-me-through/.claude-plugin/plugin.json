@@ -1,6 +1,6 @@
 {
   "name": "walk-me-through",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Explain one mechanism as a local click-through HTML page: each click changes exactly one thing on a stage drawn from the real data, the eye has one place to look (the subject at full ink, the click before at a second tone, the rest quiet), and one caption line of at most 12 words says what the change means when the picture cannot. It decides first whether a sentence would do, writes the page as a click list for the reader to approve, builds from it with a small dependency-free engine, and checks it four ways: a script that enforces the rules mechanically at three window sizes (attention included: brightness, subject size, eye travel, clutter), screenshots finished and mid-motion, an attention reviewer, and a fresh reader who explains it back. Ships a worked hash-table example whose every number is computed. The finished page also plays as a video (film.py): each caption types out beside the thing it is about, then its one change, then a rest that grows with the line, and each kind of change makes its own quiet sound.",
   "author": {
     "name": "Patrik Persson"

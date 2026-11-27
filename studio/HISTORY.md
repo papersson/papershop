@@ -3,6 +3,31 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A film narrated in a recorded voice (0.38.0)
+
+Kit Langton open-sourced effect.institute, whose narration is his own voice recorded in the
+browser and run through a fixed chain before alignment. Patrik's plan is to narrate the films he
+likes in his own voice once he has trained it, so the first piece is the one he can use now, while
+practising: `studio take FILE` cleans any take the same way every time and says what to change at
+the mic. The chain is the one that worked on his own takes in October and November (high-pass,
+light denoise, gentle gate, -16 LUFS), plus Kit's trim, compressor and de-esser. On his 62 s phone
+take of 2026-11-05 it gives -15.9 LUFS, -1.5 dBTP, the voice 46 dB above the room (41 in the raw
+take; without the gate the compressor lifted the room to 34), and `--text` reads 0.99 of the script.
+
+- `studio take FILE [--out OUT] [--text SCRIPT]`, with `take.py`'s header naming each step and why.
+- A fixed gain before the trim, so a quiet take (his first was -46 LUFS) is not trimmed to nothing.
+- Patrik, on seeing it: "film should be able to use the narration". So `"engine": "recorded"` in
+  narration.json narrates a film from one take per chapter, `audio/takes/<chapter id>.wav` (or .m4a,
+  .mp3). Each take is cleaned by the same chain and heard by faster-whisper (both cached by the
+  take's bytes), and each paragraph of the script is matched to the words heard, letter by letter,
+  so "2,700" read aloud as "two thousand seven hundred" still meets. The paragraphs then go through
+  the sentence cutting the other engines use, so the pauses are the reader's own, snapped to
+  silence. A stumble needs no editing: stop, go back, read on; where the heard words jump ahead of
+  the script, the longest unbroken reading wins (a long pause between sentences is not a jump).
+  The track is 48 kHz, where the synthetic voices are 24 kHz.
+- Tried on his 62 s phone take as a one-chapter film: 11 sentences placed, voice-check 0.98 to 1.00
+  on every one, the film at -15.9 LUFS. Takes are media: `studio media push` lists them in media.json.
+
 ## Chapter agents measure their own staging (0.37.0)
 
 Patrik, after studying shadcn's UI SDK video: the review mechanisms are great, "but I still wish

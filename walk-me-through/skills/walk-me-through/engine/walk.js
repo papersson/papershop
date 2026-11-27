@@ -13,7 +13,8 @@
  *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters],
  *             context?: true }
  *   click:  { chapter, caption?, object, state, with?: [id], highlight?: selector, settle?: ms,
- *             sound?: kind, predict?: true (the one click whose caption may ask the reader to guess first) }
+ *             sound?: kind, predict?: true (the one click whose caption may ask the reader to guess first),
+ *             on?: word (in the film, the change fires as the caption types this word, not after the line) }
  *        or { chapter, caption?, clear: true, keep?: [ids] }
  *
  * Chapters are numbered from 1. x and y place an object's top left corner on a fixed 1600 by 900
@@ -66,6 +67,12 @@
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmt = s => String(s == null ? '' : s).split('`').map((part, i) => i % 2 ? '<code>' + esc(part) + '</code>' : esc(part)).join('');
+  // `on: 'word'`: in the film, the change fires as the caption types that word (Kit Langton's
+  // effect.institute fires each step on a spoken word), instead of after the whole line.
+  const wordAt = (caption, word) => {
+    const text = String(caption || '').replace(/`/g, ''), m = new RegExp(`\\b${String(word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').exec(text);
+    return m ? m.index + m[0].length : 0;
+  };
   const make = (tag, cls, parent, html) => {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -128,6 +135,7 @@
       if (o.context) fail(`click ${n} changes '${c.object}', which is marked context; context is never a click's subject`);
       if (c.with != null && !Array.isArray(c.with)) fail(`click ${n}: with must be a list of object ids`);
       (c.with || []).forEach(k => objects[k] || fail(`click ${n} is read with unknown object '${k}'; ${known}`));
+      if (c.on != null && !wordAt(c.caption, c.on)) fail(`click ${n}: on '${c.on}' is not a word of its caption "${c.caption || ''}"`);
     });
     for (let ch = 1; ch <= nch; ch++) if (!def.clicks.some(c => c.chapter === ch)) fail(`chapter ${ch} has no clicks`);
 
@@ -344,10 +352,13 @@
           if (!el || !stage.contains(el) || el === ring || el === caption || el === title) return;
           const tm = a.effect.getComputedTiming();
           end = Math.max(end, tm.endTime);
-          if (el.classList.contains('w-obj') || !el.classList.length) return;
-          (groups[el.classList[0]] = groups[el.classList[0]] || new Set()).add(Math.round(a.effect.getTiming().delay));
+          if (el.classList.contains('w-obj') || !el.classList.length || el.closest('.is-closed')) return;
+          // An item starts at its earliest animation: one element with two animations is one item.
+          const g = groups[el.classList[0]] = groups[el.classList[0]] || new Map(), d = Math.round(a.effect.getTiming().delay);
+          g.set(el, Math.min(d, g.has(el) ? g.get(el) : d));
         });
-        const best = Object.values(groups).map(g => [...g].sort((x, y) => x - y)).sort((x, y) => y.length - x.length || x[0] - y[0])[0];
+        const best = Object.values(groups).filter(g => g.size > 1).map(g => [...new Set(g.values())].sort((x, y) => x - y))
+          .sort((x, y) => y.length - x.length || x[0] - y[0])[0];
         motion.push({ end, items: best && best.length > 1 ? best : null });
         document.getAnimations().forEach(a => a.cancel());
       }
@@ -393,12 +404,13 @@
       for (let p = 1; p <= N; p++) {
         const f = frames[p], c = f.click, text = plain(f.caption);
         const typing = Math.round(text.length / FILM.cps * 1000);
-        const move = t + (text ? typing + FILM.lead : FILM.bare);
+        const onWord = c.on != null ? wordAt(f.caption, c.on) : 0;
+        const move = t + (onWord ? Math.round(onWord / FILM.cps * 1000) + FILM.lead / 2 : text ? typing + FILM.lead : FILM.bare);
         const turn = frames[p - 1].chapter !== f.chapter;
         let settle = c.settle != null ? c.settle : Math.max(MOVE + (turn ? TURN : 0), motion[p].end) + 80;
         if (c.highlight) settle += FILM.ring;
         const rest = text ? FILM.rest + FILM.perWord * wordsIn(f.caption) : FILM.restBare;
-        const end = move + settle + rest + (p === N ? FILM.last : 0);
+        const end = Math.max(move + settle, t + typing + FILM.lead) + rest + (p === N ? FILM.last : 0);
         beats.push({ p, start: t, typed: t + typing, move, settle: move + settle, end, chars: text.length, place: placeFor(p) });
         // The sound of a change says what kind of change it is, one sound per meaning (Kit Langton's
         // effect.institute): a page turn, a wipe, a verdict, a thing travelling, a thing arriving.
@@ -579,7 +591,7 @@
     const textsIn = (el, owner, scale) => {
       const found = [], walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        if (!n.nodeValue.trim() || !visible(n.parentElement, el)) continue;
+        if (!n.nodeValue.trim() || !visible(n.parentElement, el) || n.parentElement.closest('.is-closed')) continue;
         const box = boxOf(n);
         if (box) found.push(Object.assign(box, { owner, text: n.nodeValue.trim().slice(0, 40),
           size: Math.round(parseFloat(getComputedStyle(n.parentElement).fontSize) * scale * 10) / 10,
@@ -791,27 +803,76 @@
     };
   };
 
-  // code: { lines: [string | [mark, string]] } with marks in the margin, drawn as badges so they
-  // cannot be read as line numbers. Classes 'lit:3' or 'lit:3-5' light lines (counted from 1) and dim
-  // the rest; 'marks' dims the code and leaves the badges bright, to introduce them.
+  // code: { lines: [string | [mark, string] | { id, text, mark?, hidden? }], slots?: { name: { value: text } } }
+  // with marks in the margin, drawn as badges so they cannot be read as line numbers. Classes 'lit:3'
+  // or 'lit:3-5' light lines (counted from 1, or 'lit:ID' by a line's id) and dim the rest; 'marks'
+  // dims the code and leaves the badges bright, to introduce them.
+  // Code that changes in place (after Kit Langton's effect.institute): a line's text may hold
+  // {{name}} slots, each showing one of its values, the first by default. 'set:name=value' changes
+  // just that part: the old text leaves, the new one arrives, and the rest of the line slides to make
+  // room, so the eye sees what changed and nothing else moves. A line with `hidden: true` is closed
+  // until 'show:ID' opens it, and the lines below slide down. Keep text every value shares outside
+  // the slot, so only the difference moves.
   pieces.code = (el, o) => {
-    const lines = (o.lines || []).map(l => Array.isArray(l) ? l : ['', l]);
-    const rows = lines.map(([mark, text], i) => {
-      const row = make('div', 'w-code-line w-part', el);
+    const slots = o.slots || {};
+    const code = (text) => {
       const hash = text.search(/(^|\s)(#|\/\/)/);
-      const body = hash < 0 ? esc(text) : esc(text.slice(0, hash)) + `<span class="w-code-c">${esc(text.slice(hash))}</span>`;
-      row.innerHTML = `<span class="w-code-m">${mark ? `<span class="w-code-badge">${esc(mark)}</span>` : ''}</span><code>${body || ' '}</code>`;
+      return hash < 0 ? esc(text) : esc(text.slice(0, hash)) + `<span class="w-code-c">${esc(text.slice(hash))}</span>`;
+    };
+    const ids = {}, hidden = {};
+    const lines = (o.lines || []).map((l, i) => Array.isArray(l) ? { mark: l[0], text: l[1] } : typeof l === 'string' ? { text: l } : l);
+    const slotEls = {};
+    const rows = lines.map((l, i) => {
+      const row = make('div', 'w-code-line w-part', el);
+      const parts = String(l.text).split(/\{\{(\w+)\}\}/);
+      const body = parts.map((part, k) => {
+        if (k % 2 === 0) return code(part);
+        if (!slots[part]) throw new Error(`code: line ${i + 1} uses slot '${part}', which slots does not define`);
+        const first = Object.keys(slots[part])[0];
+        return `<span class="w-slot" data-slot="${part}" style="width:${String(slots[part][first]).length}ch"><span class="w-slot-v">${esc(slots[part][first])}</span></span>`;
+      }).join('');
+      row.innerHTML = `<span class="w-code-m">${l.mark ? `<span class="w-code-badge">${esc(l.mark)}</span>` : ''}</span><code>${body || ' '}</code>`;
       row.dataset.line = i + 1;
+      if (l.id) { ids[l.id] = i + 1; row.dataset.id = l.id; }
+      if (l.hidden) { if (!l.id) throw new Error(`code: hidden line ${i + 1} needs an id, for 'show:ID'`); hidden[l.id] = row; }
+      row.querySelectorAll('.w-slot').forEach(e => (slotEls[e.dataset.slot] = slotEls[e.dataset.slot] || []).push(e));
       return row;
     });
     el.classList.add('w-code');
     return cls => {
       const on = new Set();
       cls.filter(c => c.startsWith('lit:')).forEach(c => {
-        const [a, b] = c.slice(4).split('-').map(Number);
-        if (!(a >= 1 && (b || a) <= rows.length)) throw new Error(`code: no line ${c.slice(4)}; lines run 1 to ${rows.length}`);
+        const v = c.slice(4);
+        if (ids[v]) { on.add(ids[v]); return; }
+        const [a, b] = v.split('-').map(Number);
+        if (!(a >= 1 && (b || a) <= rows.length)) throw new Error(`code: no line ${v}; lines run 1 to ${rows.length}, ids: ${Object.keys(ids).join(', ') || 'none'}`);
         for (let n = a; n <= (b || a); n++) on.add(n);
       });
+      const set = {};
+      cls.filter(c => c.startsWith('set:')).forEach(c => {
+        const [name, value] = c.slice(4).split('=');
+        if (!slots[name] || !(value in slots[name])) throw new Error(`code: no slot value '${c.slice(4)}'; slots: ${Object.keys(slots).map(k => k + '=' + Object.keys(slots[k]).join('|')).join(', ') || 'none'}`);
+        set[name] = value;
+      });
+      const shown = new Set(cls.filter(c => c.startsWith('show:')).map(c => {
+        const id = c.slice(5);
+        if (!hidden[id]) throw new Error(`code: 'show:${id}' names no hidden line; hidden: ${Object.keys(hidden).join(', ') || 'none'}`);
+        return id;
+      }));
+      Object.keys(slotEls).forEach(name => {
+        const value = set[name] || Object.keys(slots[name])[0], text = String(slots[name][value]);
+        slotEls[name].forEach(e => {
+          if (e.dataset.value === value) return;
+          const first = e.dataset.value == null;
+          e.dataset.value = value;
+          e.style.width = text.length + 'ch';
+          const v = document.createElement('span');
+          v.className = 'w-slot-v' + (first ? '' : ' w-new');
+          v.textContent = text;
+          e.replaceChildren(v);
+        });
+      });
+      Object.keys(hidden).forEach(id => hidden[id].classList.toggle('is-closed', !shown.has(id)));
       rows.forEach((r, i) => r.classList.toggle('is-lit', on.has(i + 1)));
       el.classList.toggle('has-lit', on.size > 0);
       el.classList.toggle('show-marks', cls.includes('marks'));

@@ -130,6 +130,17 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
 .w-code.has-lit .w-code-line { opacity: .3; }
 .w-code.has-lit .w-code-line.is-lit { opacity: 1; }
 .w-code.show-marks .w-code-line code { opacity: .3; transition: opacity .5s var(--ease); }
+/* Code that changes in place: a slot holds one value; a new value rises in while the slot's width
+   eases to fit it, so the rest of the line slides instead of jumping. A closed line opens by height. */
+.w-slot { display: inline-block; overflow: hidden; vertical-align: bottom; white-space: pre;
+  transition: width var(--move) var(--ease); }
+.w-slot-v { display: inline-block; color: inherit; }
+.w-slot-v.w-new { color: var(--hi); animation: w-slot-in var(--move) var(--ease) backwards, w-slot-ink 1.6s var(--ease) .9s forwards; }
+@keyframes w-slot-in { from { opacity: 0; transform: translateY(.6em); } }
+@keyframes w-slot-ink { to { color: var(--ink); } }
+.w-still .w-slot-v.w-new { animation: none; color: inherit; }
+.w-code-line { overflow: hidden; transition: opacity .5s var(--ease), height var(--move) var(--ease); }
+.w-code-line.is-closed { height: 0; opacity: 0; }
 
 /* ?strip: small multiples of every click */
 body:has(.w-strip) { overflow: auto; height: auto; }

@@ -143,6 +143,11 @@ COMMANDS = {
         A("--all", action="store_true", help="transcribe every sentence again, ignoring the cache"),
     ], "voice_check:main"),
     "align": ("word timings for the narration; re-chunk captions", [W("video"), A("--model", default="small.en")], "align:main"),
+    "take": ("clean a recorded voice take to studio's level, measure it, and say what to change at the mic", [
+        P("file"), P("--out", help="the cleaned take (default FILE.clean.wav)"),
+        P("--text", help="the script that was read: transcribe the take, score it, write word timings"),
+        A("--model", default="small.en"),
+    ], "take:main"),
     "timeline": ("build timeline.json from its sources (after editing cues/<clip>.json or audio/tracks.json)", [
         W("video"), A("--events", action="store_true", help="also list the beat sheet: every cue's time, frame, clip and anchor"),
     ], "timeline:main"),
