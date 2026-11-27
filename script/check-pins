@@ -2,7 +2,8 @@
 """Check that the repo's pins agree with each other and with the flake, which is their source: one
 nixpkgs in both flake.locks, uv.toml's uv and .python-version's Python equal to nixpkgs' (when Nix is
 here to ask), the studio kit on the same Python, bootstrap's sops (used without Nix) the flake's, exact
-versions in every PEP 723 script header, and Kokoro's weights pinned to a commit. Prints one line per
+versions in every PEP 723 script header, Kokoro's weights pinned to a commit, and each plugin's version the same in its plugin.json and the
+marketplace. Prints one line per
 problem; exits 1 if there is any."""
 import json
 import re
@@ -17,6 +18,12 @@ problems = []
 def nixpkgs(lock):
     return json.loads((root / lock).read_text())["nodes"]["nixpkgs"]["locked"]["rev"]
 
+
+# Every plugin's version is said twice, in its plugin.json and in the marketplace entry: they agree.
+for plugin in json.loads((root / ".claude-plugin/marketplace.json").read_text())["plugins"]:
+    own = json.loads((root / plugin["source"] / ".claude-plugin/plugin.json").read_text()).get("version")
+    if plugin.get("version") != own:
+        problems.append(f"{plugin['name']}: marketplace.json says {plugin.get('version')}, its plugin.json {own}")
 
 if nixpkgs("flake.lock") != nixpkgs("studio/flake.lock"):
     problems.append("flake.lock and studio/flake.lock pin different nixpkgs")
