@@ -113,7 +113,10 @@ thing at a time, and the brightness steps settle with it. *Why:* Frank Thomas an
 Johnston, *The Illusion of Life*: staging presents one idea so it is unmistakable, easing makes
 motion read as physical, timing carries meaning. The beat of "motion, settle, step down, caption" is the
 rhythm of the page. Motion for its own sake (bounces, spins, confetti) is tacky, and so are gradients
-competing with the data, and sound.
+competing with the data, and sound. The exception is the video (`film.py`), which has no voice: each
+change makes one quiet sound that says what kind of change it is (an arrival, a move, a verdict, a
+new chapter), as Kit Langton's effect.institute does, so the ear knows what happened before the eye
+has found it. One sound per meaning, the same every time, nothing decorative.
 
 **The last chapter is often the same thing as code.** Shown last, once the reader already
 understands it, with margin numbers that are the clicks which showed each line. *Why:* Grant
@@ -149,7 +152,10 @@ change in reverse. *Why:* the state at click N is computed, not accumulated, so 
 free, and readers who try them are pleased when they just work.
 
 **Plain writing.** Plain words, no em dashes, no semicolons, no rhetorical questions. Say what is
-measured and what is an example. The checker enforces the punctuation. *Why:* the caption line has
+measured and what is an example. Say it literally: the real verb for what the code or data does
+(hashes, compares, returns, is stored), never a figure for it (mixes, walks, drops away, falls off,
+picks), and nothing given a will of its own. Name the thing on the stage by its name, not by a
+paraphrase of it (`/prose:prose` calls these explanation tells). The checker enforces the punctuation. *Why:* the caption line has
 12 words to spend, and a dash or a semicolon is two sentences pretending to be one.
 
 ## Checking

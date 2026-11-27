@@ -79,6 +79,11 @@ sometimes; machine text uses them constantly.
   "vital", "invaluable"); labelled sentences and colon reveals ("The catch: ...", "Next steps:",
   "The answer is simple: ..."), bold lead-ins on every bullet, and a closing line that restates
   the paragraph.
+- **Explanation tells:** a figure where the literal verb exists ("FNV-1a *mixes* the bytes" for
+  *hashes*, "the *walk* down one bucket" for *compares each key*, "*falls off* the end" for *ends*);
+  a mechanism given a will ("the bucket its hash *picks*"); and a paraphrase of what the reader
+  can already see ("the rest *drop away*" under a fade) in place of the reason for it. In a caption
+  or narration over a picture, say what the code or data does, with its own name and verb.
 - **Pathologies (older than LLMs, and why the tells fail):** vagueness and abstraction; Latinate
   inflation; nominalizations (zombie nouns) that hide the actor; the curse of knowledge; clutter;
   dead metaphors; verbal false limbs ("give rise to", "make contact with"); ritual hedging as

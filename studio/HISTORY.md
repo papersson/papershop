@@ -3,6 +3,43 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Chapter agents measure their own staging (0.37.0)
+
+Patrik, after studying shadcn's UI SDK video: the review mechanisms are great, "but I still wish
+the agents were much better at getting this right immediately." staging.md's rules were prose, and
+the only things that checked them were the two reviewers after the cut, so a chapter agent could
+put two changes in two places at once and never find out. Walk-me-through gets this right by
+construction: a click can change one object, and its checker refuses a page that breaks a rule
+before anyone sees it. This release is the first step of that for studio: phase 2's `attention`
+check from `proposals/2026-11-save-film.md`.
+
+- Groups arrive one item at a time. staging.md rule 4 asks for a stagger (`c.kit.stagger`, 0.12 to
+  0.2 s a step) for the items of a list, a row of boxes or the rows of a table, and `studio
+  attention` counts `bursts`: three or more new things, alike and lined up in a row or a column,
+  arriving in the same 0.2 s where a change begins. A warning, with the seconds under `--where`.
+  On the halting-problem film's s1 it reports none; looser versions flagged a highlighted line
+  beside a moving point, which is `split`, not a group. No sound changes (Patrik).
+- `references/script.md` names the explanation tics Patrik found in the walkthrough film's
+  captions ("still sometimes LLMese, it paraphrases things"): a figure for the literal verb, a
+  mechanism with a will, a paraphrase of the picture. prose 0.6.0 lists them as explanation tells.
+
+- New `studio attention VIDEO [--chapter CLIP] [--where] [--json FILE]`: the Save film's attention
+  audit (`click-save-film/tools/attention.py`), ported into the kit. It renders each chapter as a
+  draft (a chapter agent's in its private work folder), samples it at 5 fps, and reports
+  lit_over2, split, far_jumps, fast_onsets, hero and rest_motion against staging.md's aims. Motion
+  inside a marked rest fails (exit 1); the other aims warn, with `--where` listing the clip
+  seconds behind each. On the same frames its numbers equal the original's exactly. Readings go
+  to `.cache/chapters/CLIP/attention.json` (or `.cache/attention.json` for the whole video).
+- The chapter job (shoot.md, and the commands `studio shoot` lists) runs it after `studio check`,
+  fixes what really pulls the eye, names what is the measure misreading a designed move, and
+  returns the result. SKILL.md and staging.md say the same. The attention reviewer's brief points
+  at the chapter's readings as a place to start.
+- Tried on the halting-problem film's first chapter, made before the staging rules: it fails on
+  10 s of motion in two marked rests and warns on split (26%) and far jumps (41%), with the seconds.
+
+Next, not built: make the beat itself the unit, as walk-me-through's click is: one named change
+per sentence in the cues, checked before rendering.
+
 ## Kit-only sounds trimmed to today's synth median, and three tests caught up (0.36.4)
 
 A type only the kit has (dice, key-enter, key-press, key-take, page-turn, question, stack, toggle)

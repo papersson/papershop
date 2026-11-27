@@ -163,7 +163,9 @@ stage that no click is about.
   click list, not the wording.
 
 Then open `page.html` for the person and tell them the keys in one line: arrows or a click to move,
-C hides captions, `#N` opens click N.
+C hides captions, `#N` opens click N. When it will be sent or posted, `python3 -I scripts/film.py
+OUT_DIR` plays it as a silent video, `OUT_DIR/film.mp4`: each caption types beside the thing it is
+about, then its change, then a rest, with a quiet sound per kind of change (needs ffmpeg).
 
 ## Anti-patterns
 

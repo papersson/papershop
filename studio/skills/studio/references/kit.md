@@ -307,6 +307,7 @@ that pronunciation or balance sounds right. A missing listening pass never block
 | `panel VIDEO` | Parallel expert, viewer and editor findings in a plain review file. |
 | `shoot VIDEO` | Narration, timeline and chapter briefs with spawn prompts. |
 | `check VIDEO --chapter CLIP` | Private chapter checks and stills under `.cache/chapters/CLIP/`. |
+| `attention VIDEO [--chapter CLIP]` | staging.md's audit. |
 | `cut VIDEO [--stills-only] [--quality draft|final]` | Saved stills and an incremental playable version. |
 | `review-pack VIDEO --chapter CLIP [--cut N]` | Frame, motion and sound evidence from that cut, with one brief for the combined review and one for attention. |
 | `suggest VIDEO FILE` | Reviewer findings as suggested desk notes. |

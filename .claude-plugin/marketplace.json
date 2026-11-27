@@ -15,13 +15,13 @@
     {
       "name": "studio",
       "source": "./studio",
-      "version": "0.36.4",
+      "version": "0.37.0",
       "description": "Narrated explainer lectures with visuals at the center: elicit the story, set final-quality style frames, shoot chapters in parallel and review on a local desk. Rich objects, tactile-only sound, content-sized holds, one timeline and deterministic checks. The user locks the story and says when to ship."
     },
     {
       "name": "present-your-work",
       "source": "./present-your-work",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "description": "Present finished work the way a colleague would tell it: what is now true, why and the key idea, the one catch beside the answer, and what the reader decides next. Quick mode in the chat in under a minute; visual mode as a click-through page with one change per click. Exposition, not proof."
     },
     {
@@ -35,8 +35,8 @@
     {
       "name": "walk-me-through",
       "source": "./walk-me-through",
-      "version": "0.3.0",
-      "description": "Explain one mechanism as a click-through HTML page: one change per click on a stage drawn from the real data, one place to look on every click (the subject bright, the rest quiet), one short caption line, a click list approved before building, and a checker that enforces the rules."
+      "version": "0.4.0",
+      "description": "Explain one mechanism as a click-through HTML page: one change per click on a stage drawn from the real data, one place to look on every click (the subject bright, the rest quiet), one short caption line, a click list approved before building, and a checker that enforces the rules. The same page plays as a video: each line types out beside its subject, then its one change, with one quiet sound per kind of change."
     },
     {
       "name": "correctness",

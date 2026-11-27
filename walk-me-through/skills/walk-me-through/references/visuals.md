@@ -28,9 +28,11 @@ It stays one object, so filling it, lighting a part or fading the rest is one ch
 When the change is inside the piece (one bucket, one row), the piece lights that part itself and
 fades the rest, from a class token such as `focus:5`, so the brightness lands exactly where the
 change is. Give parts a data attribute (`data-entry="5.1"`) for the rare click that still needs
-`highlight: '[data-entry="5.1"]'`, the ring. Stagger a group's motion with a CSS variable per element
-(`style.setProperty('--i', i)`) and `transition-delay: calc(var(--i) * 110ms)`: one change, read
-as one gesture. `assets/example/page.html` has a complete one.
+`highlight: '[data-entry="5.1"]'`, the ring. A group arrives one item at a time (a stagger): tree
+rows, card fields and code lines do it by themselves when their object appears. In a custom piece,
+add the class `w-part` to each item for the same, or stagger a class change with a CSS variable per
+element (`style.setProperty('--i', i)`) and `transition-delay: calc(var(--i) * 110ms)`: one
+change, read as one gesture. `assets/example/page.html` has a complete one.
 
 Do not build pieces for data nobody has asked to explain yet.
 
@@ -68,5 +70,5 @@ right for where it goes (the table), so motion reads left to right.
 
 Objects move with `transform` and `opacity` over 0.9 s on `cubic-bezier(.4, 0, .2, 1)`, fading in
 0.5 s. Objects appearing as a chapter opens wait 0.5 s for the old ones to fade. A ring, when a
-click names one, arrives after `settle` (by default the motion's length plus a beat). Raise `settle` on a click whose piece
-runs a longer staggered motion. `prefers-reduced-motion` jumps instead of moving.
+click names one, arrives after `settle` (by default the motion's length plus a beat, longer for a
+group that staggers in). Raise `settle` on a click whose custom piece runs a longer staggered motion. `prefers-reduced-motion` jumps instead of moving.

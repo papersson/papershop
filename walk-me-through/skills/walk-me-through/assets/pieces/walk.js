@@ -12,7 +12,8 @@
  *   object: { piece: 'text' | 'chip' | 'card' | 'tree' | 'code' | <custom>, ...piece data,
  *             states: { name: { x, y, s, o, cls: [class] } }, start?: name, ch?: [chapters],
  *             context?: true }
- *   click:  { chapter, caption?, object, state, with?: [id], highlight?: selector, settle?: ms }
+ *   click:  { chapter, caption?, object, state, with?: [id], highlight?: selector, settle?: ms,
+ *             sound?: kind, predict?: true (the one click whose caption may ask the reader to guess first) }
  *        or { chapter, caption?, clear: true, keep?: [ids] }
  *
  * Chapters are numbered from 1. x and y place an object's top left corner on a fixed 1600 by 900
@@ -40,18 +41,26 @@
  * Query modes for the scripts: ?check writes a JSON report into <pre id="walk-report">; ?mid=N&at=ms
  * plays click N and freezes every animation at `at` ms; ?strip lays every click out as small
  * multiples; ?still turns motion off. A page error lands on the screen, and in the report.
+ * ?film plays the clicks as a video timeline: window.WalkFilm = { duration, ticks, beats, seek(ms) },
+ * where seek puts the exact frame for that moment on the stage (see FILM below and scripts/film.py).
  *
  * A custom piece: Walk.piece(name, (el, object, page) => { render once into el; optionally return
  * update(cls) }). It then reacts only to state classes, so it stays one object for the one-change rule.
  */
 (function () {
   'use strict';
-  const W = 1600, H = 900, MOVE = 900, FADE = 500, TURN = 500, CAPTION_FADE = 180;
+  const W = 1600, H = 900, MOVE = 900, FADE = 500, TURN = 500, CAPTION_FADE = 180, STAGGER = 90, STAGGER_SPAN = 1000;
+  // FILM: one beat per click, measured on shadcn's UI SDK video. The line types out first, the change
+  // starts a moment after it is finished, then the picture rests while the reader catches up: words
+  // and motion never compete for the eye. Times in ms.
+  const FILM = { cps: 45, lead: 250, bare: 400, rest: 800, perWord: 150, restBare: 1500, ring: 350,
+    cover: 2500, last: 2500 };
   // Opacity of the three tones: the subject, the one before it (or one read with it), the rest.
   const TONE = { 1: 1, 2: 0.6, 3: 0.32 };
   const pieces = {};
   const query = new URLSearchParams(location.search);
-  const mode = query.has('check') ? 'check' : query.has('mid') ? 'mid' : query.has('strip') ? 'strip' : 'live';
+  const mode = query.has('check') ? 'check' : query.has('mid') ? 'mid' : query.has('strip') ? 'strip' :
+    query.has('film') ? 'film' : 'live';
   const errors = [];
   let called = false;
 
@@ -201,13 +210,19 @@
     const notes = make('aside', 'w-notes', root);
     const api = { def, stage, fmt, esc, make, W, H };
 
-    const els = {}, updates = {}, base = {};
+    const els = {}, updates = {}, base = {}, spans = {};
     Object.keys(def.objects || {}).forEach(id => {
       const o = def.objects[id];
       const el = make('div', `w-obj w-${o.piece}`, stage);
       el.dataset.id = id;
       const upd = pieces[o.piece](el, o, api);
       els[id] = el; base[id] = el.className;
+      // A group arrives one item at a time (a stagger): parts marked w-part are numbered in order,
+      // and the steps shrink for a long group so the whole arrival stays near a second.
+      const parts = el.querySelectorAll('.w-part');
+      parts.forEach((part, i) => part.style.setProperty('--i', i));
+      spans[id] = parts.length > 1 ? (parts.length - 1) * Math.min(STAGGER, STAGGER_SPAN / (parts.length - 1)) : 0;
+      if (parts.length > 1) el.style.setProperty('--step', spans[id] / (parts.length - 1) + 'ms');
       if (typeof upd === 'function') {
         updates[id] = upd;
         // Try every state now, so a bad path or token fails on load instead of at click 17.
@@ -255,14 +270,17 @@
     function show(p, from, animate) {
       const f = frames[p], prev = from == null ? null : frames[from];
       const turn = animate && prev && prev.chapter !== f.chapter;
+      let staggered = 0;
       Object.keys(els).forEach(id => {
         const el = els[id], st = f.objects[id];
         const appearing = prev && prev.objects[id].o === 0 && st.o > 0;
         el.style.transitionDelay = turn && appearing ? TURN + 'ms' : '0ms';
+        const entering = animate && appearing && spans[id] > 0;
+        if (entering) { el.style.setProperty('--d', (turn ? TURN : 0) + 'ms'); staggered = Math.max(staggered, spans[id] + FADE); }
         el.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.s})`;
         const tone = f.tones[id];
         el.style.opacity = st.o * TONE[tone];
-        el.className = base[id] + ` w-tone-${tone}` + (st.cls.length ? ' ' + st.cls.join(' ') : '') + (st.o === 0 ? ' w-gone' : '');
+        el.className = base[id] + ` w-tone-${tone}` + (st.cls.length ? ' ' + st.cls.join(' ') : '') + (st.o === 0 ? ' w-gone' : '') + (entering ? ' w-entering' : '');
         if (updates[id]) updates[id](st.cls);
       });
       stage.classList.toggle('on-cover', f.chapter === 0);
@@ -276,8 +294,197 @@
       clearTimeout(ringTimer);
       ring.classList.remove('on');
       if (!animate) { placeRing(f); return; }
-      const settle = f.click && f.click.settle != null ? f.click.settle : MOVE + (turn ? TURN : 0) + 80;
+      const settle = f.click && f.click.settle != null ? f.click.settle : Math.max(MOVE, staggered) + (turn ? TURN : 0) + 80;
       ringTimer = setTimeout(() => placeRing(f), settle);
+    }
+    // ?film: the clicks as a timeline. Each beat: the caption types out (in place, the untyped part
+    // laid out but invisible, so the line never shifts), the change starts FILM.lead after it ends,
+    // then a rest that grows with the caption's length. A frame is a pure function of its time.
+    function runFilm() {
+      root.classList.add('w-film');
+      const plain = s => String(s || '').replace(/`/g, '');
+      const wordsIn = s => plain(s).split(/\s+/).filter(w => /\w/.test(w)).length;
+      // One pass over the finished frames: where each change lands, what it looks like, and where its
+      // line goes. The line is typed beside the thing it is about, so the eye is already there when
+      // the change arrives (Murch's eye trace); the bottom band is the fallback.
+      const k0 = () => api.scale || 1;
+      const boxIn = el => {
+        const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect(), k = k0();
+        return { x: (r.left - sr.left) / k, y: (r.top - sr.top) / k, w: r.width / k, h: r.height / k };
+      };
+      const visibleBoxes = p => Object.keys(els).filter(id => frames[p].objects[id].o > 0).map(id => ({ id, ...boxIn(els[id]) }));
+      const marks = cls => [...stage.querySelectorAll('.' + cls)].filter(e => {
+        const o = e.closest('.w-obj');
+        return o && !o.classList.contains('w-gone') && parseFloat(getComputedStyle(e).opacity) > 0.05 &&
+          !(e.classList.contains('hb-mark') && !e.classList.contains('on'));
+      }).length;
+      const measure = [];
+      for (let p = 0; p <= N; p++) {
+        jump(p);
+        const c = frames[p].click || {};
+        const target = c.highlight ? ringTarget(frames[p]) : null;
+        measure.push({ boxes: visibleBoxes(p), yes: marks('is-yes'), no: marks('is-no'),
+          subject: frames[p].subject ? boxIn(target || els[frames[p].subject]) : null });
+      }
+      // How each change moves: when its last motion ends, and, when a group arrives one item at a
+      // time, when each item starts. Items are the same kind of element (first class) starting at
+      // different times; whole objects are left out, since a chapter turn delays them on purpose.
+      const motion = [null];
+      for (let p = 1; p <= N; p++) {
+        root.classList.add('w-still');
+        show(p - 1, null, false);
+        void stage.offsetHeight;
+        root.classList.remove('w-still');
+        show(p, p - 1, true);
+        clearTimeout(captionTimer); clearTimeout(ringTimer); clearTimeout(titleTimer);
+        let end = 0;
+        const groups = {};
+        document.getAnimations().forEach(a => {
+          const el = a.effect && a.effect.target;
+          if (!el || !stage.contains(el) || el === ring || el === caption || el === title) return;
+          const tm = a.effect.getComputedTiming();
+          end = Math.max(end, tm.endTime);
+          if (el.classList.contains('w-obj') || !el.classList.length) return;
+          (groups[el.classList[0]] = groups[el.classList[0]] || new Set()).add(Math.round(a.effect.getTiming().delay));
+        });
+        const best = Object.values(groups).map(g => [...g].sort((x, y) => x - y)).sort((x, y) => y.length - x.length || x[0] - y[0])[0];
+        motion.push({ end, items: best && best.length > 1 ? best : null });
+        document.getAnimations().forEach(a => a.cancel());
+      }
+      jump(first);
+      const GAP = 22, EDGE = 44;
+      const overlaps = (a, b) => a.x < b.x + b.w + 8 && b.x < a.x + a.w + 8 && a.y < b.y + b.h + 8 && b.y < a.y + a.h + 8;
+      function sizeOf(text, wrap) {
+        caption.classList.add('near');
+        caption.classList.toggle('wrap', wrap);
+        caption.style.left = '0px'; caption.style.top = '0px';
+        caption.innerHTML = fmt(text);
+        const size = { w: caption.offsetWidth, h: caption.offsetHeight };
+        caption.classList.remove('near', 'wrap');
+        return size;
+      }
+      function placeFor(p) {
+        const text = frames[p].caption;
+        if (!text) return null;
+        const S = measure[p].subject;
+        if (!S) return { center: true };
+        const others = [...measure[p].boxes, ...measure[p - 1].boxes].filter(b => b.id !== frames[p].subject);
+        const clampX = (x, cw) => Math.max(EDGE, Math.min(W - EDGE - cw, x));
+        // Nearest first: on one line above or below, then beside it on up to three lines.
+        for (const wrap of [false, true]) {
+          const { w: cw, h: ch } = sizeOf(text, wrap);
+          const fits = c => c.y >= EDGE && c.y + ch <= H - EDGE && c.x >= EDGE && c.x + cw <= W - EDGE &&
+            !others.some(b => overlaps(c, b)) && !overlaps(c, S);
+          const midY = S.y + Math.max(0, (Math.min(S.h, 140) - ch) / 2);
+          const tries = wrap
+            ? [{ x: S.x + S.w + GAP * 1.5, y: midY }, { x: S.x - cw - GAP * 1.5, y: midY },
+               { x: clampX(S.x, cw), y: S.y - ch - GAP }, { x: clampX(S.x, cw), y: S.y + S.h + GAP }]
+            : [{ x: clampX(S.x, cw), y: S.y - ch - GAP }, { x: clampX(S.x, cw), y: S.y + S.h + GAP },
+               { x: S.x + S.w + GAP * 1.5, y: midY }, { x: S.x - cw - GAP * 1.5, y: midY }];
+          const hit = tries.map(c => ({ ...c, w: cw, h: ch })).find(fits);
+          if (hit) return { x: Math.round(hit.x), y: Math.round(hit.y), wrap };
+        }
+        return null;
+      }
+
+      const beats = [], sounds = [];
+      let t = 0;
+      if (first === 0) { beats.push({ p: 0, start: 0, typed: 0, move: 0, settle: 0, end: FILM.cover }); t = FILM.cover; }
+      for (let p = 1; p <= N; p++) {
+        const f = frames[p], c = f.click, text = plain(f.caption);
+        const typing = Math.round(text.length / FILM.cps * 1000);
+        const move = t + (text ? typing + FILM.lead : FILM.bare);
+        const turn = frames[p - 1].chapter !== f.chapter;
+        let settle = c.settle != null ? c.settle : Math.max(MOVE + (turn ? TURN : 0), motion[p].end) + 80;
+        if (c.highlight) settle += FILM.ring;
+        const rest = text ? FILM.rest + FILM.perWord * wordsIn(f.caption) : FILM.restBare;
+        const end = move + settle + rest + (p === N ? FILM.last : 0);
+        beats.push({ p, start: t, typed: t + typing, move, settle: move + settle, end, chars: text.length, place: placeFor(p) });
+        // The sound of a change says what kind of change it is, one sound per meaning (Kit Langton's
+        // effect.institute): a page turn, a wipe, a verdict, a thing travelling, a thing arriving.
+        for (let i = 0; i < text.length; i++) sounds.push({ t: t + i * 1000 / FILM.cps, kind: 'key', space: !/\S/.test(text[i]) });
+        const arrive = move + (turn ? TURN : 0);
+        const prevO = c.clear ? 0 : frames[p - 1].objects[c.object].o;
+        let kind = c.sound || null;
+        if (!kind) {
+          if (c.clear) kind = 'wipe';
+          else if (measure[p].yes > measure[p - 1].yes) kind = 'yes';
+          else if (measure[p].no > measure[p - 1].no) kind = 'no';
+          else if (f.travelled && prevO > 0) kind = 'glide';
+          else if (prevO === 0) kind = 'tick';
+          else kind = 'tap';
+        }
+        if (turn && p > 1) sounds.push({ t: move, kind: 'turn' });
+        const items = motion[p].items;
+        if (items && (kind === 'tick' || kind === 'tap') && !c.sound) {
+          // A staggered group sounds one tick per item, each a step higher, so the ear counts them in.
+          items.forEach((d, i) => sounds.push({ t: arrive + d - items[0], kind: 'tick', step: i }));
+        } else if (kind !== 'none') sounds.push({ t: kind === 'yes' || kind === 'no' ? arrive + MOVE * 0.5 : arrive, kind, ms: MOVE });
+        if (c.highlight) sounds.push({ t: move + settle - FILM.ring, kind: 'ring' });
+        t = end;
+      }
+      const ticks = sounds.filter(x => x.kind !== 'key').map(x => x.t);
+      let shown = null;  // the beat whose change is laid out, so a rest does not redo it
+
+      function typeCaption(html, chars) {
+        caption.classList.remove('out');
+        caption.dataset.html = html;
+        caption.innerHTML = html;
+        const walker = document.createTreeWalker(caption, NodeFilter.SHOW_TEXT), nodes = [];
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+        let left = chars;
+        nodes.forEach(n => {
+          const v = n.nodeValue;
+          if (left >= v.length) { left -= v.length; return; }
+          const tail = document.createElement('span');
+          tail.className = 'w-untyped';
+          tail.textContent = v.slice(left);
+          n.nodeValue = v.slice(0, left);
+          n.parentNode.insertBefore(tail, n.nextSibling);
+          left = 0;
+        });
+      }
+
+      // Put the frame for time `ms` on the stage. Returns a key that is the same for two times only
+      // when their frames are the same, so a renderer can reuse a still frame.
+      function seek(ms) {
+        ms = Math.max(0, Math.min(t, ms));
+        const b = beats.find(x => ms < x.end) || beats[beats.length - 1];
+        const f = frames[b.p];
+        const moving = b.p > 0 && ms >= b.move;
+        const at = moving ? Math.min(ms - b.move, b.settle - b.move + 400) : 0;
+        if (!moving) {
+          if (shown !== 'before' + b.p) { jump(b.p ? b.p - 1 : 0); shown = 'before' + b.p; }
+        } else if (at < b.settle - b.move + 400 || shown !== 'after' + b.p) {
+          root.classList.add('w-still');
+          show(b.p - 1, null, false);
+          void stage.offsetHeight;
+          root.classList.remove('w-still');
+          show(b.p, b.p - 1, true);
+          clearTimeout(captionTimer); clearTimeout(ringTimer); clearTimeout(titleTimer);
+          title.innerHTML = title.dataset.html || ''; title.classList.toggle('out', !title.dataset.html);
+          if (b.p && f.click.highlight && at >= b.settle - b.move - FILM.ring) placeRing(f);
+          document.getAnimations().forEach(a => {
+            a.pause();
+            const ring = a.effect && a.effect.target === ring_;
+            a.currentTime = ring ? at - (b.settle - b.move - FILM.ring) : at;
+          });
+          shown = at >= b.settle - b.move + 400 ? 'after' + b.p : 'moving';
+        }
+        const chars = b.p === 0 ? 0 : Math.min(b.chars, Math.floor((ms - b.start) * FILM.cps / 1000));
+        const place = b.place;
+        caption.classList.toggle('near', !!place && !place.center);
+        caption.classList.toggle('wrap', !!place && !!place.wrap);
+        caption.classList.toggle('center', !!place && !!place.center);
+        caption.style.left = place && !place.center ? place.x + 'px' : '';
+        caption.style.top = place && !place.center ? place.y + 'px' : '';
+        typeCaption(b.p ? fmt(f.caption) : '', chars);
+        count.textContent = '';
+        return [b.p, chars, moving ? Math.round(at) : -1].join(':');
+      }
+      const ring_ = ring;
+      window.WalkFilm = { duration: t, ticks, sounds, beats, seek, ready: true };
+      seek(0);
     }
     function notesFor(ch) {
       const text = ch && def.notes && def.notes[ch - 1];
@@ -319,6 +526,7 @@
       if (at >= settle) placeRing(frames[n]);
       return;
     }
+    if (mode === 'film') return runFilm();
     pos = Math.max(first, Math.min(N, fromHash()));
     jump(pos);
     addEventListener('hashchange', () => go(fromHash()));
@@ -420,7 +628,7 @@
         n: p, chapter: f.chapter, caption: f.caption, clear: !!c.clear, object: c.object || null, state: c.state || null,
         changed: f.changed || [], hidden: f.hidden || [], overlaps, outside, band,
         captionWidth: capBox ? Math.round(capBox.w) : 0,
-        subject: f.subject || null, travelled: !!f.travelled, labels,
+        subject: f.subject || null, travelled: !!f.travelled, labels, predict: !!c.predict,
         lit: ids.filter(id => f.objects[id].o > 0 && f.tones[id] === 1),
         second: ids.filter(id => f.objects[id].o > 0 && f.tones[id] === 2),
         small: texts.filter(t => t.size < 20).map(t => `${t.owner} "${t.text}" at ${t.size}px`),
@@ -490,9 +698,9 @@
     const fields = o.fields || [], lw = o.labelWidth || 150;
     el.style.width = (o.w || 520) + 'px';
     el.style.height = CARD.head + fields.length * CARD.row + CARD.pad + 'px';
-    make('div', 'w-card-title', el, fmt(o.title || ''));
+    make('div', 'w-card-title w-part', el, fmt(o.title || ''));
     fields.forEach((f, i) => {
-      const row = make('div', 'w-card-field', el);
+      const row = make('div', 'w-card-field w-part', el);
       row.dataset.field = f;
       Object.assign(row.style, { top: CARD.head + i * CARD.row + 'px', width: lw + 'px' });
       make('span', '', row, fmt(f));
@@ -546,7 +754,7 @@
     let d = '';
     const byPath = {};
     rows.forEach((r, i) => {
-      const left = 26 + r.depth * ind, row = make('div', 'w-tree-row', el);
+      const left = 26 + r.depth * ind, row = make('div', 'w-tree-row w-part', el);
       row.dataset.path = r.path;
       Object.assign(row.style, { top: i * rowH + 'px', left: left + 'px', height: rowH + 'px' });
       const v = r.value;
@@ -589,7 +797,7 @@
   pieces.code = (el, o) => {
     const lines = (o.lines || []).map(l => Array.isArray(l) ? l : ['', l]);
     const rows = lines.map(([mark, text], i) => {
-      const row = make('div', 'w-code-line', el);
+      const row = make('div', 'w-code-line w-part', el);
       const hash = text.search(/(^|\s)(#|\/\/)/);
       const body = hash < 0 ? esc(text) : esc(text.slice(0, hash)) + `<span class="w-code-c">${esc(text.slice(hash))}</span>`;
       row.innerHTML = `<span class="w-code-m">${mark ? `<span class="w-code-badge">${esc(mark)}</span>` : ''}</span><code>${body || ' '}</code>`;

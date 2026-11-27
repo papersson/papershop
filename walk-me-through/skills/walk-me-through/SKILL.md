@@ -6,8 +6,9 @@ description: >
   one caption line of at most 12 words says what it means when the picture cannot. Decides first
   whether a sentence would do, writes the whole page as a click list for approval, builds from it,
   then checks it with a script, screenshots and a fresh reader. Use when someone says "show me how
-  X works", "walk me through this", "I don't get it", "explain it visually", or asks to turn a deck
-  or document into a walkthrough. Not for a one-line answer, a comparison of options or a lookup.
+  X works", "walk me through this", "I don't get it", "explain it visually", asks for a short
+  silent explainer video (the same page, played as a film with typed captions and sound), or asks
+  to turn a deck or document into a walkthrough. Not for a one-line answer, a comparison of options or a lookup.
 ---
 
 # walk-me-through
@@ -46,6 +47,18 @@ placeholders one at a time with real pieces and states (`references/visuals.md`,
 fresh reader, given only the shots and captions, explains it back. Then open the page.
 Details: `references/checking.md`.
 
+## 5. Film, when it will be sent or posted
+
+`film.py OUT_DIR` plays the checked page as a video with no voice, `OUT_DIR/film.mp4`: each caption
+types out beside the thing it is about, its one change starts a moment after the line is finished,
+then the picture rests while the reader catches up, longer for a longer line. Each change makes the
+sound of its kind: an arrival, a change in place, a move, a yes, a no, a highlight, a clear, a new
+chapter; a group arriving one item at a time ticks once per item, each a step higher.
+Each line types with a soft key per letter (`--sounds events` leaves the keys out, `none` is silent). Words and motion never
+overlap, because with no voice they compete for the same eyes. Nothing new
+to build: the page is the source, and a page that passes `check.py` makes a sound video. The beat is
+`FILM` in `engine/walk.js`, measured on shadcn's UI SDK video. Needs ffmpeg as well as Chrome.
+
 ## The rules in one breath
 
 One change per click. One caption line, one sentence, 12 words, only when needed. One subject per
@@ -55,12 +68,12 @@ the stage that no click is about. Labels name data. The data is the picture, box
 only when containing is the point. Real values only. No chapter titles on the stage: the caption is the only line of words, and it
 opens every chapter. No controls on the
 stage. A deck has a cover. The stage is 1600 by 900, scaled. Plain words, no dashes or semicolons.
-Motion carries meaning: no bounces, no gradients, no sound.
+Motion carries meaning: no bounces, no gradients, no sound on the page (the video gives each kind of change its own quiet sound).
 
 ## Files
 
 `engine/walk.js`, `walk.css` (copied into every page) · `scripts/new_page.py`, `check.py`,
-`shoot.py`, `walklib.py`, `test_walk.py` · `references/principles.md`, `click-list.md`,
+`shoot.py`, `film.py`, `walklib.py`, `test_walk.py` · `references/principles.md`, `click-list.md`,
 `visuals.md`, `checking.md` · `assets/example/` (hash table, with `values.py`) · `assets/pieces/`.
 Keys on a page: arrows, space, Page Up and Down, Home, End or a click move. C hides captions, N
 shows notes, and `page.html#12` opens click 12 finished.

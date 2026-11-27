@@ -18,7 +18,7 @@ have uv && ok+=("uv") || missing+=("uv: nothing runs | script/bootstrap")
 if have nix; then
   ok+=("system tools from the Nix flake")
 else
-  for tool in ffmpeg sox; do have "$tool" && ok+=("$tool") || missing+=("$tool: studio renders and its tests | script/bootstrap"); done
+  for tool in ffmpeg sox; do have "$tool" && ok+=("$tool") || missing+=("$tool: studio renders and its tests, walk-me-through videos | script/bootstrap"); done
   # The system's ffmpeg is not the flake's (apt's is a different major version), so renders may differ.
   have ffmpeg && missing+=("the flake's system tools: renders that match other machines' | install Nix")
   node_major="$(node --version 2>/dev/null | sed 's/^v\([0-9]*\).*/\1/')"

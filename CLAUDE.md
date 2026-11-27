@@ -13,6 +13,9 @@ with a real build (a Python kit under uv, Node engines, a Nix flake for system t
   without Nix) and need Node 22, ffmpeg and sox; with Nix installed the script takes them from the
   flake's studio shell itself. Walk-me-through's browser checks skip, naming the fix, without a Chrome or Chromium.
 - `script/doctor`: one line saying what is ready and what is not, with the fix.
+- `script/sync-engines`: walk-me-through's `engine/walk.{js,css}` is the one click-through engine;
+  this writes present-your-work's `stage.{js,css}` copies from it by renaming only. Edit walk.js,
+  then run it (the `engines` suite fails while a copy differs).
 - `script/secrets`: the encrypted keys and which machines can read them (`init`, `cloud`, `set`, `rekey`).
 - `script/clean-check`: clones HEAD into a container with nothing of mine in it and runs bootstrap and
   test. Run it after adding a dependency; `--nix` is closest to the cloud, whose image has Nix, and

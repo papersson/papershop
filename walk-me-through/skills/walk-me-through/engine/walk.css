@@ -31,6 +31,11 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
   transition: transform var(--move) var(--ease), opacity var(--fade) var(--ease); }
 .w-gone { pointer-events: none; }
 .w-still *, .w-still *::before, .w-still *::after { transition: none !important; }
+/* A group arrives one item at a time: rows of a tree, fields of a card, lines of code. Each part
+   marked w-part starts --step after the one before it (a stagger), so the eye reads them in order. */
+@keyframes w-part-in { from { opacity: 0; transform: translateY(8px); } }
+.w-entering .w-part { animation: w-part-in var(--fade) var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * var(--step, 90ms) + var(--d, 0ms)); }
 
 /* Chrome: title top left, caption bottom centre, a quiet count in the corner. */
 .w-title { position: absolute; left: 80px; top: 44px; height: 66px; display: flex; align-items: center;
@@ -39,6 +44,16 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
   font-size: 32px; line-height: 1.35; color: var(--ink); white-space: nowrap; transition: opacity .18s var(--ease); }
 .w-caption.out, .w-title.out { opacity: 0; transition-duration: .18s; }
 .no-captions .w-caption { visibility: hidden; }
+/* ?film: the caption types out in place; the untyped part keeps its room so the line never shifts.
+   A video has its own progress bar, so the count goes. */
+.w-caption .w-untyped { color: transparent; }
+.w-film .w-count { display: none; }
+.w-film .w-caption { transition: none; }
+/* In the film the line is typed beside the thing it is about (placed by the engine), or in the
+   middle of an empty stage, and the bottom band only when neither fits. */
+.w-film .w-caption.near { right: auto; text-align: left; font-size: 30px; }
+.w-film .w-caption.center { top: 420px; }
+.w-film .w-caption.near.wrap { white-space: normal; width: max-content; max-width: 440px; line-height: 1.3; }
 .w-count { position: absolute; right: 44px; bottom: 30px; font-size: 20px; color: var(--dim);
   font-variant-numeric: tabular-nums; opacity: .7; }
 .w-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
