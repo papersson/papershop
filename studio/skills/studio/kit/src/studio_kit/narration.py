@@ -14,6 +14,11 @@ Engines (narration.json "engine"):
   kokoro (default)  local, free, deterministic. "kokoro": voice, speed, paragraph. Each chunk's
                     audio is cached by its text and settings, so an edited sentence re-synthesises
                     only its paragraph.
+  recorded          a voice someone recorded: one take per chapter, audio/takes/<chapter id>.wav (or
+                    .m4a, .mp3), cleaned by `studio take`'s chain, heard by faster-whisper (the
+                    `align` extra) and matched to the script; restarts are fine, the last full reading
+                    of a paragraph wins. "recorded": takes (folder, default audio/takes), model.
+                    48 kHz. See recorded.py.
   elevenlabs        hosted; text not yet cached needs a key (eleven_key: ELEVENLABS_API_KEY, or
                     decrypted from papershop's secrets/secrets.json). "elevenlabs": voice (a name from your voice list) or voice_id,
                     model (default eleven_multilingual_v2; eleven_v4 works too; eleven_v3 returns no
@@ -91,7 +96,9 @@ class Settings:
                        "similarity_boost": 0.75, "style": 0.0, "speed": 1.0, "seed": None, **cfg.get("elevenlabs", {})}
         v4 = self.eleven["model"].startswith("eleven_v4")
         self.voice_settings = ("stability", "similarity_boost") + (() if v4 else ("style", "speed"))
-        self.paragraph = self.engine == "elevenlabs" or self.kokoro["paragraph"]
+        self.recorded = {"takes": "audio/takes", "model": "small.en", **cfg.get("recorded", {})}
+        self.paragraph = self.engine in ("elevenlabs", "recorded") or self.kokoro["paragraph"]
+        self.rate = 48_000 if self.engine == "recorded" else RATE
         # How far a word's timestamp may trail the audio: Eleven v4's run up to about 0.3 s late.
         self.late = 0.35 if self.engine == "elevenlabs" and v4 else 0.2
         self.tail = cfg.get("tail", 6.0)
@@ -137,6 +144,8 @@ class Settings:
         return pattern.sub(lambda m: f"[{m.group(0)}](/{table[m.group(0)]}/)", text)
 
     def voice_info(self):
+        if self.engine == "recorded":
+            return {"engine": "recorded", "voice": "recorded", "takes": self.recorded["takes"], "mode": "paragraph"}
         if self.engine == "elevenlabs":
             name = self.eleven["voice"] or self.eleven["voice_id"]
             return {"engine": "elevenlabs", "voice": name, "model": self.eleven["model"],
@@ -246,12 +255,12 @@ def all_chunks(S, chapters):
     return [(c, text[i - 1] if i else "", text[i + 1] if i + 1 < len(chunks) else "") for i, c in enumerate(chunks)]
 
 
-def cut(audio, a, b):
+def cut(audio, a, b, rate=RATE):
     """audio[a s : b s], with 5 ms fades so a cut never clicks."""
     import numpy as np
 
-    clip = audio[int(a * RATE): int(b * RATE)].copy()
-    fade = min(len(clip) // 2, int(0.005 * RATE))
+    clip = audio[int(a * rate): int(b * rate)].copy()
+    fade = min(len(clip) // 2, int(0.005 * rate))
     if fade:
         clip[:fade] *= np.linspace(0, 1, fade)
         clip[-fade:] *= np.linspace(1, 0, fade)
@@ -525,7 +534,7 @@ def paragraph_clips(S, synth, chunks):
         marked = " ".join(S.marked(t, lid) for lid, t, _ in chunk)
         begins = [sum(len(t) + 1 for t in texts[:i]) for i in range(len(texts))]
         audio, words = synth(full, prev, nxt, marked) if marked != full else synth(full, prev, nxt)
-        runs = silence_runs(audio, RATE)
+        runs = silence_runs(audio, S.rate)
         firsts = [next(w for w in words if w[0] >= b) for b in begins]
         starts = []
         for _, st, _ in firsts:
@@ -535,16 +544,16 @@ def paragraph_clips(S, synth, chunks):
             starts.append(max(s)[1] if s else st)
         spans = []
         for i, (_, st, _) in enumerate(firsts):
-            end = firsts[i + 1][1] if i + 1 < len(firsts) else len(audio) / RATE
-            nxt_start = starts[i + 1] if i + 1 < len(starts) else len(audio) / RATE
+            end = firsts[i + 1][1] if i + 1 < len(firsts) else len(audio) / S.rate
+            nxt_start = starts[i + 1] if i + 1 < len(starts) else len(audio) / S.rate
             last = [w for w in words if st <= w[1] < end][-1]
             # The pause into the next sentence ends where that sentence starts once snapped, not at
             # its raw timestamp.
             e = [a for a, b in runs if last[1] <= a < nxt_start and b >= nxt_start - 0.1]
             spans.append((starts[i], min(e) if e else min(last[2], nxt_start)))
         for i, ((lid, text, _), (a, b)) in enumerate(zip(chunk, spans)):
-            assert a < b <= (spans[i + 1][0] if i + 1 < len(spans) else len(audio) / RATE), (lid, a, b)
-            clips[lid], said[lid] = cut(audio, a, b), text
+            assert a < b <= (spans[i + 1][0] if i + 1 < len(spans) else len(audio) / S.rate), (lid, a, b)
+            clips[lid], said[lid] = cut(audio, a, b, S.rate), text
             lo, hi = begins[i], begins[i] + len(text)
             words_by[lid] = [(_WORD.match(full, c).group(0) if _WORD.match(full, c) else full[c], max(0.0, ws - a), max(0.0, min(we, b) - a))
                              for c, ws, we in words if lo <= c < hi]
@@ -586,13 +595,13 @@ def sentence_clips(S, sents):
 # audio exists. Kokoro af_heart measured 3.51 and 3.60 over two narrated videos (1,135 and 1,386
 # words), sentence ends included; 3.55 predicts both within 2%. The ElevenLabs figures are the older
 # estimate, not re-measured.
-PACE = {"kokoro": (3.55, 0.0), "elevenlabs": (2.8, 0.3)}
+PACE = {"kokoro": (3.55, 0.0), "elevenlabs": (2.8, 0.3), "recorded": (3.0, 0.0)}
 
 
 def estimate_durations(S, chapters):
     """Each sentence's spoken length guessed from its word count and the voice's speed."""
     wps, extra = PACE.get(S.engine, PACE["elevenlabs"])
-    speed = S.kokoro["speed"] if S.engine == "kokoro" else S.eleven["speed"]
+    speed = {"kokoro": S.kokoro["speed"], "recorded": 1.0}.get(S.engine, S.eleven["speed"])
     return {sid: len(cap.split()) / (wps * speed) + extra for _, _, ss in chapters for sid, cap, _ in ss}
 
 
@@ -637,9 +646,10 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
         if failures:
             raise SystemExit("script is not ready: " + "; ".join(failures))
         from .doctor import require_extra
-        require_extra("kokoro" if S.engine == "kokoro" else "audio")
+        require_extra({"kokoro": "kokoro", "recorded": "align"}.get(S.engine, "audio"))
     from . import pronounce
-    pronounce.report(S, chapters)
+    if S.engine != "recorded":       # what the reader said is what was recorded
+        pronounce.report(S, chapters)
     if estimate:
         timings = layout(S, chapters, estimate_durations(S, chapters))
         write_timeline(S, timings, timing="estimate")
@@ -666,19 +676,22 @@ def narrate(video, config=None, estimate=False, fetch_only=False, yes=False):
     gaps, words = None, None
     if S.engine == "elevenlabs":
         clips, gaps, spoken_text, words = paragraph_clips(S, eleven_engine(S, chunks, yes), chunks)
+    elif S.engine == "recorded":
+        from . import recorded
+        clips, gaps, spoken_text, words = paragraph_clips(S, recorded.engine(S, chapters, chunks, S.recorded["model"]), chunks)
     elif S.paragraph:
         clips, gaps, spoken_text, words = paragraph_clips(S, kokoro_engine(S), chunks)
     else:
         clips, spoken_text = sentence_clips(S, sents)
 
-    timings = layout(S, chapters, {k: len(a) / RATE for k, a in clips.items()}, gaps, words)
-    track = np.zeros(int(timings["total"] * RATE) + RATE, dtype=np.float32)
+    timings = layout(S, chapters, {k: len(a) / S.rate for k, a in clips.items()}, gaps, words)
+    track = np.zeros(int(timings["total"] * S.rate) + S.rate, dtype=np.float32)
     for seg in timings["segments"]:
         for ln in seg["lines"]:
-            i = int(round(ln["start"] * RATE))
+            i = int(round(ln["start"] * S.rate))
             track[i: i + len(clips[ln["id"]])] = clips[ln["id"]]
-    track = track[: int(timings["total"] * RATE)]
-    sf.write(S.audio / "narration.wav", track, RATE)
+    track = track[: int(timings["total"] * S.rate)]
+    sf.write(S.audio / "narration.wav", track, S.rate)
     proc.ffmpeg("-i", S.audio / "narration.wav", "-codec:a", "libmp3lame", "-b:a", "128k", S.audio / "narration.mp3")
     timings["phonemes"] = spoken_text
     timings["peak"] = float(np.abs(track).max())

@@ -31,6 +31,8 @@ from pathlib import Path
 from . import proc
 from .audio import RATE
 
+# Bump when the chain changes, so cleaned takes cached by the recorded engine are made again.
+CHAIN_VERSION = "1"
 TARGET = -16.0           # LUFS, studio's narration level
 PEAK = -1.5              # dBTP
 QUIET_IN = -35.0         # LUFS: a take this quiet was recorded too far from the mic
