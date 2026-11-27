@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a cache skips repeat work</title>
+<link rel="stylesheet" href="walk.css">
+</head>
+<body>
+<script src="walk.js"></script>
+<script>
+// Code that changes in place: one call line whose argument and timing are slots, an @cache line that
+// opens, and the cache's own contents as lines that open one by one. The timings are measured by
+// values.py (time.sleep(2) stands in for a slow lookup; the prices are an example).
+const TOOK = { none: '', slow: '# 2.0 s', fast: '# 0.0 s' };
+const at = (...cls) => ({ x: 150, y: 250, cls });
+const box = (...cls) => ({ x: 1020, y: 290, cls });
+
+Walk.page({
+  title: 'How a cache skips repeat work',
+  cover: 'A cache answers a repeated call without doing the work again.',
+  chapters: ['A slow function', 'The same function with a cache'],
+  notes: [
+    'time.sleep(2) stands in for a slow lookup, and the prices are an example. The timings are measured by values.py.',
+    'functools.cache keeps each answer under the call\'s arguments. A new argument still does the work once.',
+  ],
+  objects: {
+    code: { piece: 'code', lines: [
+      { id: 'deco', text: '@cache', hidden: true },
+      'def price(item):',
+      '    time.sleep(2)  # a slow lookup',
+      '    return TABLE[item]',
+      '',
+      { id: 'call', text: 'price({{arg}})  {{took}}' },
+    ], slots: { arg: { tea: '"tea"', milk: '"milk"' }, took: TOOK },
+    states: {
+      shown: at(), slow1: at('set:took=slow', 'lit:call'), again: at('set:took=none', 'lit:call'), slow2: at('set:took=slow', 'lit:call'),
+      cached: at('show:deco', 'lit:deco'), miss: at('show:deco', 'set:took=slow', 'lit:call'),
+      hit: at('show:deco', 'set:took=fast', 'lit:call'), milk: at('show:deco', 'set:arg=milk', 'set:took=slow', 'lit:call'),
+    } },
+    cacheTitle: { piece: 'text', text: 'the cache', size: 24, tone: 'dim', ch: [2], context: true, states: { shown: { x: 1084, y: 240 } } },
+    store: { piece: 'code', ch: [2], lines: [
+      '{',
+      { id: 'tea', text: '    ("tea",): 4.50,', hidden: true },
+      { id: 'milk', text: '    ("milk",): 1.20,', hidden: true },
+      '}',
+    ], states: { empty: box(), tea: box('show:tea', 'lit:tea'), milk: box('show:tea', 'show:milk', 'lit:milk') } },
+  },
+  clicks: [
+    { chapter: 1, caption: '`price` looks up an item, and every call waits two seconds.', object: 'code', state: 'shown' },
+    { chapter: 1, caption: 'Calling it with `tea` takes 2.0 seconds.', object: 'code', state: 'slow1', on: 'takes' },
+    { chapter: 1, caption: 'Call it again with the same item.', object: 'code', state: 'again', on: 'again' },
+    { chapter: 1, caption: 'It waits the same 2.0 seconds, doing the work twice.', object: 'code', state: 'slow2', on: 'waits' },
+
+    { chapter: 2, caption: 'Now add `@cache` above the function.', object: 'code', state: 'cached', on: 'cache' },
+    { chapter: 2, caption: 'The cache starts empty.', object: 'store', state: 'empty', with: ['cacheTitle'] },
+    { chapter: 2, caption: 'The first call with `tea` still waits 2.0 seconds.', object: 'code', state: 'miss', on: 'waits' },
+    { chapter: 2, caption: 'Its answer is stored under the argument `tea`.', object: 'store', state: 'tea', on: 'stored' },
+    { chapter: 2, caption: 'The next call with `tea` returns the stored answer in 0.0 seconds.', object: 'code', state: 'hit', on: 'returns' },
+    { chapter: 2, caption: 'A new item, `milk`, is not stored, so it waits 2.0 seconds.', object: 'code', state: 'milk', on: 'waits' },
+    { chapter: 2, caption: 'Then its answer is stored too.', object: 'store', state: 'milk', on: 'stored' },
+  ],
+});
+</script>
+</body>
+</html>

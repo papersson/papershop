@@ -53,7 +53,9 @@ Details: `references/checking.md`.
 types out beside the thing it is about, its one change starts a moment after the line is finished,
 then the picture rests while the reader catches up, longer for a longer line. Each change makes the
 sound of its kind: an arrival, a change in place, a move, a yes, a no, a highlight, a clear, a new
-chapter; a group arriving one item at a time ticks once per item, each a step higher.
+chapter; a group arriving one item at a time ticks once per item, each a step higher. A click with
+`on: 'word'` fires its change as the line types that word, for a caption that names the change
+mid-line ("the call waits two seconds" moves on "waits").
 Each line types with a soft key per letter (`--sounds events` leaves the keys out, `none` is silent). Words and motion never
 overlap, because with no voice they compete for the same eyes. Nothing new
 to build: the page is the source, and a page that passes `check.py` makes a sound video. The beat is
