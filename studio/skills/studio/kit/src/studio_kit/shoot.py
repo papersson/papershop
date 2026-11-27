@@ -50,6 +50,7 @@ def prepare(video):
             cues.write_text('{}\n')
         scene = f"scenes/{cid}.js"
         commands = [f'studio check {shlex.quote(str(video))} --chapter {cid}',
+                    f'studio attention {shlex.quote(str(video))} --chapter {cid} --where',
                     f'studio run {shlex.quote(str(video))} data/{cid}/build.py']
         identity = active['lanes'][cid]
         lines = [f'# Shoot {cid}: {c["title"]}', '',

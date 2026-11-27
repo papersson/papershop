@@ -66,9 +66,10 @@ text that types on, a second accent colour.
 ## The audit
 
 The rules are judged by eye on stills at every onset and rest. A rendered draft is also measured
-(the Save film's attention audit, proposed as a Studio command in the plugin's
-`proposals` folder). The measures and their aims, with the Save film's
-Act 4 before staging in brackets:
+by `studio attention VIDEO --chapter CLIP` (the Save film's attention audit), which every chapter
+agent runs on its own draft before reporting, so staging misses are fixed before review. Motion
+inside a marked rest fails; the rest are warnings with the seconds to look at (`--where`). The
+measures and their aims, with the Save film's Act 4 before staging in brackets:
 
 | Measure | Aim | Before |
 |---|---|---|

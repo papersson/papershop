@@ -74,8 +74,9 @@ Place sound or typing proposals in data/CLIP/ for the main session to apply.
 
 Run STUDIO check VIDEO --chapter CLIP and inspect the frames under
 VIDEO/.cache/chapters/CLIP/. Correct deterministic errors in your own files.
-Return the paths you changed, the check result, which frames you inspected, and any shared
-changes needed. Do not make a cut, narrate, publish, or edit another chapter.
+Run STUDIO attention VIDEO --chapter CLIP --where too: fix failures, judge warnings on their frames.
+Return the paths you changed, both results, which frames you inspected, and
+any shared changes needed. Do not make a cut, narrate, publish, or edit another chapter.
 ```
 
 STUDIO is the absolute path to `bin/studio`.

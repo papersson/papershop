@@ -253,6 +253,11 @@ COMMANDS = {
         A("--format", help="check this format's layout (9:16, 1:1); default 16:9"),
         A("--all", action="store_true", help="check every chapter, not only those changed since their last pass"),
     ], "check:main"),
+    "attention": ("the attention audit on a chapter's draft render: one thing lit, one place changing, still rests (staging.md)", [
+        W("video"), A("--chapter", help="audit one chapter in its private work folder"),
+        A("--where", action="store_true", help="list the clip seconds behind each measure"),
+        P("--json", help="also write the measures here"),
+    ], "attention:main"),
     "sheets": ("contact sheets, a phone-width sheet, strips and full-resolution label crops", [
         W("video"), P("outdir"), A("--cut", type=int),
         A("--strip", nargs=2, action="append", metavar=("CLIP", "T"), help="12 consecutive frames around T (repeatable)"),
@@ -290,7 +295,7 @@ ENGINE_READS = {"boxes", "duration"}
 
 
 def reads_only(args):
-    return ((args.cmd == "clean" and args.dry_run) or (args.cmd == "check" and args.chapter)
+    return ((args.cmd == "clean" and args.dry_run) or (args.cmd in ("check", "attention") and args.chapter)
             or (args.cmd == "media" and args.action == "pull" and args.dry_run))
 
 

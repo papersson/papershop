@@ -25,6 +25,7 @@ def attention(n, chapter, start):
     return (
         f'Review chapter {chapter} of cut {n} once, for the viewer\'s attention only. Another reviewer covers beauty, terms, sound '
         f'and pacing, so leave those. Read manifest.json, the saved script, and the paragraph on one place to look in {ROOT / "references/taste.md"}. '
+        f'The chapter agent\'s own attention audit, when it ran, is in .cache/chapters/{chapter}/attention.json: its listed seconds are a place to start, not a verdict. '
         'Go through the motion sheets in time order, with the frame stills between them. A sheet shows a few frames of a move: '
         'when they are too far apart to tell whether two changes overlap, take more frames from the movie named in the manifest, '
         'or say that you could not tell.\n\n'
