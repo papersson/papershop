@@ -60,6 +60,31 @@ def test_a_jump_across_the_frame_between_onsets():
     assert any(n.startswith("far jumps at") for n in s["notes"])
 
 
+ROW = [(60 + 100 * k, 120, 40) for k in range(4)]   # four boxes in a row, well apart
+
+
+def test_a_group_arriving_all_at_once_is_a_burst():
+    s = a.summarise(a.analyse(hold(frame(), 1) + hold(frame(*ROW), 2)), "s1", where=True)
+    assert s["bursts"] == 1
+    assert any(w.startswith("bursts") for w in a.verdict(s)[1])
+    assert any(n.startswith("a group arriving all at once") for n in s["notes"])
+
+
+def test_a_list_arriving_all_at_once_is_a_burst():
+    im = frame()
+    for k, w in enumerate((180, 120, 220)):                 # three list items, one under another
+        im[60 + 60 * k:90 + 60 * k, 100:100 + w] = 235
+    s = a.summarise(a.analyse(hold(frame(), 1) + [im] * 10), "s1")
+    assert s["bursts"] == 1
+
+
+def test_the_same_group_staggered_is_not():
+    steps = [f for k in range(1, 5) for f in hold(frame(*ROW[:k]), 0.2)]   # one box a sample
+    s = a.summarise(a.analyse(hold(frame(), 1) + steps + hold(frame(*ROW), 2)), "s1")
+    assert s["bursts"] == 0
+    assert not any(w.startswith("bursts") for w in a.verdict(s)[1])
+
+
 def test_the_command_is_wired():
     from studio_kit import cli
     help_, _, handler = cli.COMMANDS["attention"]

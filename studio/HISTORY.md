@@ -13,6 +13,12 @@ construction: a click can change one object, and its checker refuses a page that
 before anyone sees it. This release is the first step of that for studio: phase 2's `attention`
 check from `proposals/2026-11-save-film.md`.
 
+- Groups arrive one item at a time. staging.md rule 4 asks for a stagger (`c.kit.stagger`, 0.12 to
+  0.2 s a step) for the items of a list, a row of boxes or the rows of a table, and `studio
+  attention` counts `bursts`: three or more new things, alike and lined up in a row or a column,
+  arriving in the same 0.2 s where a change begins. A warning, with the seconds under `--where`.
+  On the halting-problem film's s1 it reports none; looser versions flagged a highlighted line
+  beside a moving point, which is `split`, not a group. No sound changes (Patrik).
 - `references/script.md` names the explanation tics Patrik found in the walkthrough film's
   captions ("still sometimes LLMese, it paraphrases things"): a figure for the literal verb, a
   mechanism with a will, a paraphrase of the picture. prose 0.6.0 lists them as explanation tells.

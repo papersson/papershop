@@ -33,7 +33,9 @@ it out. If you cannot say what the eye should be on, do not draw anything new.
 4. **One change at a time, on the word.** Every onset lands on the word that names it. No two
    changes in two places at once: sequence them at least 1.2 s apart, or make them one event in
    one place (within about 300 screen px). An onset takes 0.3 to 0.6 s; a thing travelling takes
-   0.7 to 1.2 s.
+   0.7 to 1.2 s. A group (the items of a list, a row of boxes, the rows of a table) arrives one
+   item at a time in reading order, `c.kit.stagger(t0, i, 0.12)` to `0.2`: one event, read item
+   by item, never all at once.
 5. **Eye trace (Murch).** The next subject appears where the eye already is (within about 350
    screen px), or the eye is carried there by one visible movement: the thing itself travels, a
    line draws, or the camera follows.
@@ -79,6 +81,7 @@ measures and their aims, with the Save film's Act 4 before staging in brackets:
 | fast_onsets: next onset within 1.2 s | under 10% | 22% |
 | hero: the largest lit thing | at least 3% of the frame | 1.6% |
 | rest_motion: movement inside a marked rest | 0 s | not measured |
+| bursts: three or more separate things arriving in the same 0.2 s | none | not measured |
 
 The numbers are a proxy for where an eye goes. A camera move reads as movement over the whole
 frame, and a thing travelling under a following camera reads as a far jump, so look at the frames

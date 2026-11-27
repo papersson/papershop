@@ -16,7 +16,8 @@ of `split`; a thing travelling under a following camera can read as a far jump.
 
 Aims, with the Save film's Act 4 before staging in brackets: lit_over2 under 15% (82%), split under
 8% (26%), far_jumps under 10% (27%), fast_onsets under 10% (22%), hero at least 3% (1.6%),
-rest_motion 0 s.
+rest_motion 0 s, and no bursts: a group of three or more separate things arriving in the same
+instant, where staging.md wants them one at a time (a stagger).
 """
 import json
 import tempfile
@@ -27,7 +28,8 @@ GX, GY = W // T, H // T
 
 # (measure, aim, kind): kind "max" or "min" is a warning when missed, "fail" fails the chapter.
 AIMS = [("lit_over2", 0.15, "max"), ("split", 0.08, "max"), ("far_jumps", 0.10, "max"),
-        ("fast_onsets", 0.10, "max"), ("hero", 0.03, "min"), ("rest_motion", 0.0, "fail")]
+        ("fast_onsets", 0.10, "max"), ("hero", 0.03, "min"), ("rest_motion", 0.0, "fail"), ("bursts", 0, "none")]
+BURST = 3          # separate new things in one sample (0.2 s) that make a group arriving all at once
 
 
 def _np():
@@ -65,6 +67,21 @@ def comps(mask):
     return out
 
 
+def group_size(cs):
+    """The largest set of new things that look like one group: in a column (same left edge, alike
+    in height), like the items of a list, or in a row (same top edge, alike in height and width),
+    like a row of boxes; edges within a tile. A band lighting up beside a moving point is
+    two places changing (`split`), not a group."""
+    box = [(min(y for y, _ in c), min(x for _, x in c), max(y for y, _ in c), max(x for _, x in c)) for c in cs]
+    best = 0
+    for t, l, b, r in box:
+        h, w = b - t, r - l
+        col = [1 for t2, l2, b2, r2 in box if abs(l2 - l) <= 1 and abs((b2 - t2) - h) <= 1]
+        row = [1 for t2, l2, b2, r2 in box if abs(t2 - t) <= 1 and abs((b2 - t2) - h) <= 1 and abs((r2 - l2) - w) <= 1]
+        best = max(best, len(col), len(row))
+    return best
+
+
 def centroid(c):
     ys, xs = zip(*c)
     return (sum(xs) / len(xs) + .5) / GX, (sum(ys) / len(ys) + .5) / GY
@@ -78,7 +95,7 @@ def distance(a, b):
 def analyse(images):
     """One row per frame from RGB arrays of shape (H, W, 3)."""
     np = _np()
-    rows, prev = [], None
+    rows, prev, was = [], None, None
     for im in images:
         im = np.asarray(im, float)
         lum = im @ np.array([.2126, .7152, .0722])
@@ -89,6 +106,10 @@ def analyse(images):
         lit = comps(strong)
         r = dict(drawn=float(drawn.mean()), lit=len(lit), share=float(strong.sum() / max(1, drawn.sum())),
                  big=max((len(c) for c in lit), default=0) / (GX * GY))
+        # Things that were not there a sample ago, each at least three tiles: a group arriving at once
+        # shows as several of them in the same sample, a stagger as one or two per sample.
+        r["born"] = 0 if was is None else group_size([c for c in comps(drawn & ~was) if len(c) >= 3])
+        was = drawn
         if prev is not None:
             d = np.abs(lum - prev)
             ch = (tiles(d) > 3.0) | (tiles((d > 28).astype(float)) > .015)
@@ -123,10 +144,13 @@ def summarise(rows, name, rests=(), where=False):
     mv = [r for r in rows if r["moving"] and not r["whole"]]
     notes = []
     onsets, quiet, holds = [], 99, []      # an onset: movement beginning after at least 0.4 s of stillness
+    bursts = []
     for i, r in enumerate(rows):
         if r["moving"]:
             if quiet >= 2 and r["at"]:
                 onsets.append((i / FPS, r["at"]))
+                if not r["whole"] and r.get("born", 0) >= BURST:   # only where a change begins: a thing
+                    bursts.append(i / FPS)                        # moving draws new tiles every sample
             if quiet and quiet < 99:
                 holds.append(quiet / FPS)
             quiet = 0
@@ -157,6 +181,8 @@ def summarise(rows, name, rests=(), where=False):
         fo = [f"{b[0]:.1f}" for (a, b), g in zip(pairs, gaps) if g < 1.2]
         if fo:
             notes.append("onsets under 1.2 s after the last at " + ", ".join(fo[:40]))
+        if bursts:
+            notes.append("a group arriving all at once (stagger it) at " + ", ".join(f"{t:.1f}" for t in bursts[:30]))
         wf = [i / FPS for i, r in enumerate(rows) if r["whole"]]
         if wf:
             notes.append("whole frame moving (a camera move or a join) at " + runs(wf[::3]))
@@ -172,7 +198,7 @@ def summarise(rows, name, rests=(), where=False):
         still=sum(1 for r in rows if not r["moving"]) / n, onsets=len(onsets),
         onset_gap=_median(gaps), fast_onsets=sum(1 for g in gaps if g < 1.2) / max(1, len(gaps)),
         jump=_median(jumps), far_jumps=sum(1 for j in jumps if j > .3) / max(1, len(jumps)),
-        holds_2s=sum(1 for h in holds if h >= 2), longest_hold=max(holds, default=0))
+        holds_2s=sum(1 for h in holds if h >= 2), longest_hold=max(holds, default=0), bursts=len(bursts))
 
 
 def verdict(s):
@@ -184,6 +210,8 @@ def verdict(s):
             fails.append(f"{key} {v:.1f} s, aim {aim:g} s: the picture moves during a marked rest")
         elif kind == "max" and v > aim:
             warns.append(f"{key} {v:.0%}, aim under {aim:.0%}")
+        elif kind == "none" and v > aim:
+            warns.append(f"{key} {v}: a group of {BURST} or more things arrives all at once, stagger it (c.kit.stagger)")
         elif kind == "min" and v < aim:
             warns.append(f"{key} {v:.1%}, aim at least {aim:.0%}")
     return fails, warns
@@ -220,7 +248,7 @@ def audit(folder, timeline, clips, where=False):
 
 COLS = [("clip", "{}"), ("seconds", "{:.0f}"), ("lit_over2", "{:.0%}"), ("split", "{:.0%}"), ("far_jumps", "{:.0%}"),
         ("fast_onsets", "{:.0%}"), ("hero", "{:.1%}"), ("rest_motion", "{:.1f}"), ("still", "{:.0%}"),
-        ("onsets", "{}"), ("onset_gap", "{:.1f}"), ("whole_frame_s", "{:.1f}")]
+        ("onsets", "{}"), ("onset_gap", "{:.1f}"), ("bursts", "{}"), ("whole_frame_s", "{:.1f}")]
 
 
 def report(rows):
