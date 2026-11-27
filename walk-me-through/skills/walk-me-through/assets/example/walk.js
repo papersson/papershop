@@ -40,6 +40,8 @@
  * Query modes for the scripts: ?check writes a JSON report into <pre id="walk-report">; ?mid=N&at=ms
  * plays click N and freezes every animation at `at` ms; ?strip lays every click out as small
  * multiples; ?still turns motion off. A page error lands on the screen, and in the report.
+ * ?film plays the clicks as a video timeline: window.WalkFilm = { duration, ticks, beats, seek(ms) },
+ * where seek puts the exact frame for that moment on the stage (see FILM below and scripts/film.py).
  *
  * A custom piece: Walk.piece(name, (el, object, page) => { render once into el; optionally return
  * update(cls) }). It then reacts only to state classes, so it stays one object for the one-change rule.
@@ -47,11 +49,17 @@
 (function () {
   'use strict';
   const W = 1600, H = 900, MOVE = 900, FADE = 500, TURN = 500, CAPTION_FADE = 180;
+  // FILM: one beat per click, measured on shadcn's UI SDK video. The line types out first, the change
+  // starts a moment after it is finished, then the picture rests while the reader catches up: words
+  // and motion never compete for the eye. Times in ms.
+  const FILM = { cps: 45, lead: 250, bare: 400, rest: 800, perWord: 150, restBare: 1500, ring: 350,
+    cover: 2500, last: 2500 };
   // Opacity of the three tones: the subject, the one before it (or one read with it), the rest.
   const TONE = { 1: 1, 2: 0.6, 3: 0.32 };
   const pieces = {};
   const query = new URLSearchParams(location.search);
-  const mode = query.has('check') ? 'check' : query.has('mid') ? 'mid' : query.has('strip') ? 'strip' : 'live';
+  const mode = query.has('check') ? 'check' : query.has('mid') ? 'mid' : query.has('strip') ? 'strip' :
+    query.has('film') ? 'film' : 'live';
   const errors = [];
   let called = false;
 
@@ -279,6 +287,85 @@
       const settle = f.click && f.click.settle != null ? f.click.settle : MOVE + (turn ? TURN : 0) + 80;
       ringTimer = setTimeout(() => placeRing(f), settle);
     }
+    // ?film: the clicks as a timeline. Each beat: the caption types out (in place, the untyped part
+    // laid out but invisible, so the line never shifts), the change starts FILM.lead after it ends,
+    // then a rest that grows with the caption's length. A frame is a pure function of its time.
+    function runFilm() {
+      root.classList.add('w-film');
+      const plain = s => String(s || '').replace(/`/g, '');
+      const wordsIn = s => plain(s).split(/\s+/).filter(w => /\w/.test(w)).length;
+      const beats = [];
+      let t = 0;
+      if (first === 0) { beats.push({ p: 0, start: 0, typed: 0, move: 0, settle: 0, end: FILM.cover }); t = FILM.cover; }
+      for (let p = 1; p <= N; p++) {
+        const f = frames[p], c = f.click, text = plain(f.caption);
+        const typing = Math.round(text.length / FILM.cps * 1000);
+        const move = t + (text ? typing + FILM.lead : FILM.bare);
+        const turn = frames[p - 1].chapter !== f.chapter;
+        let settle = c.settle != null ? c.settle : MOVE + (turn ? TURN : 0) + 80;
+        if (c.highlight) settle += FILM.ring;
+        const rest = text ? FILM.rest + FILM.perWord * wordsIn(f.caption) : FILM.restBare;
+        const end = move + settle + rest + (p === N ? FILM.last : 0);
+        beats.push({ p, start: t, typed: t + typing, move, settle: move + settle, end, tick: !c.clear, chars: text.length });
+        t = end;
+      }
+      const ticks = beats.filter(b => b.tick).map(b => b.move);
+      let shown = null;  // the beat whose change is laid out, so a rest does not redo it
+
+      function typeCaption(html, chars) {
+        caption.classList.remove('out');
+        caption.dataset.html = html;
+        caption.innerHTML = html;
+        const walker = document.createTreeWalker(caption, NodeFilter.SHOW_TEXT), nodes = [];
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+        let left = chars;
+        nodes.forEach(n => {
+          const v = n.nodeValue;
+          if (left >= v.length) { left -= v.length; return; }
+          const tail = document.createElement('span');
+          tail.className = 'w-untyped';
+          tail.textContent = v.slice(left);
+          n.nodeValue = v.slice(0, left);
+          n.parentNode.insertBefore(tail, n.nextSibling);
+          left = 0;
+        });
+      }
+
+      // Put the frame for time `ms` on the stage. Returns a key that is the same for two times only
+      // when their frames are the same, so a renderer can reuse a still frame.
+      function seek(ms) {
+        ms = Math.max(0, Math.min(t, ms));
+        const b = beats.find(x => ms < x.end) || beats[beats.length - 1];
+        const f = frames[b.p];
+        const moving = b.p > 0 && ms >= b.move;
+        const at = moving ? Math.min(ms - b.move, b.settle - b.move + 400) : 0;
+        if (!moving) {
+          if (shown !== 'before' + b.p) { jump(b.p ? b.p - 1 : 0); shown = 'before' + b.p; }
+        } else if (at < b.settle - b.move + 400 || shown !== 'after' + b.p) {
+          root.classList.add('w-still');
+          show(b.p - 1, null, false);
+          void stage.offsetHeight;
+          root.classList.remove('w-still');
+          show(b.p, b.p - 1, true);
+          clearTimeout(captionTimer); clearTimeout(ringTimer); clearTimeout(titleTimer);
+          title.innerHTML = title.dataset.html || ''; title.classList.toggle('out', !title.dataset.html);
+          if (b.p && f.click.highlight && at >= b.settle - b.move - FILM.ring) placeRing(f);
+          document.getAnimations().forEach(a => {
+            a.pause();
+            const ring = a.effect && a.effect.target === ring_;
+            a.currentTime = ring ? at - (b.settle - b.move - FILM.ring) : at;
+          });
+          shown = at >= b.settle - b.move + 400 ? 'after' + b.p : 'moving';
+        }
+        const chars = b.p === 0 ? 0 : Math.min(b.chars, Math.floor((ms - b.start) * FILM.cps / 1000));
+        typeCaption(b.p ? fmt(f.caption) : '', chars);
+        count.textContent = '';
+        return [b.p, chars, moving ? Math.round(at) : -1].join(':');
+      }
+      const ring_ = ring;
+      window.WalkFilm = { duration: t, ticks, beats, seek, ready: true };
+      seek(0);
+    }
     function notesFor(ch) {
       const text = ch && def.notes && def.notes[ch - 1];
       return text ? String(text).split(/\n\s*\n/).map(t => `<p>${fmt(t)}</p>`).join('') : '<p class="w-none">No notes for this chapter.</p>';
@@ -319,6 +406,7 @@
       if (at >= settle) placeRing(frames[n]);
       return;
     }
+    if (mode === 'film') return runFilm();
     pos = Math.max(first, Math.min(N, fromHash()));
     jump(pos);
     addEventListener('hashchange', () => go(fromHash()));

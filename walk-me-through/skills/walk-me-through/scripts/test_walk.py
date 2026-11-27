@@ -16,6 +16,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import walklib  # noqa: E402
+import film  # noqa: E402
 
 SKILL = HERE.parent
 CHROME = walklib.find_chrome()
@@ -226,6 +227,48 @@ class Checker(unittest.TestCase):
         mid = walklib.page_url(SKILL / "assets/example", "mid=7&at=450")
         dom = walklib.run_chrome(CHROME, (1440, 900), mid, ["--dump-dom"]).stdout
         self.assertIn('class="w-count">7/24<', dom)
+
+
+
+@needs_chrome
+class Film(unittest.TestCase):
+    """?film plays the clicks as a timeline: the line types out first, the change waits for it."""
+
+    def test_the_change_waits_for_its_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            browser = film.Chrome(CHROME, Path(tmp, "profile"))
+            try:
+                browser.open((SKILL / "assets/example/page.html").resolve().as_uri() + "?film", (1600, 900))
+                for _ in range(200):
+                    if browser.eval("!!(window.WalkFilm && WalkFilm.ready)"):
+                        break
+                beats = browser.eval("WalkFilm.beats")
+                self.assertEqual(beats[0]["p"], 0, "the example opens on its cover")
+                self.assertEqual(len(beats), 25)
+                for b in beats[1:]:
+                    with self.subTest(click=b["p"]):
+                        self.assertGreaterEqual(b["move"], b["typed"], "the change starts after the line is typed")
+                        self.assertGreater(b["end"], b["settle"], "a rest follows every change")
+                        mid_typing = (b["start"] + b["typed"]) / 2
+                        self.assertTrue(browser.eval(f"WalkFilm.seek({mid_typing})").endswith(":-1"),
+                                        "nothing moves while the line types")
+                # Seeking is exact: the same moment twice gives the same frame, whatever came between.
+                t = beats[5]["move"] + 300
+                first = browser.eval(f"WalkFilm.seek({t})")
+                browser.eval(f"WalkFilm.seek({beats[12]['move'] + 100})")
+                self.assertEqual(browser.eval(f"WalkFilm.seek({t})"), first)
+            finally:
+                browser.close()
+
+    @unittest.skipUnless(film.find_ffmpeg(), film.NO_FFMPEG)
+    def test_renders_a_video(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp, "film.mp4")
+            run = script("film.py", SKILL / "assets/example", "--out", out, "--until", "2", "--fps", "10")
+            self.assertEqual(run.returncode, 0, run.stderr)
+            probe = subprocess.run([film.find_ffmpeg(), "-hide_banner", "-i", str(out)], capture_output=True, text=True)
+            self.assertIn("Video: h264", probe.stderr)
+            self.assertIn("Audio: aac", probe.stderr)
 
 
 if __name__ == "__main__":

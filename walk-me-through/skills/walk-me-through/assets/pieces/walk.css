@@ -39,6 +39,11 @@ code, .w-mono { font-family: var(--mono); font-size: .92em; }
   font-size: 32px; line-height: 1.35; color: var(--ink); white-space: nowrap; transition: opacity .18s var(--ease); }
 .w-caption.out, .w-title.out { opacity: 0; transition-duration: .18s; }
 .no-captions .w-caption { visibility: hidden; }
+/* ?film: the caption types out in place; the untyped part keeps its room so the line never shifts.
+   A video has its own progress bar, so the count goes. */
+.w-caption .w-untyped { color: transparent; }
+.w-film .w-count { display: none; }
+.w-film .w-caption { transition: none; }
 .w-count { position: absolute; right: 44px; bottom: 30px; font-size: 20px; color: var(--dim);
   font-variant-numeric: tabular-nums; opacity: .7; }
 .w-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
