@@ -52,8 +52,8 @@ Details: `references/checking.md`.
 types out beside the thing it is about, its one change starts a moment after the line is finished,
 then the picture rests while the reader catches up, longer for a longer line. Each change makes the
 sound of its kind: an arrival, a change in place, a move, a yes, a no, a highlight, a clear, a new
-chapter; a group arriving one item at a time ticks once per item, each a step higher
-(`--sounds all` adds a soft key per letter, `none` is silent). Words and motion never
+chapter; a group arriving one item at a time ticks once per item, each a step higher.
+Each line types with a soft key per letter (`--sounds events` leaves the keys out, `none` is silent). Words and motion never
 overlap, because with no voice they compete for the same eyes. Nothing new
 to build: the page is the source, and a page that passes `check.py` makes a sound video. The beat is
 `FILM` in `engine/walk.js`, measured on shadcn's UI SDK video. Needs ffmpeg as well as Chrome.

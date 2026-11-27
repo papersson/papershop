@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Play a walkthrough's clicks as a video: each line types out, then its one change, then a rest.
 
-    python3 -I scripts/film.py OUT_DIR [--out OUT_DIR/film.mp4] [--fps 30] [--size 1920x1080] [--silent]
+    python3 -I scripts/film.py OUT_DIR [--out OUT_DIR/film.mp4] [--fps 30] [--size 1920x1080] [--sounds all|events|none]
 
 The beat comes from the engine's ?film mode (FILM in walk.js): the caption types out, the change
 starts a quarter second after it is finished, and the picture rests while the reader catches up.
 Each change makes the sound of its kind (an arrival, a move, a verdict, a page turn: see voices()),
-and the line is typed beside the thing it is about. --sounds none for silence, all for a soft key
-per letter as well. The page is rendered with this skill's
+and the line is typed beside the thing it is about, with a soft key per letter as it types.
+--sounds events leaves the keys out, none is silent. The page is rendered with this skill's
 current engine (a temporary copy of OUT_DIR with walk.js and walk.css replaced), so an older page
 gets the film mode too, and OUT_DIR is not touched apart from the video.
 
@@ -169,6 +169,24 @@ def stepped_tick(step):
     return _level(_knock(1250 * 2 ** (semis / 12), 7), -24)
 
 
+def _key(n):
+    """One key of a soft keyboard: a bright click (noise, high-passed by differencing) over a short,
+    low thock. Six seeded variants differ in pitch, brightness and level, as real keys do, so a typed
+    line patters instead of buzzing."""
+    r = random.Random(100 + n)
+    thock, bright, level = 170 * (1 + r.uniform(-0.12, 0.12)), r.uniform(0.55, 0.8), -33 + r.uniform(-2.5, 1)
+    rng, prev, out = random.Random(13 + n), 0.0, []
+    for i in range(int(RATE * 0.035)):
+        t, w = i / RATE, rng.random() * 2 - 1
+        click = (w - prev) * _env(t, 0.0003, 0.0035)
+        prev = w
+        out.append(bright * click + (1 - bright) * 0.9 * math.sin(2 * math.pi * thock * t) * _env(t, 0.001, 0.012))
+    return _level(out, level)
+
+
+KEYS = 6
+
+
 def voices():
     """One sound per kind of change, each with one meaning (after Kit Langton's effect.institute):
     tick, a thing arrives; tap, a thing already there changes; glide, a thing travels; yes and no, a
@@ -187,7 +205,7 @@ def voices():
         "wipe": _level(_noise(0.35, 5, lambda x: 3500 * (1 - x) + 300, lambda x: math.sin(math.pi * min(1, x * 1.3)) ** 2), -30),
         "turn": _level(_seq((0, _note(523.25, 0.4, decay=0.1)), (0.08, _note(659.25, 0.4, decay=0.1)),
                             (0.16, _note(783.99, 0.6, decay=0.16))), -27),
-        "key": _level([_env(i / RATE, 0.0005, 0.004) * (random.Random(13 + i).random() * 2 - 1) for i in range(int(RATE * 0.02))], -38),
+        "key": _key(0),
     }
 
 
@@ -195,15 +213,24 @@ LEVELS = {"none": set(), "events": {"tick", "tap", "glide", "yes", "no", "ring",
 LEVELS["all"] = LEVELS["events"] | {"key"}
 
 
-def write_audio(path, duration_ms, sounds, level="events"):
+def write_audio(path, duration_ms, sounds, level="all"):
     total = int(RATE * duration_ms / 1000) + 1
     samples = [0.0] * total
     bank, keep = voices(), LEVELS[level]
+    last_key = -1
     for s in sounds:
         if s["kind"] not in keep or s["kind"] not in bank:
             continue
         start = int(RATE * s["t"] / 1000)
         step = s.get("step") or 0
+        if s["kind"] == "key":
+            # A key chosen from its time, never the one before it, so a render is repeatable.
+            step = int(s["t"] * 7.3) % KEYS
+            if step == last_key:
+                step = (step + 1) % KEYS
+            last_key = step
+            if step and ("key", step) not in bank:
+                bank[("key", step)] = _key(step)
         if step and (s["kind"], step) not in bank:
             bank[(s["kind"], step)] = stepped_tick(step)
         for i, v in enumerate(bank[(s["kind"], step)] if step else bank[s["kind"]]):
@@ -229,8 +256,9 @@ def main():
     ap.add_argument("--out", help="the video (default OUT_DIR/film.mp4)")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--size", default="1920x1080", help="WxH of the video (default 1920x1080)")
-    ap.add_argument("--sounds", default="events", choices=sorted(LEVELS),
-                    help="events (default): one sound per kind of change; all: also a soft key per letter; none")
+    ap.add_argument("--sounds", default="all", choices=sorted(LEVELS),
+                    help="all (default): one sound per kind of change and a soft key per letter as the line types; "
+                         "events: without the keys; none")
     ap.add_argument("--sound-sheet", metavar="DIR", help="also write each sound as DIR/<kind>.wav, to audition them")
     ap.add_argument("--until", type=float, help="stop after this many seconds (for a quick look)")
     args = ap.parse_args()
@@ -274,6 +302,8 @@ def main():
                 sheet.mkdir(parents=True, exist_ok=True)
                 for kind in voices():
                     write_audio(sheet / f"{kind}.wav", 1000, [{"t": 50, "kind": kind}], "all")
+                line = "Each fruit sits in the bucket its own hash picks."
+                write_audio(sheet / "typing.wav", 1400, [{"t": 50 + i * 1000 / 45, "kind": "key"} for i, ch in enumerate(line) if ch != " "], "all")
                 write_audio(sheet / "stagger.wav", 1000, [{"t": 50 + 90 * i, "kind": "tick", "step": i} for i in range(5)])
             out.parent.mkdir(parents=True, exist_ok=True)
             enc = subprocess.Popen(
