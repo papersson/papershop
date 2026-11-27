@@ -401,7 +401,7 @@
         beats.push({ p, start: t, typed: t + typing, move, settle: move + settle, end, chars: text.length, place: placeFor(p) });
         // The sound of a change says what kind of change it is, one sound per meaning (Kit Langton's
         // effect.institute): a page turn, a wipe, a verdict, a thing travelling, a thing arriving.
-        for (let i = 0; i < text.length; i++) if (/\S/.test(text[i])) sounds.push({ t: t + i * 1000 / FILM.cps, kind: 'key' });
+        for (let i = 0; i < text.length; i++) sounds.push({ t: t + i * 1000 / FILM.cps, kind: 'key', space: !/\S/.test(text[i]) });
         const arrive = move + (turn ? TURN : 0);
         const prevO = c.clear ? 0 : frames[p - 1].objects[c.object].o;
         let kind = c.sound || null;

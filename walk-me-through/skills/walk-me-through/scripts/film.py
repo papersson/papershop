@@ -169,22 +169,34 @@ def stepped_tick(step):
     return _level(_knock(1250 * 2 ** (semis / 12), 7), -24)
 
 
-def _key(n):
-    """One key of a soft keyboard: a bright click (noise, high-passed by differencing) over a short,
-    low thock. Six seeded variants differ in pitch, brightness and level, as real keys do, so a typed
-    line patters instead of buzzing."""
-    r = random.Random(100 + n)
-    thock, bright, level = 170 * (1 + r.uniform(-0.12, 0.12)), r.uniform(0.55, 0.8), -33 + r.uniform(-2.5, 1)
-    rng, prev, out = random.Random(13 + n), 0.0, []
-    for i in range(int(RATE * 0.035)):
-        t, w = i / RATE, rng.random() * 2 - 1
-        click = (w - prev) * _env(t, 0.0003, 0.0035)
-        prev = w
-        out.append(bright * click + (1 - bright) * 0.9 * math.sin(2 * math.pi * thock * t) * _env(t, 0.001, 0.012))
-    return _level(out, level)
+# The keyboard is studio's: grains of a real mechanical keyboard (Cherry Blue switches), cut by
+# studio's streams.grains from the take its typing uses, freesound 638035 by simeonradivoev, CC0
+# (sha256 92386b0b...). keys.wav holds 20 slots of 90 ms: 16 keys from the middle of the take's
+# brightness, then 4 of the darkest for the space bar, each starting 4 ms before its click.
+KEYS_WAV = Path(__file__).resolve().parent / "keys.wav"
+SLOT, LEAD, N_KEYS, N_SPACE = int(0.09 * RATE), int(0.004 * RATE), 16, 4
+KEY_PEAK = -29          # dBFS a key plays at: under the change sounds, over the room
+KEY_PITCH, KEY_GAIN = 0.04, 1.5   # each key a little higher or lower, louder or softer (as studio's)
 
 
-KEYS = 6
+def _grains():
+    with wave.open(str(KEYS_WAV)) as w:
+        raw = w.readframes(w.getnframes())
+    x = struct.unpack("<%dh" % (len(raw) // 2), raw)
+    return [[v / 32768 for v in x[i * SLOT:(i + 1) * SLOT]] for i in range(N_KEYS + N_SPACE)]
+
+
+def _vary(g, pitch, gain_db):
+    """A grain resampled by `pitch` (linear) and scaled to KEY_PEAK + gain_db, its silent tail dropped."""
+    n = int(len(g) / pitch) - 1
+    y = [g[int(i * pitch)] + (g[int(i * pitch) + 1] - g[int(i * pitch)]) * (i * pitch % 1) for i in range(n)]
+    while y and abs(y[-1]) < 1e-4:
+        y.pop()
+    return _level(y or [0.0], KEY_PEAK + gain_db)
+
+
+def _key(i=0):
+    return _vary(_grains()[i], 1.0, 0.0)
 
 
 def voices():
@@ -217,20 +229,25 @@ def write_audio(path, duration_ms, sounds, level="all"):
     total = int(RATE * duration_ms / 1000) + 1
     samples = [0.0] * total
     bank, keep = voices(), LEVELS[level]
-    last_key = -1
+    grains, last_key, rng = None, -1, random.Random(638035)
     for s in sounds:
         if s["kind"] not in keep or s["kind"] not in bank:
             continue
         start = int(RATE * s["t"] / 1000)
         step = s.get("step") or 0
         if s["kind"] == "key":
-            # A key chosen from its time, never the one before it, so a render is repeatable.
-            step = int(s["t"] * 7.3) % KEYS
-            if step == last_key:
-                step = (step + 1) % KEYS
-            last_key = step
-            if step and ("key", step) not in bank:
-                bank[("key", step)] = _key(step)
+            # Never the key before it, each a little different, from a seeded draw: a render repeats.
+            grains = grains or _grains()
+            space = bool(s.get("space"))
+            pool = range(N_KEYS, N_KEYS + N_SPACE) if space else range(N_KEYS)
+            pick = rng.choice([k for k in pool if k != last_key])
+            last_key = pick
+            y = _vary(grains[pick], 1 + rng.uniform(-KEY_PITCH, KEY_PITCH), rng.uniform(-KEY_GAIN, KEY_GAIN) - (2 if space else 0))
+            start = max(0, start - LEAD)
+            for i, v in enumerate(y):
+                if start + i < total:
+                    samples[start + i] += v
+            continue
         if step and (s["kind"], step) not in bank:
             bank[(s["kind"], step)] = stepped_tick(step)
         for i, v in enumerate(bank[(s["kind"], step)] if step else bank[s["kind"]]):
@@ -303,7 +320,7 @@ def main():
                 for kind in voices():
                     write_audio(sheet / f"{kind}.wav", 1000, [{"t": 50, "kind": kind}], "all")
                 line = "Each fruit sits in the bucket its own hash picks."
-                write_audio(sheet / "typing.wav", 1400, [{"t": 50 + i * 1000 / 45, "kind": "key"} for i, ch in enumerate(line) if ch != " "], "all")
+                write_audio(sheet / "typing.wav", 1400, [{"t": 50 + i * 1000 / 45, "kind": "key", "space": ch == " "} for i, ch in enumerate(line)], "all")
                 write_audio(sheet / "stagger.wav", 1000, [{"t": 50 + 90 * i, "kind": "tick", "step": i} for i in range(5)])
             out.parent.mkdir(parents=True, exist_ok=True)
             enc = subprocess.Popen(
