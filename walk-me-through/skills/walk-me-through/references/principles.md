@@ -152,7 +152,10 @@ change in reverse. *Why:* the state at click N is computed, not accumulated, so 
 free, and readers who try them are pleased when they just work.
 
 **Plain writing.** Plain words, no em dashes, no semicolons, no rhetorical questions. Say what is
-measured and what is an example. The checker enforces the punctuation. *Why:* the caption line has
+measured and what is an example. Say it literally: the real verb for what the code or data does
+(hashes, compares, returns, is stored), never a figure for it (mixes, walks, drops away, falls off,
+picks), and nothing given a will of its own. Name the thing on the stage by its name, not by a
+paraphrase of it. The checker enforces the punctuation. *Why:* the caption line has
 12 words to spend, and a dash or a semicolon is two sentences pretending to be one.
 
 ## Checking
