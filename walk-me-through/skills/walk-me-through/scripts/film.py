@@ -5,7 +5,9 @@
 
 The beat comes from the engine's ?film mode (FILM in walk.js): the caption types out, the change
 starts a quarter second after it is finished, and the picture rests while the reader catches up.
-A soft tick marks each change; --silent leaves it out. The page is rendered with this skill's
+Each change makes the sound of its kind (an arrival, a move, a verdict, a page turn: see voices()),
+and the line is typed beside the thing it is about. --sounds none for silence, all for a soft key
+per letter as well. The page is rendered with this skill's
 current engine (a temporary copy of OUT_DIR with walk.js and walk.css replaced), so an older page
 gets the film mode too, and OUT_DIR is not touched apart from the video.
 
@@ -112,28 +114,82 @@ class Chrome:
             self.proc.kill()
 
 
-def tick():
-    """The soft tick for a change: a short, low knock, seeded so every render is the same."""
-    rnd = random.Random(7)
-    n = int(RATE * 0.045)
-    out = []
+def _env(t, attack, decay):
+    return min(1.0, t / attack) * math.exp(-t / decay)
+
+
+def _note(freq, seconds, attack=0.004, decay=0.08, partials=((1, 1.0), (2, 0.25), (3, 0.08))):
+    n = int(RATE * seconds)
+    return [_env(i / RATE, attack, decay) * sum(a * math.sin(2 * math.pi * freq * m * i / RATE) for m, a in partials)
+            for i in range(n)]
+
+
+def _noise(seconds, seed, cutoff, shape):
+    """Noise through a one-pole low-pass whose cutoff follows cutoff(x), shaped by shape(x), x in 0..1."""
+    rnd = random.Random(seed)
+    n, y, out = int(RATE * seconds), 0.0, []
     for i in range(n):
-        t = i / RATE
-        env = math.exp(-t / 0.009) * min(1.0, t / 0.0015)
-        tone = 0.75 * math.sin(2 * math.pi * 1250 * t) + 0.25 * math.sin(2 * math.pi * 2600 * t)
-        out.append(env * (0.8 * tone + 0.2 * (rnd.random() * 2 - 1)))
-    peak = max(abs(v) for v in out)
-    level = 10 ** (-24 / 20)  # quiet: peaks at -24 dBFS
-    return [v / peak * level for v in out]
+        x = i / n
+        a = 1 - math.exp(-2 * math.pi * cutoff(x) / RATE)
+        y += a * ((rnd.random() * 2 - 1) - y)
+        out.append(y * shape(x))
+    return out
 
 
-def write_audio(path, duration_ms, ticks):
+def _seq(*parts):
+    """Notes placed at offsets in seconds: (offset, samples)."""
+    end = max(int(RATE * off) + len(smp) for off, smp in parts)
+    out = [0.0] * end
+    for off, smp in parts:
+        o = int(RATE * off)
+        for i, v in enumerate(smp):
+            out[o + i] += v
+    return out
+
+
+def _level(samples, dbfs):
+    peak = max(abs(v) for v in samples) or 1
+    g = 10 ** (dbfs / 20) / peak
+    return [v * g for v in samples]
+
+
+def voices():
+    """One sound per kind of change, each with one meaning (after Kit Langton's effect.institute):
+    tick, a thing arrives; tap, a thing already there changes; glide, a thing travels; yes and no, a
+    verdict lands; ring, a part is singled out; wipe, the stage clears; turn, a new chapter; key, a
+    letter of the line. Synthesized and seeded, so every render is the same; levels sit well under
+    a voice would, since the film has none to sit under."""
+    knock = lambda f, seed: [_env(i / RATE, 0.0015, 0.009) * (0.8 * (0.75 * math.sin(2 * math.pi * f * i / RATE)
+                             + 0.25 * math.sin(2 * math.pi * 2.08 * f * i / RATE)) + 0.2 * (random.Random(seed + i).random() * 2 - 1))
+                             for i in range(int(RATE * 0.045))]
+    return {
+        "tick": _level(knock(1250, 7), -24),
+        "tap": _level(knock(880, 11), -30),
+        "glide": _level(_noise(0.9, 3, lambda x: 500 + 2600 * math.sin(math.pi * x), lambda x: math.sin(math.pi * x) ** 2), -33),
+        "yes": _level(_seq((0, _note(659.25, 0.35)), (0.09, _note(987.77, 0.45, decay=0.12))), -23),
+        "no": _level(_seq((0, _note(233.08, 0.35, decay=0.1, partials=((1, 1), (3, .3), (5, .1)))),
+                           (0.11, _note(185.0, 0.5, decay=0.14, partials=((1, 1), (3, .3), (5, .1))))), -23),
+        "ring": _level(_note(1567.98, 0.9, attack=0.006, decay=0.25, partials=((1, 1), (2.76, .3))), -28),
+        "wipe": _level(_noise(0.35, 5, lambda x: 3500 * (1 - x) + 300, lambda x: math.sin(math.pi * min(1, x * 1.3)) ** 2), -30),
+        "turn": _level(_seq((0, _note(523.25, 0.4, decay=0.1)), (0.08, _note(659.25, 0.4, decay=0.1)),
+                            (0.16, _note(783.99, 0.6, decay=0.16))), -27),
+        "key": _level([_env(i / RATE, 0.0005, 0.004) * (random.Random(13 + i).random() * 2 - 1) for i in range(int(RATE * 0.02))], -38),
+    }
+
+
+LEVELS = {"none": set(), "events": {"tick", "tap", "glide", "yes", "no", "ring", "wipe", "turn"}}
+LEVELS["all"] = LEVELS["events"] | {"key"}
+
+
+def write_audio(path, duration_ms, sounds, level="events"):
     total = int(RATE * duration_ms / 1000) + 1
     samples = [0.0] * total
-    knock = tick()
-    for at in ticks:
-        start = int(RATE * at / 1000)
-        for i, v in enumerate(knock):
+    bank, keep = voices(), LEVELS[level]
+    for s in sounds:
+        if s["kind"] not in keep or s["kind"] not in bank:
+            continue
+        start = int(RATE * s["t"] / 1000)
+        for i, v in enumerate(bank[s["kind"]]):
             if start + i < total:
                 samples[start + i] += v
     with wave.open(str(path), "wb") as w:
@@ -156,7 +212,9 @@ def main():
     ap.add_argument("--out", help="the video (default OUT_DIR/film.mp4)")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--size", default="1920x1080", help="WxH of the video (default 1920x1080)")
-    ap.add_argument("--silent", action="store_true", help="no tick on each change")
+    ap.add_argument("--sounds", default="events", choices=sorted(LEVELS),
+                    help="events (default): one sound per kind of change; all: also a soft key per letter; none")
+    ap.add_argument("--sound-sheet", metavar="DIR", help="also write each sound as DIR/<kind>.wav, to audition them")
     ap.add_argument("--until", type=float, help="stop after this many seconds (for a quick look)")
     args = ap.parse_args()
     chrome = walklib.find_chrome()
@@ -187,13 +245,18 @@ def main():
             err = browser.eval("(document.getElementById('walk-error') || {}).textContent || ''")
             if err:
                 sys.exit("the page has errors; run check.py first:\n" + err)
-            info = browser.eval("({duration: WalkFilm.duration, ticks: WalkFilm.ticks})")
+            info = browser.eval("({duration: WalkFilm.duration, sounds: WalkFilm.sounds})")
             if not info:
                 sys.exit("the page did not start its film mode")
             duration = info["duration"] if args.until is None else min(info["duration"], args.until * 1000)
             frames = int(math.ceil(duration / 1000 * args.fps))
             audio = tmp / "ticks.wav"
-            write_audio(audio, duration, [] if args.silent else [t for t in info["ticks"] if t < duration])
+            write_audio(audio, duration, [x for x in info["sounds"] if x["t"] < duration], args.sounds)
+            if args.sound_sheet:
+                sheet = Path(args.sound_sheet)
+                sheet.mkdir(parents=True, exist_ok=True)
+                for kind in voices():
+                    write_audio(sheet / f"{kind}.wav", 1000, [{"t": 50, "kind": kind}], "all")
             out.parent.mkdir(parents=True, exist_ok=True)
             enc = subprocess.Popen(
                 [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "image2pipe", "-framerate", str(args.fps),

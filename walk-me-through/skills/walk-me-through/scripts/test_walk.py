@@ -252,6 +252,11 @@ class Film(unittest.TestCase):
                         mid_typing = (b["start"] + b["typed"]) / 2
                         self.assertTrue(browser.eval(f"WalkFilm.seek({mid_typing})").endswith(":-1"),
                                         "nothing moves while the line types")
+                places = [b["place"] for b in beats[1:] if b["chars"]]
+                self.assertGreater(sum(1 for p in places if p), len(places) * 0.6,
+                                   "most lines are typed beside the thing they are about")
+                kinds = {s["kind"] for s in browser.eval("WalkFilm.sounds")}
+                self.assertTrue({"tick", "turn", "yes", "no", "key"} <= kinds, kinds)
                 # Seeking is exact: the same moment twice gives the same frame, whatever came between.
                 t = beats[5]["move"] + 300
                 first = browser.eval(f"WalkFilm.seek({t})")

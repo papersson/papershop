@@ -36,7 +36,7 @@
       "name": "walk-me-through",
       "source": "./walk-me-through",
       "version": "0.4.0",
-      "description": "Explain one mechanism as a click-through HTML page: one change per click on a stage drawn from the real data, one place to look on every click (the subject bright, the rest quiet), one short caption line, a click list approved before building, and a checker that enforces the rules. The same page plays as a silent video: each line types out, then its one change, then a rest."
+      "description": "Explain one mechanism as a click-through HTML page: one change per click on a stage drawn from the real data, one place to look on every click (the subject bright, the rest quiet), one short caption line, a click list approved before building, and a checker that enforces the rules. The same page plays as a video: each line types out beside its subject, then its one change, with one quiet sound per kind of change."
     },
     {
       "name": "correctness",

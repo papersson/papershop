@@ -113,8 +113,10 @@ thing at a time, and the brightness steps settle with it. *Why:* Frank Thomas an
 Johnston, *The Illusion of Life*: staging presents one idea so it is unmistakable, easing makes
 motion read as physical, timing carries meaning. The beat of "motion, settle, step down, caption" is the
 rhythm of the page. Motion for its own sake (bounces, spins, confetti) is tacky, and so are gradients
-competing with the data, and sound. The one exception is the video (`film.py`): a quiet tick on each
-change, the moment the eye should move, as in shadcn's UI SDK video. It marks the beat and says nothing else.
+competing with the data, and sound. The exception is the video (`film.py`), which has no voice: each
+change makes one quiet sound that says what kind of change it is (an arrival, a move, a verdict, a
+new chapter), as Kit Langton's effect.institute does, so the ear knows what happened before the eye
+has found it. One sound per meaning, the same every time, nothing decorative.
 
 **The last chapter is often the same thing as code.** Shown last, once the reader already
 understands it, with margin numbers that are the clicks which showed each line. *Why:* Grant

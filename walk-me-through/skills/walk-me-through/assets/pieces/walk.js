@@ -294,7 +294,64 @@
       root.classList.add('w-film');
       const plain = s => String(s || '').replace(/`/g, '');
       const wordsIn = s => plain(s).split(/\s+/).filter(w => /\w/.test(w)).length;
-      const beats = [];
+      // One pass over the finished frames: where each change lands, what it looks like, and where its
+      // line goes. The line is typed beside the thing it is about, so the eye is already there when
+      // the change arrives (Murch's eye trace); the bottom band is the fallback.
+      const k0 = () => api.scale || 1;
+      const boxIn = el => {
+        const sr = stage.getBoundingClientRect(), r = el.getBoundingClientRect(), k = k0();
+        return { x: (r.left - sr.left) / k, y: (r.top - sr.top) / k, w: r.width / k, h: r.height / k };
+      };
+      const visibleBoxes = p => Object.keys(els).filter(id => frames[p].objects[id].o > 0).map(id => ({ id, ...boxIn(els[id]) }));
+      const marks = cls => [...stage.querySelectorAll('.' + cls)].filter(e => {
+        const o = e.closest('.w-obj');
+        return o && !o.classList.contains('w-gone') && parseFloat(getComputedStyle(e).opacity) > 0.05 &&
+          !(e.classList.contains('hb-mark') && !e.classList.contains('on'));
+      }).length;
+      const measure = [];
+      for (let p = 0; p <= N; p++) {
+        jump(p);
+        const c = frames[p].click || {};
+        const target = c.highlight ? ringTarget(frames[p]) : null;
+        measure.push({ boxes: visibleBoxes(p), yes: marks('is-yes'), no: marks('is-no'),
+          subject: frames[p].subject ? boxIn(target || els[frames[p].subject]) : null });
+      }
+      const GAP = 22, EDGE = 44;
+      const overlaps = (a, b) => a.x < b.x + b.w + 8 && b.x < a.x + a.w + 8 && a.y < b.y + b.h + 8 && b.y < a.y + a.h + 8;
+      function sizeOf(text, wrap) {
+        caption.classList.add('near');
+        caption.classList.toggle('wrap', wrap);
+        caption.style.left = '0px'; caption.style.top = '0px';
+        caption.innerHTML = fmt(text);
+        const size = { w: caption.offsetWidth, h: caption.offsetHeight };
+        caption.classList.remove('near', 'wrap');
+        return size;
+      }
+      function placeFor(p) {
+        const text = frames[p].caption;
+        if (!text) return null;
+        const S = measure[p].subject;
+        if (!S) return { center: true };
+        const others = [...measure[p].boxes, ...measure[p - 1].boxes].filter(b => b.id !== frames[p].subject);
+        const clampX = (x, cw) => Math.max(EDGE, Math.min(W - EDGE - cw, x));
+        // Nearest first: on one line above or below, then beside it on up to three lines.
+        for (const wrap of [false, true]) {
+          const { w: cw, h: ch } = sizeOf(text, wrap);
+          const fits = c => c.y >= EDGE && c.y + ch <= H - EDGE && c.x >= EDGE && c.x + cw <= W - EDGE &&
+            !others.some(b => overlaps(c, b)) && !overlaps(c, S);
+          const midY = S.y + Math.max(0, (Math.min(S.h, 140) - ch) / 2);
+          const tries = wrap
+            ? [{ x: S.x + S.w + GAP * 1.5, y: midY }, { x: S.x - cw - GAP * 1.5, y: midY },
+               { x: clampX(S.x, cw), y: S.y - ch - GAP }, { x: clampX(S.x, cw), y: S.y + S.h + GAP }]
+            : [{ x: clampX(S.x, cw), y: S.y - ch - GAP }, { x: clampX(S.x, cw), y: S.y + S.h + GAP },
+               { x: S.x + S.w + GAP * 1.5, y: midY }, { x: S.x - cw - GAP * 1.5, y: midY }];
+          const hit = tries.map(c => ({ ...c, w: cw, h: ch })).find(fits);
+          if (hit) return { x: Math.round(hit.x), y: Math.round(hit.y), wrap };
+        }
+        return null;
+      }
+
+      const beats = [], sounds = [];
       let t = 0;
       if (first === 0) { beats.push({ p: 0, start: 0, typed: 0, move: 0, settle: 0, end: FILM.cover }); t = FILM.cover; }
       for (let p = 1; p <= N; p++) {
@@ -306,10 +363,27 @@
         if (c.highlight) settle += FILM.ring;
         const rest = text ? FILM.rest + FILM.perWord * wordsIn(f.caption) : FILM.restBare;
         const end = move + settle + rest + (p === N ? FILM.last : 0);
-        beats.push({ p, start: t, typed: t + typing, move, settle: move + settle, end, tick: !c.clear, chars: text.length });
+        beats.push({ p, start: t, typed: t + typing, move, settle: move + settle, end, chars: text.length, place: placeFor(p) });
+        // The sound of a change says what kind of change it is, one sound per meaning (Kit Langton's
+        // effect.institute): a page turn, a wipe, a verdict, a thing travelling, a thing arriving.
+        for (let i = 0; i < text.length; i++) if (/\S/.test(text[i])) sounds.push({ t: t + i * 1000 / FILM.cps, kind: 'key' });
+        const arrive = move + (turn ? TURN : 0);
+        const prevO = c.clear ? 0 : frames[p - 1].objects[c.object].o;
+        let kind = c.sound || null;
+        if (!kind) {
+          if (c.clear) kind = 'wipe';
+          else if (measure[p].yes > measure[p - 1].yes) kind = 'yes';
+          else if (measure[p].no > measure[p - 1].no) kind = 'no';
+          else if (f.travelled && prevO > 0) kind = 'glide';
+          else if (prevO === 0) kind = 'tick';
+          else kind = 'tap';
+        }
+        if (turn && p > 1) sounds.push({ t: move, kind: 'turn' });
+        if (kind !== 'none') sounds.push({ t: kind === 'yes' || kind === 'no' ? arrive + MOVE * 0.5 : arrive, kind, ms: MOVE });
+        if (c.highlight) sounds.push({ t: move + settle - FILM.ring, kind: 'ring' });
         t = end;
       }
-      const ticks = beats.filter(b => b.tick).map(b => b.move);
+      const ticks = sounds.filter(x => x.kind !== 'key').map(x => x.t);
       let shown = null;  // the beat whose change is laid out, so a rest does not redo it
 
       function typeCaption(html, chars) {
@@ -358,12 +432,18 @@
           shown = at >= b.settle - b.move + 400 ? 'after' + b.p : 'moving';
         }
         const chars = b.p === 0 ? 0 : Math.min(b.chars, Math.floor((ms - b.start) * FILM.cps / 1000));
+        const place = b.place;
+        caption.classList.toggle('near', !!place && !place.center);
+        caption.classList.toggle('wrap', !!place && !!place.wrap);
+        caption.classList.toggle('center', !!place && !!place.center);
+        caption.style.left = place && !place.center ? place.x + 'px' : '';
+        caption.style.top = place && !place.center ? place.y + 'px' : '';
         typeCaption(b.p ? fmt(f.caption) : '', chars);
         count.textContent = '';
         return [b.p, chars, moving ? Math.round(at) : -1].join(':');
       }
       const ring_ = ring;
-      window.WalkFilm = { duration: t, ticks, beats, seek, ready: true };
+      window.WalkFilm = { duration: t, ticks, sounds, beats, seek, ready: true };
       seek(0);
     }
     function notesFor(ch) {
