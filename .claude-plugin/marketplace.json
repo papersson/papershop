@@ -6,11 +6,13 @@
   "plugins": [
     {
       "name": "worklog",
-      "source": "./worklog"
+      "source": "./worklog",
+      "version": "0.5.0"
     },
     {
       "name": "prose",
-      "source": "./prose"
+      "source": "./prose",
+      "version": "0.6.0"
     },
     {
       "name": "studio",
@@ -26,11 +28,13 @@
     },
     {
       "name": "elicit",
-      "source": "./elicit"
+      "source": "./elicit",
+      "version": "0.2.0"
     },
     {
       "name": "polish-ui",
-      "source": "./polish-ui"
+      "source": "./polish-ui",
+      "version": "0.3.0"
     },
     {
       "name": "walk-me-through",
