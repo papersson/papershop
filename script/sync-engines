@@ -2,7 +2,9 @@
 """One click-through engine for two plugins: walk-me-through's engine/walk.{js,css} is the source,
 and present-your-work's engine/stage.{js,css} (and its example page's copies) are made from it by
 renaming only (Walk to Stage, walk-report to stage-report, the root class), so a fix, the stagger
-or the film mode reaches both. Each plugin still ships its own copy, since plugins install alone.
+or the film mode reaches both. The video maker, scripts/film.py, and its keyboard sounds,
+scripts/keys.wav, are copied the same way. Each plugin still ships its own copy, since plugins
+install alone.
 
   script/sync-engines           write present-your-work's copies
   script/sync-engines --check   exit 1, naming the files, when a copy differs (the `engines` suite)
@@ -18,6 +20,10 @@ DESTS = [PYW / "engine", PYW / "assets/example"]
 JS = [("/* walk.js: the walk-me-through engine.", "/* stage.js: present-your-work's click-through engine, made from walk-me-through's walk.js\n * by script/sync-engines (edit that one)."),
       ("walk-report", "stage-report"), ("walk-error", "stage-error"), ("WalkFilm", "StageFilm"),
       ("window.Walk ", "window.Stage "), ("Walk.", "Stage."), ("make('div', 'walk', document.body)", "make('div', 'stage-root', document.body)")]
+FILM = [('"""Play a walkthrough\'s clicks as a video', '"""Play a click-through page as a video (made from walk-me-through\'s scripts/film.py by\nscript/sync-engines; edit that one)'),
+        ("import walklib  # noqa: E402", "import pagelib as walklib  # noqa: E402"), ("WalkFilm", "StageFilm"),
+        ("walk-error", "stage-error"), ('("walk.js", "walk.css")', '("stage.js", "stage.css")'),
+        ("WALK_FFMPEG", "PRESENT_FFMPEG"), ("WALK_CHROME", "PRESENT_CHROME"), ("FILM in walk.js", "FILM in stage.js"), ("with walk.js and walk.css", "with stage.js and stage.css")]
 CSS = [("/* walk.css: the walk-me-through look.", "/* stage.css: present-your-work's click-through look, made from walk-me-through's walk.css\n   by script/sync-engines (edit that one)."),
        (".walk {", ".stage-root {"), ("#walk-error", "#stage-error")]
 
@@ -34,17 +40,22 @@ def made(src, rules):
 def main():
     check = "--check" in sys.argv[1:]
     want = {"stage.js": made(SRC / "walk.js", JS), "stage.css": made(SRC / "walk.css", CSS)}
+    scripts = SRC.parent / "scripts"
+    jobs = [(d / name, text) for d in DESTS for name, text in want.items()]
+    jobs += [(PYW / "scripts/film.py", made(scripts / "film.py", FILM)), (PYW / "scripts/keys.wav", (scripts / "keys.wav").read_bytes())]
     stale = []
-    for d in DESTS:
-        for name, text in want.items():
-            p = d / name
-            if p.exists() and p.read_text() == text:
-                continue
-            if check:
-                stale.append(str(p.relative_to(ROOT)))
-            else:
-                p.write_text(text)
-                print(f"wrote {p.relative_to(ROOT)}")
+    for p, text in jobs:
+        same = p.exists() and (p.read_bytes() == text if isinstance(text, bytes) else p.read_text() == text)
+        if same:
+            continue
+        if check:
+            stale.append(str(p.relative_to(ROOT)))
+        elif isinstance(text, bytes):
+            p.write_bytes(text)
+            print(f"wrote {p.relative_to(ROOT)}")
+        else:
+            p.write_text(text)
+            print(f"wrote {p.relative_to(ROOT)}")
     if stale:
         sys.exit("these differ from walk-me-through's engine; run script/sync-engines: " + ", ".join(stale))
 

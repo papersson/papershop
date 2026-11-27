@@ -242,5 +242,24 @@ class Checker(unittest.TestCase):
         self.assertIn('class="w-count">7/16<', dom)
 
 
+class Film(unittest.TestCase):
+    """film.py is walk-me-through's, copied by script/sync-engines: here it only has to run on this
+    skill's engine and pages."""
+
+    @needs_chrome
+    def test_renders_the_example_as_a_video(self):
+        sys.path.insert(0, str(HERE))
+        import film
+        if not film.find_ffmpeg():
+            self.skipTest(film.NO_FFMPEG)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp, "film.mp4")
+            run = script("film.py", SKILL / "assets/example", "--out", out, "--until", "2", "--fps", "10")
+            self.assertEqual(run.returncode, 0, run.stderr)
+            probe = subprocess.run([film.find_ffmpeg(), "-hide_banner", "-i", str(out)], capture_output=True, text=True)
+            self.assertIn("Video: h264", probe.stderr)
+            self.assertIn("Audio: aac", probe.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
