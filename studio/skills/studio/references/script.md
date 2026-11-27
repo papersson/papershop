@@ -196,6 +196,9 @@ works in this one, it's earned. Cut on sight:
   "a testament to", "plays a crucial role", announced importance ("Here is the distinction that
   will matter later"), and a rhetorical question in every paragraph. `/prose:prose` lists more;
   use its review mode on a draft.
+- Explanation tics: a figure where the literal verb exists ("mixes" for hashes, "walks" for
+  compares), a mechanism given a will ("the hash picks"), and narration that paraphrases the
+  picture instead of giving its reason. Say what the code or data does, by its own name.
 - Lecture tics: definitions before need, "rather than" on every other line, recitations of dates,
   versions and credits, and summaries of what was just shown. (A planned recap at a seam is
   different; see "Bring things back".)

@@ -6,8 +6,9 @@ description: >
   one caption line of at most 12 words says what it means when the picture cannot. Decides first
   whether a sentence would do, writes the whole page as a click list for approval, builds from it,
   then checks it with a script, screenshots and a fresh reader. Use when someone says "show me how
-  X works", "walk me through this", "I don't get it", "explain it visually", or asks to turn a deck
-  or document into a walkthrough. Not for a one-line answer, a comparison of options or a lookup.
+  X works", "walk me through this", "I don't get it", "explain it visually", asks for a short
+  silent explainer video (the same page, played as a film with typed captions and sound), or asks
+  to turn a deck or document into a walkthrough. Not for a one-line answer, a comparison of options or a lookup.
 ---
 
 # walk-me-through

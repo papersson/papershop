@@ -13,6 +13,10 @@ construction: a click can change one object, and its checker refuses a page that
 before anyone sees it. This release is the first step of that for studio: phase 2's `attention`
 check from `proposals/2026-11-save-film.md`.
 
+- `references/script.md` names the explanation tics Patrik found in the walkthrough film's
+  captions ("still sometimes LLMese, it paraphrases things"): a figure for the literal verb, a
+  mechanism with a will, a paraphrase of the picture. prose 0.6.0 lists them as explanation tells.
+
 - New `studio attention VIDEO [--chapter CLIP] [--where] [--json FILE]`: the Save film's attention
   audit (`click-save-film/tools/attention.py`), ported into the kit. It renders each chapter as a
   draft (a chapter agent's in its private work folder), samples it at 5 fps, and reports
