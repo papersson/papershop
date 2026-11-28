@@ -104,6 +104,18 @@ function layoutOf(stop, rowsVisible) {
   return {rows, at, centre}
 }
 
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+/** The stop showing at time t. A stop takes over only as early as its change needs: a scroll or
+ * fold MOVE before it, a new file SLIDE, a focus step STEP, a new pointed token its 0.25 s draw-in,
+ * so a token pointed at shortly before the next stop is still drawn. Stops carry t and file. */
+export function stopAt(stops, t) {
+  const lead = (s, p) => !p ? 0 : s.file !== p.file ? SLIDE : !same(s.show, p.show) ? MOVE : !same(s.focus, p.focus) ? STEP : .25
+  let i = 0
+  stops.forEach((s, k) => { if (t >= s.t - lead(s, stops[k - 1])) i = k })
+  return i
+}
+
 /**
  * Draw a view of the tour at the current time inside box [x, y, w, h] (stage pixels).
  * Options: size (type px, the largest that fits `cols` is used, never above it), name, op,
@@ -122,10 +134,9 @@ export function SourceView(c, tourData, viewName, {box, size = 34, name = viewNa
   const out = {lines: {}, size: sz, box}
   if (op <= 0) return out
   const stops = view.stops.map((s, i) => ({...s, file: s.file ?? view.stops.slice(0, i + 1).reverse().find(x => x.file)?.file ?? view.file, t: when(c, s.at)}))
-  let i = 0
-  stops.forEach((s, k) => { if (c.t >= s.t - MOVE) i = k })
+  const i = stopAt(stops, c.t)
   const cur = stops[i], prev = stops[i - 1] ?? cur
-  const moving = cur.file === prev.file ? heavy((c.t - (cur.t - MOVE)) / MOVE) : 1
+  const moving = cur.file === prev.file && !same(cur.show, prev.show) ? heavy((c.t - (cur.t - MOVE)) / MOVE) : 1
   const slide = cur.file !== prev.file ? heavy((c.t - (cur.t - SLIDE)) / SLIDE) : 1
   const centreY = top + areaH / 2
 
@@ -183,7 +194,7 @@ export function SourceView(c, tourData, viewName, {box, size = 34, name = viewNa
     drawPage(prev, stops[i - 2] && stops[i - 2].file === prev.file ? stops[i - 2] : null, 1, -slide * bw * .35, 1 - smooth(slide / .6), 'b')
     drawPage(cur, null, 1, (1 - slide) * bw * .35, smooth((slide - .3) / .7), 'a')
   } else {
-    drawPage(cur, moving < 1 ? prev : null, moving, 0, 1, 'a')
+    drawPage(cur, moving < 1 || (c.t < cur.t && cur.file === prev.file) ? prev : null, moving, 0, 1, 'a')
   }
   if (header) {
     const hy = by + sz * 1.1

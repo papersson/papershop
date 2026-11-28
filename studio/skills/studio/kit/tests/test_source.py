@@ -115,3 +115,18 @@ def test_a_tour_scene_keys_on_its_stops_cues_and_the_pinned_files(tmp_path):
                                         "export default function draw(c) { SourceView(c, tour, 'main', { box: [0, 0, 100, 100] }) }\n")
     assert keys.scene_cues(v, "s2", {"s2"}) >= {"s2-open", "s2-main"}
     assert keys.scene_data(v, "s2", {"s2"}) >= {"data/s2/tour.json", "data/source.json", "data/source"}
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs node")
+def test_a_stop_takes_over_only_as_early_as_its_change_needs():
+    """A pointed token 0.7 s before a stop that only points elsewhere stays on screen; a scroll leads by a second."""
+    js = (engine_dir("live") / "src" / "source.js").as_uri()
+    stops = [{"t": 10, "file": "a", "show": [[1, 5]], "point": {"line": 2, "text": "x"}},
+             {"t": 10.7, "file": "a", "show": [[1, 5]], "point": {"line": 3, "text": "y"}},
+             {"t": 12, "file": "a", "show": [[1, 5]], "focus": [[2, 2]]},
+             {"t": 14, "file": "a", "show": [[6, 9]]}]
+    out = subprocess.run(["node", "--input-type=module", "-e",
+                          f"import {{stopAt}} from '{js}'; const s = {json.dumps(stops)};"
+                          "console.log(JSON.stringify([10.2, 10.5, 11.6, 13.05, 12.9].map(t => stopAt(s, t))))"],
+                         capture_output=True, text=True, check=True).stdout
+    assert json.loads(out) == [0, 1, 2, 3, 2]
