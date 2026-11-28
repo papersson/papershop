@@ -396,7 +396,7 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, cha
     default = only is None
     always = ("legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend") + (("provenance",) if (Path(video) / "assets" / "provenance.json").exists() else ())
     only = set(only or CHECKS + always)
-    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "script", "pauses", "staging", "code-view", "screens"}
+    known = set(CHECKS) | {"legible", "overlap", "pacing", "flash", "inframe", "occluded", "legend", "provenance", "dead", "loop", "script", "pauses", "staging", "code-view", "screens", "source"}
     if only - known:
         raise SystemExit("unknown checks: " + ", ".join(sorted(only - known)))
     preflight = []
@@ -415,7 +415,10 @@ def run(video, samples=3, only=None, engine=None, fmt=None, everything=True, cha
     if "screens" in only or (default and (Path(video) / "data" / "screens.json").exists()):
         from . import screens
         preflight += screens.check(video)
-    if only <= {"script", "pauses", "staging", "code-view", "screens"}:
+    from . import source
+    if "source" in only or (default and source.tour_files(video)):
+        preflight += source.check(video)
+    if only <= {"script", "pauses", "staging", "code-view", "screens", "source"}:
         return preflight
     engine = engine or Engine(video, fmt=fmt)
     kinds = sorted(only & set(PER_CLIP))

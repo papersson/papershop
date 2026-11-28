@@ -207,6 +207,12 @@ COMMANDS = {
                [W("video"), P("plan", help="the plan: sources, bursts of edits, the run (typecode.py)")], "typecode:main"),
     "screens": ("the screens layer's key and click sounds from data/screens.json, and where each desktop switch lands",
                 [W("video")], "screens:main"),
+    "source": ("copy real source files at one commit into the video for a code tour (data/source.json)", [
+        W("video"), P("repo", help="a git checkout of the code being toured"),
+        A("paths", nargs="+", help="file paths inside the repository"),
+        A("--rev", default="HEAD", help="the commit, tag or branch to read (default HEAD); the film pins its hash"),
+        A("--url", help="the repository's web address for permalinks (default: the checkout's origin)"),
+    ], "source:main"),
     "lexicon": ("promote a pronunciation to STUDIO_HOME/lexicon.json", [
         A("action", choices=["add"]), A("word"), A("--spoken"), A("--phonemes"),
     ], "preferences:main_lexicon"),

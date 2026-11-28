@@ -214,8 +214,8 @@ def test_the_engine_kits_read_cues_only_through_cue():
         for i, line in enumerate(lines):
             if re.search(r"\.cues\b|\[['\"]cues['\"]\]|\bcue\s*\(", line):
                 # the typed code editor reads the cues data/typing.json names, and the screens layer those
-                # data/screens.json names; scene_cues counts them
-                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]) or f.name in ("code.js", "screens.js"), f"{f}:{i + 1}: {line.strip()}"
+                # data/screens.json names, and a code tour those its tour files name; scene_cues counts them
+                assert any("cue: (name" in x for x in lines[max(0, i - 2):i + 1]) or f.name in ("code.js", "screens.js", "source.js"), f"{f}:{i + 1}: {line.strip()}"
 
 
 def test_editing_a_caption_renders_nothing_again(tmp_path):

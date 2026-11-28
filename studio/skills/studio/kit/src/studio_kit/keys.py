@@ -147,6 +147,7 @@ def scene_cues(video, clip_id, clip_ids):
     action data/screens.json names: a scene that calls loadScreens reads all of its cues."""
     names = set()
     typing = view = screens = False
+    tours = set()
     for f in scene_files(video, clip_id, clip_ids):
         text = f.read_text(errors="replace")
         found = _cue_names(text)
@@ -156,6 +157,12 @@ def scene_cues(video, clip_id, clip_ids):
         typing |= "data/typing.json" in text
         view |= "data/codeview.json" in text
         screens |= "loadScreens" in text
+        tours |= _tour_files(text)
+    for rel in tours:     # a code tour (source.js) reads the cue of every stop in the tour files it loads
+        if (path := Path(video) / rel).exists():
+            for v in json.loads(path.read_text()).get("views", {}).values():
+                names |= {s["at"] if isinstance(s["at"], str) else s["at"][0]
+                          for s in v.get("stops", []) if isinstance(s.get("at"), (str, list))}
     if screens and (spec := _screens_spec(video)):
         names |= {a["at"] for a in spec.get("actions", []) if isinstance(a.get("at"), str)}
         names |= {d["arrive"] for d in spec.get("desktops", []) if isinstance(d.get("arrive"), str)}
@@ -174,6 +181,13 @@ def scene_cues(video, clip_id, clip_ids):
             for item in spec.get(group, []):
                 add(item.get("from")), add(item.get("to"))
     return names
+
+
+def _tour_files(text):
+    """The tour files a scene's loadTour calls read: each literal data/…tour.json, else the default."""
+    if "loadTour" not in text:
+        return set()
+    return {p for p in _DATA.findall(text) if p.endswith("tour.json")} or {"data/tour.json"}
 
 
 def _screens_spec(video):
@@ -221,6 +235,8 @@ def scene_data(video, clip_id, clip_ids):
         found |= set(_DATA.findall(text))
         if "loadScreens" in text and (spec := _screens_spec(video)):
             found |= _screens_files(spec)
+        if tours := _tour_files(text):
+            found |= tours | {"data/source.json", "data/source"}
     return found
 
 

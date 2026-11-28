@@ -173,3 +173,25 @@ that has to wrap inside a token at its window's width, or typing over the autoty
 Mouse clicks default to `kit:mouse-click-pixeliota`, the same auditioned recording as the
 kit reference example. `sounds.click` in `data/screens.json` can override it when the user
 chooses another sound. Preserve the recording’s press/release pair.
+
+## Code tours
+
+A tour of code someone else wrote (a real project, a library's algorithm) shows the files
+themselves, pinned to one commit, read the way a person reads them. It is reading, not typing, so it
+has no window: a page with the path, the commit, line numbers and the code.
+
+- `studio source VIDEO REPO PATH... [--rev REV]` copies each PATH from the git checkout REPO at one
+  commit into `data/source/` and lists it with its sha256 in `data/source.json`.
+- A tour file, `data/tour.json` or a chapter's own `data/CLIP/tour.json`, names views of those
+  files as stops: `{"at": CUE, "show": [[a, b], ...], "focus": [[a, b]], "point": {"line": n,
+  "text": "token"}, "file": PATH}`. Cue each stop on the words; it arrives then.
+- `SourceView(c, await loadTour(import.meta.url, {tour: 'data/s2/tour.json'}), 'VIEW', {box, size, op})`
+  draws one: "⋯ N lines" folds between the shown ranges, the focus at full ink and the rest a step
+  down, the pointed token underlined whole on its cue. Lines keep their identity between stops, so
+  a scroll, fold or unfold is one continuous move; a new file slides in.
+- `studio check` runs the `source` check whenever a tour file exists: a changed file, a range past
+  the end, a focus that is not shown or a pointed token that is not on its line fails; a line wider
+  than the view's `cols` warns. Cite the same commit in SCRIPT.md's Evidence table.
+
+The schema and options are at the top of `engines/live/src/source.js`.
+

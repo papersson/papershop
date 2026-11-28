@@ -22,6 +22,10 @@ export { loadScreens, screensAt, screensCamera, drawScreens, editorWindow, termi
 export { defCard, progressStrip, checklist, productFrame, timeSeries, table, waterfall, pointPlot, rankedList, CARD_VARIANTS } from './pages.js'
 export const screens = { ...screensModel, ...screensDraw, ...screensPages }
 
+// Code tours (references/kit.md, "Code tours"): real files at a pinned commit, from data/source.json and
+// data/tour.json, scrolled, folded and focused stop by stop.
+export { loadTour, SourceView, syntax as sourceSyntax } from './source.js'
+
 export { clamp, lerp, mix, ease, stagger, spring, track, rand, rng, countUp, keyed, follow, settle, wobble } from '../../shared/motion.js'
 export { phraseStart, wordStart } from '../../shared/timing.js'
 // 3D shots: c.shot, c.flatShot and c.frameOn3 point the 3D stage with them; these are the pure versions.

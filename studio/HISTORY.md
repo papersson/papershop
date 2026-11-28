@@ -3,6 +3,29 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Code tours of real source (0.39.0)
+
+Patrik asked for a video code tour of TigerBeetle, "really nice and delightful", after a written tour
+of the same code. Studio could type code it had recorded and show a fixed range of a file
+(`CodePanel`), but a tour of someone else's code needs more: the real files, pinned to a commit, read
+the way a person reads them, moving through hundreds of lines without losing the reader. And the
+written tour had five wrong line numbers before they were checked by hand, which is the error a
+programmer notices first.
+
+- `studio source VIDEO REPO PATH... [--rev REV]` copies files from a git checkout at one commit into
+  `data/source/` and lists them with their sha256 in `data/source.json`.
+- `SourceView` (engines/live/src/source.js, exported from the kit) draws a view of a tour file
+  (`data/tour.json`, or a chapter's `data/CLIP/tour.json` so parallel chapter agents never share one):
+  stops that show line ranges with "⋯ N lines" folds between them, focus lines at full ink and the
+  rest a step down, one token underlined on its cue. Lines keep their identity between stops, so a
+  scroll, fold or unfold is one continuous move; a change of file slides. Zig, C and Python are
+  coloured; Markdown is not. No window chrome: nobody is typing.
+- The `source` check, part of `studio check` whenever a tour file exists, fails on a changed file,
+  a range past the end, an unshown focus or a pointed token that is not on its line, and warns on a
+  line wider than the view's columns.
+- screens.md "Code tours" (kit.md points there; the core reading stays under its word budget), tests
+  in `test_source.py`. A tour scene's render key holds its stops' cues and the pinned files.
+
 ## A film narrated in a recorded voice (0.38.0)
 
 Kit Langton open-sourced effect.institute, whose narration is his own voice recorded in the

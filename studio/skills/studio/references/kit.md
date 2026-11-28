@@ -256,8 +256,8 @@ versions and captured run output in data. The full schema is at the top of `type
 
 ## Screens
 
-A screen film keeps one log of its desktops, `data/screens.json`, drawn by `screens-draw.js`;
-`studio screens VIDEO` writes its sounds. See `screens.md`.
+A screen film keeps one log of its desktops, `data/screens.json`; `studio screens VIDEO` writes its
+sounds. Code tours: `studio source`, `SourceView`. See `screens.md`.
 
 ## Sound and the mix
 
