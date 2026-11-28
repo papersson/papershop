@@ -107,9 +107,11 @@ class Engine:
         self._plates([{"clip": clip, "t": t}])
         return self._call("still", "--clip", clip, "--t", t, "--out", out, "--layers", layers, "--scale", scale)
 
-    def stills(self, requests):
-        """Many stills in one browser session: [{clip, t, out, layers?, scale?}]."""
-        self._plates(requests)
+    def stills(self, requests, plates=True):
+        """Many stills in one browser session: [{clip, t, out, layers?, scale?}]. plates=False when
+        the caller has prepared them (prepare_stills) and shares the requests between sessions."""
+        if plates:
+            self._plates(requests)
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump([{**r, "out": str(r["out"])} for r in requests], f)
         try:
@@ -128,6 +130,10 @@ class Engine:
         if range_:
             args += ["--range", range_[0], range_[1]]
         return self._call("render", *args, cpus=cpus)
+
+    def prepare_stills(self, requests):
+        """The plate frames these stills draw, once, before sessions render them side by side."""
+        self._plates(requests)
 
     def prepare(self, clip, quality="draft"):
         """Whatever a render of every frame of the clip needs first (its plate's frames), once."""

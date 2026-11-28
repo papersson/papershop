@@ -385,3 +385,25 @@ def test_missing_clips_render_in_slices_and_join_to_whole_clips(tmp_path, monkey
     engine.calls.clear()
     _, again = render.render_clips(tmp_path, {"fps": 30}, engine, "draft")
     assert engine.calls == [] and [r["rendered"] for r in again] == [False, False]
+
+
+def test_many_stills_are_shared_between_browsers(monkeypatch):
+    from studio_kit import env, render
+
+    class Engine:
+        def __init__(self):
+            self.sessions, self.prepared = [], 0
+
+        def prepare_stills(self, requests):
+            self.prepared += 1
+
+        def stills(self, requests, plates=True):
+            self.sessions.append((len(requests), plates))
+
+    monkeypatch.setattr(env, "render_workers", lambda: 4)
+    e = Engine()
+    render._stills(e, [{"clip": "a", "t": i} for i in range(100)])
+    assert sorted(e.sessions) == [(25, False)] * 4 and e.prepared == 1
+    e = Engine()
+    render._stills(e, [{"clip": "a", "t": i} for i in range(10)])       # too few to be worth a second browser
+    assert e.sessions == [(10, True)]

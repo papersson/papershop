@@ -3,6 +3,13 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## A cut's stills share the browsers too (0.39.1)
+
+After 0.39.0 the slowest step of a cut was its stills: 250 of them took 63 s in one browser while
+the clips used twenty. `cached_stills` now shares the stills it must render between
+`env.render_workers()` browsers, eight or more to a browser, in time order so each stays in its
+chapters. Measured on the same film: 8.7 s, and the whole final cut in 5 min 20 s.
+
 ## Renders use every core: a full film in minutes (0.39.0)
 
 A 23-minute film took about 92 minutes to render, one browser drawing one frame at a time while the

@@ -94,13 +94,31 @@ def cached_stills(video, timeline, engine, reqs, boards=False, cache_name=None):
         if not f.exists():
             todo.append({"clip": r["clip"], "t": r["t"], "out": str(f), "scale": r["scale"], "boards": boards})
     if todo:
-        engine.stills(todo)
+        _stills(engine, todo)
     for r in reqs:
         shutil.copyfile(r.pop("cache"), r["out"])
     for old in cache.glob("*.jpg"):          # stills of frames that no longer exist
         if old.name not in wanted:
             old.unlink()
     return len(todo), len(reqs) - len(todo)
+
+
+STILLS_A_BROWSER = 8        # fewer than this and a second browser's start costs more than it saves
+
+
+def _stills(engine, todo):
+    """Render the stills, shared between as many browsers as the machine has cores for
+    (env.render_workers) when there are enough of them and the engine can prepare them once."""
+    from concurrent.futures import ThreadPoolExecutor
+    from . import env
+    workers = min(env.render_workers(), len(todo) // STILLS_A_BROWSER)
+    if workers < 2 or not hasattr(engine, "prepare_stills"):
+        return engine.stills(todo)
+    engine.prepare_stills(todo)
+    size = -(-len(todo) // workers)
+    shares = [todo[i:i + size] for i in range(0, len(todo), size)]     # runs in time order: a browser stays in its chapters
+    with ThreadPoolExecutor(max_workers=len(shares)) as pool:
+        list(pool.map(lambda share: engine.stills(share, plates=False), shares))
 
 
 def log(msg):
