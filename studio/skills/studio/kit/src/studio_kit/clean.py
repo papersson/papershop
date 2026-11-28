@@ -1,4 +1,5 @@
 """Remove regenerable caches and old draft previews; MP4 deletion is explicit and protected."""
+import time
 import json
 import shutil
 from pathlib import Path
@@ -83,7 +84,8 @@ def _keyed_stale(video, t):
         for cid in ids:
             clips[f"{cid}-{q}-{keys.clip_key(video, t, cid, q)}"] = True
     fmts = {}
-    for f in (cache / "clips").glob("*.mp4") if (cache / "clips").is_dir() else []:
+    # A clip is cached as an MP4 and its MPEG-TS twin (render.stream_file); both go together.
+    for f in sorted((cache / "clips").glob("*.mp4")) + sorted((cache / "clips").glob("*.ts")) if (cache / "clips").is_dir() else []:
         parts = f.stem.split("-")
         if f.stem in clips:
             continue
@@ -97,6 +99,10 @@ def _keyed_stale(video, t):
                     continue
             out.append(f)
         else:
+            out.append(f)
+    # Slices of a render that was stopped and never resumed (a running render's are minutes old).
+    for f in (cache / "segments").glob("*.ts") if (cache / "segments").is_dir() else []:
+        if time.time() - f.stat().st_mtime > 86400:
             out.append(f)
     finals = {f"{cid}-final-{keys.clip_key(video, t, cid, 'final')}" for cid in ids}
     for f in (cache / "web").glob("*.mp4") if (cache / "web").is_dir() else []:

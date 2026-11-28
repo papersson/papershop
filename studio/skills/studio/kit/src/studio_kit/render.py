@@ -43,6 +43,8 @@ def composite(video, timeline, clip_files, out):
     """Concatenate the clips' videos (identical encodes, so no re-encode) and mux the soundtrack;
     returns the soundtrack's file."""
     lst = out.with_suffix(".txt")
+    # Each clip's MPEG-TS twin where it has one (a clip rendered before the twins existed has none).
+    clip_files = [stream_file(f) if stream_file(f).exists() else f for f in clip_files]
     lst.write_text("".join(f"file '{f.resolve()}'\n" for f in clip_files))
     silent = out.with_name("silent.mp4")
     proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", silent)
@@ -220,34 +222,109 @@ def _minutes(seconds):
     return f"{seconds / 60:.0f} min" if seconds >= 90 else f"{seconds:.0f} s"
 
 
+SLICE_FRAMES = 300          # ten seconds at 30 fps: short enough to spread a chapter over every core
+
+
+def slices(piece, fps, size=None):
+    """A piece's frames as [(first, last)] runs of at most `size`, in clip frames (inclusive)."""
+    size = size or SLICE_FRAMES
+    first = tl.half_up(piece["range"][0] * fps) if piece["range"] else 0
+    end = first + piece["frames"]
+    return [(a, min(a + size, end) - 1) for a in range(first, end, size)]
+
+
+def segment_file(video, piece, quality, fmt, a, b):
+    """A slice of a piece, kept until the piece is whole so an interrupted render resumes."""
+    f = keys.clip_file(video, piece["id"], quality, piece["key"], fmt)
+    return Path(video) / ".cache" / "segments" / f"{f.stem}-{a}-{b}.ts"
+
+
+def stream_file(f):
+    """A cached clip's MPEG-TS twin, which composite joins: MP4 pieces can shift a frame at a join."""
+    return Path(f).with_suffix(".ts")
+
+
+def _join(files, out, *args):
+    lst = out.with_name(out.name + ".txt")
+    lst.write_text("".join(f"file '{Path(f).resolve()}'\n" for f in files))
+    try:
+        proc.ffmpeg("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", *args, out)
+    finally:
+        lst.unlink(missing_ok=True)
+
+
 def render_clips(video, timeline, engine, quality="draft", fmt=None):
     """Render the clips whose cached video is missing (or stale) in `fmt`; returns ([files], [records]).
-    Before rendering, it says how long that should take (estimate)."""
-    files, records = [], []
+    The missing clips are cut into slices (SLICE_FRAMES) and rendered env.render_workers() at a time,
+    each slice by its own browser, then joined by stream copy. Before rendering, it says how long
+    that should take (estimate)."""
+    from concurrent.futures import ThreadPoolExecutor
+    from . import env
+    video = Path(video)
+    fps = timeline["fps"]
     ps = pieces(video, timeline, quality, fmt)
     rows = [(p, keys.clip_file(video, p["id"], quality, p["key"], fmt)) for p in ps]
-    todo = [p for p, f in rows if not f.exists()]
+    todo = [(p, f) for p, f in rows if not f.exists()]
+    took = {}
     if todo:
-        est = estimate(video, timeline, quality, todo)
-        frames = sum(p["frames"] for p in todo)
-        log(f"render: {len(todo)} clip(s), {frames} frames at {quality}; " + (
-            f"about {_minutes(est['seconds'])} ({est['per_frame']:.2f} s a frame in cut {', '.join(map(str, est['from'][-3:]))})"
+        est = estimate(video, timeline, quality, [p for p, _ in todo])
+        frames = sum(p["frames"] for p, _ in todo)
+        workers = env.render_workers()
+        log(f"render: {len(todo)} clip(s), {frames} frames at {quality}, {workers} at a time; " + (
+            f"about {_minutes(est['seconds'] / workers)} ({est['per_frame']:.2f} s a frame in cut {', '.join(map(str, est['from'][-3:]))})"
             if est else "no earlier render at this quality to estimate from"))
-    for p, f in rows:
-        cid, key = p["id"], p["key"]
-        f.parent.mkdir(parents=True, exist_ok=True)
-        started = time.monotonic()
-        fresh = not f.exists()
-        if fresh:
-            for old in f.parent.glob(f.name.replace(key, "*")):
+        jobs = []
+        for p, f in todo:
+            f.parent.mkdir(parents=True, exist_ok=True)
+            for old in [*f.parent.glob(f.name.replace(p["key"], "*")), *f.parent.glob(stream_file(f).name.replace(p["key"], "*"))]:
                 old.unlink()
-            log(f"render {cid} ({quality}): changed")
-            r = engine.render(p["clip"], f, quality, p["range"]) if p["range"] else engine.render(p["clip"], f, quality)
-            log(f"  {r.get('frames', '?')} frames in {r.get('seconds', 0):.0f} s")
-        else:
-            log(f"render {cid} ({quality}): unchanged, cached")
-        records.append({"id": cid, "key": key, "rendered": fresh, "seconds": round(time.monotonic() - started, 1),
-                        "frames": p["frames"]})
+            log(f"render {p['id']} ({quality}): changed")
+            for a, b in slices(p, fps):
+                seg = segment_file(video, p, quality, fmt, a, b)
+                if not seg.exists():
+                    jobs.append((p, a, b, seg))
+        for clip in dict.fromkeys(p["clip"] for p, _, _, _ in jobs):
+            if hasattr(engine, "prepare"):
+                engine.prepare(clip, quality)
+        pin = env.cpu_sets()
+        started = time.monotonic()
+
+        def one(i, job):
+            p, a, b, seg = job
+            seg.parent.mkdir(parents=True, exist_ok=True)
+            part = seg.with_name(f".{seg.stem}.part.ts")     # whole or absent: a killed render leaves no half segment
+            t0 = time.monotonic()
+            extra = {"plates": False} if hasattr(engine, "prepare") else {}
+            if pin:
+                extra["cpus"] = pin[i % len(pin)]
+            engine.render(p["clip"], part, quality, (a / fps, b / fps), **extra)
+            part.replace(seg)
+            return p["id"], time.monotonic() - t0
+
+        with ThreadPoolExecutor(max_workers=max(1, min(workers, len(jobs) or 1))) as pool:
+            for cid, seconds in pool.map(one, range(len(jobs)), jobs):
+                took[cid] = took.get(cid, 0) + seconds
+        for p, f in todo:
+            segs = [segment_file(video, p, quality, fmt, a, b) for a, b in slices(p, fps)]
+            ts = stream_file(f)
+            tmp_ts, tmp_mp4 = ts.with_name("." + ts.name), f.with_name("." + f.name)
+            _join(segs, tmp_ts, "-f", "mpegts")
+            _join(segs, tmp_mp4)
+            tmp_ts.replace(ts)
+            tmp_mp4.replace(f)
+            for seg in segs:
+                seg.unlink()
+        if jobs:
+            wall = time.monotonic() - started
+            log(f"  {sum(b - a + 1 for _, a, b, _ in jobs)} frames in {wall:.0f} s")
+    files, records = [], []
+    fresh = {p["id"] for p, _ in todo}
+    for p, f in rows:
+        if p["id"] not in fresh:
+            log(f"render {p['id']} ({quality}): unchanged, cached")
+        # seconds: the browsers' time on this clip, summed over its slices, so an estimate divides by the workers
+        records.append({"id": p["id"], "key": p["key"], "rendered": p["id"] in fresh,
+                        "seconds": round(took.get(p["id"], 0), 1), "frames": p["frames"]})
         files.append(f)
     return files, records
 

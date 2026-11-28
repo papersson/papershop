@@ -332,3 +332,56 @@ def test_a_render_is_estimated_from_the_cuts_before_it(tmp_path):
     frames = sum(tl.frames(t, c)[1] for c in ("s1", "s2"))
     assert est["frames"] == frames and est["per_frame"] == 0.5 and est["seconds"] == frames * 0.5 and est["from"] == [1]
     assert render.estimate(tmp_path, t, "final", ["s1"]) is None            # another quality is another cost
+
+
+def test_a_piece_is_cut_into_slices_that_cover_it_once():
+    from studio_kit import render
+    whole = {"range": None, "frames": 650}
+    assert render.slices(whole, 30) == [(0, 299), (300, 599), (600, 649)]
+    join = {"range": (100 / 30, 117 / 30), "frames": 18}
+    assert render.slices(join, 30) == [(100, 117)]
+    assert render.slices({"range": None, "frames": 300}, 30) == [(0, 299)]
+
+
+class SliceEngine:
+    """Writes a tiny real video for every slice, and remembers what it was asked for."""
+    def __init__(self):
+        self.calls, self.prepared = [], []
+
+    def prepare(self, clip, quality="draft"):
+        self.prepared.append(clip)
+
+    def render(self, clip, out, quality="draft", range_=None, plates=True, cpus=None):
+        from studio_kit import proc
+        a, b = round(range_[0] * 30), round(range_[1] * 30)
+        self.calls.append((clip, a, b, plates))
+        proc.ffmpeg("-f", "lavfi", "-i", f"color=c=black:s=64x36:r=30:d={(b - a + 1) / 30}", "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p", "-x264-params", "open-gop=0", "-f", "mpegts", out)
+        return {"frames": b - a + 1, "seconds": 0.1}
+
+
+def test_missing_clips_render_in_slices_and_join_to_whole_clips(tmp_path, monkeypatch):
+    import subprocess
+    from studio_kit import env, render, keys
+    monkeypatch.setattr(env, "render_workers", lambda: 4)
+    monkeypatch.setattr(env, "cpu_sets", lambda: [])
+    monkeypatch.setattr(render, "SLICE_FRAMES", 20)
+    pieces = [{"id": "a", "clip": "a", "range": None, "frames": 50, "key": "k1"},
+              {"id": "b", "clip": "b", "range": None, "frames": 20, "key": "k2"}]
+    monkeypatch.setattr(render, "pieces", lambda *a, **k: pieces)
+    monkeypatch.setattr(render, "estimate", lambda *a, **k: None)
+    engine = SliceEngine()
+    files, records = render.render_clips(tmp_path, {"fps": 30}, engine, "draft")
+    assert sorted(engine.calls) == [("a", 0, 19, False), ("a", 20, 39, False), ("a", 40, 49, False), ("b", 0, 19, False)]
+    assert engine.prepared == ["a", "b"]
+    assert [r["rendered"] for r in records] == [True, True]
+    for f, frames in zip(files, (50, 20)):
+        assert f == keys.clip_file(tmp_path, f.stem.split("-")[0], "draft", f.stem.split("-")[-1])
+        assert render.stream_file(f).exists()
+        n = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v", "-show_entries",
+                            "stream=nb_read_frames", "-of", "csv=p=0", str(f)], capture_output=True, text=True).stdout.strip()
+        assert int(n) == frames
+    assert not list((tmp_path / ".cache" / "segments").glob("*.ts"))       # the slices are gone once the clip is whole
+    engine.calls.clear()
+    _, again = render.render_clips(tmp_path, {"fps": 30}, engine, "draft")
+    assert engine.calls == [] and [r["rendered"] for r in again] == [False, False]

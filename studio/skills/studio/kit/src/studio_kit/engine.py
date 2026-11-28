@@ -70,10 +70,13 @@ class Engine:
             cmd += ["--layout", str(tl.layout_file(self.video, self.fmt))]
         return cmd
 
-    def _call(self, op, *args):
+    def _call(self, op, *args, cpus=None):
         with tempfile.TemporaryDirectory(prefix="studio-reply-") as d:
             answer = Path(d) / "reply.json"
-            run = proc.run(self._command(op, *map(str, args), "--reply", str(answer)), capture_output=True, text=True)
+            cmd = self._command(op, *map(str, args), "--reply", str(answer))
+            if cpus:
+                cmd = ["taskset", "-c", cpus, *cmd]
+            run = proc.run(cmd, capture_output=True, text=True)
             if run.returncode != 0:
                 cause = run.stderr.strip()[-3000:]
                 hint = launch_hint(cause)
@@ -114,13 +117,21 @@ class Engine:
         finally:
             Path(f.name).unlink(missing_ok=True)
 
-    def render(self, clip, out, quality="draft", range_=None):
-        """The clip as a silent video, or the part of it between range_ = (a, b) seconds."""
-        self._plates([{"clip": clip, "t": None}], quality)
+    def render(self, clip, out, quality="draft", range_=None, plates=True, cpus=None):
+        """The clip as a silent video, or the part of it between range_ = (a, b) seconds. An out
+        ending .ts is a closed-GOP MPEG-TS segment, which joins to its neighbours without a glitch.
+        plates=False when the caller has prepared the clip's plates (prepare) and renders its slices
+        at once; cpus pins the worker to a CPU list (env.cpu_sets)."""
+        if plates:
+            self.prepare(clip, quality)
         args = ["--clip", clip, "--out", out, "--quality", quality]
         if range_:
             args += ["--range", range_[0], range_[1]]
-        return self._call("render", *args)
+        return self._call("render", *args, cpus=cpus)
+
+    def prepare(self, clip, quality="draft"):
+        """Whatever a render of every frame of the clip needs first (its plate's frames), once."""
+        self._plates([{"clip": clip, "t": None}], quality)
 
     def boxes_at(self, requests):
         """Boxes for many frames in one browser session: [{clip, t}] -> [{clip, t, boxes}]."""

@@ -29,7 +29,11 @@ import { reply } from '../shared/reply.js'
 
 const ENGINE = path.dirname(fileURLToPath(import.meta.url))
 const SHARED = path.join(ENGINE, '..', 'shared') // the engines' shared modules, which the kit imports as ../../shared/
-const QUALITY = { draft: { scale: 0.5, crf: 26 }, final: { scale: 1, crf: 18 } }
+// A final captures lossless PNG (fast-compressed: the encoder is the only reader); a draft, JPEG.
+const QUALITY = {
+  draft: { scale: 0.5, crf: 26, shot: { format: 'jpeg', quality: 92 } },
+  final: { scale: 1, crf: 18, shot: { format: 'png', optimizeForSpeed: true } },
+}
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
   '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp' }
@@ -170,13 +174,20 @@ async function render(video, clip, out, quality, range) {
   const started = Date.now()
   await withPage(video, async page => {
     const scale = q.scale === 1 ? [] : ['-vf', `scale=iw*${q.scale}:-2`]
-    const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(t.fps), '-c:v', 'mjpeg', '-i', '-', ...scale,
-      '-c:v', 'libx264', '-crf', String(q.crf), '-pix_fmt', 'yuv420p', '-r', String(t.fps), out], { stdio: ['pipe', 'inherit', 'inherit'] })
+    // A .ts out is a segment of a clip: closed GOPs in MPEG-TS join to their neighbours by stream copy
+    // with exact timestamps, where MP4 segments with B-frames shift a frame at some joins.
+    const container = /\.ts$/i.test(out) ? ['-x264-params', 'open-gop=0', '-f', 'mpegts'] : []
+    const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(t.fps), '-c:v', q.shot.format === 'png' ? 'png' : 'mjpeg', '-i', '-', ...scale,
+      '-c:v', 'libx264', '-crf', String(q.crf), '-pix_fmt', 'yuv420p', '-r', String(t.fps), ...container, out], { stdio: ['pipe', 'inherit', 'inherit'] })
     const closed = new Promise((ok, fail) => ff.on('close', code => (code === 0 ? ok() : fail(new Error(`ffmpeg exited ${code}`)))))
+    ff.stdin.on('error', () => {}) // ffmpeg's exit code reports a broken pipe
+    // The screenshot is nine tenths of a frame's cost. Asking the browser for it directly, without
+    // the driver's per-shot checks, gives the same pixels sooner.
+    const cdp = await page.context().newCDPSession(page)
     for (let f = a; f <= b; f++) {
       await drawn(page, clip, f)
-      const jpg = await page.screenshot({ type: 'jpeg', quality: 92 })
-      if (!ff.stdin.write(jpg)) await new Promise(r => ff.stdin.once('drain', r))
+      const { data } = await cdp.send('Page.captureScreenshot', q.shot)
+      if (!ff.stdin.write(Buffer.from(data, 'base64'))) await new Promise(r => ff.stdin.once('drain', r))
     }
     ff.stdin.end()
     await closed

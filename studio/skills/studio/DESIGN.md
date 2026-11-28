@@ -217,3 +217,11 @@ the saved movie at sample resolution. Four-sample decimation once aliased a 239-
 into false offsets. A masked attack stays unverified. Sparse key-only pieces may need a quieter target
 than spoken narration to preserve their dynamics; report the chosen target and measured result. The
 finish record stores the gain actually applied, including when the requested target is unreachable.
+
+## Renders use the machine they run on
+
+A render cuts its missing clips into ten-second slices and draws them one browser per physical
+core, fewer when memory is short, because nine tenths of a frame's cost is the browser's
+screenshot and that work does not share a core. The kit measures the machine, so no video carries
+a setting for it. `STUDIO_WORKERS`, or `STUDIO_HOME/machine.json` (`workers`, `browser`, `pin`),
+is for what the owner of a machine wants otherwise.

@@ -3,6 +3,27 @@
 What each release changed and why, moved out of the skill's DESIGN.md so agents reading the skill
 see current rules, not their history. DESIGN.md keeps the standing rationale.
 
+## Renders use every core: a full film in minutes (0.39.0)
+
+A 23-minute film took about 92 minutes to render, one browser drawing one frame at a time while the
+other cores idled. Profiling showed nine tenths of a frame is the browser's screenshot; the scene's
+drawing and the encoder are small. Three changes, measured together on a 20-core machine: the same
+film renders in under five minutes (41,582 frames in 275 s), and the cut, with its stills, in under six.
+
+- `render_clips` cuts every missing clip into slices of 300 frames and renders them
+  `env.render_workers()` at a time, each slice by its own browser. The count is one per physical
+  core, fewer when memory is short (about 2 GB a worker); hardware threads add nothing, and 30
+  workers on 20 cores were slower than 20. `STUDIO_WORKERS` overrides it.
+- A slice is a closed-GOP MPEG-TS segment, and a clip is cached as an MP4 with an MPEG-TS twin that
+  the composite joins. MP4 pieces with B-frames could shift a frame at a join; the twins join with
+  exact timestamps. Slices are kept until their clip is whole, so a stopped render resumes.
+- The engine asks the browser for each screenshot directly. A final captures lossless PNG
+  (`optimizeForSpeed`), where it captured JPEG before; a draft still captures JPEG.
+
+`STUDIO_HOME/machine.json` holds what belongs to a machine and not to a video: `workers`,
+`browser` (used after `STUDIO_BROWSER`) and `pin`, which on a Linux machine with several sockets
+pins workers alternately to a socket (6% faster on two). Without the file the kit measures the
+machine. Clip keys change with the engine, so every clip renders once more after this release.
 ## A film narrated in a recorded voice (0.38.0)
 
 Kit Langton open-sourced effect.institute, whose narration is his own voice recorded in the

@@ -138,3 +138,24 @@ def test_studio_home_falls_back_to_a_journey_checkout_beside_papershop(tmp_path,
     assert studio_home(root) == tmp_path / "home" / "studio"
     monkeypatch.setenv("STUDIO_HOME", str(tmp_path / "elsewhere"))
     assert studio_home(root) == tmp_path / "elsewhere"
+
+
+def test_workers_follow_the_machine_unless_told(monkeypatch):
+    from studio_kit import env
+    monkeypatch.setattr(env, "machine", lambda: {})
+    monkeypatch.setattr(env, "physical_cores", lambda: 20)
+    monkeypatch.setattr(env, "available_gb", lambda: 200.0)
+    assert env.render_workers({}) == 20
+    monkeypatch.setattr(env, "available_gb", lambda: 9.0)          # memory short: fewer browsers
+    assert env.render_workers({}) == 4
+    monkeypatch.setattr(env, "available_gb", lambda: 0.5)
+    assert env.render_workers({}) == 1
+    monkeypatch.setattr(env, "machine", lambda: {"workers": 6})
+    assert env.render_workers({}) == 6
+    assert env.render_workers({"STUDIO_WORKERS": "3"}) == 3
+
+
+def test_workers_are_pinned_only_when_the_machine_file_asks(monkeypatch):
+    from studio_kit import env
+    monkeypatch.setattr(env, "machine", lambda: {})
+    assert env.cpu_sets() == []
